@@ -1,0 +1,52 @@
+{
+  "name": "skyglass",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Smart mirror for pilots with aviation data, scheduling, and presence detection",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:mirror": "turbo dev --filter=@magic-mirror/backend --filter=@magic-mirror/frontend",
+    "dev:all": "./scripts/dev.sh",
+    "dev:simulate": "./scripts/dev.sh --simulate",
+    "build": "turbo build",
+    "start": "pm2 start config/pm2.config.cjs",
+    "stop": "pm2 stop all",
+    "logs": "pm2 logs",
+    "test": "turbo test",
+    "test:watch": "turbo test:watch",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,yaml,yml,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,yaml,yml,md}\"",
+    "clean": "turbo clean && rm -rf node_modules",
+    "enroll": "cd packages/presence && python3 detector.py --enroll",
+    "enroll:web": "cd packages/presence && python3 web_enroll.py",
+    "kiosk": "./scripts/kiosk.sh",
+    "setup:pi": "./scripts/setup-pi.sh",
+    "update": "./scripts/update.sh",
+    "update:check": "./scripts/update.sh --check",
+    "update:auto": "./scripts/update.sh --auto"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/suncalc": "^1.9.2",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
+    "eslint": "^9.39.2",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.0",
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@11.5.1",
+  "overrides": {
+    "diff": "^8.0.3",
+    "path-to-regexp": "^8.2.0",
+    "undici": "^7.3.0"
+  }
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=SkyGlass Daily Update Check
+Requires=skyglass-update.service
+
+[Timer]
+# Run once daily at 4:00 AM (when mirror is likely not in use)
+OnCalendar=*-*-* 04:00:00
+
+# Add some randomness to avoid all mirrors updating at exactly the same time
+RandomizedDelaySec=1800
+
+# Run immediately if we missed the last scheduled time (e.g., system was off)
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,203 @@
+# SkyGlass Release Pipeline
+#
+# Triggered on version tags (v*.*.*):
+# - Builds the device release tarball (skyglass-vX.Y.Z.tar.gz)
+# - Creates GitHub release with the tarball attached
+# - Builds and pushes Docker image
+# - Generates release notes
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ============================================================
+  # Create GitHub Release
+  # ============================================================
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+
+          # Write to file for multiline output
+          cat << EOF > release_notes.md
+          ## What's Changed
+
+          $COMMITS
+
+          ## Installation
+
+          ### Docker
+          \`\`\`bash
+          docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          docker compose up -d
+          \`\`\`
+
+          ### Manual
+          \`\`\`bash
+          git clone https://github.com/${{ github.repository }}.git
+          cd SkyGlass
+          git checkout v${{ steps.version.outputs.version }}
+          npm install && npm run build
+          \`\`\`
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ steps.version.outputs.version }}
+          EOF
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Only the packages that run on the mirror are built; cloud-api,
+      # license-server, website and mobile are deployed separately.
+      - name: Build device packages
+        run: npx turbo build --filter=@magic-mirror/backend --filter=@magic-mirror/frontend
+
+      # Release asset consumed by:
+      #   - packages/backend/src/services/updater.ts (first *.tar.gz asset of releases/latest)
+      #   - scripts/update.sh --check/--apply (first *.tar.gz asset of releases/latest)
+      #   - scripts/flash-sd.sh (latest: first *.tar.gz asset;
+      #     SKYGLASS_VERSION=vX.Y.Z: releases/download/vX.Y.Z/skyglass-vX.Y.Z.tar.gz)
+      # It must be the only *.tar.gz asset, and has no top-level folder
+      # (flash-sd.sh extracts it straight into ~/SkyGlass).
+      - name: Build release tarball
+        id: tarball
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          ASSET="skyglass-v${VERSION}.tar.gz"
+          test -f packages/backend/dist/server.js
+          test -f packages/frontend/dist/index.html
+          echo "$VERSION" > VERSION
+          tar -czf "$RUNNER_TEMP/$ASSET" \
+            --exclude=node_modules \
+            --exclude=venv \
+            --exclude=.venv \
+            --exclude=face_data \
+            --exclude=__pycache__ \
+            --exclude=.pytest_cache \
+            --exclude=.expo \
+            --exclude=.turbo \
+            --exclude='*.tsbuildinfo' \
+            --exclude='*snapshot_*.jpg' \
+            --exclude=.env \
+            --exclude=.env.local \
+            --exclude=packages/mobile \
+            --exclude=packages/website \
+            --exclude=packages/cloud-api \
+            --exclude=packages/license-server \
+            --exclude=packages/data \
+            --exclude=config/config.yaml \
+            --exclude=config/certs \
+            package.json package-lock.json turbo.json VERSION ecosystem.config.js LICENSE \
+            packages scripts config docs
+          # Fail fast if the archive is missing what update.sh/setup-pi.sh need
+          tar -tzf "$RUNNER_TEMP/$ASSET" > "$RUNNER_TEMP/contents.txt"
+          for f in package.json VERSION config/pm2.config.cjs scripts/update.sh scripts/setup-pi.sh \
+                   packages/backend/dist/server.js packages/frontend/dist/index.html \
+                   packages/presence/requirements.txt; do
+            grep -qxE "(\./)?$f" "$RUNNER_TEMP/contents.txt" || { echo "missing $f in $ASSET"; exit 1; }
+          done
+          if grep -qE '(^|/)(node_modules|venv|face_data)/|^(\./)?packages/(mobile|website)/|^(\./)?config/(config\.yaml|certs)' "$RUNNER_TEMP/contents.txt"; then
+            echo "runtime state or unneeded packages leaked into $ASSET"; exit 1
+          fi
+          (cd "$RUNNER_TEMP" && sha256sum "$ASSET" > "$ASSET.sha256")
+          echo "asset=$RUNNER_TEMP/$ASSET" >> "$GITHUB_OUTPUT"
+          echo "checksum=$RUNNER_TEMP/$ASSET.sha256" >> "$GITHUB_OUTPUT"
+          ls -lh "$RUNNER_TEMP/$ASSET"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: SkyGlass v${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          files: |
+            ${{ steps.tarball.outputs.asset }}
+            ${{ steps.tarball.outputs.checksum }}
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================
+  # Build and Push Docker Image
+  # ============================================================
+  docker:
+    name: Docker Image
+    runs-on: ubuntu-latest
+    needs: [release]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ !contains(github.ref, '-') }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

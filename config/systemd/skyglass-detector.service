@@ -1,0 +1,39 @@
+[Unit]
+Description=SkyGlass Presence Detector
+After=network.target skyglass-admin.service
+Wants=skyglass-admin.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/SkyGlass/packages/presence
+
+# Use the virtual environment
+Environment="PATH=/home/pi/SkyGlass/packages/presence/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Run the presence detector
+ExecStart=/home/pi/SkyGlass/packages/presence/venv/bin/python detector.py --backend http://localhost:3001
+
+# Restart on failure
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sg-detector
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/SkyGlass/packages/presence/face_data
+PrivateTmp=true
+
+# Camera access is required
+SupplementaryGroups=video
+
+[Install]
+WantedBy=multi-user.target

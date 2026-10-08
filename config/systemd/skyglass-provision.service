@@ -1,0 +1,30 @@
+[Unit]
+Description=SkyGlass WiFi Provisioning
+After=network.target
+Before=skyglass-boot.service
+ConditionPathExists=!/home/pi/SkyGlass/packages/presence/face_data/.wifi_configured
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/pi/SkyGlass/packages/presence
+
+# Use the virtual environment
+Environment="PATH=/home/pi/SkyGlass/packages/presence/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Run WiFi provisioning (creates hotspot + captive portal)
+ExecStart=/home/pi/SkyGlass/packages/presence/venv/bin/python wifi_provisioning.py
+
+# Restart on failure (but not too quickly)
+Restart=on-failure
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sg-provision
+
+[Install]
+WantedBy=multi-user.target

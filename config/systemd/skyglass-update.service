@@ -1,0 +1,22 @@
+[Unit]
+Description=SkyGlass Update Checker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/SkyGlass
+ExecStart=/home/pi/SkyGlass/scripts/update.sh --auto
+StandardOutput=append:/home/pi/SkyGlass/logs/update.log
+StandardError=append:/home/pi/SkyGlass/logs/update.log
+
+# Don't restart on failure - let the timer handle scheduling
+Restart=no
+
+# Environment
+Environment=HOME=/home/pi
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target

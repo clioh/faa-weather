@@ -1,0 +1,48 @@
+# SkyGlass Docker Compose - Development Override
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# This enables hot-reloading and source mounting for development.
+
+services:
+  backend:
+    build:
+      target: deps
+    command: npm run dev --workspace=packages/backend
+    volumes:
+      - ./packages/backend/src:/app/packages/backend/src:ro
+      - ./config:/app/config:ro
+    environment:
+      - NODE_ENV=development
+
+  # Vite dev server with hot reload (dev only). The base docker-compose.yml
+  # has no frontend service - in production skyglass-backend serves
+  # packages/frontend/dist on 3001 - so this service is fully defined here.
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: deps
+    # --host binds 0.0.0.0 so the published port is reachable from the host
+    command: npm run dev --workspace=packages/frontend -- --host
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./packages/frontend/src:/app/packages/frontend/src:ro
+      - ./packages/frontend/index.html:/app/packages/frontend/index.html:ro
+      - ./packages/frontend/vite.config.ts:/app/packages/frontend/vite.config.ts:ro
+      - ./packages/frontend/tsconfig.json:/app/packages/frontend/tsconfig.json:ro
+      - ./packages/frontend/tsconfig.node.json:/app/packages/frontend/tsconfig.node.json:ro
+    environment:
+      - NODE_ENV=development
+      - VITE_BACKEND_URL=http://backend:3001
+    depends_on:
+      - backend
+
+  presence:
+    volumes:
+      - ./packages/presence:/app/packages/presence
+      - ./config:/app/config:ro
+    environment:
+      - FLASK_ENV=development

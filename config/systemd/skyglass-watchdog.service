@@ -1,0 +1,30 @@
+[Unit]
+Description=SkyGlass Hardware Watchdog
+After=network.target skyglass-admin.service
+Wants=skyglass-admin.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/pi/SkyGlass/packages/presence
+
+# Use the virtual environment
+Environment="PATH=/home/pi/SkyGlass/packages/presence/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Run watchdog service (needs root for /dev/watchdog)
+# The UI is served by the backend on 3001 (no separate frontend on 5173)
+ExecStart=/home/pi/SkyGlass/packages/presence/venv/bin/python watchdog_service.py --interval 15 --frontend-url http://localhost:3001
+
+# Restart on failure
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sg-watchdog
+
+[Install]
+WantedBy=multi-user.target

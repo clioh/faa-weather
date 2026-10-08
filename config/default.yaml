@@ -1,0 +1,96 @@
+# SkyGlass Default Configuration
+# Copy this to config.yaml and customize for your setup
+
+# Primary airport ICAO code for METAR/TAF
+airport: KJFK
+
+# FAA NOTAM API key (get from https://api.faa.gov)
+notam_api_key: ${FAA_NOTAM_API_KEY}
+
+# Your location (for sun/moon calculations)
+location:
+  latitude: 40.6413
+  longitude: -73.7781
+  timezone: America/New_York
+
+# Display settings
+display:
+  presence_timeout: 120        # Seconds before display sleeps after you leave
+  fade_duration: 1000          # Fade animation in milliseconds
+  brightness: 80               # Default brightness percentage
+
+# Google Calendar integration
+calendar:
+  google:
+    enabled: false
+    calendar_ids:
+      - primary
+
+# Flight schedule from email
+schedule:
+  email:
+    enabled: false
+    imap_host: imap.gmail.com
+    imap_port: 993
+    username: ${EMAIL_USER}
+    password: ${EMAIL_PASS}
+    folder: INBOX
+    poll_interval: 300         # Seconds between email checks
+    sender_filter: ""          # Filter emails by sender address
+
+# Widget layout configuration
+widgets:
+  - type: clock
+    position: top-left
+    show_zulu: true
+
+  - type: aviation
+    position: top-right
+    show_metar: true
+    show_taf: true
+    show_flight_rules: true
+
+  - type: schedule
+    position: center-right
+    days_ahead: 7
+
+  - type: radar
+    position: center-left
+    zoom: 6
+    animation_speed: 500
+    show_timestamp: true
+
+  - type: tfr
+    position: bottom-left
+    radius_nm: 100             # Show TFRs within this radius
+
+  - type: notam
+    position: bottom-center
+    categories:
+      - runway
+      - obstacle
+      - airspace
+
+  - type: astro
+    position: bottom-right
+    show_sunrise: true
+    show_sunset: true
+    show_civil_twilight: true
+
+# Presence detection settings
+presence:
+  camera_index: 0              # Camera device index (0 = default)
+  # face_recognition = dlib face encodings, recognizes enrolled users (most accurate, heaviest)
+  # haar             = OpenCV Haar cascade, detects any face (lightest)
+  # mediapipe        = MediaPipe face detection, detects any face (lighter than face_recognition)
+  # auto             = best installed: face_recognition > mediapipe > haar
+  detection_method: auto       # face_recognition | haar | mediapipe | auto
+  tolerance: 0.6               # Face match tolerance (lower = stricter)
+  min_detection_frames: 3      # Frames needed to confirm presence
+  timeout: 5                   # Seconds before marking absent
+
+# License settings
+license:
+  enabled: false                              # Set to true to enable license validation
+  key: ${LICENSE_KEY}                         # Pre-installed license key (XXXX-XXXX-XXXX-XXXX)
+  serverUrl: https://license.skyglass.dev  # License server URL

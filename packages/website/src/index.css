@@ -1,0 +1,272 @@
+@import "tailwindcss";
+
+@theme {
+  /* Core palette */
+  --color-void: #05050a;
+  --color-panel: #0d0d14;
+  --color-instrument: #15151f;
+  --color-border: #252530;
+
+  /* Aviation flight rules */
+  --color-vfr: #00c853;
+  --color-mvfr: #2196f3;
+  --color-ifr: #ff1744;
+  --color-lifr: #d500f9;
+
+  /* Instrument amber */
+  --color-amber: #ffb300;
+  --color-amber-dim: #996a00;
+  --color-amber-glow: #ffb30040;
+
+  /* Text */
+  --color-light: #e8e8ec;
+  --color-muted: #6b6b80;
+
+  /* Font families */
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: 'DM Sans', sans-serif;
+
+  /* Animations */
+  --animate-radar-sweep: radar-sweep 4s linear infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-scan-line: scan-line 8s linear infinite;
+  --animate-fade-up: fade-up 0.8s ease-out forwards;
+  --animate-wake-up: wake-up 1.5s ease-out forwards;
+  --animate-flicker: flicker 0.15s ease-in-out;
+
+  @keyframes radar-sweep {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes scan-line {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+
+  @keyframes fade-up {
+    0% { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes wake-up {
+    0% { opacity: 0; filter: brightness(0); }
+    30% { opacity: 0.3; filter: brightness(0.3); }
+    100% { opacity: 1; filter: brightness(1); }
+  }
+
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-void text-light font-body antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    @apply bg-amber/30 text-amber;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-void;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted;
+  }
+}
+
+@layer components {
+  /* Scanline overlay effect */
+  .scanlines {
+    position: relative;
+  }
+
+  .scanlines::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.15) 2px,
+      rgba(0, 0, 0, 0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* CRT screen glow */
+  .crt-glow {
+    box-shadow:
+      0 0 60px rgba(255, 179, 0, 0.1),
+      0 0 120px rgba(255, 179, 0, 0.05),
+      inset 0 0 60px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Instrument panel card */
+  .instrument-card {
+    @apply relative bg-instrument border border-border rounded-lg overflow-hidden;
+    background: linear-gradient(
+      135deg,
+      rgba(21, 21, 31, 1) 0%,
+      rgba(13, 13, 20, 1) 100%
+    );
+  }
+
+  .instrument-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 179, 0, 0.3),
+      transparent
+    );
+  }
+
+  /* Flight rules badges */
+  .badge-vfr {
+    @apply bg-vfr/20 text-vfr border border-vfr/30;
+  }
+
+  .badge-mvfr {
+    @apply bg-mvfr/20 text-mvfr border border-mvfr/30;
+  }
+
+  .badge-ifr {
+    @apply bg-ifr/20 text-ifr border border-ifr/30;
+  }
+
+  .badge-lifr {
+    @apply bg-lifr/20 text-lifr border border-lifr/30;
+  }
+
+  /* Amber glow button */
+  .btn-primary {
+    @apply relative px-8 py-4 bg-amber text-void font-display font-semibold uppercase tracking-wider;
+    @apply transition-all duration-300;
+    @apply hover:shadow-[0_0_30px_rgba(255,179,0,0.4)] hover:scale-105;
+    clip-path: polygon(
+      0 0,
+      calc(100% - 12px) 0,
+      100% 12px,
+      100% 100%,
+      12px 100%,
+      0 calc(100% - 12px)
+    );
+  }
+
+  .btn-secondary {
+    @apply relative px-8 py-4 bg-transparent border-2 border-amber/50 text-amber;
+    @apply font-display font-semibold uppercase tracking-wider;
+    @apply transition-all duration-300;
+    @apply hover:border-amber hover:bg-amber/10;
+    clip-path: polygon(
+      0 0,
+      calc(100% - 12px) 0,
+      100% 12px,
+      100% 100%,
+      12px 100%,
+      0 calc(100% - 12px)
+    );
+  }
+
+  /* Radar sweep animation */
+  .radar-container {
+    @apply relative;
+  }
+
+  .radar-sweep {
+    position: absolute;
+    inset: 0;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(255, 179, 0, 0.3) 30deg,
+      transparent 60deg
+    );
+    animation: radar-sweep 4s linear infinite;
+    border-radius: inherit;
+  }
+
+  /* Noise texture overlay */
+  .noise {
+    position: relative;
+  }
+
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  /* Ambient glow */
+  .ambient-glow {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(
+      circle,
+      rgba(255, 179, 0, 0.08) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+    filter: blur(40px);
+  }
+}
+
+@utility text-gradient-amber {
+  @apply bg-gradient-to-r from-amber via-yellow-300 to-amber bg-clip-text text-transparent;
+}
+
+@utility animate-in {
+  animation: fade-up 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+/* Animation delay utilities */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-800 { animation-delay: 800ms; }

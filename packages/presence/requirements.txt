@@ -1,0 +1,20 @@
+# Core dependencies
+opencv-python>=4.9.0
+numpy>=1.26.0
+requests>=2.31.0
+pyyaml>=6.0.1
+
+# Web server for registration UI and settings
+flask>=3.0.0
+qrcode[pil]>=7.4.0
+gunicorn>=21.0.0          # Production WSGI server
+
+# Network discovery (mDNS/Bonjour)
+zeroconf>=0.131.0
+
+# Face detection (optional - install when network allows)
+# mediapipe>=0.10.9
+# face_recognition>=1.3.0
+
+# Optional: For Raspberry Pi camera support
+# picamera2>=0.3.17

@@ -1,0 +1,21 @@
+[Unit]
+Description=SkyGlass Boot Mode Detection
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=root
+WorkingDirectory=/home/pi/SkyGlass
+
+ExecStart=/home/pi/SkyGlass/scripts/boot-mode.sh
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sg-boot
+
+[Install]
+WantedBy=multi-user.target

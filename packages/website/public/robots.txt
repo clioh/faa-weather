@@ -1,0 +1,11 @@
+# SkyGlass Robots.txt
+# https://skyglass.dev
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://skyglass.dev/sitemap.xml
+
+# Crawl-delay (optional, be polite to crawlers)
+Crawl-delay: 1
