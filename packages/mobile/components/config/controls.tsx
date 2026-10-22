@@ -10,7 +10,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { fieldStyles, TOUCH } from './fieldStyles';
 import { TimezonePickerModal } from './TimezonePickerModal';
 import { isValidTimezone, timezoneCity } from './timezones';
@@ -85,7 +85,7 @@ export function NumberStepper({ label, value, min, max, step = 1, unit, onChange
         accessibilityRole="button"
         accessibilityLabel={`Decrease ${label}`}
       >
-        <Ionicons name="remove" size={20} color={atMin ? colors.textDisabled : colors.text} />
+        <Ionicons name="remove" size={20} color={colors.text} />
       </TouchableOpacity>
       <View style={styles.stepValueWrap}>
         <TextInput
@@ -110,7 +110,7 @@ export function NumberStepper({ label, value, min, max, step = 1, unit, onChange
         accessibilityRole="button"
         accessibilityLabel={`Increase ${label}`}
       >
-        <Ionicons name="add" size={20} color={atMax ? colors.textDisabled : colors.text} />
+        <Ionicons name="add" size={20} color={colors.text} />
       </TouchableOpacity>
     </View>
   );
@@ -202,7 +202,7 @@ export function PickerRow({
         {swatch ? (
           <View style={[styles.swatch, { backgroundColor: swatch }]} />
         ) : (
-          <Ionicons name={icon} size={18} color={value ? colors.primary : colors.textMuted} />
+          <Ionicons name={icon} size={18} color={value ? colors.text : colors.textMuted} />
         )}
         <View style={styles.pickerTextCol}>
           <Text style={value ? fieldStyles.pickerValue : fieldStyles.pickerPlaceholder} numberOfLines={1}>
@@ -215,7 +215,7 @@ export function PickerRow({
           ) : null}
         </View>
         {!(value && onClear) && (
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} style={styles.chevron} />
+          <Ionicons name="chevron-forward" size={14} color={colors.chevron} style={styles.chevron} />
         )}
       </TouchableOpacity>
       {value && onClear ? (
@@ -495,14 +495,15 @@ export function ListField({ label, itemLabel = 'item', value, placeholder, onCha
 }
 
 const styles = StyleSheet.create({
+  // Pill: − | value + unit (mono) | +
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+    height: TOUCH,
+    borderRadius: TOUCH / 2,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
   stepButton: {
     width: TOUCH,
@@ -510,86 +511,78 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepButtonDisabled: { opacity: 0.6 },
+  stepButtonDisabled: { opacity: 0.35 },
   stepValueWrap: {
     minWidth: 88,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'center',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: colors.border,
-    height: TOUCH,
     paddingHorizontal: spacing.sm,
     gap: 4,
   },
   stepValue: {
-    ...typography.body,
+    fontFamily: fonts.mono,
+    fontSize: 16,
     color: colors.text,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
     textAlign: 'center',
     minWidth: 32,
     paddingVertical: 0,
   },
-  stepUnit: { ...typography.bodySmall, color: colors.textMuted },
+  stepUnit: { fontFamily: fonts.mono, fontSize: 13, color: colors.textMuted },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.input,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     padding: 3,
     gap: 3,
   },
   segment: {
     flex: 1,
     minHeight: TOUCH - 6,
-    borderRadius: borderRadius.sm,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
-  segmentActive: { backgroundColor: colors.primaryMuted },
+  segmentActive: { backgroundColor: colors.text },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   swatch: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
   },
   pickerTextCol: { flex: 1, paddingVertical: spacing.xs },
-  chevron: { marginRight: spacing.md },
-  mono: { fontVariant: ['tabular-nums'], letterSpacing: 1 },
+  chevron: { marginRight: 14 },
+  mono: { fontFamily: fonts.mono, letterSpacing: 1 },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   listChip: { flexDirection: 'row', paddingRight: 0, maxWidth: '100%' },
   listChipText: { color: colors.text, flexShrink: 1 },
-  listChipRemove: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  listChipRemove: { width: 36, height: 34, alignItems: 'center', justifyContent: 'center' },
   listEmpty: { ...typography.bodySmall, color: colors.textMuted },
   listInputRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  listInput: { flex: 1 },
+  listInput: { flex: 1, minHeight: 48 },
   listButton: {
     minWidth: 64,
-    minHeight: TOUCH,
-    borderRadius: borderRadius.md,
+    height: 48,
+    borderRadius: borderRadius.input,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
   },
-  listButtonDisabled: { backgroundColor: colors.surfaceHighlight },
-  listButtonText: { ...typography.body, fontWeight: '600', color: colors.background },
+  listButtonDisabled: { backgroundColor: colors.disabledFill },
+  listButtonText: { fontSize: 14, fontWeight: '600', color: colors.onPrimary },
   listButtonTextDisabled: { color: colors.textDisabled },
   listButtonSecondary: {
-    minHeight: TOUCH,
-    borderRadius: borderRadius.md,
+    height: 48,
+    borderRadius: borderRadius.input,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
   },
-  listButtonSecondaryText: { ...typography.body, color: colors.text },
+  listButtonSecondaryText: { fontSize: 14, fontWeight: '500', color: colors.text },
   listLimit: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
 });

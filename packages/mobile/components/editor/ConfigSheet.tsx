@@ -5,22 +5,15 @@
  */
 
 import { useEffect, useState } from 'react';
-import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { HeaderTextButton } from '@/components/ScreenHeader';
+import { PageSheetHeader, Row, RowGroup, SectionLabel, Text } from '@/components/ui';
 import { ModuleConfigForm } from '@/components/ModuleConfigForm';
 import { TodoManager } from '@/components/config/TodoManager';
 import { PhotoManager } from '@/components/config/PhotoManager';
-import { CATEGORIES, SIZE_LABELS, type ModuleDefinition, type ModuleInstance, type ModuleSize } from '@/lib/modules';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { SIZE_LABELS, type ModuleDefinition, type ModuleInstance, type ModuleSize } from '@/lib/modules';
+import { colors, spacing, typography } from '@/lib/theme';
 import { SizeChips, type SizeOption } from './SizeChips';
 
 interface ConfigSheetProps {
@@ -54,31 +47,14 @@ export function ConfigSheet({
     }
   }, [visible]);
 
-  const category = definition ? CATEGORIES[definition.category] : null;
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onDone}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerSide} />
-          <View style={styles.headerCenter}>
-            {category && definition ? (
-              <View style={[styles.headerIcon, { backgroundColor: `${category.color}22` }]}>
-                <Ionicons
-                  name={definition.icon as keyof typeof Ionicons.glyphMap}
-                  size={16}
-                  color={category.color}
-                />
-              </View>
-            ) : null}
-            <Text style={styles.title} numberOfLines={1}>
-              {definition?.name ?? 'Widget'}
-            </Text>
-          </View>
-          <View style={[styles.headerSide, styles.headerRight]}>
-            <HeaderTextButton label="Done" onPress={onDone} />
-          </View>
-        </View>
+        <PageSheetHeader
+          title={definition?.name ?? 'Widget'}
+          icon={definition ? (definition.icon as keyof typeof Ionicons.glyphMap) : undefined}
+          action={{ label: 'Done', onPress: onDone }}
+        />
 
         {instance && (
           <ScrollView
@@ -111,26 +87,24 @@ export function ConfigSheet({
             {definition?.manages === 'todos' && <TodoManager />}
             {definition?.manages === 'photos' && <PhotoManager />}
             {definition?.manages === 'calendars' && (
-              <TouchableOpacity
-                style={styles.linkRow}
-                onPress={() => {
-                  // Close the sheet first: a pushed screen would sit under the modal.
-                  onDone();
-                  router.push('/calendars');
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Manage calendars"
-                accessibilityHint="Connect and manage the calendars shown on the mirror"
-              >
-                <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-                <Text style={styles.linkText}>Manage calendars</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
+              <RowGroup>
+                <Row
+                  icon="calendar-outline"
+                  title="Manage calendars"
+                  onPress={() => {
+                    // Close the sheet first: a pushed screen would sit under the modal.
+                    onDone();
+                    router.push('/calendars');
+                  }}
+                  accessibilityLabel="Manage calendars"
+                  accessibilityHint="Connect and manage the calendars shown on the mirror"
+                />
+              </RowGroup>
             )}
 
             {sizeOptions.length > 1 && instance && (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Size</Text>
+                <SectionLabel style={styles.sectionLabel}>Size</SectionLabel>
                 <SizeChips
                   wrap
                   options={sizeOptions}
@@ -147,17 +121,17 @@ export function ConfigSheet({
               </View>
             )}
 
-            <TouchableOpacity
+            <Pressable
               onPress={() => (confirmRemove ? onRemove() : setConfirmRemove(true))}
-              style={[styles.remove, confirmRemove && styles.removeConfirm]}
+              style={({ pressed }) => [styles.remove, confirmRemove && styles.removeConfirm, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel={confirmRemove ? 'Confirm remove widget' : 'Remove widget'}
             >
-              <Ionicons name="trash-outline" size={18} color={confirmRemove ? colors.text : colors.error} />
+              <Ionicons name="trash-outline" size={18} color={confirmRemove ? colors.background : colors.danger} />
               <Text style={[styles.removeText, confirmRemove && styles.removeTextConfirm]}>
                 {confirmRemove ? 'Tap again to remove' : 'Remove widget'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </ScrollView>
         )}
       </View>
@@ -168,98 +142,55 @@ export function ConfigSheet({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  headerSide: {
-    minWidth: 76,
-  },
-  headerRight: {
-    alignItems: 'flex-end',
-  },
-  headerCenter: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  headerIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    ...typography.h3,
-    color: colors.text,
-    flexShrink: 1,
+    backgroundColor: colors.surface,
   },
   content: {
-    padding: spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 10,
     paddingBottom: spacing.xxl,
-    gap: spacing.lg,
+    gap: 22,
   },
   noSettings: {
     ...typography.bodySmall,
     color: colors.textMuted,
   },
   section: {
-    gap: spacing.sm,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    paddingTop: 18,
   },
   sectionLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  linkText: {
-    ...typography.body,
-    color: colors.text,
-    flex: 1,
+    marginBottom: 0,
   },
   blocked: {
     ...typography.caption,
-    color: colors.warning,
+    color: colors.textMuted,
   },
   remove: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    minHeight: 48,
-    borderRadius: borderRadius.md,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 68, 68, 0.4)',
-    marginTop: spacing.md,
+    borderColor: colors.dangerBorder,
+    marginTop: 6,
   },
   removeConfirm: {
-    backgroundColor: colors.error,
-    borderColor: colors.error,
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   removeText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.error,
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.danger,
   },
   removeTextConfirm: {
-    color: colors.text,
+    color: colors.background,
   },
 });

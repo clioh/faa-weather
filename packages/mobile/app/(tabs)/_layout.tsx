@@ -25,7 +25,10 @@ const ITEMS: Record<string, Omit<TabBarItem, 'key'>> = {
 };
 
 function GlassTabBar({ state, navigation }: BottomTabBarProps) {
-  const items = state.routes.map((route) => ({ key: route.key, ...ITEMS[route.name] }));
+  // Only routes with a tab entry; anything else in the group gets no button.
+  const items = state.routes.flatMap((route) =>
+    ITEMS[route.name] ? [{ key: route.key, ...ITEMS[route.name] }] : []
+  );
   const active = state.routes[state.index];
 
   // Same event flow as the stock tab bar, so per-screen `tabPress` listeners

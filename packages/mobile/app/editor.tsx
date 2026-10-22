@@ -9,8 +9,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
+import { Button, Spinner, Text } from '@/components/ui';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 // expo-router bundles its own copy of React Navigation; hooks must come from
 // it or they cannot find the navigator.
@@ -33,7 +33,7 @@ import { api } from '@/lib/api';
 import { useUser } from '@/context/UserContext';
 import { useDisplayHold } from '@/hooks/useDisplayHold';
 import { goBack } from '@/lib/navigation';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
 import { getTemplateById } from '@/lib/templates';
 import { Canvas, type MirrorOrientation } from '@/components/editor/Canvas';
 import { ConfigSheet } from '@/components/editor/ConfigSheet';
@@ -538,20 +538,26 @@ export default function EditorScreen() {
       leftIcon="close"
       onLeftPress={close}
       right={
-        <TouchableOpacity
+        <Pressable
           onPress={save}
           disabled={saving || !editable}
-          style={[styles.saveButton, !dirty && styles.saveButtonClean]}
+          hitSlop={{ top: 4, bottom: 4 }}
+          style={({ pressed }) => [
+            styles.saveButton,
+            !dirty && styles.saveButtonClean,
+            !editable && styles.saveButtonDisabled,
+            pressed && styles.saveButtonPressed,
+          ]}
           accessibilityRole="button"
           accessibilityLabel="Save layout to mirror"
           accessibilityState={{ busy: saving, disabled: saving || !editable }}
         >
           {saving ? (
-            <ActivityIndicator size="small" color={dirty ? colors.background : colors.primary} />
+            <Spinner onAccent={dirty} color={dirty ? undefined : colors.text} />
           ) : (
             <Text style={[styles.saveText, !dirty && styles.saveTextClean]}>Save</Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
       }
     />
   );
@@ -561,7 +567,7 @@ export default function EditorScreen() {
       <View style={styles.container}>
         {header}
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <Spinner size="large" />
           <Text style={styles.loadingText}>Loading layout…</Text>
         </View>
       </View>
@@ -576,15 +582,14 @@ export default function EditorScreen() {
           <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
           <Text style={styles.errorTitle}>Layout not loaded</Text>
           <Text style={styles.errorBody}>{loadError}</Text>
-          <TouchableOpacity
-            style={[styles.emptyButton, styles.emptyButtonPrimary]}
+          <Button
+            label="Retry"
+            size="small"
+            icon="refresh"
             onPress={() => setLoadAttempt((n) => n + 1)}
-            accessibilityRole="button"
             accessibilityLabel="Retry loading layout"
-          >
-            <Ionicons name="refresh" size={16} color={colors.background} />
-            <Text style={[styles.emptyButtonText, styles.emptyButtonTextPrimary]}>Retry</Text>
-          </TouchableOpacity>
+            style={styles.retryButton}
+          />
         </View>
       </View>
     );
@@ -595,24 +600,14 @@ export default function EditorScreen() {
       <View style={styles.empty}>
         <Text style={styles.emptyTitle}>Your mirror is empty</Text>
         <View style={styles.emptyButtons}>
-          <TouchableOpacity
-            style={[styles.emptyButton, styles.emptyButtonPrimary]}
-            onPress={() => setShowLibrary(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Add widget"
-          >
-            <Ionicons name="add" size={16} color={colors.background} />
-            <Text style={[styles.emptyButtonText, styles.emptyButtonTextPrimary]}>Add widget</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.emptyButton}
+          <Button label="Add widget" size="small" onPress={() => setShowLibrary(true)} style={styles.emptyButton} />
+          <Button
+            label="Start from a template"
+            size="small"
+            variant="secondary"
             onPress={openTemplates}
-            accessibilityRole="button"
-            accessibilityLabel="Start from a template"
-          >
-            <Ionicons name="albums-outline" size={16} color={colors.text} />
-            <Text style={styles.emptyButtonText}>Start from a template</Text>
-          </TouchableOpacity>
+            style={styles.emptyButton}
+          />
         </View>
       </View>
     ) : null;
@@ -628,17 +623,17 @@ export default function EditorScreen() {
             <Text style={styles.liveText}>Live on mirror</Text>
           </View>
         ) : currentMirror && live === 'unreachable' ? (
-          <View style={[styles.livePill, styles.warnPill]}>
+          <View style={styles.livePill}>
             <Ionicons name="alert-circle-outline" size={12} color={colors.warning} />
             <Text style={styles.warnText}>Mirror not responding</Text>
           </View>
         ) : currentMirror ? (
-          <View style={[styles.livePill, styles.offlinePill]}>
-            <ActivityIndicator size="small" color={colors.textMuted} style={styles.pillSpinner} />
+          <View style={styles.livePill}>
+            <Spinner color={colors.textMuted} style={styles.pillSpinner} />
             <Text style={styles.offlineText}>Connecting to mirror…</Text>
           </View>
         ) : (
-          <View style={[styles.livePill, styles.offlinePill]}>
+          <View style={styles.livePill}>
             <Ionicons name="cloud-offline-outline" size={12} color={colors.textMuted} />
             <Text style={styles.offlineText}>No mirror connected</Text>
           </View>
@@ -741,11 +736,12 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textMuted,
   },
+  // Pill in the header's right slot: primary when there is something to save.
   saveButton: {
     minWidth: 64,
-    height: 34,
+    height: 36,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     borderWidth: 1,
     borderColor: colors.primary,
@@ -755,35 +751,38 @@ const styles = StyleSheet.create({
   },
   saveButtonClean: {
     backgroundColor: 'transparent',
-    borderColor: colors.borderFocus,
+    borderColor: colors.borderStrong,
+  },
+  saveButtonDisabled: {
+    opacity: 0.4,
+  },
+  saveButtonPressed: {
+    opacity: 0.7,
   },
   saveText: {
-    ...typography.bodySmall,
-    fontWeight: '700',
-    color: colors.background,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.onPrimary,
   },
   saveTextClean: {
-    color: colors.primary,
+    color: colors.text,
+    fontWeight: '500',
   },
   notFound: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   livePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryMuted,
+    gap: spacing.sm,
   },
   liveDot: {
     width: 7,
@@ -792,24 +791,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   liveText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  offlinePill: {
-    backgroundColor: colors.surfaceElevated,
+    fontSize: 12,
+    color: colors.chipText,
   },
   offlineText: {
-    ...typography.caption,
+    fontSize: 12,
     color: colors.textMuted,
   },
-  warnPill: {
-    backgroundColor: 'rgba(255, 170, 0, 0.14)',
-  },
   warnText: {
-    ...typography.caption,
+    fontSize: 12,
     color: colors.warning,
-    fontWeight: '600',
   },
   pillSpinner: {
     transform: [{ scale: 0.6 }],
@@ -836,13 +827,12 @@ const styles = StyleSheet.create({
   },
   empty: {
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 10,
     padding: spacing.md,
   },
   emptyTitle: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textSecondary,
+    fontSize: 15,
+    color: colors.text,
   },
   emptyButtons: {
     flexDirection: 'row',
@@ -851,26 +841,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: 40,
-    paddingHorizontal: 14,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceHighlight,
-    borderWidth: 1,
-    borderColor: colors.border,
+    height: 36,
+    borderRadius: 18,
   },
-  emptyButtonPrimary: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  emptyButtonText: {
-    ...typography.bodySmall,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  emptyButtonTextPrimary: {
-    color: colors.background,
+  retryButton: {
+    alignSelf: 'center',
   },
 });

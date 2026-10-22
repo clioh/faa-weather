@@ -4,8 +4,8 @@
  */
 
 import { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { Badge, Button, Chip, Notice, Text } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -78,33 +78,25 @@ export default function TemplatesScreen() {
     <View style={styles.container}>
       <ScreenHeader title="Choose a Template" fallbackHref="/editor" />
 
-      <View style={styles.filterContainer}>
+      <View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScroll}
         >
-          {CATEGORY_FILTERS.map((filter) => {
-            const active = selectedCategory === filter.key;
-            return (
-              <TouchableOpacity
-                key={filter.key}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setSelectedCategory(filter.key);
-                  setConfirmingId(null);
-                }}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={`${filter.label} templates`}
-              >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                  {filter.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          {CATEGORY_FILTERS.map((filter) => (
+            <Chip
+              key={filter.key}
+              label={filter.label}
+              selected={selectedCategory === filter.key}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setSelectedCategory(filter.key);
+                setConfirmingId(null);
+              }}
+              accessibilityLabel={`${filter.label} templates`}
+            />
+          ))}
         </ScrollView>
       </View>
 
@@ -114,38 +106,33 @@ export default function TemplatesScreen() {
           const confirming = confirmingId === template.id;
           return (
             <View key={template.id} style={[styles.templateCard, confirming && styles.templateCardConfirming]}>
-              <TouchableOpacity
+              <Pressable
                 onPress={() => handleApplyTemplate(template)}
-                activeOpacity={0.75}
+                style={({ pressed }) => [styles.cardBody, pressed && styles.pressed]}
                 accessibilityRole="button"
                 accessibilityLabel={`${template.name}. ${template.description}. ${template.modules.length} widgets: ${widgetNames(template)}`}
                 accessibilityHint={hasExistingModules ? 'Asks before replacing your layout' : 'Opens it in the editor'}
               >
                 <LayoutThumbnail
                   modules={template.modules}
+                  style={styles.thumbnail}
                   accessibilityLabel={`Preview of ${template.name}`}
                 />
-                <View style={styles.templateInfo}>
-                  <View style={styles.templateTitleRow}>
-                    <Text style={styles.templateName}>{template.name}</Text>
-                    <View style={[styles.categoryBadge, { backgroundColor: `${category.color}20` }]}>
-                      <Text style={[styles.categoryBadgeText, { color: category.color }]}>
-                        {category.label}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.templateDescription}>{template.description}</Text>
-                  <Text style={styles.widgetList} numberOfLines={2}>
-                    {template.modules.length} widgets · {widgetNames(template)}
-                  </Text>
+                <View style={styles.templateTitleRow}>
+                  <Text style={styles.templateName}>{template.name}</Text>
+                  <Badge label={category.label} />
                 </View>
+                <Text style={styles.templateDescription}>{template.description}</Text>
+                <Text style={styles.widgetList} numberOfLines={2}>
+                  {template.modules.length} widgets · {widgetNames(template)}
+                </Text>
                 {!confirming && (
                   <View style={styles.applyRow}>
                     <Text style={styles.applyButtonText}>Use this layout</Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                    <Ionicons name="chevron-forward" size={14} color={colors.primary} />
                   </View>
                 )}
-              </TouchableOpacity>
+              </Pressable>
 
               {confirming && (
                 <View style={styles.confirmRow}>
@@ -153,22 +140,21 @@ export default function TemplatesScreen() {
                     Replace your current layout? You can still edit before saving.
                   </Text>
                   <View style={styles.confirmButtons}>
-                    <TouchableOpacity
-                      style={styles.confirmCancel}
+                    <Button
+                      label="Cancel"
+                      variant="secondary"
+                      size="small"
                       onPress={() => setConfirmingId(null)}
-                      accessibilityRole="button"
                       accessibilityLabel="Keep current layout"
-                    >
-                      <Text style={styles.confirmCancelText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.confirmReplace}
+                      style={styles.confirmButton}
+                    />
+                    <Button
+                      label="Replace"
+                      size="small"
                       onPress={() => applyAndNavigate(template)}
-                      accessibilityRole="button"
                       accessibilityLabel={`Replace layout with ${template.name}`}
-                    >
-                      <Text style={styles.confirmReplaceText}>Replace</Text>
-                    </TouchableOpacity>
+                      style={styles.confirmButton}
+                    />
                   </View>
                 </View>
               )}
@@ -178,18 +164,15 @@ export default function TemplatesScreen() {
 
         {filteredTemplates.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={48} color={colors.textMuted} />
+            <Ionicons name="search-outline" size={32} color={colors.textMuted} />
             <Text style={styles.emptyText}>No templates in this category</Text>
           </View>
         )}
 
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.infoText}>
-            Templates use your mirror’s airport and location. After applying one you can move,
-            resize or remove widgets before saving.
-          </Text>
-        </View>
+        <Notice
+          tone="info"
+          message="Templates use your mirror’s airport and location. After applying one you can move, resize or remove widgets before saving."
+        />
       </ScrollView>
     </View>
   );
@@ -200,64 +183,46 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  filterContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
   filterScroll: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingTop: 12,
+    paddingBottom: spacing.xs,
     gap: spacing.sm,
     flexDirection: 'row',
   },
-  filterChip: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-  },
-  filterChipText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: colors.primary,
-  },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 14,
     paddingBottom: spacing.xxl,
+    gap: 18,
   },
   templateCard: {
-    backgroundColor: colors.surfaceElevated,
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    padding: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.sheetBorder,
   },
   templateCardConfirming: {
-    borderColor: colors.warning,
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySelected,
   },
-  templateInfo: {
-    marginTop: spacing.md,
+  cardBody: {
+    gap: 10,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+  thumbnail: {
+    borderRadius: 8,
   },
   templateTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    marginBottom: spacing.xs,
   },
   templateName: {
-    ...typography.h3,
+    fontSize: 17,
     color: colors.text,
     flexShrink: 1,
   },
@@ -268,16 +233,6 @@ const styles = StyleSheet.create({
   widgetList: {
     ...typography.caption,
     color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  categoryBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  categoryBadgeText: {
-    ...typography.caption,
-    fontWeight: '600',
   },
   applyRow: {
     minHeight: 44,
@@ -285,79 +240,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: spacing.xs,
-    marginTop: spacing.xs,
+    marginTop: -spacing.xs,
   },
   applyButtonText: {
-    ...typography.body,
+    fontSize: 15,
     color: colors.primary,
-    fontWeight: '600',
   },
   confirmRow: {
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: spacing.sm,
+    marginTop: 12,
+    gap: 10,
   },
   confirmText: {
-    ...typography.bodySmall,
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.text,
   },
   confirmButtons: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  confirmCancel: {
+  confirmButton: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmCancelText: {
-    ...typography.body,
-    color: colors.text,
-  },
-  confirmReplace: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.warning,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmReplaceText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.background,
+    alignSelf: 'auto',
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxl,
+    gap: spacing.md,
   },
   emptyText: {
     ...typography.body,
     color: colors.textMuted,
-    marginTop: spacing.md,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginTop: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  infoText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 20,
   },
 });

@@ -4,34 +4,34 @@
  */
 
 import { StyleSheet } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts, sizes } from '@/lib/theme';
 
 export const TOUCH = 44;
 
 export const fieldStyles = StyleSheet.create({
+  // Same box as components/ui Field: 52pt, radius 14, borderStrong outline.
   input: {
-    minHeight: TOUCH,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+    minHeight: sizes.input,
+    borderRadius: borderRadius.input,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     color: colors.text,
     ...typography.body,
+    fontSize: 16,
   },
   inputError: {
     borderColor: colors.error,
   },
   pickerRow: {
-    minHeight: TOUCH,
+    minHeight: sizes.input,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.input,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingLeft: spacing.md,
+    borderColor: colors.borderStrong,
+    paddingLeft: 14,
     gap: spacing.sm,
   },
   pickerRowMain: {
@@ -39,16 +39,18 @@ export const fieldStyles = StyleSheet.create({
     minHeight: TOUCH,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 14,
   },
   pickerValue: {
     ...typography.body,
     color: colors.text,
     flexShrink: 1,
   },
+  // "Mirror default" and other empty values read as data.
   pickerPlaceholder: {
-    ...typography.body,
-    color: colors.textMuted,
+    fontFamily: fonts.mono,
+    fontSize: 14,
+    color: colors.textSecondary,
     flexShrink: 1,
   },
   pickerSubvalue: {
@@ -61,28 +63,27 @@ export const fieldStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Same as components/ui Chip: 34pt pill; selected = white fill, black text.
   chip: {
-    minHeight: TOUCH - 8,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
+    minHeight: sizes.chip,
+    paddingHorizontal: 14,
+    borderRadius: sizes.chip / 2,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: colors.chipBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryMuted,
+    borderColor: colors.text,
+    backgroundColor: colors.text,
   },
   chipText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    fontWeight: '500',
+    fontSize: 13,
+    color: colors.chipText,
   },
   chipTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.background,
+    fontWeight: '500',
   },
   errorText: {
     ...typography.caption,

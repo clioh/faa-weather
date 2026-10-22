@@ -11,8 +11,8 @@ import { Text } from '@/components/ui/Text';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { CATEGORIES, SIZE_LABELS, type ModuleDefinition, type ModuleInstance, type ModuleSize } from '@/lib/modules';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { SIZE_LABELS, type ModuleDefinition, type ModuleInstance, type ModuleSize } from '@/lib/modules';
+import { colors, borderRadius, spacing, typography, tones } from '@/lib/theme';
 import { SizeChips, type SizeOption } from './SizeChips';
 
 export const SELECTION_BAR_HEIGHT = 148;
@@ -76,8 +76,6 @@ function SelectedContent({
     return () => clearTimeout(t);
   }, [blockedHint]);
 
-  const tint = definition ? CATEGORIES[definition.category].color : colors.textMuted;
-
   const handleRemove = () => {
     if (!confirming) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -90,13 +88,11 @@ function SelectedContent({
   return (
     <Animated.View entering={FadeInDown.duration(200)} exiting={FadeOut.duration(100)} style={styles.content}>
       <View style={styles.titleRow}>
-        <View style={[styles.iconWrap, { backgroundColor: `${tint}22` }]}>
-          <Ionicons
-            name={(definition?.icon ?? 'help-circle-outline') as keyof typeof Ionicons.glyphMap}
-            size={16}
-            color={tint}
-          />
-        </View>
+        <Ionicons
+          name={(definition?.icon ?? 'help-circle-outline') as keyof typeof Ionicons.glyphMap}
+          size={18}
+          color={colors.text}
+        />
         <Text style={styles.title} numberOfLines={1}>
           {definition?.name ?? 'Unavailable widget'}
         </Text>
@@ -165,12 +161,18 @@ function ActionButton({
   destructive?: boolean;
   confirming?: boolean;
 }) {
-  const color = disabled ? colors.textDisabled : confirming ? colors.text : destructive ? colors.error : colors.text;
+  const color = disabled
+    ? colors.textDisabled
+    : confirming
+      ? colors.background
+      : destructive
+        ? colors.danger
+        : colors.text;
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
-      style={[styles.action, confirming && styles.actionConfirm]}
+      style={[styles.action, destructive && styles.actionDanger, confirming && styles.actionConfirm]}
       accessibilityRole="button"
       accessibilityLabel={confirming ? 'Confirm remove widget' : label}
       accessibilityState={{ disabled }}
@@ -184,9 +186,6 @@ function ActionButton({
 const styles = StyleSheet.create({
   container: {
     height: SELECTION_BAR_HEIGHT,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   hintWrap: {
@@ -204,32 +203,24 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 12,
-    gap: 10,
+    paddingTop: 18,
+    gap: 14,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    gap: 10,
+    paddingHorizontal: spacing.lg,
     minHeight: 26,
   },
-  iconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: {
-    ...typography.body,
-    fontWeight: '600',
+    fontSize: 17,
     color: colors.text,
     flex: 1,
   },
   blocked: {
     ...typography.caption,
-    color: colors.warning,
+    color: colors.textMuted,
     flexShrink: 1,
   },
   setupPill: {
@@ -239,7 +230,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255, 170, 0, 0.14)',
+    borderWidth: 1,
+    borderColor: tones.warning.border,
+    backgroundColor: tones.warning.fill,
   },
   setupDot: {
     width: 6,
@@ -250,12 +243,11 @@ const styles = StyleSheet.create({
   setupText: {
     ...typography.caption,
     color: colors.warning,
-    fontWeight: '600',
   },
   singleSize: {
     ...typography.caption,
     color: colors.textMuted,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     minHeight: 34,
     textAlignVertical: 'center',
     paddingTop: 9,
@@ -263,26 +255,27 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   action: {
     flex: 1,
-    minHeight: 44,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surfaceElevated,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.chipBorder,
+  },
+  actionDanger: {
+    borderColor: colors.dangerBorder,
   },
   actionConfirm: {
-    backgroundColor: colors.error,
-    borderColor: colors.error,
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
   },
   actionLabel: {
-    ...typography.bodySmall,
-    fontWeight: '600',
+    fontSize: 13,
   },
 });

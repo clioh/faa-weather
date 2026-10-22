@@ -12,15 +12,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Linking,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { Image, Linking, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Button, Notice, Spinner, Text } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -158,22 +151,17 @@ export function PhotoManager() {
         </View>
       )}
       {permissionDenied && (
-        <View style={styles.permission}>
-          <Text style={styles.permissionText}>
-            SkyGlass needs access to your photo library to add photos.
-          </Text>
-          <TouchableOpacity
-            style={styles.permissionButton}
-            onPress={() => Linking.openSettings()}
-            accessibilityRole="button"
-          >
-            <Text style={styles.permissionButtonText}>Open Settings</Text>
-          </TouchableOpacity>
+        <View style={styles.messageWrap}>
+          <Notice
+            tone="warning"
+            message="SkyGlass needs access to your photo library to add photos."
+            action={{ label: 'Open Settings', onPress: () => Linking.openSettings() }}
+          />
         </View>
       )}
 
       {loading ? (
-        <ActivityIndicator color={colors.primary} style={styles.loader} />
+        <Spinner style={styles.loader} />
       ) : (
         <>
           <Text style={styles.count}>
@@ -198,7 +186,7 @@ export function PhotoManager() {
                     {confirming && (
                       <View style={styles.confirmOverlay}>
                         {deletingId === photo.id ? (
-                          <ActivityIndicator color={colors.text} />
+                          <Spinner color={colors.text} />
                         ) : (
                           <TouchableOpacity
                             style={styles.deleteButton}
@@ -206,7 +194,7 @@ export function PhotoManager() {
                             accessibilityRole="button"
                             accessibilityLabel={`Delete photo ${index + 1}`}
                           >
-                            <Ionicons name="trash" size={16} color={colors.text} />
+                            <Ionicons name="trash-outline" size={16} color={colors.background} />
                             <Text style={styles.deleteText}>Delete</Text>
                           </TouchableOpacity>
                         )}
@@ -220,7 +208,7 @@ export function PhotoManager() {
               Array.from({ length: progress.total - progress.done }).map((_, i) => (
                 <View key={`pending-${i}`} style={styles.cell}>
                   <View style={[styles.thumbWrap, styles.pending]}>
-                    {i === 0 ? <ActivityIndicator color={colors.primary} /> : null}
+                    {i === 0 ? <Spinner /> : null}
                   </View>
                 </View>
               ))}
@@ -228,18 +216,17 @@ export function PhotoManager() {
         </>
       )}
 
-      <TouchableOpacity
-        style={[styles.addButton, uploading && styles.addButtonBusy]}
+      <Button
+        label={
+          uploading ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…` : 'Add photos'
+        }
+        variant="secondary"
+        icon={uploading ? 'cloud-upload-outline' : 'add'}
         onPress={pickAndUpload}
         disabled={uploading}
-        accessibilityRole="button"
         accessibilityLabel="Add photos from your library"
-      >
-        <Ionicons name={uploading ? 'cloud-upload-outline' : 'add'} size={20} color={colors.primary} />
-        <Text style={styles.addText}>
-          {uploading ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…` : 'Add photos'}
-        </Text>
-      </TouchableOpacity>
+        style={styles.addButton}
+      />
     </View>
   );
 }
@@ -256,10 +243,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: borderRadius.sm,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceTint,
   },
   thumb: { width: '100%', height: '100%' },
-  pending: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  pending: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.hairline },
   confirmOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: colors.overlay,
@@ -273,31 +260,8 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.error,
+    backgroundColor: colors.danger,
   },
-  deleteText: { ...typography.bodySmall, fontWeight: '600', color: colors.text },
-  addButton: {
-    marginTop: spacing.md,
-    minHeight: TOUCH,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.borderFocus,
-    backgroundColor: colors.primaryMuted,
-  },
-  addButtonBusy: { opacity: 0.7 },
-  addText: { ...typography.body, fontWeight: '600', color: colors.primary },
-  permission: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: 'rgba(255, 170, 0, 0.1)',
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  permissionText: { ...typography.bodySmall, color: colors.warning },
-  permissionButton: { minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' },
-  permissionButtonText: { ...typography.body, fontWeight: '600', color: colors.primary },
+  deleteText: { fontSize: 13, fontWeight: '600', color: colors.background },
+  addButton: { marginTop: spacing.md },
 });

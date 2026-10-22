@@ -6,12 +6,12 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SectionLabel, Spinner, Text, TextInput } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api, type TodoItem } from '@/lib/api';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { InlineError } from '../ErrorToast';
 import { fieldStyles, TOUCH } from './fieldStyles';
 
@@ -57,26 +57,31 @@ export function TodoManager() {
     }
   };
 
+  // On failure, undo only this item: restoring a snapshot of the whole list
+  // would also throw away other changes made while this request was in flight.
   const toggle = async (item: TodoItem) => {
-    const before = items;
     Haptics.selectionAsync();
-    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)));
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, done: !item.done } : i)));
     try {
       const updated = await api.updateTodo(item.id, { done: !item.done });
       setItems((prev) => prev.map((i) => (i.id === item.id ? updated : i)));
     } catch (e) {
-      setItems(before);
+      setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
       setError(errorText(e, 'Couldn’t update item'));
     }
   };
 
   const remove = async (item: TodoItem) => {
-    const before = items;
+    const index = items.findIndex((i) => i.id === item.id);
     setItems((prev) => prev.filter((i) => i.id !== item.id));
     try {
       await api.deleteTodo(item.id);
     } catch (e) {
-      setItems(before);
+      setItems((prev) =>
+        prev.some((i) => i.id === item.id)
+          ? prev
+          : [...prev.slice(0, Math.max(0, index)), item, ...prev.slice(Math.max(0, index))]
+      );
       setError(errorText(e, 'Couldn’t delete item'));
     }
   };
@@ -108,12 +113,16 @@ export function TodoManager() {
       )}
 
       {loading ? (
-        <ActivityIndicator color={colors.primary} style={styles.loader} />
+        <Spinner style={styles.loader} />
       ) : (
         <>
-          <Text style={styles.count}>
-            {items.length === 0 ? 'Nothing on the list.' : `${openCount} open · ${items.length - openCount} done`}
-          </Text>
+          <View style={styles.header}>
+            <SectionLabel style={styles.headerLabel}>Items</SectionLabel>
+            <Text style={styles.count}>
+              {items.length === 0 ? 'Nothing on the list.' : `${openCount} open · ${items.length - openCount} done`}
+            </Text>
+          </View>
+          <View style={items.length > 0 ? styles.rows : null}>
           {items.map((item, index) => (
             <View key={item.id} style={styles.row}>
               <TouchableOpacity
@@ -123,11 +132,9 @@ export function TodoManager() {
                 accessibilityState={{ checked: item.done }}
                 accessibilityLabel={item.text}
               >
-                <Ionicons
-                  name={item.done ? 'checkbox' : 'square-outline'}
-                  size={22}
-                  color={item.done ? colors.primary : colors.textSecondary}
-                />
+                <View style={[styles.box, item.done && styles.boxDone]}>
+                  {item.done ? <Ionicons name="checkmark" size={14} color={colors.onPrimary} /> : null}
+                </View>
               </TouchableOpacity>
               <Text style={[styles.text, item.done && styles.textDone]} numberOfLines={3}>
                 {item.text}
@@ -164,6 +171,7 @@ export function TodoManager() {
               </TouchableOpacity>
             </View>
           ))}
+          </View>
         </>
       )}
 
@@ -188,7 +196,7 @@ export function TodoManager() {
           accessibilityLabel="Add to-do item"
         >
           {adding ? (
-            <ActivityIndicator size="small" color={colors.background} />
+            <Spinner />
           ) : (
             <Text style={[styles.addButtonText, !draft.trim() && styles.addButtonTextDisabled]}>Add</Text>
           )}
@@ -201,30 +209,52 @@ export function TodoManager() {
 const styles = StyleSheet.create({
   errorWrap: { marginBottom: spacing.sm },
   loader: { paddingVertical: spacing.lg },
-  count: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.xs },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    paddingTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  headerLabel: { marginBottom: 0 },
+  count: { ...typography.caption, fontFamily: fonts.mono, color: colors.textMuted },
+  rows: { borderBottomWidth: 1, borderBottomColor: colors.hairline },
   row: {
-    minHeight: TOUCH,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    gap: 2,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
-  check: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center', marginLeft: -spacing.sm },
-  text: { ...typography.body, color: colors.text, flex: 1, paddingVertical: spacing.sm },
+  check: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center', marginLeft: -12 },
+  box: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.switchOffBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  boxDone: { backgroundColor: colors.primary, borderColor: colors.primary },
+  text: { fontSize: 14, lineHeight: 20, color: colors.text, flex: 1, paddingVertical: spacing.sm },
   textDone: { color: colors.textMuted, textDecorationLine: 'line-through' },
-  smallButton: { width: 38, height: TOUCH, alignItems: 'center', justifyContent: 'center' },
-  addRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  addInput: { flex: 1 },
+  smallButton: { width: 36, height: TOUCH, alignItems: 'center', justifyContent: 'center' },
+  addRow: { flexDirection: 'row', gap: spacing.sm, marginTop: 14 },
+  addInput: { flex: 1, minHeight: 48 },
   addButton: {
     minWidth: 64,
-    minHeight: TOUCH,
-    borderRadius: borderRadius.md,
+    height: 48,
+    borderRadius: borderRadius.input,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
   },
-  addButtonDisabled: { backgroundColor: colors.surfaceHighlight },
-  addButtonText: { ...typography.body, fontWeight: '600', color: colors.background },
+  addButtonDisabled: { backgroundColor: colors.disabledFill },
+  addButtonText: { fontSize: 14, fontWeight: '600', color: colors.onPrimary },
   addButtonTextDisabled: { color: colors.textDisabled },
 });

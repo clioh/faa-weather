@@ -28,11 +28,11 @@ export interface LayoutTemplate {
   modules: Omit<ModuleInstance, 'instanceId'>[];
 }
 
-export const TEMPLATE_CATEGORIES: Record<TemplateCategory, { label: string; icon: string; color: string }> = {
-  aviation: { label: 'Aviation', icon: 'airplane', color: '#00ff88' },
-  weather: { label: 'Weather', icon: 'partly-sunny', color: '#ffaa00' },
-  lifestyle: { label: 'Lifestyle', icon: 'home', color: '#0088ff' },
-  minimal: { label: 'Minimal', icon: 'remove', color: '#95a5a6' },
+export const TEMPLATE_CATEGORIES: Record<TemplateCategory, { label: string; icon: string }> = {
+  aviation: { label: 'Aviation', icon: 'airplane' },
+  weather: { label: 'Weather', icon: 'partly-sunny' },
+  lifestyle: { label: 'Lifestyle', icon: 'home' },
+  minimal: { label: 'Minimal', icon: 'remove' },
 };
 
 type TemplateModule = Omit<ModuleInstance, 'instanceId'>;

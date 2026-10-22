@@ -4,22 +4,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  Modal,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Keyboard,
-} from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
+import { View, StyleSheet, Modal, ScrollView, Alert, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
-import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
-import { ScreenHeader } from './ScreenHeader';
+import { Button, Field, Footer, Notice, PageSheetHeader, Row, RowGroup, Spinner, Text } from '@/components/ui';
+import { colors, spacing, typography, fonts } from '@/lib/theme';
 
 export interface LocationData {
   latitude: number;
@@ -158,12 +148,7 @@ export function LocationPicker({
     >
       <View style={styles.container}>
         {/* Header */}
-        <ScreenHeader
-          title="Set Location"
-          leftIcon="close"
-          onLeftPress={handleClose}
-          useTopInset={false}
-        />
+        <PageSheetHeader title="Set Location" onClose={handleClose} />
 
         <ScrollView
           style={styles.scroll}
@@ -172,117 +157,83 @@ export function LocationPicker({
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets
         >
-          {/* Detect Location Button */}
-          <TouchableOpacity
-            style={styles.detectButton}
-            onPress={detectLocation}
-            disabled={detecting}
-          >
-            {detecting ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Ionicons name="locate" size={24} color={colors.primary} />
-            )}
-            <View style={styles.detectButtonText}>
-              <Text style={styles.detectTitle}>
-                {detecting ? 'Detecting...' : 'Detect My Location'}
-              </Text>
-              <Text style={styles.detectSubtitle}>Use GPS to find your location</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-
-          {/* Manual Entry Toggle */}
-          <TouchableOpacity
-            style={styles.manualToggle}
-            onPress={() => setShowManual(!showManual)}
-          >
-            <Ionicons name="create-outline" size={20} color={colors.textMuted} />
-            <Text style={styles.manualToggleText}>Enter coordinates manually</Text>
-            <Ionicons
-              name={showManual ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={colors.textMuted}
+          <RowGroup>
+            {/* Detect Location Button */}
+            <Row
+              leading={detecting ? <Spinner /> : <Ionicons name="locate-outline" size={22} color={colors.primary} />}
+              title={detecting ? 'Detecting...' : 'Detect My Location'}
+              caption="Use GPS to find your location"
+              onPress={detectLocation}
+              disabled={detecting}
+              style={detecting ? styles.active : undefined}
             />
-          </TouchableOpacity>
+
+            {/* Manual Entry Toggle */}
+            <Row
+              icon="create-outline"
+              title="Enter coordinates manually"
+              onPress={() => setShowManual(!showManual)}
+              trailing={
+                <Ionicons name={showManual ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+              }
+            />
+          </RowGroup>
 
           {/* Manual Entry Form */}
           {showManual && (
             <View style={styles.manualForm}>
               <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Latitude</Text>
-                <TextInput
-                  style={styles.input}
+                <Field
+                  style={styles.inputCol}
+                  label="Latitude"
+                  mono
                   value={manualLat}
                   onChangeText={setManualLat}
                   placeholder="40.7128"
-                  placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   returnKeyType="next"
                 />
-              </View>
-              <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Longitude</Text>
-                <TextInput
-                  style={styles.input}
+                <Field
+                  style={styles.inputCol}
+                  label="Longitude"
+                  mono
                   value={manualLon}
                   onChangeText={setManualLon}
                   placeholder="-74.0060"
-                  placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={handleManualSave}
                 />
               </View>
-              <TouchableOpacity style={styles.manualSaveButton} onPress={handleManualSave}>
-                <Text style={styles.manualSaveText}>Apply Coordinates</Text>
-              </TouchableOpacity>
+              <Button label="Apply Coordinates" variant="secondary" onPress={handleManualSave} style={styles.apply} />
             </View>
           )}
 
           {/* Error */}
-          {error && (
-            <View style={styles.errorBox}>
-              <Ionicons name="warning-outline" size={18} color={colors.error} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
+          {error && <Notice tone="error" message={error} />}
 
           {/* Current Location Display */}
           {location && (
             <View style={styles.locationDisplay}>
               <View style={styles.locationHeader}>
-                <Ionicons name="location" size={24} color={colors.primary} />
-                <Text style={styles.locationTitle}>
-                  {location.city || 'Location Set'}
-                </Text>
+                <Ionicons name="location-outline" size={18} color={colors.primary} />
+                <Text style={styles.locationTitle}>{location.city || 'Location Set'}</Text>
               </View>
-              <View style={styles.coordinatesRow}>
-                <View style={styles.coordinate}>
-                  <Text style={styles.coordinateLabel}>Latitude</Text>
-                  <Text style={styles.coordinateValue}>{location.latitude}</Text>
-                </View>
-                <View style={styles.coordinate}>
-                  <Text style={styles.coordinateLabel}>Longitude</Text>
-                  <Text style={styles.coordinateValue}>{location.longitude}</Text>
-                </View>
-              </View>
+              <Text style={styles.coordinates}>
+                {location.latitude}, {location.longitude}
+              </Text>
             </View>
           )}
         </ScrollView>
 
         {/* Footer */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.confirmButton, !location && styles.confirmButtonDisabled]}
+        <Footer>
+          <Button
+            label={location ? 'Use This Location' : 'Select a Location'}
             onPress={handleConfirm}
             disabled={!location}
-          >
-            <Text style={styles.confirmButtonText}>
-              {location ? 'Use This Location' : 'Select a Location'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          />
+        </Footer>
       </View>
     </Modal>
   );
@@ -291,153 +242,51 @@ export function LocationPicker({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   scroll: {
     flex: 1,
   },
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingHorizontal: 20,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.lg,
+    gap: 18,
   },
-  detectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
-  },
-  detectButtonText: {
-    flex: 1,
-  },
-  detectTitle: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  detectSubtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  manualToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.lg,
-  },
-  manualToggleText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
+  active: {
+    opacity: 1,
   },
   manualForm: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 18,
   },
   inputRow: {
-    marginBottom: spacing.md,
-  },
-  inputLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    height: 48,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    ...typography.body,
-  },
-  manualSaveButton: {
-    alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.primaryMuted,
-    borderRadius: borderRadius.md,
-    marginTop: spacing.sm,
-  },
-  manualSaveText: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  errorBox: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
+    gap: 10,
   },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
+  inputCol: {
     flex: 1,
   },
+  apply: {
+    height: 44,
+  },
   locationDisplay: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.primary,
+    gap: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    paddingTop: spacing.md,
   },
   locationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.md,
   },
   locationTitle: {
-    ...typography.h3,
+    fontSize: 16,
     color: colors.text,
   },
-  coordinatesRow: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  coordinate: {
-    flex: 1,
-  },
-  coordinateLabel: {
+  coordinates: {
     ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  coordinateValue: {
-    ...typography.body,
-    color: colors.text,
     fontFamily: fonts.mono,
-  },
-  footer: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  confirmButton: {
-    height: 56,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmButtonDisabled: {
-    backgroundColor: colors.surfaceHighlight,
-  },
-  confirmButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
+    color: colors.textMuted,
   },
 });

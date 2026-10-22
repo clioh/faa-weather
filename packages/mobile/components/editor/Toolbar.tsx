@@ -24,7 +24,7 @@ export function Toolbar({ onAdd, onTemplates, onTidy, onUndo, onRedo, canTidy, c
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
-      <ToolButton icon="add-circle" label="Add widget" onPress={onAdd} primary />
+      <ToolButton icon="add-circle-outline" label="Add widget" onPress={onAdd} primary />
       <ToolButton icon="albums-outline" label="Templates" onPress={onTemplates} />
       <ToolButton icon="grid-outline" label="Tidy" onPress={onTidy} disabled={!canTidy} />
       <ToolButton icon="arrow-undo-outline" label="Undo" onPress={onUndo} disabled={!canUndo} />
@@ -46,18 +46,18 @@ function ToolButton({
   disabled?: boolean;
   primary?: boolean;
 }) {
-  const color = disabled ? colors.textDisabled : primary ? colors.primary : colors.text;
+  const color = primary ? colors.primary : colors.chipText;
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
-      style={styles.button}
+      style={[styles.button, disabled && styles.disabled]}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
     >
-      <Ionicons name={icon} size={primary ? 26 : 22} color={color} />
-      <Text style={[styles.label, { color: disabled ? colors.textDisabled : primary ? colors.primary : colors.textSecondary }]}>
+      <Ionicons name={icon} size={22} color={color} />
+      <Text style={[styles.label, { color }]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -67,21 +67,24 @@ function ToolButton({
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
+    gap: spacing.xs,
     paddingTop: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    backgroundColor: colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    paddingHorizontal: 12,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
   button: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 4,
+  },
+  disabled: {
+    opacity: 0.35,
   },
   label: {
     fontSize: 11,
-    fontWeight: '600',
   },
 });

@@ -62,10 +62,19 @@ export function MirrorNotFound({ visible, onFound }: MirrorNotFoundProps) {
   };
 
   if (busy) {
+    // Manual entry stays available while the automatic search runs.
     return (
-      <View style={[styles.container, styles.searchingRow]} accessibilityRole="alert">
-        <Spinner />
-        <Text style={styles.searchingText}>Looking for your mirror…</Text>
+      <View style={styles.container} accessibilityRole="alert">
+        <View style={styles.searchingRow}>
+          <Spinner />
+          <Text style={styles.searchingText}>Looking for your mirror…</Text>
+        </View>
+        <Button
+          label="Enter address manually"
+          variant="secondary"
+          onPress={goToManualEntry}
+          style={styles.button}
+        />
       </View>
     );
   }

@@ -4,19 +4,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  FlatList,
-  Keyboard,
-} from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
+import { View, StyleSheet, Modal, TouchableOpacity, FlatList, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
-import { ScreenHeader, HEADER_HIT_SLOP } from './ScreenHeader';
+import { Field, PageSheetHeader, Row, SectionLabel, Text } from '@/components/ui';
+import { colors, spacing, typography, fonts } from '@/lib/theme';
+import { HEADER_HIT_SLOP } from './ScreenHeader';
 
 interface Airport {
   icao: string;
@@ -101,34 +94,21 @@ export function AirportPicker({
     onClose();
   };
 
-  const renderAirport = ({ item }: { item: Airport }) => (
-    <TouchableOpacity
-      style={[
-        styles.airportItem,
-        item.icao === currentValue && styles.airportItemSelected,
-      ]}
-      onPress={() => handleSelect(item)}
-    >
-      <View style={styles.airportIcon}>
-        <Ionicons
-          name="airplane"
-          size={20}
-          color={item.icao === currentValue ? colors.primary : colors.textMuted}
-        />
-      </View>
-      <View style={styles.airportInfo}>
-        <Text style={styles.airportIcao}>{item.icao}</Text>
-        <Text style={styles.airportName}>{item.name}</Text>
-        <Text style={styles.airportLocation}>
-          {item.city}
-          {item.country ? `, ${item.country}` : ''}
-        </Text>
-      </View>
-      {item.icao === currentValue && (
-        <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-      )}
-    </TouchableOpacity>
-  );
+  const renderAirport = ({ item }: { item: Airport }) => {
+    const selected = item.icao === currentValue;
+    return (
+      <Row
+        leading={<Text style={styles.icao}>{item.icao}</Text>}
+        title={item.name}
+        caption={`${item.city}${item.country ? `, ${item.country}` : ''}`}
+        selected={selected}
+        onPress={() => handleSelect(item)}
+        accessibilityLabel={`${item.icao}, ${item.name}`}
+        trailing={selected ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : undefined}
+        chevron={false}
+      />
+    );
+  };
 
   return (
     <Modal
@@ -139,46 +119,41 @@ export function AirportPicker({
     >
       <View style={styles.container}>
         {/* Header */}
-        <ScreenHeader
-          title="Select Airport"
-          leftIcon="close"
-          onLeftPress={handleClose}
-          useTopInset={false}
-        />
+        <PageSheetHeader title="Select Airport" onClose={handleClose} />
 
-        {/* Search Input */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
+        <View style={styles.top}>
+          {/* Search Input */}
+          <Field
+            icon="search"
             placeholder="Search by ICAO, name, or city..."
-            placeholderTextColor={colors.textMuted}
+            accessibilityLabel="Search airports"
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="characters"
             autoCorrect={false}
             returnKeyType="search"
+            trailing={
+              searchQuery.length > 0 ? (
+                <TouchableOpacity
+                  onPress={() => setSearchQuery('')}
+                  hitSlop={HEADER_HIT_SLOP}
+                  style={styles.clearButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                >
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              ) : undefined
+            }
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              hitSlop={HEADER_HIT_SLOP}
-              style={styles.clearButton}
-              accessibilityRole="button"
-              accessibilityLabel="Clear search"
-            >
-              <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
+
+          {/* Current Selection */}
+          {currentValue && (
+            <Text style={styles.caption}>
+              Current: <Text style={styles.currentValue}>{currentValue}</Text>
+            </Text>
           )}
         </View>
-
-        {/* Current Selection */}
-        {currentValue && (
-          <View style={styles.currentSelection}>
-            <Text style={styles.currentLabel}>Current:</Text>
-            <Text style={styles.currentValue}>{currentValue}</Text>
-          </View>
-        )}
 
         {/* Results */}
         <FlatList
@@ -190,13 +165,12 @@ export function AirportPicker({
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           ListHeaderComponent={
-            searchQuery.length === 0 ? (
-              <Text style={styles.sectionTitle}>Popular Airports</Text>
-            ) : null
+            searchQuery.length === 0 ? <SectionLabel>Popular Airports</SectionLabel> : null
           }
+          ListFooterComponent={results.length > 0 ? <View style={styles.listEnd} /> : null}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="airplane-outline" size={48} color={colors.textMuted} />
+              <Ionicons name="airplane-outline" size={32} color={colors.textMuted} />
               <Text style={styles.emptyText}>No airports found</Text>
               <Text style={styles.emptySubtext}>
                 Enter a 4-letter ICAO code directly (e.g., KJFK)
@@ -206,12 +180,9 @@ export function AirportPicker({
         />
 
         {/* Info */}
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.infoText}>
-            Enter the 4-letter ICAO airport code (e.g., KJFK for JFK)
-          </Text>
-        </View>
+        <Text style={[styles.caption, styles.info]}>
+          Enter the 4-letter ICAO airport code (e.g., KJFK for JFK)
+        </Text>
       </View>
     </Modal>
   );
@@ -220,124 +191,61 @@ export function AirportPicker({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
+  },
+  top: {
+    paddingHorizontal: 20,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
   },
   clearButton: {
-    padding: spacing.sm,
+    width: 44,
+    height: 44,
     marginRight: -spacing.sm,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: spacing.lg,
-    paddingHorizontal: spacing.md,
-    height: 48,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    ...typography.body,
-    color: colors.text,
-    height: '100%',
-  },
-  currentSelection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.primaryMuted,
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
-  },
-  currentLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  currentValue: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  listContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  sectionTitle: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  airportItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  airportItemSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryMuted,
-  },
-  airportIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
-  airportInfo: {
-    flex: 1,
-  },
-  airportIcao: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '700',
-    fontFamily: fonts.mono,
-  },
-  airportName: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  airportLocation: {
+  caption: {
     ...typography.caption,
     color: colors.textMuted,
   },
+  currentValue: {
+    fontFamily: fonts.mono,
+    color: colors.text,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: spacing.xl,
+  },
+  // Bottom hairline under the last row, like a RowGroup.
+  listEnd: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  icao: {
+    width: 56,
+    fontFamily: fonts.mono,
+    fontSize: 15,
+    color: colors.text,
+  },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: spacing.xl * 2,
+    paddingVertical: spacing.xxl,
+    gap: spacing.sm,
   },
   emptyText: {
     ...typography.body,
     color: colors.textMuted,
-    marginTop: spacing.md,
   },
   emptySubtext: {
     ...typography.bodySmall,
     color: colors.textMuted,
-    marginTop: spacing.xs,
+    textAlign: 'center',
   },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    margin: spacing.lg,
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-  },
-  infoText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    flex: 1,
+  info: {
+    paddingHorizontal: 20,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
   },
 });

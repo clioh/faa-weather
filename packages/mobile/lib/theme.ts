@@ -86,6 +86,13 @@ export const colors = {
   badgeWarningBorder: 'rgba(255, 183, 77, 0.6)',
   thumbTile: 'rgba(255, 255, 255, 0.14)', // layout thumbnail tiles
   thumbTileBorder: 'rgba(255, 255, 255, 0.18)',
+  // Layout editor (values from mockups/A-Editor.dc.html)
+  tileFill: 'rgba(255, 255, 255, 0.06)', // neutral glass tile
+  tileBorder: 'rgba(255, 255, 255, 0.16)',
+  tileText: 'rgba(255, 255, 255, 0.85)',
+  gridDot: 'rgba(255, 255, 255, 0.16)',
+  ghostValid: 'rgba(122, 215, 255, 0.10)',
+  ghostInvalid: 'rgba(255, 107, 122, 0.14)',
   ringTrack: 'rgba(255, 255, 255, 0.12)', // progress ring track
   faceGuide: 'rgba(122, 215, 255, 0.6)', // dashed oval on the camera preview
   previewPill: 'rgba(0, 0, 0, 0.6)', // pills over the camera preview

@@ -12,11 +12,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
+import { PageSheetHeader, Text, TextInput } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
-import { ScreenHeader, HEADER_HIT_SLOP } from '../ScreenHeader';
+import { colors, spacing, typography, fonts } from '@/lib/theme';
+import { HEADER_HIT_SLOP } from '../ScreenHeader';
 import { KeyboardAvoidingScreen } from '../KeyboardAvoidingScreen';
 import { COMMON_TIMEZONES, isValidTimezone, timezoneOffsetLabel, type TimezoneOption } from './timezones';
 
@@ -90,7 +90,7 @@ export function TimezonePickerModal({
       >
         <View style={styles.rowText}>
           <Text style={styles.city}>{item.city}</Text>
-          <Text style={styles.zoneId}>{item.id}</Text>
+          <Text style={[styles.zoneId, item.id.includes('/') && styles.mono]}>{item.id}</Text>
         </View>
         {offsets[item.id] ? <Text style={styles.offset}>{offsets[item.id]}</Text> : null}
         {selected && <Ionicons name="checkmark" size={20} color={colors.primary} />}
@@ -101,7 +101,7 @@ export function TimezonePickerModal({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
       <View style={styles.container}>
-        <ScreenHeader title={title} leftIcon="close" onLeftPress={close} useTopInset={false} />
+        <PageSheetHeader title={title} onClose={close} />
         <KeyboardAvoidingScreen>
           <View style={styles.search}>
             <Ionicons name="search" size={18} color={colors.textMuted} />
@@ -165,36 +165,45 @@ export function TimezonePickerModal({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.surface },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: spacing.md,
-    paddingLeft: spacing.md,
-    minHeight: 44,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
+    marginHorizontal: 20,
+    marginTop: spacing.xs,
+    marginBottom: 14,
+    paddingLeft: 14,
+    height: 48,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
+    borderColor: colors.borderStrong,
+    gap: 10,
   },
-  searchInput: { flex: 1, color: colors.text, ...typography.body, paddingVertical: spacing.sm },
+  searchInput: { flex: 1, color: colors.text, fontSize: 15, paddingVertical: 0 },
   clear: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl },
+  list: { paddingHorizontal: 20, paddingBottom: spacing.xxl },
   row: {
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
+    gap: 14,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
-  rowSelected: { backgroundColor: colors.primaryMuted },
-  rowText: { flex: 1 },
-  city: { ...typography.body, color: colors.text },
+  rowSelected: {
+    backgroundColor: colors.primarySelected,
+    borderTopColor: 'transparent',
+    borderRadius: 12,
+    marginHorizontal: -12,
+    paddingHorizontal: 12,
+  },
+  rowText: { flex: 1, gap: 2 },
+  city: { fontSize: 15, color: colors.text },
   zoneId: { ...typography.caption, color: colors.textMuted },
-  offset: { ...typography.caption, color: colors.textSecondary, fontVariant: ['tabular-nums'] },
-  customRow: { borderWidth: 1, borderColor: colors.borderFocus, marginBottom: spacing.sm },
-  customText: { ...typography.body, color: colors.primary },
+  mono: { fontFamily: fonts.mono },
+  offset: { fontFamily: fonts.mono, fontSize: 13, color: colors.textSecondary },
+  customRow: { borderTopColor: 'transparent' },
+  customText: { fontSize: 15, color: colors.primary },
   empty: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center', padding: spacing.xl },
 });

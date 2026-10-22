@@ -11,6 +11,8 @@ import { colors, sizes, spacing } from '@/lib/theme';
 
 interface PageSheetHeaderProps {
   title: string;
+  /** Small icon before the title (e.g. the widget being configured). */
+  icon?: keyof typeof Ionicons.glyphMap;
   /** Shows the close X on the left. */
   onClose?: () => void;
   closeLabel?: string;
@@ -22,7 +24,7 @@ interface PageSheetHeaderProps {
 
 const HIT = { top: 4, bottom: 4, left: 4, right: 4 };
 
-export function PageSheetHeader({ title, onClose, closeLabel = 'Close', action, right }: PageSheetHeaderProps) {
+export function PageSheetHeader({ title, icon, onClose, closeLabel = 'Close', action, right }: PageSheetHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.side}>
@@ -38,9 +40,12 @@ export function PageSheetHeader({ title, onClose, closeLabel = 'Close', action, 
           </Pressable>
         ) : null}
       </View>
-      <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
-        {title}
-      </Text>
+      <View style={styles.center}>
+        {icon ? <Ionicons name={icon} size={16} color={colors.text} /> : null}
+        <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+          {title}
+        </Text>
+      </View>
       <View style={[styles.side, styles.right]}>
         {right ??
           (action ? (
@@ -76,8 +81,15 @@ const styles = StyleSheet.create({
   right: {
     justifyContent: 'flex-end',
   },
-  title: {
+  center: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  title: {
+    flexShrink: 1,
     textAlign: 'center',
     fontSize: 16,
     fontWeight: '500',

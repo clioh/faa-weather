@@ -15,7 +15,8 @@
  */
 
 import { useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Switch } from '@/components/ui/Switch';
 import { Text, TextInput } from '@/components/ui/Text';
 import * as Haptics from 'expo-haptics';
 import type { ModuleConfigField, ModuleDefinition } from '@/lib/modules';
@@ -230,9 +231,6 @@ export function ModuleConfigForm({ definition, config, onChange }: ModuleConfigF
                 Haptics.selectionAsync();
                 setValue(field.key, v);
               }}
-              trackColor={{ false: colors.surfaceHighlight, true: colors.primaryDark }}
-              thumbColor={colors.text}
-              ios_backgroundColor={colors.surfaceHighlight}
               accessibilityLabel={field.label}
             />
           </View>
@@ -300,18 +298,16 @@ export function ModuleConfigForm({ definition, config, onChange }: ModuleConfigF
 }
 
 const styles = StyleSheet.create({
-  form: { gap: spacing.lg },
-  field: {},
+  form: { gap: 22 },
+  field: { gap: 6 },
   label: {
-    ...typography.label,
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
   },
   required: { color: colors.warning },
   description: {
     ...typography.caption,
     color: colors.textMuted,
-    marginTop: spacing.xs,
   },
   switchRow: {
     minHeight: TOUCH,
@@ -320,6 +316,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  switchLabel: { ...typography.body, color: colors.text, flex: 1 },
+  switchLabel: { fontSize: 15, color: colors.text, flex: 1 },
   noSettings: { ...typography.bodySmall, color: colors.textMuted },
 });

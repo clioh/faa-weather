@@ -17,7 +17,7 @@ import { ModuleTile, TILE_INSET, type GhostValues } from './ModuleTile';
 
 export type MirrorOrientation = 'landscape' | 'portrait';
 
-const FRAME = 6; // bezel thickness around the glass
+const FRAME = 1; // hairline frame around the glass
 const GUTTER = 16;
 
 interface CanvasProps {
@@ -94,7 +94,7 @@ export function Canvas({
       width: glide(ghostRef.cols.value * cellW - TILE_INSET * 2),
       height: glide(ghostRef.rows.value * cellH - TILE_INSET * 2),
       borderColor: valid ? colors.primary : colors.error,
-      backgroundColor: valid ? 'rgba(0, 255, 136, 0.10)' : 'rgba(255, 68, 68, 0.14)',
+      backgroundColor: valid ? colors.ghostValid : colors.ghostInvalid,
     };
   });
 
@@ -125,7 +125,7 @@ export function Canvas({
                   {Array.from({ length: (GRID_COLS + 1) * (GRID_ROWS + 1) }, (_, i) => {
                     const cx = (i % (GRID_COLS + 1)) * cellW;
                     const cy = Math.floor(i / (GRID_COLS + 1)) * cellH;
-                    return <Circle key={i} cx={cx} cy={cy} r={1} fill="rgba(255,255,255,0.18)" />;
+                    return <Circle key={i} cx={cx} cy={cy} r={1} fill={colors.gridDot} />;
                   })}
                 </Svg>
               </View>
@@ -171,19 +171,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   frame: {
-    padding: FRAME - 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: '#05070c',
+    borderRadius: 10,
+    borderWidth: FRAME,
+    borderColor: colors.borderStrong,
+    overflow: 'hidden',
   },
   glass: {
-    borderRadius: 8,
-    backgroundColor: '#000',
+    backgroundColor: colors.background,
   },
   ghost: {
     position: 'absolute',
-    borderRadius: 8,
+    borderRadius: 5,
     borderWidth: 1.5,
     borderStyle: 'dashed',
   },

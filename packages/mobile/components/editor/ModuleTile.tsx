@@ -23,7 +23,6 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
-  CATEGORIES,
   GRID_COLS,
   GRID_ROWS,
   SIZE_DIMENSIONS,
@@ -361,8 +360,6 @@ function ModuleTileImpl({
     };
   });
 
-  const category = definition ? CATEGORIES[definition.category] : null;
-  const tint = category?.color ?? colors.textMuted;
   const name = definition?.name ?? 'Unavailable widget';
   const needsSetup = definition ? missingRequiredFields(definition, instance.config ?? {}).length > 0 : false;
 
@@ -370,8 +367,9 @@ function ModuleTileImpl({
   // simply reflows inside the stretching box.
   const pxW = cols * cellW;
   const pxH = rows * cellH;
-  const horizontal = pxW > pxH * 1.6;
-  const iconSize = Math.max(14, Math.min(22, Math.min(pxW, pxH) * 0.32));
+  // Too small for a readable label: show the widget's icon instead.
+  const iconOnly = pxH < 30 || pxW < 44;
+  const iconSize = Math.max(12, Math.min(18, Math.min(pxW, pxH) * 0.4));
   const sizeLabel = SIZE_DIMENSIONS[instance.size] ? SIZE_LABELS[instance.size] : instance.size;
 
   const a11yActions = [
@@ -408,30 +406,18 @@ function ModuleTileImpl({
         accessibilityActions={a11yActions}
         onAccessibilityAction={handleA11yAction}
       >
-        <View
-          style={[
-            styles.tile,
-            {
-              backgroundColor: `${tint}${selected ? '33' : '1f'}`,
-              borderColor: selected ? colors.primary : `${tint}55`,
-              borderWidth: selected ? 2 : 1,
-            },
-            horizontal ? styles.row : styles.column,
-          ]}
-        >
-          <Ionicons
-            name={(definition?.icon ?? 'help-circle-outline') as keyof typeof Ionicons.glyphMap}
-            size={iconSize}
-            color={tint}
-          />
-          {pxH >= 30 || horizontal ? (
-            <Text
-              style={[styles.name, horizontal ? styles.nameRow : styles.nameColumn]}
-              numberOfLines={horizontal ? 1 : 2}
-            >
+        <View style={[styles.tile, selected && styles.tileSelected, iconOnly && styles.tileIconOnly]}>
+          {iconOnly ? (
+            <Ionicons
+              name={(definition?.icon ?? 'help-circle-outline') as keyof typeof Ionicons.glyphMap}
+              size={iconSize}
+              color={colors.tileText}
+            />
+          ) : (
+            <Text style={styles.name} numberOfLines={2}>
               {name}
             </Text>
-          ) : null}
+          )}
           {needsSetup && <View style={styles.badge} accessibilityElementsHidden />}
         </View>
         {selected && (
@@ -444,7 +430,7 @@ function ModuleTileImpl({
               accessibilityHint="Use the size buttons below the canvas to change size."
             >
               <View style={styles.handle}>
-                <Ionicons name="resize" size={10} color={colors.background} style={styles.handleIcon} />
+                <Ionicons name="resize" size={10} color={colors.onPrimary} style={styles.handleIcon} />
               </View>
             </View>
           </GestureDetector>
@@ -460,46 +446,44 @@ const styles = StyleSheet.create({
   slot: {
     position: 'absolute',
     padding: TILE_INSET,
-    shadowColor: '#000',
+    shadowColor: colors.background,
     shadowOffset: { width: 0, height: 6 },
   },
+  // Neutral glass; the selected tile gets the accent outline and tint.
   tile: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: 5,
     overflow: 'hidden',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: colors.tileFill,
+    borderWidth: 1,
+    borderColor: colors.tileBorder,
+  },
+  tileSelected: {
+    backgroundColor: colors.primaryMuted,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  tileIconOnly: {
     justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  column: {
-    flexDirection: 'column',
-    gap: 2,
+    alignItems: 'center',
+    padding: 0,
   },
   name: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  nameRow: {
-    flexShrink: 1,
-  },
-  nameColumn: {
-    textAlign: 'center',
+    color: colors.tileText,
+    fontSize: 10,
   },
   badge: {
     position: 'absolute',
     top: 4,
     right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: colors.warning,
-    borderWidth: 1,
-    borderColor: colors.background,
   },
   // Inside the tile's own bounds: Android does not deliver touches outside a
   // parent's frame, so a handle hanging off the corner would be half dead.
@@ -509,16 +493,16 @@ const styles = StyleSheet.create({
     bottom: TILE_INSET,
     width: 24,
     height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
   },
+  // Accent corner tab, flush with the tile's bottom-right corner.
   handle: {
     width: 18,
     height: 18,
-    borderRadius: 9,
+    borderTopLeftRadius: 6,
+    borderBottomRightRadius: 5,
     backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },

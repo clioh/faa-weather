@@ -116,16 +116,16 @@ export const SIZE_LABELS: Record<ModuleSize, string> = {
   full: 'Full width',
 };
 
-export const CATEGORIES: Record<ModuleCategory, { label: string; icon: string; color: string }> = {
-  aviation: { label: 'Aviation', icon: 'airplane', color: '#00ff88' },
-  weather: { label: 'Weather', icon: 'partly-sunny', color: '#ffaa00' },
-  time: { label: 'Time', icon: 'time', color: '#3388ff' },
-  calendar: { label: 'Calendar', icon: 'calendar', color: '#ff6b6b' },
-  news: { label: 'News', icon: 'newspaper', color: '#b388ff' },
-  finance: { label: 'Finance', icon: 'trending-up', color: '#2ecc71' },
-  productivity: { label: 'Productivity', icon: 'checkbox', color: '#4fc3f7' },
-  media: { label: 'Media', icon: 'images', color: '#f06292' },
-  utilities: { label: 'Utilities', icon: 'construct', color: '#9e9e9e' },
+export const CATEGORIES: Record<ModuleCategory, { label: string; icon: string }> = {
+  aviation: { label: 'Aviation', icon: 'airplane' },
+  weather: { label: 'Weather', icon: 'partly-sunny' },
+  time: { label: 'Time', icon: 'time' },
+  calendar: { label: 'Calendar', icon: 'calendar' },
+  news: { label: 'News', icon: 'newspaper' },
+  finance: { label: 'Finance', icon: 'trending-up' },
+  productivity: { label: 'Productivity', icon: 'checkbox' },
+  media: { label: 'Media', icon: 'images' },
+  utilities: { label: 'Utilities', icon: 'construct' },
 };
 
 export const CATEGORY_ORDER: ModuleCategory[] = [
