@@ -42,29 +42,29 @@ def test_safe_user_dir_rejects_symlink_escape(users_dir, tmp_path):
 
 
 def test_delete_rejects_traversal_and_keeps_parent(users_dir):
-    sentinel = users_dir.parent / "enrolled_face.pkl"
+    sentinel = users_dir.parent / "keep-me.txt"
     sentinel.write_bytes(b"x")
     with pytest.raises(ValueError):
         ws.delete_user_face_data("..")
     assert sentinel.exists()
 
 
-def test_delete_endpoint_returns_400_for_bad_id(users_dir):
-    client = ws.app.test_client()
+def test_delete_endpoint_returns_400_for_bad_id(users_dir, internal):
+    client = ws.app.test_client(); client.environ_base.update({"HTTP_" + k.upper().replace("-", "_"): v for k, v in internal.items()})
     resp = client.delete("/api/users/..%2E/face")
     assert resp.status_code in (400, 404)
     resp = client.delete("/api/users/bad.id/face")
     assert resp.status_code == 400
     resp = client.get("/api/users/bad.id/face")
     assert resp.status_code == 400
-    resp = client.post("/api/users/bad.id/enroll/start", json={"name": "x"})
+    resp = client.post("/api/start", json={"userId": "bad.id", "name": "x"})
     assert resp.status_code == 400
 
 
-def test_delete_endpoint_valid_id(users_dir):
+def test_delete_endpoint_valid_id(users_dir, internal):
     (users_dir / "u1").mkdir()
     (users_dir / "u1" / "encodings.pkl").write_bytes(b"x")
-    client = ws.app.test_client()
+    client = ws.app.test_client(); client.environ_base.update({"HTTP_" + k.upper().replace("-", "_"): v for k, v in internal.items()})
     assert client.delete("/api/users/u1/face").status_code == 200
     assert not (users_dir / "u1").exists()
     assert client.delete("/api/users/u1/face").status_code == 404

@@ -1,21 +1,26 @@
 """
-Gunicorn configuration for SkyGlass Presence Server.
+Gunicorn configuration for the SkyGlass presence/admin server (PM2 app skyglass-admin).
 
 Run with: gunicorn -c gunicorn.conf.py wsgi:app
 """
 
 import os
-import multiprocessing
 
-# Server socket
+# Server socket. LAN-reachable on purpose: the phone's live camera preview
+# during enrollment (/video_feed?token=...) and the optional /admin portal
+# connect directly. Every route except /api/health, /api/status and the login
+# page requires the internal token, an admin session or the enrollment token
+# (docs/SECURITY.md). GUNICORN_BIND=127.0.0.1:5000 if you need neither.
 bind = os.environ.get("GUNICORN_BIND", "0.0.0.0:5000")
 
 # Worker processes
 # IMPORTANT: Use only 1 worker because camera access must be single-process
 workers = 1
 
-# Use threads for concurrency instead of multiple workers
-threads = 4
+# Use threads for concurrency instead of multiple workers. Each open MJPEG
+# stream holds a thread (web_server.MAX_VIDEO_STREAMS = 3), so keep headroom
+# for the API calls the backend makes during enrollment.
+threads = 8
 
 # Worker class - use sync for compatibility with OpenCV
 worker_class = "sync"
@@ -32,12 +37,15 @@ errorlog = "-"   # stderr
 loglevel = os.environ.get("LOG_LEVEL", "info")
 
 # Process naming
-proc_name = "skyglass-presence"
+proc_name = "skyglass-admin"
 
 # Server hooks
+
+
 def on_starting(server):
     """Called just before the master process is initialized."""
-    print("Starting SkyGlass Presence Server...")
+    print("Starting SkyGlass admin server...")
+
 
 def post_fork(server, worker):
     """Called just after a worker has been forked."""
@@ -49,12 +57,14 @@ def post_fork(server, worker):
     else:
         print(f"Worker {worker.pid} initialized camera {camera_index}")
 
+
 def worker_exit(server, worker):
     """Called when a worker exits."""
     from web_server import release_camera
     release_camera()
     print(f"Worker {worker.pid} released camera")
 
+
 def on_exit(server):
     """Called just before exiting Gunicorn."""
-    print("Shutting down SkyGlass Presence Server...")
+    print("Shutting down SkyGlass admin server...")

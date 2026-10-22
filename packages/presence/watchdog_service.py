@@ -8,22 +8,27 @@ watchdog will automatically reboot the Raspberry Pi.
 
 Features:
 - Feeds the hardware watchdog timer (/dev/watchdog)
-- Monitors backend, frontend, and presence services
+- Monitors the PM2 apps: skyglass-backend and skyglass-admin over HTTP
+  (/api/health), skyglass-detector through `pm2 jlist` (it serves no HTTP)
+- Restarts an app via PM2 after --max-failures consecutive failed checks
 - Logs health status
-- Triggers reboot if services are unhealthy for too long
 
-Usage:
-    sudo python watchdog_service.py
+Usage (systemd unit skyglass-watchdog.service):
+    sudo python watchdog_service.py --pm2-user <install user>
 
-Note: Requires root access for /dev/watchdog
+Note: Requires root access for /dev/watchdog. PM2 apps belong to the install
+user's PM2 daemon (~<user>/.pm2), so PM2 commands run as that user
+(`sudo -u <user> -H pm2 ...`) rather than as root, which would talk to an
+empty root PM2 daemon.
 """
 
+import argparse
+import json
 import os
+import signal
+import subprocess
 import sys
 import time
-import signal
-import argparse
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -35,11 +40,39 @@ except ImportError:
     REQUESTS_AVAILABLE = False
 
 
-class ServiceHealth:
-    """Tracks health status of a service."""
+class PM2:
+    """Runs pm2 as the install user (whose daemon owns the SkyGlass apps)."""
 
-    def __init__(self, name: str, check_url: Optional[str] = None):
+    def __init__(self, user: Optional[str] = None):
+        self.user = user
+
+    def command(self, *args: str) -> list:
+        if self.user and os.geteuid() == 0:
+            return ["sudo", "-u", self.user, "-H", "pm2", *args]
+        return ["pm2", *args]
+
+    def run(self, *args: str, timeout: float = 30) -> subprocess.CompletedProcess:
+        return subprocess.run(self.command(*args), capture_output=True, text=True, timeout=timeout)
+
+    def status(self, app: str) -> Optional[str]:
+        """PM2 status of ``app`` ("online", "errored", ...), or None if not listed."""
+        result = self.run("jlist", timeout=15)
+        for proc in json.loads(result.stdout or "[]"):
+            if proc.get("name") == app:
+                return proc.get("pm2_env", {}).get("status")
+        return None
+
+
+class ServiceHealth:
+    """Tracks health status of one PM2 app.
+
+    Checked over HTTP when ``check_url`` is set, otherwise by its PM2 status.
+    """
+
+    def __init__(self, name: str, pm2_name: str, pm2: PM2, check_url: Optional[str] = None):
         self.name = name
+        self.pm2_name = pm2_name
+        self.pm2 = pm2
         self.check_url = check_url
         self.healthy = True
         self.consecutive_failures = 0
@@ -66,6 +99,17 @@ class ServiceHealth:
                 self.last_error = "Connection refused"
             except Exception as e:
                 self.last_error = str(e)
+        else:
+            try:
+                status = self.pm2.status(self.pm2_name)
+                if status == "online":
+                    self.healthy = True
+                    self.consecutive_failures = 0
+                    self.last_error = None
+                    return True
+                self.last_error = f"pm2 status {status or 'missing'}"
+            except (OSError, subprocess.SubprocessError, ValueError) as e:
+                self.last_error = f"pm2 jlist failed: {e}"
 
         self.healthy = False
         self.consecutive_failures += 1
@@ -126,26 +170,27 @@ class WatchdogService:
     def __init__(
         self,
         backend_url: str = "http://localhost:3001",
-        frontend_url: str = "http://localhost:3001",
         admin_url: str = "http://localhost:5000",
         feed_interval: int = 10,
-        max_failures: int = 6,
+        max_failures: int = 3,
         use_hardware_watchdog: bool = True,
+        pm2_user: Optional[str] = None,
     ):
         self.feed_interval = feed_interval
         self.max_failures = max_failures
         self.running = False
+        self.pm2 = PM2(pm2_user)
 
         # Hardware watchdog
         self.hw_watchdog = HardwareWatchdog() if use_hardware_watchdog else None
 
         # Services to monitor
+        # (names match config/pm2.config.cjs; the display UI is served by the backend)
         self.services = [
-            ServiceHealth("backend", f"{backend_url}/api/health"),
-            ServiceHealth("frontend", frontend_url),
-            # web_server.py (gunicorn wsgi:app) serves /api/health; /status was
-            # only served by the legacy web_enroll.py.
-            ServiceHealth("admin", f"{admin_url}/api/health"),
+            ServiceHealth("backend", "skyglass-backend", self.pm2, f"{backend_url}/api/health"),
+            # web_server.py (gunicorn wsgi:app)
+            ServiceHealth("admin", "skyglass-admin", self.pm2, f"{admin_url}/api/health"),
+            ServiceHealth("detector", "skyglass-detector", self.pm2),
         ]
 
         # Overall health
@@ -172,18 +217,18 @@ class WatchdogService:
 
         return all_healthy
 
-    def restart_service(self, service_name: str):
+    def restart_service(self, service: ServiceHealth):
         """Attempt to restart a service via PM2."""
         try:
-            pm2_name = f"skyglass-{service_name}"
-            subprocess.run(
-                ["pm2", "restart", pm2_name],
-                capture_output=True,
-                timeout=30
-            )
-            print(f"Restarted {pm2_name}")
-        except Exception as e:
-            print(f"Failed to restart {service_name}: {e}")
+            result = self.pm2.run("restart", service.pm2_name)
+            if result.returncode == 0:
+                print(f"Restarted {service.pm2_name}")
+            else:
+                print(f"pm2 restart {service.pm2_name} failed: {(result.stderr or result.stdout).strip()}")
+        except (OSError, subprocess.SubprocessError) as e:
+            print(f"Failed to restart {service.pm2_name}: {e}")
+        # Give the restart max_failures more checks before trying again.
+        service.consecutive_failures = 0
 
     def run(self):
         """Main service loop."""
@@ -191,7 +236,8 @@ class WatchdogService:
         print("SkyGlass Watchdog Service")
         print("=" * 50)
         print(f"Feed interval: {self.feed_interval}s")
-        print(f"Max failures before action: {self.max_failures}")
+        print(f"Failed checks before PM2 restart: {self.max_failures}")
+        print(f"PM2 command: {' '.join(self.pm2.command('<args>'))}")
         print()
 
         # Open hardware watchdog
@@ -226,15 +272,12 @@ class WatchdogService:
                         self.unhealthy_since = datetime.now()
                         print("WARNING: System became unhealthy")
 
-                    # Check how long we've been unhealthy
                     if self.unhealthy_since:
-                        unhealthy_duration = (datetime.now() - self.unhealthy_since).seconds
-
                         # Try to restart failed services
                         for service in self.services:
-                            if service.consecutive_failures >= 3:
+                            if service.consecutive_failures >= self.max_failures:
                                 print(f"Attempting to restart {service.name}...")
-                                self.restart_service(service.name)
+                                self.restart_service(service)
                                 time.sleep(5)  # Give it time to restart
 
                         # If still unhealthy after max failures worth of time
@@ -254,19 +297,21 @@ class WatchdogService:
 
 def enable_pi_watchdog():
     """Enable the Raspberry Pi hardware watchdog (requires reboot)."""
-    config_file = Path("/boot/config.txt")
+    # Bookworm moved the firmware config to /boot/firmware; older images use /boot.
+    candidates = [Path("/boot/firmware/config.txt"), Path("/boot/config.txt")]
+    config_file = next((p for p in candidates if p.exists()), None)
 
-    if not config_file.exists():
-        print("Not a Raspberry Pi (no /boot/config.txt)")
+    if config_file is None:
+        print("Not a Raspberry Pi (no /boot/firmware/config.txt or /boot/config.txt)")
         return False
 
     content = config_file.read_text()
 
     if "dtparam=watchdog=on" in content:
-        print("Hardware watchdog already enabled in /boot/config.txt")
+        print(f"Hardware watchdog already enabled in {config_file}")
         return True
 
-    print("Enabling hardware watchdog in /boot/config.txt...")
+    print(f"Enabling hardware watchdog in {config_file}...")
     try:
         with open(config_file, "a") as f:
             f.write("\n# Enable hardware watchdog\n")
@@ -285,12 +330,7 @@ def main():
     parser.add_argument(
         "--backend-url",
         default="http://localhost:3001",
-        help="Backend health check URL"
-    )
-    parser.add_argument(
-        "--frontend-url",
-        default="http://localhost:3001",
-        help="Frontend URL"
+        help="Backend base URL (checks /api/health)"
     )
     parser.add_argument(
         "--admin-url",
@@ -306,8 +346,12 @@ def main():
     parser.add_argument(
         "--max-failures",
         type=int,
-        default=6,
-        help="Max consecutive failures before restart attempt (default: 6)"
+        default=3,
+        help="Consecutive failed checks before a PM2 restart (default: 3)"
+    )
+    parser.add_argument(
+        "--pm2-user",
+        help="Run pm2 as this user (the install user owning the SkyGlass PM2 apps) when running as root"
     )
     parser.add_argument(
         "--no-hardware",
@@ -317,7 +361,7 @@ def main():
     parser.add_argument(
         "--enable-watchdog",
         action="store_true",
-        help="Enable Pi hardware watchdog in /boot/config.txt (requires reboot)"
+        help="Enable Pi hardware watchdog in /boot/firmware/config.txt or /boot/config.txt (requires reboot)"
     )
 
     args = parser.parse_args()
@@ -333,11 +377,11 @@ def main():
 
     service = WatchdogService(
         backend_url=args.backend_url,
-        frontend_url=args.frontend_url,
         admin_url=args.admin_url,
         feed_interval=args.interval,
         max_failures=args.max_failures,
         use_hardware_watchdog=not args.no_hardware,
+        pm2_user=args.pm2_user,
     )
     service.run()
 

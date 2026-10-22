@@ -5,41 +5,61 @@ Python-based presence detection using camera and face recognition.
 ## Quick Start
 
 ```bash
-# Create virtual environment
+# Create virtual environment (or from the repo root: npm run setup:dev -- deps)
 python3 -m venv venv
 source venv/bin/activate
 
-# Install basic dependencies
+# Install dependencies (includes face_recognition, which compiles dlib)
 pip install -r requirements.txt
 
 # Test camera
 python test_camera.py
 
 # Run presence detection (basic mode - detects any face)
-python detector.py --method haar --preview
+python detector.py --method opencv --preview
 ```
 
 ## Detection Methods
 
 | Method | Accuracy | Speed | Installation | Notes |
 |--------|----------|-------|--------------|-------|
-| `haar` | Basic | Fast | Built-in | Detects any face, no enrollment |
-| `mediapipe` | Good | Fast | `pip install mediapipe` | Lightweight, cross-platform |
-| `face_recognition` | Best | Slower | `pip install face_recognition` | Recognizes enrolled user only |
+| `face_recognition` | Best | ~10 analysed fps | `requirements.txt` | Default. Recognizes enrolled users only; reports who is present |
+| `opencv` | Basic | Fast | `requirements.txt` (YuNet model ships in `models/`) | Detects any face, no enrollment |
+| `auto` | - | - | - | Default value of `presence.detection_method`: `face_recognition` if installed, else `opencv` (with a warning) |
 
-### Recommended Setup (when network allows)
+`face_recognition` locates faces with the same YuNet model as `opencv` mode,
+encodes each one with dlib and compares it with every enrolled user's
+encodings. A face within `--tolerance` (default 0.6; lower is stricter) of
+an enrolled user wakes the mirror as that user; anyone else is logged as an
+unknown face and ignored. Registrations made from the app are picked up
+within a couple of seconds without restarting the detector.
 
-For the best experience with user-specific face recognition:
+## Settings
 
-```bash
-# Install face_recognition (requires dlib, may take a while to compile)
-pip install face_recognition
+`detector.py` reads the `presence:` block of `config/config.yaml`, layered over
+`config/default.yaml`. Command-line flags override individual values:
 
-# Install mediapipe as alternative
-pip install mediapipe
-```
+| YAML key | Flag | Default |
+|----------|------|---------|
+| `detection_method` | `--method` | `auto` |
+| `camera_index` | `--camera` | `0` |
+| `tolerance` | `--tolerance` | `0.6` |
+| `min_detection_frames` | `--min-frames` | `3` |
+| `timeout` | `--timeout` | `5` (seconds) |
 
-**Note:** The `face_recognition` library requires dlib which can take 10+ minutes to compile on first install and needs CMake. If you encounter issues, use `--method haar` for basic detection.
+At startup it logs each effective value and where it came from
+(`Setting tolerance = 0.6 (from ...)`). Invalid values (unknown method,
+tolerance outside (0, 1], non-positive frames/timeout) stop it with an error.
+Restart it after editing the YAML (`pm2 restart skyglass-detector`).
+
+`pip install -r requirements.txt` compiles dlib on the first install. It
+needs CMake and a C++ compiler and takes several minutes on a Mac (much
+longer on a Raspberry Pi).
+
+**Users registered before face_recognition was installed** have no encodings
+(`"encodings": 0` in `face_data/users/<id>/metadata.json`). The detector
+logs a warning for them and they are never recognised: register again from
+the app.
 
 ## Usage
 
@@ -48,11 +68,8 @@ pip install mediapipe
 python detector.py --preview
 
 # Use specific method
-python detector.py --method haar --preview      # Basic, detects any face
+python detector.py --method opencv --preview    # Basic, detects any face
 python detector.py --method face_recognition --preview  # Requires enrollment
-
-# Enroll your face (for face_recognition method)
-python detector.py --enroll
 
 # Simulation mode (no camera)
 python detector.py --simulate
@@ -64,63 +81,120 @@ python detector.py --help
 ## Dependencies
 
 ### Required (installed via requirements.txt)
-- `opencv-python` - Camera access and image processing
+- `opencv-python` - Camera access, image processing and YuNet face detection
+- `face_recognition` (dlib) - Recognizes which enrolled user is in view
 - `numpy` - Array operations
 - `requests` - HTTP client for backend communication
 
-### Optional (install when network allows)
-- `face_recognition` - Best accuracy, recognizes specific enrolled face
-- `mediapipe` - Good accuracy, lighter weight alternative
+- `flask`, `gunicorn` - Presence/admin server (`web_server.py`)
+- `pyyaml` - Reads `config/config.yaml`
 
 ## Production Deployment
 
-### Using Gunicorn (Recommended)
+On the Pi both processes run under PM2 (`config/pm2.config.cjs`, started by
+`scripts/setup-pi.sh` or `npm start` from the repo root):
+
+- `skyglass-detector`: `venv/bin/python detector.py --backend http://localhost:3001`
+- `skyglass-admin`: `venv/bin/gunicorn -c gunicorn.conf.py wsgi:app`, which
+  serves `web_server.py` on port 5000 (one worker, since the camera is
+  single-process)
+
+For development run them directly: `npm run dev:admin` (`python web_server.py`,
+`--port`/`--camera` flags) and `npm run dev:detector` (`detector.py --preview`).
+
+`web_server.py` is the enrollment backend for the phone app: the app calls the
+mirror backend's `POST /api/registration/start` (with a `userId`), and the
+backend drives this server's `/api/start` and `/api/capture`, which store the
+face under `face_data/users/<userId>/`. `/video_feed` streams the camera
+preview during enrollment. There is no browser registration or settings page;
+setup happens only in the phone app.
+
+### Access control
+
+Every route except `/api/health`, `/api/status` and the login page needs a
+credential: the backend's internal service token (`data/internal-token`), an
+admin session, or the token of the active enrollment session (camera). The
+browser admin portal at `/admin` is off until you set a password on the
+device: `venv/bin/python set_admin_password.py`. Details:
+`docs/SECURITY.md` at the repo root.
+
+### Logs
 
 ```bash
-# Install gunicorn
-pip install gunicorn
-
-# Run with Gunicorn
-gunicorn -c gunicorn.conf.py wsgi:app
-
-# Or use the start script
-./start.sh              # Production (Gunicorn)
-./start.sh --dev        # Development (Flask)
-```
-
-### Using PM2 (with Node.js services)
-
-```bash
-# From project root
-pm2 start ecosystem.config.js
-
-# View logs
 pm2 logs skyglass-admin
 pm2 logs skyglass-detector
-
-# Monitor
 pm2 monit
 ```
 
-### Using systemd (Linux/Raspberry Pi)
-
-```bash
-# Copy service file
-sudo cp config/systemd/skyglass-presence.service /etc/systemd/system/
-
-# Edit paths if needed
-sudo nano /etc/systemd/system/skyglass-presence.service
-
-# Enable and start
-sudo systemctl daemon-reload
-sudo systemctl enable skyglass-presence
-sudo systemctl start skyglass-presence
-
-# Check status
-sudo systemctl status skyglass-presence
-```
+The systemd units under `config/systemd/` run only the boot-mode switch,
+WiFi provisioning (`wifi_provisioning.py`) and the watchdog
+(`watchdog_service.py`); there is no systemd unit for the detector or the
+presence server.
 
 ## Troubleshooting
+
+### Mirror does not wake (presence detection)
+
+Work down this list; each line of the detector log answers one question.
+
+1. **Is the detector running?** `npm run dev:e2e` starts it (`[detector]`
+   lines) and `npm run dev:detector` runs it alone with a preview window.
+   Nothing wakes the mirror unless one of these is running.
+2. **Is the camera delivering frames?** The first lines report the camera's
+   real resolution and fps, and the 10-second heartbeat shows frames per
+   second and read failures:
+
+   ```
+   12:01:10 INFO  Camera 0 opened: 640x480 @ 30 fps (requested 640x480)
+   12:01:20 INFO  10s: 296 frames (29.6 fps), face in 0 (0%), 118 with only too-small faces (largest 64px < 80px), detect 6.2 ms avg, 0 read failures, state absent, backend ok 0 / failed 0
+   ```
+
+   That heartbeat already tells you the usual story: a face *was* found but
+   is narrower than `--min-face-size` (default 80 px), so you are too far
+   from the camera for the current threshold.
+
+   In `face_recognition` mode the heartbeat also says whether the face was
+   recognised, and how close an unknown face came:
+
+   ```
+   12:01:20 INFO  10s: 290 frames (29.0 fps), 96 analysed (38 ms avg), face in 96, enrolled user in 0, unknown face in 96 (nearest miss Clio at 0.64 > tolerance 0.60), 0 read failures, state absent, backend ok 0 / failed 0
+   ```
+
+   A nearest miss just above the tolerance usually means the registration
+   was done in different light or at a different distance: register again
+   in front of the mirror, or raise `--tolerance` slightly (0.65 at most;
+   higher values start to accept other people). `No enrolled faces with
+   encodings` or `has no face encodings` at startup means nobody can be
+   recognised yet: register from the app.
+3. **Is the state machine moving?** Every transition is logged with its
+   reason (`State -> detecting (face seen, need 3 consecutive frames)`,
+   `State -> absent (no face for 5.2s)`). `min_detection_frames` and
+   `timeout` in the `presence:` block of `config/config.yaml` (or
+   `--min-frames` / `--timeout`) set those numbers.
+4. **Does the backend accept the report?** `backend ok N / failed M` in the
+   heartbeat, and a WARNING with the HTTP status or connection error when a
+   report fails.
+
+For per-frame detail run with `--log-level debug` (one summary line per
+second) or `--log-level trace` (every frame), or set
+`SKYGLASS_DETECTOR_LOG=debug` for `npm run dev:e2e`.
+
+To tune without staring at a live camera, save frames and re-run the detector
+on them offline:
+
+```bash
+python detector.py --dump-frames /tmp/skyglass-frames      # saves annotated frames
+python face_detect.py /tmp/skyglass-frames/*.jpg --min-size 60 --score 0.7
+```
+
+Orange boxes are faces the size filter rejected. `--min-face-size` and
+`--score-threshold` on `detector.py` apply the same knobs live.
+
+In `face_recognition` mode `--dump-frames` saves frames with unknown faces
+(raw plus `-annotated.jpg`). Copy raw frames into
+`tests/fixtures/faces/<person>/` and run
+`python -m pytest tests/test_identity_real_model.py` to check recognition
+offline (see `tests/fixtures/faces/README.md`).
 
 ### Camera not working on Mac
 Grant camera permission in: System Settings > Privacy & Security > Camera > Terminal
@@ -139,4 +213,7 @@ This library requires dlib which compiles from source. Ensure you have:
 - CMake installed: `brew install cmake` (Mac) or `sudo apt install cmake` (Linux)
 - Xcode command line tools: `xcode-select --install` (Mac only)
 
-As a workaround, use `--method haar` which only needs OpenCV.
+- On Linux: `sudo apt install build-essential cmake python3-dev`
+
+Without it the detector falls back to `opencv` mode and wakes the mirror for
+any face.

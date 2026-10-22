@@ -2,31 +2,23 @@
 """
 Gesture recognition for SkyGlass.
 
-Detects hand gestures like swipes and waves to control the display.
-Uses motion tracking and optional hand detection.
+Detects hand gestures like swipes and waves to control the display, using
+OpenCV frame-differencing motion tracking.
 
 Supported gestures:
 - swipe_left: Quick horizontal motion from right to left
 - swipe_right: Quick horizontal motion from left to right
 - wave: Repeated horizontal motion (dismiss gesture)
-- palm: Open hand held still (wake gesture)
 """
 
 import time
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
-
-# Try importing MediaPipe for better hand detection
-try:
-    import mediapipe as mp
-    MP_HANDS_AVAILABLE = True
-except ImportError:
-    MP_HANDS_AVAILABLE = False
 
 
 class GestureType(Enum):
@@ -34,7 +26,6 @@ class GestureType(Enum):
     SWIPE_LEFT = "swipe_left"
     SWIPE_RIGHT = "swipe_right"
     WAVE = "wave"
-    PALM = "palm"
 
 
 @dataclass
@@ -147,7 +138,7 @@ class MotionTracker:
 
 class GestureDetector:
     """
-    Detects gestures using motion tracking and optional hand detection.
+    Detects swipe and wave gestures using motion tracking.
     """
 
     def __init__(
@@ -155,7 +146,6 @@ class GestureDetector:
         swipe_threshold: int = 150,
         wave_threshold: int = 3,
         cooldown: float = 1.0,
-        use_mediapipe: bool = True,
     ):
         self.swipe_threshold = swipe_threshold
         self.wave_threshold = wave_threshold
@@ -164,20 +154,6 @@ class GestureDetector:
         self.motion_tracker = MotionTracker()
         self.last_gesture_time = 0
         self.direction_history: deque = deque(maxlen=10)
-
-        # MediaPipe hands (if available)
-        self.use_mediapipe = use_mediapipe and MP_HANDS_AVAILABLE
-        self.mp_hands = None
-        self.hands = None
-
-        if self.use_mediapipe:
-            self.mp_hands = mp.solutions.hands
-            self.hands = self.mp_hands.Hands(
-                static_image_mode=False,
-                max_num_hands=1,
-                min_detection_confidence=0.5,
-                min_tracking_confidence=0.5,
-            )
 
     def detect(self, frame: np.ndarray) -> Optional[Gesture]:
         """
@@ -221,16 +197,6 @@ class GestureDetector:
                         timestamp=current_time,
                     )
 
-        # Check for palm gesture using MediaPipe (if available)
-        if self.use_mediapipe and gesture is None:
-            palm_detected, palm_confidence = self._detect_palm(frame)
-            if palm_detected:
-                gesture = Gesture(
-                    type=GestureType.PALM,
-                    confidence=palm_confidence,
-                    timestamp=current_time,
-                )
-
         if gesture:
             self.last_gesture_time = current_time
             self.motion_tracker.clear()
@@ -258,52 +224,6 @@ class GestureDetector:
 
         return changes >= self.wave_threshold
 
-    def _detect_palm(self, frame: np.ndarray) -> Tuple[bool, float]:
-        """Detect an open palm using MediaPipe."""
-        if not self.use_mediapipe or self.hands is None:
-            return False, 0.0
-
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.hands.process(rgb)
-
-        if not results.multi_hand_landmarks:
-            return False, 0.0
-
-        # Check if hand is open (all fingers extended)
-        for hand_landmarks in results.multi_hand_landmarks:
-            # Simple check: if fingertips are above their respective knuckles
-            # This indicates extended fingers
-
-            tips = [
-                self.mp_hands.HandLandmark.INDEX_FINGER_TIP,
-                self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP,
-                self.mp_hands.HandLandmark.RING_FINGER_TIP,
-                self.mp_hands.HandLandmark.PINKY_TIP,
-            ]
-
-            pips = [
-                self.mp_hands.HandLandmark.INDEX_FINGER_PIP,
-                self.mp_hands.HandLandmark.MIDDLE_FINGER_PIP,
-                self.mp_hands.HandLandmark.RING_FINGER_PIP,
-                self.mp_hands.HandLandmark.PINKY_PIP,
-            ]
-
-            extended = 0
-            for tip, pip in zip(tips, pips):
-                if hand_landmarks.landmark[tip].y < hand_landmarks.landmark[pip].y:
-                    extended += 1
-
-            # All 4 fingers extended = open palm
-            if extended >= 4:
-                return True, 0.9
-
-        return False, 0.0
-
-    def close(self):
-        """Release resources."""
-        if self.hands:
-            self.hands.close()
-
 
 def draw_gesture_debug(frame: np.ndarray, gesture: Optional[Gesture]) -> np.ndarray:
     """Draw gesture detection debug info on frame."""
@@ -326,7 +246,6 @@ def main():
 
     parser = argparse.ArgumentParser(description="Test gesture detection")
     parser.add_argument("--camera", "-c", type=int, default=0, help="Camera index")
-    parser.add_argument("--no-mediapipe", action="store_true", help="Disable MediaPipe")
     args = parser.parse_args()
 
     cap = cv2.VideoCapture(args.camera)
@@ -334,15 +253,13 @@ def main():
         print("Failed to open camera")
         return
 
-    detector = GestureDetector(use_mediapipe=not args.no_mediapipe)
+    detector = GestureDetector()
 
     print("Gesture Detection Test")
     print("=" * 40)
     print("Supported gestures:")
     print("  - Swipe left/right quickly")
     print("  - Wave hand back and forth")
-    if MP_HANDS_AVAILABLE and not args.no_mediapipe:
-        print("  - Hold open palm")
     print()
     print("Press 'q' to quit")
     print()
@@ -367,7 +284,6 @@ def main():
     finally:
         cap.release()
         cv2.destroyAllWindows()
-        detector.close()
 
 
 if __name__ == "__main__":

@@ -1,20 +1,18 @@
 # Core dependencies
-opencv-python>=4.9.0
+opencv-python>=4.9.0,<6     # face_detect.py needs cv2.FaceDetectorYN (YuNet)
 numpy>=1.26.0
 requests>=2.31.0
 pyyaml>=6.0.1
 
-# Web server for registration UI and settings
+# Presence/admin server (registration capture, camera stream, WiFi API)
 flask>=3.0.0
-qrcode[pil]>=7.4.0
 gunicorn>=21.0.0          # Production WSGI server
 
-# Network discovery (mDNS/Bonjour)
-zeroconf>=0.131.0
-
-# Face detection (optional - install when network allows)
-# mediapipe>=0.10.9
-# face_recognition>=1.3.0
+# Face recognition: tells enrolled users apart (without it the mirror wakes
+# for any face). Builds dlib from source on first install: needs cmake and a
+# C++ compiler, and takes several minutes (much longer on a Raspberry Pi).
+face_recognition>=1.3.0
+setuptools<81             # face_recognition_models imports pkg_resources, removed in setuptools 81
 
 # Optional: For Raspberry Pi camera support
 # picamera2>=0.3.17

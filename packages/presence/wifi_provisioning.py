@@ -11,6 +11,17 @@ When the device has no WiFi configured, it:
 
 This enables true "out of box" experience - no technical knowledge required.
 
+The SkyGlass phone app talks to the same server (http://10.42.0.1:80):
+    GET  /api/health, /api/discovery   identity (persistent mirror id) + join progress
+    GET  /api/setup/status             "wifi" step, so the app's setup flow starts here
+    GET  /api/wifi/scan
+    POST /api/wifi/connect             answers at once ({"success": true, "pending": true}),
+                                       then joins in the background
+Joining drops the hotspot. On success the boot-mode unit is re-run, which
+stops this service and starts the mirror's apps on the home network (where
+the app finds the mirror again by its id). On failure the hotspot comes back
+and /api/discovery reports wifi.state "failed" with the reason.
+
 Usage:
     sudo python wifi_provisioning.py
 
@@ -21,15 +32,17 @@ Requirements (installed by setup-pi.sh):
 
 import os
 import sys
+import socket
+import sqlite3
 import subprocess
 import time
 import signal
 import re
-import socket
+import uuid
 from pathlib import Path
-from typing import Optional, List, Dict
+from typing import Optional, List, Tuple
 from dataclasses import dataclass
-from threading import Thread
+from threading import Lock, Thread
 
 from flask import Flask, render_template_string, request, jsonify, redirect
 
@@ -49,6 +62,83 @@ HOSTAPD_CONF = "/tmp/skyglass_hostapd.conf"
 DNSMASQ_CONF = "/tmp/skyglass_dnsmasq.conf"
 
 PROVISIONING_COMPLETE_FLAG = Path(__file__).parent / "face_data" / ".wifi_configured"
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+# Seconds between answering POST /api/wifi/connect and dropping the hotspot,
+# so the response reaches the phone first.
+JOIN_DELAY_SECONDS = 2
+
+
+def _data_dir() -> Path:
+    """The data/ directory shared with the backend (see security.data_dir)."""
+    return Path(os.environ.get("SKYGLASS_DATA_DIR") or (REPO_ROOT / "data"))
+
+
+def mirror_identity() -> Tuple[str, str]:
+    """The mirror's persistent (id, name), as the backend reports them.
+
+    They live in the backend's SQLite database (mirror_settings, see
+    packages/backend/src/db/index.ts). On a fresh mirror the backend may never
+    have run, so create them here the same way the backend would: the backend
+    keeps an existing id. The phone app stores this id and uses it to find the
+    mirror again once it has a new address on the home network.
+    """
+    data_dir = _data_dir()
+    db_path = data_dir / "skyglass.db"
+    created_dir = not data_dir.exists()
+    created_db = not db_path.exists()
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS mirror_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        rows = dict(conn.execute(
+            "SELECT key, value FROM mirror_settings WHERE key IN ('mirrorId', 'mirrorName')"
+        ).fetchall())
+        mirror_id = rows.get("mirrorId")
+        name = rows.get("mirrorName")
+        if not mirror_id:
+            mirror_id = str(uuid.uuid4())
+            name = name or f"SkyGlass-{socket.gethostname().split('.')[0]}"
+            conn.execute("INSERT OR IGNORE INTO mirror_settings (key, value) VALUES ('mirrorId', ?)", (mirror_id,))
+            conn.execute("INSERT OR IGNORE INTO mirror_settings (key, value) VALUES ('mirrorName', ?)", (name,))
+            conn.commit()
+    finally:
+        conn.close()
+
+    # This service runs as root; the backend runs as the install user and
+    # must be able to open what we created.
+    if os.geteuid() == 0:
+        owner = REPO_ROOT.stat()
+        for path, created in ((data_dir, created_dir), (db_path, created_db)):
+            if created:
+                try:
+                    os.chown(path, owner.st_uid, owner.st_gid)
+                except OSError:
+                    pass
+
+    return mirror_id, name or "SkyGlass"
+
+
+def ssid_problem(ssid: object) -> Optional[str]:
+    """Why an SSID can't be used, or None. It ends up in wpa_supplicant.conf."""
+    if not isinstance(ssid, str) or not ssid:
+        return "SSID required"
+    if len(ssid.encode("utf-8")) > 32:
+        return "SSID must be 1-32 bytes"
+    if any(c in ssid for c in '"\n\r\x00'):
+        return "SSID contains unsupported characters"
+    return None
+
+
+def password_problem(password: object) -> Optional[str]:
+    """Empty (open network) or a WPA passphrase of 8-63 printable ASCII characters."""
+    if not isinstance(password, str):
+        return "Password must be text"
+    if password and not re.fullmatch(r"[\x20-\x7e]{8,63}", password):
+        return "WiFi passwords are 8-63 characters"
+    return None
 
 
 @dataclass
@@ -69,6 +159,10 @@ class WiFiProvisioning:
         self.flask_app: Optional[Flask] = None
         self.server_thread: Optional[Thread] = None
         self.running = False
+        # Progress of the last join started from the app or captive portal.
+        self._join_lock = Lock()
+        self.join_state = {"state": "idle", "ssid": None, "error": None}
+        self.last_join_error: Optional[str] = None
 
     def is_wifi_configured(self) -> bool:
         """Check if WiFi credentials are already configured."""
@@ -272,6 +366,10 @@ address=/#/{AP_IP}
 
     def stop_ap(self):
         """Stop the access point and restore normal networking."""
+        if not self.ap_active:
+            # Already on the home network (e.g. stopped by boot-mode.sh after
+            # a successful join): flushing wlan0 now would drop that link.
+            return
         print("Stopping access point...")
 
         try:
@@ -370,11 +468,56 @@ country=US
                         return True
 
             print("Connection timeout")
+            self.last_join_error = (
+                f"The mirror couldn't join \"{ssid}\" within 30 seconds. "
+                "Check the password and that the network has a 2.4 GHz band."
+            )
             return False
 
         except Exception as e:
             print(f"Connection error: {e}")
+            self.last_join_error = f"Connection error: {e}"
             return False
+
+    def get_join_state(self) -> dict:
+        with self._join_lock:
+            return dict(self.join_state)
+
+    def start_join(self, ssid: str, password: str) -> bool:
+        """Join ``ssid`` in the background. False if a join is already running."""
+        with self._join_lock:
+            if self.join_state["state"] == "connecting":
+                return False
+            self.join_state = {"state": "connecting", "ssid": ssid, "error": None}
+        Thread(target=self._join, args=(ssid, password), daemon=True).start()
+        return True
+
+    def _join(self, ssid: str, password: str) -> None:
+        time.sleep(JOIN_DELAY_SECONDS)
+        self.last_join_error = None
+        ok = self.connect_to_network(ssid, password)
+        with self._join_lock:
+            self.join_state = {
+                "state": "connected" if ok else "failed",
+                "ssid": ssid,
+                "error": None if ok else (self.last_join_error or f"Couldn't join \"{ssid}\""),
+            }
+        if ok:
+            self.enter_normal_mode()
+        else:
+            # Bring the hotspot back so the phone can rejoin it and retry.
+            print("Join failed; restarting the setup hotspot")
+            self.start_ap()
+
+    def enter_normal_mode(self) -> None:
+        """Hand over to scripts/boot-mode.sh: it stops this service and starts the apps."""
+        try:
+            subprocess.run(
+                ["systemctl", "--no-block", "restart", "skyglass-boot.service"],
+                capture_output=True, timeout=10,
+            )
+        except Exception as e:
+            print(f"Could not re-run boot mode detection: {e}")
 
     def get_ip_address(self) -> Optional[str]:
         """Get current IP address."""
@@ -661,18 +804,15 @@ CAPTIVE_PORTAL_HTML = """
         <!-- Step 4: Success -->
         <div id="step-success" class="card hidden">
             <div class="status">
-                <div class="status-icon">✅</div>
-                <h2>WiFi Connected!</h2>
-                <p>Now let's finish setting up your SkyGlass</p>
-                <p style="margin-top: 15px; color: var(--text-dim);">
-                    Redirecting to setup wizard in <span id="redirect-countdown">5</span>s...
+                <div class="status-icon">📡</div>
+                <h2>Joining your WiFi…</h2>
+                <p>The mirror is leaving this network to join yours. Reconnect your phone to your home WiFi, then open the SkyGlass app to finish setup.</p>
+                <p style="margin-top: 12px; font-size: 0.85rem; color: var(--text-dim);">
+                    If the mirror can't join, the SkyGlass-Setup network comes back within a minute: rejoin it and try again.
                 </p>
-                <a href="#" id="setup-link" class="btn btn-primary" style="display: inline-block; margin-top: 20px; text-decoration: none;">
-                    Continue Setup
-                </a>
                 <p style="margin-top: 20px; font-size: 0.85rem; color: var(--text-dim);">
-                    If redirect fails, go to:<br>
-                    <span style="color: var(--accent); font-family: monospace;" id="setup-url">http://skyglass.local/setup</span>
+                    The app finds the mirror automatically. Mirror address:<br>
+                    <span style="color: var(--accent); font-family: monospace;" id="mirror-url">http://skyglass.local:3001</span>
                 </p>
                 <p style="margin-top: 5px; font-size: 0.8rem;" id="ip-address"></p>
             </div>
@@ -785,48 +925,22 @@ CAPTIVE_PORTAL_HTML = """
                 const result = await response.json();
 
                 if (result.success) {
-                    const ip = result.ip || 'skyglass.local';
-                    document.getElementById('ip-address').textContent =
-                        result.ip ? `IP: ${result.ip}` : '';
-                    // Set up the setup link with IP fallback
-                    const setupUrl = `http://${ip}/setup`;
-                    document.getElementById('setup-link').href = setupUrl;
-                    document.getElementById('setup-url').textContent = setupUrl;
+                    // The join runs in the background and drops this hotspot.
                     showStep('success');
-                    // Start countdown and redirect
-                    startSetupRedirect(ip);
                 } else {
                     document.getElementById('fail-reason').textContent =
                         result.error || 'Connection failed. Please check your password.';
                     showStep('failed');
                 }
             } catch (error) {
-                document.getElementById('fail-reason').textContent = 'Connection error. Please try again.';
-                showStep('failed');
+                // The hotspot can drop before the answer arrives: the join has
+                // most likely started.
+                showStep('success');
             }
         }
 
         function escapeHtml(str) {
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        }
-
-        function startSetupRedirect(ip) {
-            let seconds = 5;
-            const countdownEl = document.getElementById('redirect-countdown');
-            const interval = setInterval(() => {
-                seconds--;
-                countdownEl.textContent = seconds;
-                if (seconds <= 0) {
-                    clearInterval(interval);
-                    // Try skyglass.local first (mDNS), fall back to IP
-                    window.location.href = 'http://skyglass.local/setup';
-                    // If mDNS doesn't work, the user can click the link or manually navigate
-                    setTimeout(() => {
-                        // Fallback to IP if still on this page after 2 seconds
-                        window.location.href = `http://${ip}/setup`;
-                    }, 2000);
-                }
-            }, 1000);
         }
 
         // Handle enter key in password field
@@ -836,117 +950,6 @@ CAPTIVE_PORTAL_HTML = """
 
         // Initial scan
         scanNetworks();
-    </script>
-</body>
-</html>
-"""
-
-SUCCESS_PAGE_HTML = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connected!</title>
-    <style>
-        :root {{
-            --bg: #0f0f1a;
-            --accent: #4ecca3;
-            --text: #ffffff;
-        }}
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            text-align: center;
-        }}
-        .success-icon {{
-            font-size: 5rem;
-            margin-bottom: 20px;
-        }}
-        h1 {{
-            font-size: 2rem;
-            margin-bottom: 10px;
-            color: var(--accent);
-        }}
-        p {{
-            color: #888;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }}
-        .btn {{
-            display: inline-block;
-            padding: 16px 40px;
-            background: var(--accent);
-            color: var(--bg);
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            transition: transform 0.2s;
-        }}
-        .btn:hover {{
-            transform: translateY(-2px);
-        }}
-        .countdown {{
-            margin-top: 20px;
-            color: #666;
-            font-size: 0.9rem;
-        }}
-        .urls {{
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-        }}
-        .urls p {{
-            margin-bottom: 10px;
-            color: #666;
-        }}
-        .url {{
-            font-family: monospace;
-            color: var(--accent);
-            font-size: 1.1rem;
-        }}
-    </style>
-</head>
-<body>
-    <div class="success-icon">&#10004;</div>
-    <h1>WiFi Connected!</h1>
-    <p>Your SkyGlass is now connected to your home network.<br>Let's finish setting it up.</p>
-
-    <a href="http://skyglass.local/setup" class="btn" id="continue-btn">Continue Setup</a>
-
-    <p class="countdown" id="countdown">Redirecting in <span id="seconds">5</span> seconds...</p>
-
-    <div class="urls">
-        <p>If the link doesn't work, try:</p>
-        <div class="url">http://{ip}/setup</div>
-    </div>
-
-    <script>
-        let seconds = 5;
-        const countdown = setInterval(() => {{
-            seconds--;
-            document.getElementById('seconds').textContent = seconds;
-            if (seconds <= 0) {{
-                clearInterval(countdown);
-                // Try skyglass.local first, fall back to IP
-                window.location.href = 'http://skyglass.local/setup';
-            }}
-        }}, 1000);
-
-        // Also handle click
-        document.getElementById('continue-btn').addEventListener('click', (e) => {{
-            clearInterval(countdown);
-        }});
     </script>
 </body>
 </html>
@@ -1019,6 +1022,39 @@ def create_flask_app(provisioning: WiFiProvisioning, use_captive_portal: bool = 
             return redirect('/')
         return 'success'
 
+    # ---- Phone app API (same paths as the backend on :3001) ----
+
+    @app.route('/api/health')
+    def api_health():
+        return jsonify({'status': 'ok', 'provisioning': True})
+
+    @app.route('/api/discovery')
+    def api_discovery():
+        mirror_id, name = mirror_identity()
+        return jsonify({
+            'mirrorId': mirror_id,
+            'name': name,
+            'version': 'setup',
+            'provisioning': True,
+            'setupComplete': False,
+            'wifiConfigured': False,
+            'port': 80,
+            'wifi': provisioning.get_join_state(),
+        })
+
+    @app.route('/api/setup/status')
+    def api_setup_status():
+        # Everything after WiFi happens once the mirror is on the home network.
+        return jsonify({
+            'step': 'wifi',
+            'wifiConfigured': False,
+            'licenseActivated': False,
+            'locationConfigured': False,
+            'airportConfigured': False,
+            'faceEnrolled': False,
+            'setupComplete': False,
+        })
+
     @app.route('/api/wifi/scan')
     def api_scan():
         networks = provisioning.scan_networks()
@@ -1027,6 +1063,7 @@ def create_flask_app(provisioning: WiFiProvisioning, use_captive_portal: bool = 
                 'ssid': n.ssid,
                 'signal': n.signal,
                 'security': n.security,
+                'secure': n.security != 'open',
                 'connected': n.connected
             }
             for n in networks
@@ -1034,20 +1071,21 @@ def create_flask_app(provisioning: WiFiProvisioning, use_captive_portal: bool = 
 
     @app.route('/api/wifi/connect', methods=['POST'])
     def api_connect():
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         ssid = data.get('ssid')
-        password = data.get('password', '')
+        password = data.get('password') or ''
 
-        if not ssid:
-            return jsonify({'success': False, 'error': 'SSID required'})
+        problem = ssid_problem(ssid) or password_problem(password)
+        if problem:
+            return jsonify({'success': False, 'error': problem, 'message': problem}), 400
 
-        success = provisioning.connect_to_network(ssid, password)
+        if not provisioning.start_join(ssid, password):
+            message = 'Already joining a network'
+            return jsonify({'success': False, 'error': message, 'message': message}), 409
 
-        if success:
-            ip = provisioning.get_ip_address()
-            return jsonify({'success': True, 'ip': ip})
-        else:
-            return jsonify({'success': False, 'error': 'Connection failed'})
+        # The hotspot goes down in a moment; the app finds the mirror on the
+        # home network by its id (see /api/discovery).
+        return jsonify({'success': True, 'pending': True})
 
     @app.route('/api/wifi/status')
     def api_status():
@@ -1055,7 +1093,8 @@ def create_flask_app(provisioning: WiFiProvisioning, use_captive_portal: bool = 
             'configured': provisioning.is_wifi_configured(),
             'connected': provisioning._is_connected(),
             'ssid': provisioning._get_current_ssid(),
-            'ip': provisioning.get_ip_address()
+            'ip': provisioning.get_ip_address(),
+            'join': provisioning.get_join_state(),
         })
 
     return app

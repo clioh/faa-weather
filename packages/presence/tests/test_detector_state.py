@@ -24,7 +24,6 @@ def clock(monkeypatch):
 def presence(monkeypatch, tmp_path, clock):
     # Point face data at an empty temp dir so __init__ loads nothing real.
     monkeypatch.setattr(det, "USERS_DIR", tmp_path / "users")
-    monkeypatch.setattr(det, "FACE_ENCODING_FILE", tmp_path / "enrolled_face.pkl")
 
     d = det.PresenceDetector(min_frames=3, timeout=5)
     d.users = {"u1": det.UserFaceData("u1", "Alice", [object()])}
