@@ -6,8 +6,8 @@
  */
 
 import { useState } from 'react';
-import { StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Switch, Text } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { AccountCalendar } from '@/lib/api';
@@ -37,8 +37,8 @@ export function CalendarToggleList({ calendars, onToggle, onColor, emptyText }: 
 
   return (
     <View>
-      {calendars.map((cal, index) => (
-        <View key={cal.id} style={[styles.row, index > 0 && styles.rowDivider]}>
+      {calendars.map((cal) => (
+        <View key={cal.id} style={styles.row}>
           <TouchableOpacity
             style={styles.swatchButton}
             onPress={() => setPicking(cal)}
@@ -57,8 +57,6 @@ export function CalendarToggleList({ calendars, onToggle, onColor, emptyText }: 
               Haptics.selectionAsync();
               onToggle(cal, value);
             }}
-            trackColor={{ false: colors.surfaceHighlight, true: colors.primaryMuted }}
-            thumbColor={cal.enabled ? colors.primary : colors.textMuted}
             accessibilityLabel={`Show ${cal.name} on the mirror`}
           />
         </View>
@@ -89,7 +87,7 @@ export function CalendarToggleList({ calendars, onToggle, onColor, emptyText }: 
                 accessibilityLabel={colorName(hex)}
               >
                 <View style={[styles.paletteSwatch, { backgroundColor: hex }]}>
-                  {active ? <Ionicons name="checkmark" size={22} color={colors.background} /> : null}
+                  {active ? <Ionicons name="checkmark" size={22} color={colors.onPrimary} /> : null}
                 </View>
               </TouchableOpacity>
             );
@@ -109,19 +107,23 @@ function paletteFor(current: string | undefined): string[] {
 
 const styles = StyleSheet.create({
   empty: { ...typography.bodySmall, color: colors.textMuted, paddingVertical: spacing.sm },
-  row: { minHeight: TOUCH + 4, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  row: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
   swatchButton: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center', marginLeft: -spacing.sm },
   swatch: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  swatchOff: { opacity: 0.4 },
-  name: { ...typography.body, color: colors.text, flex: 1 },
-  nameOff: { color: colors.textMuted },
+  swatchOff: { opacity: 0.35 },
+  name: { fontSize: 14, color: colors.text, flex: 1 },
+  nameOff: { color: colors.textSecondary },
   palette: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -4,16 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Switch,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -21,7 +12,16 @@ import * as WebBrowser from 'expo-web-browser';
 import { api, type LicenseStatus, type LicenseState, type UpdateConfig } from '@/lib/api';
 import { LICENSE_MANAGE_URL } from '@/lib/license';
 import { logError } from '@/lib/errors';
-import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
+import {
+  Button,
+  Row,
+  RowGroup,
+  SectionLabel,
+  Spinner,
+  Switch,
+  Text,
+} from '@/components/ui';
+import { colors, spacing, typography, fonts } from '@/lib/theme';
 import { goHome } from '@/lib/navigation';
 import { useUser } from '@/context/UserContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,10 +50,11 @@ interface RegisteredFace {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { resetAppData } = useUser();
+  const { resetAppData, currentMirror } = useUser();
   const [updateConfig, setUpdateConfig] = useState<UpdateConfig | null>(null);
   const [faces, setFaces] = useState<RegisteredFace[]>([]);
   const [license, setLicense] = useState<LicenseStatus | null>(null);
+  const [airport, setAirport] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,6 +66,8 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       api.getLicenseStatus().then(setLicense).catch(() => {});
+      // Shown next to Home airport, which can be changed from here.
+      api.getConfig().then((config) => setAirport(config.airport || null)).catch(() => {});
     }, [])
   );
 
@@ -172,287 +175,201 @@ export default function SettingsScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" />
       </View>
     );
   }
 
+  const chevron = <Ionicons name="chevron-forward" size={14} color={colors.chevron} />;
+
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl }]}
     >
       {/* Reached from the tab bar, so a large title instead of a nav header. */}
-      <Text style={styles.largeTitle} accessibilityRole="header">
-        Settings
-      </Text>
+      <View style={styles.titleBlock}>
+        {currentMirror ? <Text style={styles.mirrorName}>{currentMirror.mirrorName}</Text> : null}
+        <Text style={styles.largeTitle} accessibilityRole="header">
+          Settings
+        </Text>
+      </View>
 
-      {/* Update Settings */}
-      <Text style={styles.sectionTitle}>SOFTWARE UPDATES</Text>
-      <View style={styles.card}>
-        <View style={styles.settingRow}>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Auto-Download Updates</Text>
-            <Text style={styles.settingDescription}>
-              Download updates automatically in the background
-            </Text>
-          </View>
-          <Switch
-            value={updateConfig?.autoDownload ?? true}
-            onValueChange={(value) => updateSetting('autoDownload', value)}
-            trackColor={{ false: colors.surfaceHighlight, true: colors.primaryMuted }}
-            thumbColor={updateConfig?.autoDownload ? colors.primary : colors.textMuted}
+      {/* Mirror */}
+      <View>
+        <SectionLabel>MIRROR</SectionLabel>
+        <RowGroup>
+          <Row
+            title="Home Airport"
+            caption={airport ? undefined : 'Change your primary airport'}
+            value={airport ?? undefined}
+            valueMono
+            onPress={() => router.push('/setup/airport')}
           />
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.settingRow}>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Auto-Install Updates</Text>
-            <Text style={styles.settingDescription}>
-              Automatically install updates when downloaded (requires restart)
-            </Text>
-          </View>
-          <Switch
-            value={updateConfig?.autoUpdate ?? false}
-            onValueChange={(value) => updateSetting('autoUpdate', value)}
-            trackColor={{ false: colors.surfaceHighlight, true: colors.primaryMuted }}
-            thumbColor={updateConfig?.autoUpdate ? colors.primary : colors.textMuted}
+          <Row
+            title="Location"
+            caption="Update location for sun times"
+            onPress={() => router.push('/setup/location')}
           />
-        </View>
-
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.settingRow}
-          onPress={() => router.push('/updates')}
-        >
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Check for Updates</Text>
-            <Text style={styles.settingDescription}>
-              View available updates and install manually
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
+          <Row
+            title="WiFi Network"
+            caption="Change WiFi connection"
+            onPress={() => router.push('/setup/wifi')}
+          />
+          <Row
+            title="Calendars"
+            caption="Connect Google, Outlook, iCloud or a calendar link"
+            onPress={() => router.push('/calendars')}
+            accessibilityLabel="Calendars"
+            accessibilityHint="Connect and manage the calendars shown on the mirror"
+          />
+        </RowGroup>
       </View>
 
       {/* Registered Faces */}
-      <Text style={styles.sectionTitle}>REGISTERED FACES</Text>
-      <View style={styles.card}>
-        {faces.length > 0 ? (
-          faces.map((face, index) => (
-            <View key={face.id}>
-              {index > 0 && <View style={styles.divider} />}
-              <View style={styles.faceRow}>
-                <View style={styles.faceIcon}>
-                  <Ionicons name="person-circle" size={36} color={colors.primary} />
-                </View>
-                <View style={styles.faceInfo}>
-                  <Text style={styles.faceName}>{face.name}</Text>
-                  <Text style={styles.faceDate}>
-                    Added {new Date(face.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => deleteFace(face)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Delete ${face.name}'s face registration`}
-                >
-                  <Ionicons name="trash-outline" size={20} color={colors.error} />
-                </TouchableOpacity>
-              </View>
+      <View>
+        <SectionLabel>REGISTERED FACES</SectionLabel>
+        <RowGroup>
+          {faces.length > 0 ? (
+            faces.map((face) => (
+              <Row
+                key={face.id}
+                leading={
+                  <View style={styles.faceInitial}>
+                    <Text style={styles.faceInitialText}>{face.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                }
+                title={face.name}
+                caption={`Added ${new Date(face.createdAt).toLocaleDateString()}`}
+                trailing={
+                  <Pressable
+                    style={styles.iconButton}
+                    onPress={() => deleteFace(face)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${face.name}'s face registration`}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
+                  </Pressable>
+                }
+              />
+            ))
+          ) : (
+            <Row title="No faces registered" style={styles.emptyRow} />
+          )}
+          <Row
+            icon="add"
+            title="Add New Face"
+            tone="accent"
+            onPress={() => router.push('/setup/face')}
+          />
+        </RowGroup>
+      </View>
+
+      {/* Software Updates */}
+      <View>
+        <SectionLabel>SOFTWARE UPDATES</SectionLabel>
+        <RowGroup>
+          <Row
+            title="Auto-Download Updates"
+            caption="Download updates automatically in the background"
+            trailing={
+              <Switch
+                value={updateConfig?.autoDownload ?? true}
+                onValueChange={(value) => updateSetting('autoDownload', value)}
+                accessibilityLabel="Auto-Download Updates"
+              />
+            }
+          />
+          <Row
+            title="Auto-Install Updates"
+            caption="Automatically install updates when downloaded (requires restart)"
+            trailing={
+              <Switch
+                value={updateConfig?.autoUpdate ?? false}
+                onValueChange={(value) => updateSetting('autoUpdate', value)}
+                accessibilityLabel="Auto-Install Updates"
+              />
+            }
+          />
+          <Row
+            title="Check for Updates"
+            caption="View available updates and install manually"
+            onPress={() => router.push('/updates')}
+          />
+        </RowGroup>
+      </View>
+
+      {/* Access & license */}
+      <View>
+        <SectionLabel>ACCESS & LICENSE</SectionLabel>
+        <RowGroup>
+          <Row
+            title="Paired phones"
+            caption="Phones that can control this mirror"
+            onPress={() => router.push('/paired-phones')}
+            accessibilityLabel="Paired phones"
+            accessibilityHint="See which phones can control this mirror, rename this phone or remove others"
+          />
+          <Pressable
+            onPress={() => router.push('/setup/license')}
+            accessibilityRole="button"
+            accessibilityLabel="License"
+            accessibilityHint="View the license status or enter a different license key"
+            style={({ pressed }) => [styles.licenseRow, pressed && styles.pressed]}
+          >
+            <View style={styles.licenseText}>
+              <Text style={styles.rowTitle}>License</Text>
+              <Text style={[styles.caption, licenseNeedsAttention && styles.warningText]}>
+                {licenseSummary(license)}
+              </Text>
             </View>
-          ))
-        ) : (
-          <View style={styles.emptyFaces}>
-            <Text style={styles.emptyFacesText}>No faces registered</Text>
-          </View>
-        )}
-
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.addFaceButton}
-          onPress={() => router.push('/setup/face')}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.addFaceButtonText}>Add New Face</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Calendars */}
-      <Text style={styles.sectionTitle}>CALENDARS</Text>
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.settingRow}
-          onPress={() => router.push('/calendars')}
-          accessibilityRole="button"
-          accessibilityLabel="Calendars"
-          accessibilityHint="Connect and manage the calendars shown on the mirror"
-        >
-          <View style={styles.settingIconContainer}>
-            <Ionicons name="calendar-outline" size={20} color="#ff6b6b" />
-          </View>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Calendars</Text>
-            <Text style={styles.settingDescription}>Connect Google, Outlook, iCloud or a calendar link</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Mirror Settings */}
-      <Text style={styles.sectionTitle}>MIRROR CONFIGURATION</Text>
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.settingRow}
-          onPress={() => router.push('/setup/airport')}
-        >
-          <View style={styles.settingIconContainer}>
-            <Ionicons name="airplane-outline" size={20} color={colors.warning} />
-          </View>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Home Airport</Text>
-            <Text style={styles.settingDescription}>Change your primary airport</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.settingRow}
-          onPress={() => router.push('/setup/location')}
-        >
-          <View style={styles.settingIconContainer}>
-            <Ionicons name="location-outline" size={20} color={colors.accent} />
-          </View>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Location</Text>
-            <Text style={styles.settingDescription}>Update location for sun times</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.settingRow}
-          onPress={() => router.push('/setup/wifi')}
-        >
-          <View style={styles.settingIconContainer}>
-            <Ionicons name="wifi-outline" size={20} color={colors.primary} />
-          </View>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>WiFi Network</Text>
-            <Text style={styles.settingDescription}>Change WiFi connection</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Paired phones */}
-      <Text style={styles.sectionTitle}>PAIRED PHONES</Text>
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.settingRow}
-          onPress={() => router.push('/paired-phones')}
-          accessibilityRole="button"
-          accessibilityLabel="Paired phones"
-          accessibilityHint="See which phones can control this mirror, rename this phone or remove others"
-        >
-          <View style={styles.settingIconContainer}>
-            <Ionicons name="phone-portrait-outline" size={20} color={colors.primary} />
-          </View>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Paired phones</Text>
-            <Text style={styles.settingDescription}>Phones that can control this mirror</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      {/* License */}
-      <Text style={styles.sectionTitle}>LICENSE</Text>
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.settingRow}
-          onPress={() => router.push('/setup/license')}
-          accessibilityRole="button"
-          accessibilityLabel="License"
-          accessibilityHint="View the license status or enter a different license key"
-        >
-          <View style={styles.settingIconContainer}>
-            <Ionicons
-              name="key-outline"
-              size={20}
-              color={licenseNeedsAttention ? colors.warning : colors.primary}
-            />
-          </View>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>License</Text>
-            <Text
-              style={[
-                styles.settingDescription,
-                licenseNeedsAttention && { color: colors.warning },
-              ]}
-            >
-              {licenseSummary(license)}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <View style={styles.divider} />
-
-        <TouchableOpacity
-          style={styles.settingRow}
-          onPress={openLicenseManagement}
-          accessibilityRole="link"
-          accessibilityHint="Opens skyglass.dev to release the license or re-send the key"
-        >
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Manage license</Text>
-            <Text style={styles.settingDescription}>
-              Move it to another mirror or have the key re-sent
-            </Text>
-          </View>
-          <Ionicons name="open-outline" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
+            {licenseNeedsAttention ? (
+              <Ionicons name="warning-outline" size={16} color={colors.warning} />
+            ) : null}
+            {chevron}
+          </Pressable>
+          <Row
+            title="Manage license"
+            caption="Move it to another mirror or have the key re-sent"
+            onPress={openLicenseManagement}
+            accessibilityHint="Opens skyglass.dev to release the license or re-send the key"
+            trailing={<Ionicons name="open-outline" size={14} color={colors.chevron} />}
+          />
+        </RowGroup>
       </View>
 
       {/* About & Support */}
-      <Text style={styles.sectionTitle}>ABOUT</Text>
-      <View style={styles.card}>
-        <View style={styles.aboutRow}>
-          <Text style={styles.aboutLabel}>App Version</Text>
-          <Text style={styles.aboutValue}>1.0.0</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.aboutRow}>
-          <Text style={styles.aboutLabel}>Connected To</Text>
-          <Text style={styles.aboutValue}>{api.getBaseUrl() || 'Not connected'}</Text>
+      <View>
+        <SectionLabel>ABOUT</SectionLabel>
+        <View style={styles.rows}>
+          <View style={styles.dataRow}>
+            <Text style={styles.dataLabel}>App Version</Text>
+            <Text style={styles.dataValue}>1.0.0</Text>
+          </View>
+          <View style={styles.dataRow}>
+            <Text style={styles.dataLabel}>Connected To</Text>
+            <Text style={[styles.dataValue, styles.dataValueSmall]} numberOfLines={1}>
+              {api.getBaseUrl() || 'Not connected'}
+            </Text>
+          </View>
         </View>
       </View>
 
       {/* Disconnect */}
-      <TouchableOpacity style={styles.disconnectButton} onPress={disconnectMirror}>
-        <Ionicons name="log-out-outline" size={20} color={colors.error} />
-        <Text style={styles.disconnectButtonText}>Disconnect Mirror</Text>
-      </TouchableOpacity>
+      <View style={styles.dangerZone}>
+        <Button label="Disconnect Mirror" variant="danger" icon="log-out-outline" onPress={disconnectMirror} />
 
-      {__DEV__ && (
-        <TouchableOpacity style={styles.disconnectButton} onPress={confirmResetAppData}>
-          <Ionicons name="refresh-outline" size={20} color={colors.error} />
-          <Text style={styles.disconnectButtonText}>Reset App Data (dev)</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Footer spacing */}
-      <View style={styles.footerSpace} />
+        {__DEV__ && (
+          <Button
+            label="Reset App Data (dev)"
+            variant="danger"
+            size="small"
+            icon="refresh-outline"
+            onPress={confirmResetAppData}
+            style={styles.devReset}
+          />
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -463,142 +380,110 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-  },
-  largeTitle: {
-    ...typography.h1,
-    color: colors.text,
-    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: 28,
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.background,
   },
-  sectionTitle: {
+  titleBlock: {
+    gap: spacing.xs,
+  },
+  mirrorName: {
     ...typography.label,
+    fontFamily: fonts.mono,
     color: colors.textMuted,
-    marginBottom: spacing.sm,
-    marginTop: spacing.lg,
   },
-  card: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
+  largeTitle: {
+    ...typography.h1,
+    color: colors.text,
+  },
+  faceInitial: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-  },
-  settingIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surfaceHighlight,
+    borderColor: colors.grabber,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
-  settingInfo: {
-    flex: 1,
-  },
-  settingLabel: {
-    ...typography.body,
+  faceInitialText: {
+    fontSize: 13,
     color: colors.text,
-    fontWeight: '500',
-    marginBottom: 2,
   },
-  settingDescription: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.md,
-  },
-  faceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-  },
-  faceIcon: {
-    marginRight: spacing.md,
-  },
-  faceInfo: {
-    flex: 1,
-  },
-  faceName: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  faceDate: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  deleteButton: {
+  iconButton: {
     width: 44,
     height: 44,
+    marginRight: -spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyFaces: {
-    padding: spacing.lg,
-    alignItems: 'center',
+  emptyRow: {
+    opacity: 0.6,
   },
-  emptyFacesText: {
-    ...typography.body,
+  licenseRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  pressed: {
+    backgroundColor: colors.surfaceHighlight,
+  },
+  licenseText: {
+    flex: 1,
+    gap: 2,
+  },
+  rowTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.text,
+  },
+  caption: {
+    ...typography.caption,
     color: colors.textMuted,
   },
-  addFaceButton: {
+  warningText: {
+    color: colors.warning,
+  },
+  rows: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
+  },
+  dataRow: {
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
+    gap: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
-  addFaceButtonText: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  aboutRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.md,
-  },
-  aboutLabel: {
-    ...typography.body,
+  dataLabel: {
+    flex: 1,
+    fontSize: 15,
     color: colors.textSecondary,
   },
-  aboutValue: {
-    ...typography.body,
-    color: colors.text,
+  dataValue: {
     fontFamily: fonts.mono,
+    fontSize: 15,
+    color: colors.text,
+    flexShrink: 1,
   },
-  disconnectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 68, 68, 0.3)',
+  dataValueSmall: {
+    fontSize: 13,
   },
-  disconnectButtonText: {
-    ...typography.body,
-    color: colors.error,
-    fontWeight: '500',
+  dangerZone: {
+    gap: spacing.md,
+    marginTop: spacing.xs,
   },
-  footerSpace: {
-    height: spacing.xxl,
+  devReset: {
+    alignSelf: 'center',
   },
 });

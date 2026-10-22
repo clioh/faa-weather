@@ -10,8 +10,7 @@ import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api, type CalendarAccount } from '@/lib/api';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
-import { TOUCH } from '@/components/config/fieldStyles';
+import { colors, spacing, typography } from '@/lib/theme';
 import { calendarErrorMessage } from './meta';
 import { Field, Notice, PrimaryButton } from './ui';
 
@@ -87,6 +86,8 @@ export function LinkConnect({ onConnected }: LinkConnectProps) {
         }}
         error={urlError}
         placeholder="webcal://… or https://….ics"
+        mono
+        inputTextStyle={styles.linkInput}
         keyboardType="url"
         autoCapitalize="none"
         autoCorrect={false}
@@ -122,21 +123,24 @@ export function LinkConnect({ onConnected }: LinkConnectProps) {
         >
           <Ionicons name="help-circle-outline" size={18} color={colors.textSecondary} />
           <Text style={styles.helpToggleText}>Where do I find a calendar link?</Text>
-          <Ionicons name={helpOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
+          <Ionicons name={helpOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
         </TouchableOpacity>
-        {helpOpen &&
-          HELP.map((h) => (
-            <View key={h.title} style={styles.helpItem}>
-              <Text style={styles.helpTitle}>{h.title}</Text>
-              <Text style={styles.helpText}>{h.text}</Text>
-            </View>
-          ))}
         {helpOpen && (
-          <Text style={styles.helpNote}>
-            Anyone with a private link can see that calendar, so keep it to yourself. It’s stored only on your mirror.
-          </Text>
+          <View style={styles.helpList}>
+            {HELP.map((h) => (
+              <View key={h.title} style={styles.helpItem}>
+                <Text style={styles.helpTitle}>{h.title}</Text>
+                <Text style={styles.helpText}>{h.text}</Text>
+              </View>
+            ))}
+          </View>
         )}
       </View>
+      {helpOpen && (
+        <Text style={styles.helpNote}>
+          Anyone with a private link can see that calendar, so keep it to yourself. It’s stored only on your mirror.
+        </Text>
+      )}
 
       {error ? <Notice tone="error" message={error} /> : null}
 
@@ -146,20 +150,19 @@ export function LinkConnect({ onConnected }: LinkConnectProps) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: 20 },
   lead: { ...typography.bodySmall, color: colors.textSecondary },
+  linkInput: { fontSize: 14 },
   help: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xs,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.hairline,
   },
-  helpToggle: { minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  helpToggleText: { ...typography.bodySmall, color: colors.textSecondary, flex: 1, fontWeight: '500' },
-  helpItem: { paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  helpTitle: { ...typography.bodySmall, color: colors.text, fontWeight: '600' },
-  helpText: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  helpNote: { ...typography.caption, color: colors.textMuted, paddingVertical: spacing.sm },
+  helpToggle: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  helpToggleText: { fontSize: 15, color: colors.text, flex: 1 },
+  helpList: { paddingLeft: 32, paddingBottom: spacing.sm, gap: spacing.sm },
+  helpItem: { gap: 2 },
+  helpTitle: { fontSize: 13, color: colors.text },
+  helpText: { ...typography.caption, color: colors.textMuted },
+  helpNote: { ...typography.caption, color: colors.textMuted },
 });

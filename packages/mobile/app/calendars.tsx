@@ -7,13 +7,13 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Footer, IconCircle, Notice, Spinner, Text } from '@/components/ui';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api, type AccountCalendar, type CalendarAccount } from '@/lib/api';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
 import { ScreenHeader, HeaderTextButton, ErrorToast, type ToastType } from '@/components';
 import { AccountCard } from '@/components/calendar/AccountCard';
 import { calendarErrorMessage } from '@/components/calendar/meta';
@@ -173,13 +173,13 @@ export default function CalendarsScreen() {
   if (loading) {
     body = (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" />
       </View>
     );
   } else if (loadError) {
     body = (
       <View style={styles.centered}>
-        <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
+        <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
         <Text style={styles.emptyTitle}>Couldn’t load calendars</Text>
         <Text style={styles.emptyText}>{loadError}</Text>
         <SecondaryButton
@@ -194,20 +194,22 @@ export default function CalendarsScreen() {
     );
   } else if (accounts.length === 0) {
     body = (
-      <ScrollView
-        contentContainerStyle={styles.emptyScroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-      >
-        <View style={styles.emptyIcon}>
-          <Ionicons name="calendar-outline" size={36} color={colors.primary} />
-        </View>
-        <Text style={styles.emptyTitle}>Put your day on the mirror</Text>
-        <Text style={styles.emptyText}>
-          Connect Google, Outlook, iCloud or a calendar link and the Schedule widget shows what’s coming up, next to the
-          weather. Your mirror keeps the sign-in and refreshes events on its own; you choose which calendars it shows.
-        </Text>
-        <PrimaryButton label="Add a calendar" icon="add" onPress={addCalendar} style={styles.emptyButton} />
-      </ScrollView>
+      <>
+        <ScrollView
+          contentContainerStyle={styles.emptyScroll}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        >
+          <IconCircle icon="calendar-outline" />
+          <Text style={styles.emptyHeroTitle}>Put your day on the mirror</Text>
+          <Text style={styles.emptyHeroText}>
+            Connect Google, Outlook, iCloud or a calendar link and the Schedule widget shows what’s coming up, next to the
+            weather. Your mirror keeps the sign-in and refreshes events on its own; you choose which calendars it shows.
+          </Text>
+        </ScrollView>
+        <Footer>
+          <PrimaryButton label="Add a calendar" icon="add" onPress={addCalendar} />
+        </Footer>
+      </>
     );
   } else {
     body = (
@@ -272,7 +274,7 @@ export default function CalendarsScreen() {
         body="The mirror stops showing its events and forgets its sign-in. You can connect it again any time."
         onClose={() => !removeBusy && setRemoving(null)}
       >
-        {removeError ? <Text style={styles.sheetError}>{removeError}</Text> : null}
+        {removeError ? <Notice tone="error" message={removeError} /> : null}
         <SecondaryButton
           label="Remove"
           tone="danger"
@@ -297,21 +299,13 @@ export default function CalendarsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxl * 2, gap: spacing.md },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: 22 },
   intro: { ...typography.bodySmall, color: colors.textSecondary },
-  emptyScroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
-  emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
+  emptyScroll: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: 80, gap: 22 },
+  emptyHeroTitle: { ...typography.h1, color: colors.text },
+  emptyHeroText: { ...typography.body, color: colors.textSecondary },
   emptyTitle: { ...typography.h3, color: colors.text, textAlign: 'center', marginTop: spacing.sm },
   emptyText: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center', maxWidth: 320 },
   emptyButton: { marginTop: spacing.md, alignSelf: 'stretch' },
-  sheetButton: { marginTop: spacing.sm },
-  sheetError: { ...typography.bodySmall, color: colors.error },
+  sheetButton: { marginTop: spacing.xs },
 });

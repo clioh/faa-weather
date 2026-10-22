@@ -8,12 +8,13 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '@/components/ui/Text';
+import { Button } from '@/components/ui/Button';
 import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
 import { api, type CalendarAccount } from '@/lib/api';
 import { colors, borderRadius, spacing, typography } from '@/lib/theme';
 import { calendarErrorMessage } from './meta';
-import { Field, Notice, PrimaryButton, SecondaryButton } from './ui';
+import { Field, Notice, PrimaryButton } from './ui';
 
 const APPLE_ACCOUNT_URL = 'https://account.apple.com';
 
@@ -89,8 +90,10 @@ export function PasswordConnect({ provider, initialUsername, onConnected }: Pass
           <Text style={styles.explainerStep}>1. Sign in at account.apple.com</Text>
           <Text style={styles.explainerStep}>2. Open Sign-In and Security, then App-Specific Passwords</Text>
           <Text style={styles.explainerStep}>3. Create one named “SkyGlass” and paste it below</Text>
-          <SecondaryButton
+          <Button
             label="Open account.apple.com"
+            variant="secondary"
+            size="small"
             icon="open-outline"
             onPress={() => WebBrowser.openBrowserAsync(APPLE_ACCOUNT_URL).catch(() => {})}
             style={styles.explainerButton}
@@ -154,6 +157,7 @@ export function PasswordConnect({ provider, initialUsername, onConnected }: Pass
         }}
         error={fieldErrors.password}
         placeholder={icloud ? 'xxxx-xxxx-xxxx-xxxx' : 'Password'}
+        mono={icloud}
         secureTextEntry
         revealable
         autoCapitalize="none"
@@ -189,19 +193,19 @@ export function PasswordConnect({ provider, initialUsername, onConnected }: Pass
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.md },
+  wrap: { gap: 20 },
   lead: { ...typography.bodySmall, color: colors.textSecondary },
   explainer: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surfaceTint,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.sheetBorder,
     padding: spacing.md,
-    gap: spacing.xs,
+    gap: 6,
   },
-  explainerTitle: { ...typography.body, color: colors.text, fontWeight: '600' },
-  explainerText: { ...typography.bodySmall, color: colors.textSecondary, marginBottom: spacing.xs },
-  explainerStep: { ...typography.bodySmall, color: colors.textSecondary },
-  explainerButton: { marginTop: spacing.sm },
+  explainerTitle: { fontSize: 15, color: colors.text },
+  explainerText: { fontSize: 13, lineHeight: 20, color: colors.textSecondary, marginBottom: 6 },
+  explainerStep: { fontSize: 13, lineHeight: 19, color: colors.chipText },
+  explainerButton: { marginTop: 6 },
   busy: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
 });

@@ -6,8 +6,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { StyleSheet, View } from 'react-native';
+import { Spinner, Text } from '@/components/ui';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { api, type CalendarAccount } from '@/lib/api';
@@ -96,7 +96,7 @@ export function GoogleConnect({ onConnected, onCancel }: GoogleConnectProps) {
 
   return (
     <View style={styles.centered} accessibilityLiveRegion="polite">
-      <ActivityIndicator size="large" color={colors.primary} />
+      <Spinner size="large" />
       <Text style={styles.title}>{phase === 'finishing' ? 'Finishing sign-in…' : 'Continue in your browser'}</Text>
       <Text style={styles.body}>
         {phase === 'finishing'

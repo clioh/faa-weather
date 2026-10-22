@@ -6,13 +6,14 @@
 
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { SectionLabel, Text } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api, type AccountCalendar, type CalendarAccount } from '@/lib/api';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
 import { CalendarToggleList } from './CalendarToggleList';
 import { PROVIDER_META, accountStatus } from './meta';
+import { ProviderTile } from './ProviderTile';
 import { Field, Notice, PrimaryButton, errorMessage } from './ui';
 
 interface ChooseCalendarsProps {
@@ -67,12 +68,10 @@ export function ChooseCalendars({ account, initialCalendars, reconnected, onDone
   return (
     <View style={styles.wrap}>
       <View style={styles.success} accessibilityRole="summary">
-        <View style={[styles.icon, { backgroundColor: `${meta?.tint ?? colors.text}1f` }]}>
-          <Ionicons name={meta?.icon ?? 'calendar-outline'} size={22} color={meta?.tint ?? colors.text} />
-        </View>
+        <ProviderTile provider={account.provider} style={styles.icon} />
         <View style={styles.flex}>
           <View style={styles.successLine}>
-            <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+            <Ionicons name="checkmark" size={16} color={colors.success} />
             <Text style={styles.successTitle}>{reconnected ? 'Reconnected' : 'Connected'}</Text>
           </View>
           <Text style={styles.successSub} numberOfLines={1}>
@@ -82,7 +81,7 @@ export function ChooseCalendars({ account, initialCalendars, reconnected, onDone
       </View>
 
       {account.status !== 'ok' && status.detail ? (
-        <Notice tone={account.status === 'reauth' ? 'error' : 'warning'} message={status.detail} />
+        <Notice tone="warning" message={status.detail} />
       ) : null}
 
       <Field
@@ -97,8 +96,8 @@ export function ChooseCalendars({ account, initialCalendars, reconnected, onDone
       />
 
       <View>
-        <Text style={styles.sectionTitle}>Show on the mirror</Text>
-        <View style={styles.card}>
+        <SectionLabel>Show on the mirror</SectionLabel>
+        <View style={styles.rows}>
           <CalendarToggleList
             calendars={calendars}
             onToggle={(cal, enabled) => update(cal.id, { enabled })}
@@ -119,21 +118,13 @@ export function ChooseCalendars({ account, initialCalendars, reconnected, onDone
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  wrap: { gap: spacing.lg },
-  success: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  icon: { width: 48, height: 48, borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  successLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  successTitle: { ...typography.h3, color: colors.text },
-  successSub: { ...typography.bodySmall, color: colors.textMuted },
-  sectionTitle: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.sm, paddingHorizontal: spacing.xs },
-  card: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  hint: { ...typography.caption, color: colors.warning, marginTop: spacing.sm, paddingHorizontal: spacing.xs },
+  flex: { flex: 1, gap: 2 },
+  wrap: { gap: 22 },
+  success: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  icon: { width: 44, height: 44, borderRadius: 12 },
+  successLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  successTitle: { fontSize: 15, color: colors.primary },
+  successSub: { ...typography.caption, color: colors.textMuted },
+  rows: { borderBottomWidth: 1, borderBottomColor: colors.hairline },
+  hint: { ...typography.caption, color: colors.warning, marginTop: spacing.sm },
 });

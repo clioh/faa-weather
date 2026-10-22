@@ -4,8 +4,8 @@
  */
 
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { StyleSheet, View } from 'react-native';
+import { Spinner, Text } from '@/components/ui';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api, type CalendarAccount } from '@/lib/api';
@@ -38,7 +38,7 @@ export function CalendarsSummary() {
   if (error && !accounts) {
     return <Notice tone="error" message={error} action={{ label: 'Retry', onPress: load }} />;
   }
-  if (!accounts) return <ActivityIndicator color={colors.primary} style={styles.loader} />;
+  if (!accounts) return <Spinner style={styles.loader} />;
 
   if (accounts.length === 0) {
     return (
@@ -68,7 +68,7 @@ export function CalendarsSummary() {
             accessible
             accessibilityLabel={`${a.label}, ${shown} calendar${shown === 1 ? '' : 's'} shown. ${status.label}`}
           >
-            <Ionicons name={meta?.icon ?? 'calendar-outline'} size={18} color={meta?.tint ?? colors.text} />
+            <Ionicons name={meta?.icon ?? 'calendar-outline'} size={18} color={colors.text} />
             <View style={styles.rowText}>
               <Text style={styles.name} numberOfLines={1}>
                 {a.label}
@@ -101,12 +101,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
     paddingVertical: spacing.xs,
   },
   rowText: { flex: 1 },
-  name: { ...typography.bodySmall, color: colors.text, fontWeight: '600' },
+  name: { ...typography.bodySmall, color: colors.text },
   sub: { ...typography.caption, color: colors.textMuted },
   status: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '45%' },
   statusText: { ...typography.caption, color: colors.textMuted, flexShrink: 1 },

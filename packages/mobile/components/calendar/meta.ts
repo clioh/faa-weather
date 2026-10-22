@@ -13,7 +13,6 @@ interface ProviderMeta {
   /** Fallback when the mirror's provider list hasn't loaded. */
   name: string;
   icon: IconName;
-  tint: string;
   /** One line under the name in the provider picker. */
   blurb: string;
 }
@@ -22,31 +21,26 @@ export const PROVIDER_META: Record<CalendarProviderId, ProviderMeta> = {
   google: {
     name: 'Google Calendar',
     icon: 'logo-google',
-    tint: '#8fb3ff',
     blurb: 'Sign in with your Google account',
   },
   microsoft: {
     name: 'Outlook / Microsoft 365',
     icon: 'logo-microsoft',
-    tint: '#7ad7ff',
     blurb: 'Outlook.com, Hotmail and work or school accounts',
   },
   icloud: {
     name: 'iCloud',
     icon: 'logo-apple',
-    tint: '#ffffff',
     blurb: 'Uses an app-specific password from Apple',
   },
   caldav: {
     name: 'Other CalDAV',
     icon: 'server-outline',
-    tint: '#c3a6ff',
     blurb: 'Nextcloud, Fastmail, Radicale and other servers',
   },
   ics: {
     name: 'Calendar link',
     icon: 'link-outline',
-    tint: '#7ee0a1',
     blurb: 'Subscribe with a webcal or .ics link, including crew scheduling apps',
   },
 };
@@ -90,7 +84,7 @@ export function accountStatus(account: CalendarAccount): StatusInfo {
   if (account.status === 'reauth') {
     return {
       label: 'Reconnect',
-      color: colors.error,
+      color: colors.warning,
       icon: 'key-outline',
       detail:
         account.error ??
@@ -108,7 +102,7 @@ export function accountStatus(account: CalendarAccount): StatusInfo {
   return {
     label: account.lastSyncAt ? `Synced ${relativeTime(account.lastSyncAt)}` : 'Waiting for first sync',
     color: colors.success,
-    icon: 'checkmark-circle',
+    icon: 'checkmark',
     detail: null,
   };
 }

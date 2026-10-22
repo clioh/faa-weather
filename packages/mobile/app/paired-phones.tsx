@@ -8,14 +8,14 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Badge, Footer, Row, RowGroup, SectionLabel, Spinner, Text } from '@/components/ui';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api, type PairedDevice } from '@/lib/api';
 import { goHome } from '@/lib/navigation';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
 import { ErrorToast, ScreenHeader, type ToastType } from '@/components';
 import { Field, Notice, PrimaryButton, SecondaryButton, Sheet, errorMessage } from '@/components/calendar/ui';
 
@@ -159,13 +159,13 @@ export default function PairedPhonesScreen() {
   if (loading) {
     body = (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" />
       </View>
     );
   } else if (loadError) {
     body = (
       <View style={styles.centered}>
-        <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
+        <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
         <Text style={styles.emptyTitle}>Couldn’t load paired phones</Text>
         <Text style={styles.emptyText}>{loadError}</Text>
         <SecondaryButton
@@ -190,48 +190,34 @@ export default function PairedPhonesScreen() {
         </Text>
 
         {current ? (
-          <View style={styles.card}>
-            <DeviceRow device={current} />
-            <View style={styles.divider} />
-            <TouchableOpacity
-              style={styles.action}
-              onPress={() => openRename(current)}
-              accessibilityRole="button"
-              accessibilityLabel="Rename this phone"
-            >
-              <Ionicons name="create-outline" size={20} color={colors.primary} />
-              <Text style={styles.actionText}>Rename this phone</Text>
-            </TouchableOpacity>
+          <View>
+            <SectionLabel>THIS PHONE</SectionLabel>
+            <RowGroup>
+              <DeviceRow device={current} />
+              <Row
+                icon="create-outline"
+                title="Rename this phone"
+                tone="accent"
+                onPress={() => openRename(current)}
+              />
+            </RowGroup>
           </View>
         ) : (
           <Notice tone="info" message="This phone isn’t in the mirror’s list (it may be connected as the mirror itself)." />
         )}
 
-        <Text style={styles.sectionTitle}>OTHER PHONES</Text>
-        {others.length === 0 ? (
-          <View style={[styles.card, styles.emptyCard]}>
-            <Text style={styles.emptyCardText}>No other phones are paired.</Text>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            {others.map((device, index) => (
-              <View key={device.id}>
-                {index > 0 && <View style={styles.divider} />}
-                <DeviceRow device={device} onRemove={() => openRemove(device)} />
-              </View>
-            ))}
-          </View>
-        )}
-
-        {current ? (
-          <SecondaryButton
-            label="Unpair this phone"
-            icon="log-out-outline"
-            tone="danger"
-            onPress={() => openRemove(current)}
-            style={styles.unpair}
-          />
-        ) : null}
+        <View>
+          <SectionLabel>OTHER PHONES</SectionLabel>
+          <RowGroup>
+            {others.length === 0 ? (
+              <Row title="No other phones are paired." style={styles.emptyRow} />
+            ) : (
+              others.map((device) => (
+                <DeviceRow key={device.id} device={device} onRemove={() => openRemove(device)} />
+              ))
+            )}
+          </RowGroup>
+        </View>
       </ScrollView>
     );
   }
@@ -242,6 +228,17 @@ export default function PairedPhonesScreen() {
     <View style={styles.container}>
       <ScreenHeader title="Paired phones" fallbackHref="/settings" />
       {body}
+
+      {!loading && !loadError && current ? (
+        <Footer>
+          <SecondaryButton
+            label="Unpair this phone"
+            icon="log-out-outline"
+            tone="danger"
+            onPress={() => openRemove(current)}
+          />
+        </Footer>
+      ) : null}
 
       <Sheet
         visible={renaming !== null}
@@ -278,7 +275,7 @@ export default function PairedPhonesScreen() {
         }
         onClose={() => !removeBusy && setRemoving(null)}
       >
-        {removeError ? <Text style={styles.sheetError}>{removeError}</Text> : null}
+        {removeError ? <Notice tone="error" message={removeError} /> : null}
         <SecondaryButton
           label={removingSelf ? 'Unpair' : 'Remove'}
           tone="danger"
@@ -303,84 +300,39 @@ export default function PairedPhonesScreen() {
 function DeviceRow({ device, onRemove }: { device: PairedDevice; onRemove?: () => void }) {
   const added = formatDate(device.createdAt);
   return (
-    <View style={styles.row}>
-      <View style={[styles.rowIcon, device.current && styles.rowIconCurrent]}>
-        <Ionicons name="phone-portrait-outline" size={22} color={device.current ? colors.primary : colors.textSecondary} />
-      </View>
-      <View style={styles.rowInfo}>
-        <View style={styles.rowTitleLine}>
-          <Text style={styles.rowName} numberOfLines={1}>
-            {device.name}
-          </Text>
-          {device.current ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>THIS PHONE</Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={styles.rowMeta}>
-          {device.current ? (added ? `Paired ${added}` : 'Paired') : lastSeenLabel(device)}
-          {!device.current && added ? ` · paired ${added}` : ''}
-        </Text>
-      </View>
-      {onRemove ? (
-        <TouchableOpacity
-          style={styles.removeButton}
-          onPress={onRemove}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${device.name}`}
-        >
-          <Ionicons name="trash-outline" size={20} color={colors.error} />
-        </TouchableOpacity>
-      ) : null}
-    </View>
+    <Row
+      icon="phone-portrait-outline"
+      title={device.name}
+      caption={
+        (device.current ? (added ? `Paired ${added}` : 'Paired') : lastSeenLabel(device)) +
+        (!device.current && added ? ` · paired ${added}` : '')
+      }
+      badge={device.current ? <Badge label="THIS PHONE" /> : undefined}
+      trailing={
+        onRemove ? (
+          <Pressable
+            style={styles.removeButton}
+            onPress={onRemove}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${device.name}`}
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
+          </Pressable>
+        ) : undefined
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxl * 2, gap: spacing.md },
-  intro: { ...typography.bodySmall, color: colors.textSecondary },
-  sectionTitle: { ...typography.label, color: colors.textMuted, marginTop: spacing.sm },
-  card: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  emptyCard: { padding: spacing.md },
-  emptyCardText: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center' },
-  divider: { height: 1, backgroundColor: colors.border, marginLeft: spacing.md },
-  row: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.md, minHeight: 64 },
-  rowIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surfaceHighlight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowIconCurrent: { backgroundColor: colors.primaryMuted },
-  rowInfo: { flex: 1, gap: 2 },
-  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  rowName: { ...typography.body, color: colors.text, fontWeight: '600', flexShrink: 1 },
-  rowMeta: { ...typography.caption, color: colors.textMuted },
-  badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.primaryMuted,
-  },
-  badgeText: { ...typography.label, fontSize: 10, color: colors.primary },
-  removeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  action: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, minHeight: 48 },
-  actionText: { ...typography.body, color: colors.primary, fontWeight: '500' },
-  unpair: { marginTop: spacing.md },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: 26 },
+  intro: { ...typography.body, color: colors.textSecondary },
+  emptyRow: { opacity: 0.6 },
+  removeButton: { width: 44, height: 44, marginRight: -spacing.sm, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { ...typography.h3, color: colors.text, textAlign: 'center', marginTop: spacing.sm },
   emptyText: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center', maxWidth: 320 },
   emptyButton: { marginTop: spacing.md, alignSelf: 'stretch' },
-  sheetButton: { marginTop: spacing.sm },
-  sheetError: { ...typography.bodySmall, color: colors.error },
+  sheetButton: { marginTop: spacing.xs },
 });
