@@ -445,48 +445,45 @@ cd ~/SkyGlass
 ./scripts/setup-pi.sh
 ```
 
-This will install:
+This will install (natively; there is no Docker image):
 - Node.js 20
-- Python 3 with face_recognition
-- OpenCV
-- PM2
-- All dependencies
+- Python 3 venv with face_recognition and OpenCV
+- PM2, running `skyglass-backend` (port 3001, also serves the display UI),
+  `skyglass-detector` and `skyglass-admin` (port 5000) from `config/pm2.config.cjs`
+- The `skyglass-boot`, `skyglass-provision` (WiFi hotspot) and
+  `skyglass-watchdog` systemd units
+- Chromium in kiosk mode and mDNS (`skyglass.local`)
 
 ### Step 4: Configure Your Mirror
 
-1. **Run the setup wizard:**
-   - Open `http://skyglass.local:3001/setup` in a browser
-   - Enter your home airport (ICAO code)
-   - Set your location
-   - Enroll your face
+Setup happens in the SkyGlass phone app (there is no browser setup wizard).
+Open the app, connect to the mirror and follow the steps: WiFi (via the
+`SkyGlass-Setup` hotspot if the mirror is not on your network yet), license,
+location, home airport, and face registration.
 
-2. **Or edit config manually:**
-   ```bash
-   nano ~/SkyGlass/config/config.yaml
-   ```
+Other settings (display, `presence:` detection tuning) live in
+`~/SkyGlass/config/config.yaml`, which `setup-pi.sh` creates from
+`config/default.yaml`:
 
-### Step 5: Enroll Your Face
-
-Option A - Web UI (recommended):
 ```bash
-cd ~/SkyGlass
-npm run enroll:web
-# Open http://skyglass.local:5050 in browser
+nano ~/SkyGlass/config/config.yaml
 ```
 
-Option B - Command line:
-```bash
-npm run enroll
-# Follow the prompts, press SPACE to capture
-```
-
-### Step 6: Start the Services
+### Step 5: Start the Services
 
 ```bash
 cd ~/SkyGlass
 npm run start   # Starts all services via PM2
 npm run logs    # View logs
 ```
+
+### Step 6: Register Your Face
+
+Open the SkyGlass app on your phone, connect to the mirror, and follow the
+face registration step (or Settings > Add New Face later). The mirror shows
+the camera view while it captures. Each person who should wake the mirror
+registers separately; the detector picks up new registrations without a
+restart.
 
 ### Step 7: Enable Auto-Start on Boot
 
@@ -553,24 +550,24 @@ Only for lighter builds (<15 lbs).
 | Problem | Solution |
 |---------|----------|
 | Camera not detected | Check ribbon cable orientation |
-| Face not recognized | Re-enroll with better lighting |
-| Slow recognition | Reduce resolution in detector.py |
+| Face not recognized | Register the face again from the phone app, in front of the mirror and in its usual lighting |
+| Slow recognition | Set `detection_method: opencv` in the `presence:` block of config.yaml (wakes for any face) |
 | Camera preview black | Enable camera in raspi-config |
 
 ### Presence Detection Issues
 
 | Problem | Solution |
 |---------|----------|
-| Mirror won't turn on | Check face enrollment, run with --preview |
-| Mirror won't turn off | Adjust timeout in config.yaml |
-| Detects other people | Re-enroll with lower tolerance (0.5) |
-| Too sensitive | Increase min_frames in config |
+| Mirror won't turn on | Check a face is registered, then `pm2 logs skyglass-detector` (see `packages/presence/README.md`) |
+| Mirror won't turn off | Lower `presence.timeout` (detector) or `display.presence_timeout` in config.yaml |
+| Detects other people | Lower `presence.tolerance` in config.yaml (e.g. 0.5) |
+| Too sensitive | Increase `presence.min_detection_frames` in config.yaml |
 
 ### Network Issues
 
 | Problem | Solution |
 |---------|----------|
-| Can't access setup wizard | Check Pi IP with `hostname -I` |
+| Phone app can't find the mirror | Check the Pi's IP with `hostname -I` and open `http://<ip>:3001` |
 | Aviation data not loading | Check internet, verify API endpoints |
 | WebSocket disconnecting | Check for network stability |
 
@@ -594,13 +591,17 @@ Only for lighter builds (<15 lbs).
 
 ### Updating Software
 
+Install updates from the display UI (*Download*, then *Install Now*) or from a shell:
+
 ```bash
 cd ~/SkyGlass
-git pull
-npm install
-npm run build
-pm2 restart all
+npm run update                 # check and prompt
+./scripts/update.sh --check    # check only
+./scripts/update.sh --apply    # install without prompting
 ```
+
+Updates come from GitHub release tarballs; `config/config.yaml`, `data/` and
+registered faces are kept. Details in the README's *Updating* section.
 
 ---
 
@@ -630,7 +631,7 @@ For a 24" mirror build:
 
 - [Raspberry Pi Documentation](https://www.raspberrypi.com/documentation/)
 - [Two Way Mirrors - Smart Mirror Guide](https://www.twowaymirrors.com/smart-mirror-guide/)
-- [/r/SkyGlass Subreddit](https://www.reddit.com/r/SkyGlass/)
+- [/r/MagicMirror Subreddit](https://www.reddit.com/r/MagicMirror/) (general smart mirror builds)
 - [Pi Camera Troubleshooting](https://www.raspberrypi.com/documentation/computers/camera_software.html)
 
 ---

@@ -12,9 +12,12 @@ Thank you for your interest in contributing to SkyGlass! This document provides 
    ```
 3. **Set up the development environment**:
    ```bash
-   ./scripts/setup-mac.sh   # macOS
-   ./scripts/setup-pi.sh    # Raspberry Pi
+   npm install                   # Node workspaces
+   npm run setup:dev -- deps     # Python venv for packages/presence (compiles dlib)
+   npm run dev:mirror            # backend :3001 + mirror UI :5173
    ```
+   On a Raspberry Pi use `./scripts/setup-pi.sh` instead. See
+   [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for the full local pipeline.
 
 ## Development Workflow
 
@@ -98,10 +101,13 @@ Prefixes:
 ```
 SkyGlass/
 ├── packages/
-│   ├── backend/      # Node.js API server
-│   ├── frontend/     # React display UI
-│   └── presence/     # Python presence detection
-├── config/           # Configuration files
+│   ├── backend/        # Node.js API server (@skyglass/backend)
+│   ├── frontend/       # React display UI (@skyglass/frontend)
+│   ├── mobile/         # React Native/Expo phone app (setup + layout editor)
+│   ├── presence/       # Python presence detection + admin server
+│   ├── cloud-api/      # Optional cloud sync API (@skyglass/cloud-api)
+│   └── website/        # Marketing site (Vercel)
+├── config/           # default.yaml, PM2 config, systemd units
 ├── scripts/          # Setup and utility scripts
 └── docs/             # Documentation
 ```
@@ -175,22 +181,26 @@ Include:
 
 ## Adding a New Widget
 
-1. Create the widget component:
+1. Create the widget component and its styles (wrap it in `ModuleFrame` for the shared chrome):
    ```
-   packages/frontend/src/components/widgets/MyWidget.tsx
+   packages/frontend/src/components/modules/MyWidgetModule.tsx
+   packages/frontend/src/components/modules/MyWidgetModule.css
    ```
 
-2. Add to the widget registry in `App.tsx`
+2. Register its id in `packages/frontend/src/components/modules/index.ts`
 
-3. Add backend service if needed:
+3. Add the same id (sizes, settings) to the widget catalog in `packages/mobile/lib/modules.ts`;
+   the phone's layout editor configures it from there
+
+4. Add backend service if needed:
    ```
    packages/backend/src/services/myservice.ts
    packages/backend/src/routes/myservice.ts
    ```
 
-4. Add tests for the service
+5. Add tests for the service
 
-5. Update documentation
+6. Update documentation (data endpoints go in `docs/WIDGETS.md`)
 
 ## Adding a New Backend Service
 
@@ -205,13 +215,13 @@ Include:
 2. Create the route:
    ```typescript
    // packages/backend/src/routes/myservice.ts
-   router.get('/api/myservice', async (req, res) => {
+   router.get('/', async (req, res) => {
      const data = await getData();
      res.json(data);
    });
    ```
 
-3. Register in `server.ts`
+3. Mount it in `server.ts`: `app.use('/api/myservice', myserviceRoutes);`
 
 4. Add tests
 

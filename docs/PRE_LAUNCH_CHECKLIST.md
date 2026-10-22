@@ -1,0 +1,159 @@
+# Pre-launch checklist
+
+Everything that still has to happen before SkyGlass ships to customers. Items are grouped by
+who has to act and roughly ordered by risk within each group. Tick them off as they land.
+
+Last reviewed: 2026-10-21, after the calendar sign-in work, moving API keys to the cloud and hardening the presence server.
+
+## 1. Security blockers
+
+- [x] **Lock down the presence server (port 5000).** Done 2026-10-21; the trust model is in `docs/SECURITY.md`.
+      Device routes need the backend's internal token (`data/internal-token`) or an admin login.
+      The admin login only exists after a password is set on the device with
+      `packages/presence/set_admin_password.py`. The camera feed only streams during a visible
+      enrollment session with a short-lived token. Passwords use scrypt, and the portal has CSRF
+      checks and a login lockout.
+- [x] **Protect the mirror API (port 3001) with phone pairing.** Done 2026-10-21; details in
+      `docs/SECURITY.md`. Every API route and the WebSocket deny by default. Only the mirror's own
+      screen and local scripts, the presence server (internal token) and paired phones get in.
+      Phones pair by scanning the QR on the mirror's setup screen or by entering a 6-digit code the
+      mirror shows. A test fails if any newly added route is left unprotected.
+- [x] **Trim the public discovery endpoint.** Done 2026-10-21. It returns only the mirror id, name,
+      version, `setupComplete` and `pairingRequired`, and a test pins that list.
+- [x] **Move third-party keys off the mirror.** Done 2026-10-21. The FAA NOTAM and Finnhub keys
+      now live only on Vercel, behind `/api/data/notams`, `/api/data/stocks` and
+      `/api/data/stock-profiles` (see `docs/CLOUD_SERVICE.md`). The mirror has no API keys at all;
+      its only cloud setting is `skyglass_service`.
+- [ ] **Rate-limit the cloud service for real.** The limits in `packages/website/api/_lib/` apply per
+      server instance, so the real cap is higher. Add Vercel firewall rules on `/api/oauth/*` and
+      `/api/data/*`. Anyone who finds the data endpoints can spend SkyGlass's FAA and Finnhub quota,
+      and CDN caching only softens that.
+- [ ] **Get a Finnhub plan that allows redistribution.** The free tier is for personal use and about
+      60 calls a minute. Serving every customer from one key needs a commercial licence, or a
+      different quote provider.
+- [ ] **Check the FAA NOTAM API terms** for one application proxying for a commercial product, its
+      rate limits, and whether the mirror must show a "not for flight planning" notice. The FAA is
+      moving to the NOTAM Management System API, which will need code changes. The current
+      endpoint path and response shape came from third-party documentation and are untested.
+
+## 2. Cloud and account setup (calendar sign-in, NOTAMs, stocks)
+
+Details are in `docs/CALENDAR.md` and `docs/CLOUD_SERVICE.md`.
+
+- [ ] **Create the Google OAuth client.** Type "Web application", authorized redirect URI
+      `https://skyglass.dev/oauth/google`, scopes `openid`, `email` and `calendar.readonly`.
+- [ ] **Start Google's verification for `calendar.readonly`.** It is a sensitive scope. Until it is
+      verified, only listed test users can sign in, and they see an "unverified app" warning.
+      Verification needs a privacy policy, a homepage on the verified domain and a demo video, and
+      it can take weeks, so start early.
+- [ ] **Create the Microsoft Entra (Azure) app registration.** It must accept personal and
+      work/school accounts, with "Allow public client flows" turned on and delegated `Calendars.Read`,
+      `User.Read` and `offline_access`.
+- [ ] **Get FAA NOTAM API credentials** (client id and secret) from the FAA API portal.
+- [ ] **Set the Vercel environment variables** on the website project: `GOOGLE_CLIENT_ID`,
+      `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, `FAA_NOTAM_CLIENT_ID`,
+      `FAA_NOTAM_CLIENT_SECRET`, `FINNHUB_API_KEY`. `GOOGLE_REDIRECT_URI`, `MICROSOFT_TENANT` and
+      `FAA_NOTAM_API_URL` are optional.
+- [ ] **Deploy the website.** Until it is deployed, Google and Outlook sign-in show as unavailable on
+      every mirror, NOTAMs are empty, and stocks fall back to Yahoo.
+- [ ] **Choose the canonical domain.** `skyglass.dev` redirects to `www.skyglass.dev` today. The mirror
+      handles that one hop, but `skyglass_service` in `config/default.yaml` and the Google redirect
+      URI should name the domain you keep.
+- [ ] **Smoke-test the deployed service:** `GET /api/oauth/config` lists both providers,
+      `/api/data/notams?icao=KSAN` and `/api/data/stocks?symbols=AAPL` return data, none of the
+      `/api/oauth/*` or `/api/data/*` responses carry `Access-Control-Allow-Origin`, and
+      `/oauth/google` serves the return page.
+
+## 2b. Licensing setup (see `docs/LICENSING.md`)
+
+- [ ] **Generate the signing keypair** with `node scripts/license-keygen.mjs`. Set the private line as
+      `LICENSE_SIGNING_KEY` on Vercel and paste the public key into
+      `packages/backend/src/license/public-key.ts`. Until then the mirror rejects every activation:
+      the committed key is a placeholder.
+- [ ] **Create the Neon database**, set `DATABASE_URL` on Vercel, and run
+      `npm run db:migrate --workspace=packages/website` once.
+- [ ] **Set `LICENSE_MANAGE_SECRET`** (`openssl rand -hex 32`) and allow the `licenses@skyglass.dev`
+      sender in Resend.
+- [ ] **Subscribe the Stripe webhook** to `payment_intent.succeeded`, `payment_intent.payment_failed`,
+      `charge.refunded`, `refund.updated` and `charge.dispute.created`, so refunds and chargebacks revoke
+      licenses (see "Refunds and disputes" in `docs/LICENSING.md` for the support runbook).
+- [ ] **Review the drafted refund policy** in `packages/website/src/pages/Terms.tsx` (Refunds & Returns,
+      Hardware Warranty) and confirm the kit lead time ("Ships in 2–3 weeks" in `Pricing.tsx`).
+- [ ] **Confirm the Stripe tax code for the Software License.** Every item uses `txcd_99999999` (general
+      tangible goods); downloadable software is usually taxed differently by state. Per-product codes
+      would live in `packages/website/shared/catalog.ts`.
+- [ ] **Remove the old `license:` block from existing `config/config.yaml` files.** `key` and `serverUrl` are
+      ignored now, and `enabled: false` there turns licensing off.
+- [ ] **Test on a Pi:** pre-flashed key file (`scripts/provision-sd.sh`) activates on first boot; entering a
+      key in the app; a release from skyglass.dev/license moves the mirror to the "released" screen at its next
+      refresh; unplugging the network keeps the mirror running.
+
+## 3. Test on real hardware
+
+None of the work below has run on a phone or a Raspberry Pi yet. Everything typechecks, lints,
+passes unit tests and was reviewed, and the mirror was rendered in headless Chrome.
+
+**Phone app** (do this first, on both iOS and Android, with a fresh dev build: `npx expo run:ios` / `run:android`)
+- [ ] Run `npm install` first. Dependencies changed: `expo-image-manipulator` was added,
+      `expo-auth-session` and `@react-navigation/native` were removed.
+- [ ] Layout editor: drag, resize, collisions, undo/redo, the add-widget sheet, the discard prompt,
+      and haptics. Check the keyboard behaviour in the widget settings sheet.
+- [ ] Photo frame: upload several large photos. They should arrive at 2560 px or less on the long
+      side and display correctly rotated.
+- [ ] Calendars, one round trip per provider:
+  - [ ] Google, in both a dev build (`skyglass://`) and Expo Go (`exp://`), on iOS and Android.
+  - [ ] Microsoft code sign-in: the code is readable and can be copied, and the code countdown works.
+  - [ ] iCloud with an app-specific password. Check that iOS doesn't offer to autofill the real
+        Apple ID password.
+  - [ ] A calendar link (Google secret iCal address, iCloud public link, a crew-scheduling feed).
+  - [ ] Reconnect after revoking access, remove an account, turn calendars on and off, change colours.
+- [ ] Sheets and modals: iOS page sheets can't be dismissed by swiping in React Native 0.86. Confirm
+      every sheet has a visible close button.
+
+**Mirror on a Raspberry Pi**
+- [ ] Rendering performance with a busy layout: radar animation, photo crossfade, clocks.
+- [ ] Live data through the deployed cloud service: NOTAMs, stocks via Finnhub, and stocks with the
+      service unreachable (Yahoo fallback; Yahoo throttles per IP and the widget then shows
+      "unavailable" for about 10 minutes).
+- [ ] Pairing on real phones: scan the setup-screen QR in a dev build and in Expo Go; pair a
+      second phone with the on-screen code while the mirror display is asleep; enter a wrong code
+      and check the tries-left message; remove a phone in Paired phones and confirm it is signed
+      out at once; set up a mirror through the `SkyGlass-Setup` hotspot and confirm the phone pairs
+      when the mirror joins home WiFi. Check that photos load on Android, because they need an
+      auth header.
+- [ ] Security on the device: run `set_admin_password.py` and log in to `/admin` from another
+      machine; confirm `/video_feed` and the device routes refuse requests without a token; enroll a
+      face from the phone and confirm the preview stops when the session ends; join WiFi with an
+      SSID and passphrase containing quotes and spaces.
+- [ ] A calendar-heavy week: recurring events, all-day and multi-day events, and time zone
+      boundaries against the mirror's `location.timezone`.
+- [ ] Reset the local mirror layout. It was overwritten with a test layout during development.
+
+## 4. Repository and release hygiene
+
+- [ ] **Commit the work in reviewable pieces.** The working tree holds the release-prep pass,
+      the widget/editor overhaul and calendar sign-in, about 200 files. Suggested split: backend
+      services, mirror widgets, phone editor, calendar (backend + app + website), docs.
+- [x] **Rename the workspace packages.** Done 2026-10-21: backend, frontend, cloud-api and
+      license-server are now `@skyglass/*` (turbo filters in the root `package.json` updated).
+- [ ] **Rename the git remote.** It is still `clioh/faa-weather`. The README uses a `<your-fork>`
+      placeholder until there is a public repository URL.
+- [ ] **Regenerate `packages/website/package-lock.json`.** It is stale (no `stripe` entry), which
+      matters if Vercel builds from `packages/website`.
+- [ ] **Check the Stripe webhook version.** The payload shape follows the API version set on the
+      Dashboard webhook endpoint, not the SDK pin. Make them match.
+- [ ] **Add HTTP-level tests for the newer routes.** News, finance, weather, to-dos, photos and
+      calendar have service tests, but nothing exercises the Express routes end to end.
+- [ ] **Close the SSRF guard's timing gap.** `packages/backend/src/services/ssrf.ts` checks DNS and
+      then connects separately, so a fast DNS rebind could slip through. The gap is small and
+      documented in the code.
+- [ ] **Remove leftover keys from existing installs.** `widgets:`, `notam_api_key`, `finance:`,
+      `calendar.google` and `calendar.auth_service` in older `config/config.yaml` files are now ignored.
+
+## 5. Product follow-ups (not blocking)
+
+- [ ] Flight-schedule email import still uses an IMAP username and password in `config/config.yaml`.
+      Consider Gmail/Outlook sign-in through the same cloud service.
+- [ ] Add a calendar step to the phone onboarding flow.
+- [ ] Google-only calendar sign-in through the cloud means SkyGlass's Google project quota and
+      verification status affect every customer. Monitor the quota once verified.
