@@ -7,15 +7,8 @@
  * for them. Also reached from Settings → License to change the key.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -32,7 +25,21 @@ import { logError } from '@/lib/errors';
 import { KeyboardAvoidingScreen } from '@/components';
 import { goBack } from '@/lib/navigation';
 import { continueSetup } from '@/lib/setupSteps';
-import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
+import {
+  Button,
+  Field,
+  Footer,
+  IconCircle,
+  Notice,
+  Row,
+  RowGroup,
+  SectionLabel,
+  Spinner,
+  Text,
+  TextButton,
+  type IconName,
+} from '@/components/ui';
+import { colors, spacing, typography, fonts, tones } from '@/lib/theme';
 
 interface ScreenError {
   title: string;
@@ -297,7 +304,7 @@ export default function LicenseSetupScreen() {
   if (loading || (inSetupFlow && isDisabled)) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" />
         <Text style={styles.mutedText}>Checking license...</Text>
       </View>
     );
@@ -305,20 +312,19 @@ export default function LicenseSetupScreen() {
 
   if (loadError && !status) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="warning-outline" size={48} color={colors.warning} />
-        <Text style={styles.centerTitle}>Can't reach your mirror</Text>
-        <Text style={styles.centerText}>{loadError}</Text>
-        {inSetupFlow && (
-          <Text style={styles.centerText}>
-            If the mirror just joined your WiFi, give it a minute to restart and make sure your
-            phone is on the same network, then retry.
-          </Text>
-        )}
-        <TouchableOpacity style={styles.secondaryButton} onPress={loadStatus}>
-          <Text style={styles.secondaryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
+      <StatusScreen
+        icon="warning-outline"
+        iconColor={colors.warning}
+        title="Can't reach your mirror"
+        body={[
+          loadError,
+          inSetupFlow
+            ? 'If the mirror just joined your WiFi, give it a minute to restart and make sure your ' +
+              'phone is on the same network, then retry.'
+            : null,
+        ]}
+        footer={<Button label="Retry" variant="secondary" onPress={loadStatus} />}
+      />
     );
   }
 
@@ -327,31 +333,30 @@ export default function LicenseSetupScreen() {
   // Licensing switched off, opened from Settings: nothing to enter.
   if (isDisabled) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="key-outline" size={48} color={colors.textMuted} />
-        <Text style={styles.centerTitle}>Licensing is off</Text>
-        <Text style={styles.centerText}>
-          This mirror doesn't require a license key.
-        </Text>
-        <TouchableOpacity style={styles.primaryButtonInline} onPress={continueOn}>
-          <Text style={styles.primaryButtonText}>Continue</Text>
-        </TouchableOpacity>
-      </View>
+      <StatusScreen
+        icon="key-outline"
+        iconColor={colors.textMuted}
+        title="Licensing is off"
+        body={["This mirror doesn't require a license key."]}
+        footer={<Button label="Continue" onPress={continueOn} />}
+      />
     );
   }
 
   // Already active (pre-flashed kit, or revisiting from Settings).
   if (isActive && !changingKey) {
     return (
-      <View style={styles.centerContainer}>
-        <View style={styles.activeBadge}>
-          <Ionicons name="checkmark" size={36} color={colors.background} />
-        </View>
-        <Text style={styles.centerTitle}>
-          License active{status?.keyLast4 ? ` (…${status.keyLast4})` : ''}
-        </Text>
-        <Text style={styles.centerText}>
-          {justActivated
+      <StatusScreen
+        icon="checkmark"
+        accent
+        title={
+          <>
+            License active
+            {status?.keyLast4 ? <Text style={styles.titleKey}>{` (…${status.keyLast4})`}</Text> : null}
+          </>
+        }
+        body={[
+          justActivated
             ? 'Your key is activated on this mirror. Keep the email it came in: you’ll need ' +
               'the key again if you move the license to another mirror.'
             : inSetupFlow
@@ -361,23 +366,26 @@ export default function LicenseSetupScreen() {
                 status?.activatedAt
                   ? `Activated ${new Date(status.activatedAt).toLocaleDateString()}. `
                   : ''
-              }This mirror is licensed.`}
-        </Text>
-        <TouchableOpacity style={styles.primaryButtonInline} onPress={continueOn}>
-          <Text style={styles.primaryButtonText}>Continue</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.linkButton} onPress={() => setChangingKey(true)}>
-          <Text style={styles.linkButtonText}>Use a different key</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.linkButton} onPress={openManagePage}>
-          <Text style={styles.linkButtonText}>Manage license</Text>
-        </TouchableOpacity>
-      </View>
+              }This mirror is licensed.`,
+        ]}
+        footer={<Button label="Continue" onPress={continueOn} />}
+      >
+        <RowGroup>
+          <Row title="Use a different key" tone="accent" onPress={() => setChangingKey(true)} />
+          <Row
+            title="Manage license"
+            tone="accent"
+            onPress={openManagePage}
+            trailing={<Ionicons name="open-outline" size={14} color={colors.chevron} />}
+          />
+        </RowGroup>
+      </StatusScreen>
     );
   }
 
   const stateNotice = status ? describeCurrentState(status) : null;
   const notice = error ?? stateNotice;
+  const noticeTone = error ? 'error' : 'warning';
 
   return (
     <KeyboardAvoidingScreen style={styles.container}>
@@ -386,131 +394,142 @@ export default function LicenseSetupScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.instructions}>
-          <Ionicons name="key-outline" size={20} color={colors.accent} />
-          <View style={styles.instructionsBody}>
+          <View style={styles.instructionsHeader}>
+            <Ionicons name="key-outline" size={18} color={colors.primary} />
             <Text style={styles.instructionsTitle}>Where's my key?</Text>
-            <Text style={styles.instructionsText}>
-              It's in your SkyGlass order confirmation email, in the form XXXX-XXXX-XXXX-XXXX.
-              Bought a kit? The key comes pre-installed and activates on its own once the mirror
-              is online, so you shouldn't need to type anything.
-            </Text>
           </View>
+          <Text style={styles.instructionsText}>
+            It's in your SkyGlass order confirmation email, in the form{' '}
+            <Text style={styles.mono}>XXXX-XXXX-XXXX-XXXX</Text>. Bought a kit? The key comes
+            pre-installed and activates on its own once the mirror is online, so you shouldn't
+            need to type anything.
+          </Text>
         </View>
 
         {notice && (
-          <View style={[styles.notice, error ? styles.noticeError : styles.noticeWarning]}>
-            <Ionicons
-              name={error ? 'alert-circle' : 'information-circle'}
-              size={20}
-              color={error ? colors.error : colors.warning}
-            />
-            <View style={styles.noticeBody}>
-              <Text style={styles.noticeTitle}>{notice.title}</Text>
-              <Text style={styles.noticeText}>{notice.message}</Text>
-              {notice.showManageLink && (
-                <TouchableOpacity onPress={openManagePage} accessibilityRole="link">
-                  <Text style={styles.noticeLink}>
-                    {manageUrl.replace(/^https?:\/\//, '')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {!error && status?.state === 'expired' && (
-                <TouchableOpacity
-                  onPress={handleRefresh}
-                  disabled={refreshing}
-                  style={styles.noticeAction}
-                >
-                  {refreshing ? (
-                    <ActivityIndicator size="small" color={colors.warning} />
-                  ) : (
-                    <Text style={styles.noticeLink}>Check again</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+          <Notice tone={noticeTone} title={notice.title} message={notice.message}>
+            {notice.showManageLink && (
+              <Pressable onPress={openManagePage} accessibilityRole="link" style={styles.noticeAction}>
+                <Text style={styles.noticeLink}>{manageUrl.replace(/^https?:\/\//, '')}</Text>
+              </Pressable>
+            )}
+            {!error && status?.state === 'expired' && (
+              <Pressable
+                onPress={handleRefresh}
+                disabled={refreshing}
+                style={styles.noticeAction}
+                accessibilityRole="button"
+              >
+                {refreshing ? (
+                  <Spinner color={tones[noticeTone].icon} />
+                ) : (
+                  <Text style={styles.noticeLink}>Check again</Text>
+                )}
+              </Pressable>
+            )}
+          </Notice>
         )}
 
-        <Text style={styles.label}>LICENSE KEY</Text>
-        <TextInput
-          style={[styles.keyInput, normalized && styles.keyInputValid]}
-          value={key}
-          onChangeText={(text) => {
-            setKey(formatLicenseKeyInput(text));
-            if (error) setError(null);
-          }}
-          placeholder="XXXX-XXXX-XXXX-XXXX"
-          placeholderTextColor={colors.textDisabled}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          autoComplete="off"
-          spellCheck={false}
-          // 16 characters + 3 dashes
-          maxLength={19}
-          returnKeyType="go"
-          onSubmitEditing={handleActivate}
-          accessibilityLabel="License key"
-          editable={!submitting}
-        />
-        {keyHint && (keyComplete || /[01OI]/.test(key)) ? (
-          <Text style={styles.hintError}>{keyHint}</Text>
-        ) : (
-          <Text style={styles.hint}>
-            Dashes are added for you. Keys never contain 0, O, 1 or I.
-          </Text>
-        )}
+        <View>
+          <SectionLabel>LICENSE KEY</SectionLabel>
+          <Field
+            value={key}
+            onChangeText={(text) => {
+              setKey(formatLicenseKeyInput(text));
+              if (error) setError(null);
+            }}
+            placeholder="XXXX-XXXX-XXXX-XXXX"
+            autoCapitalize="characters"
+            autoCorrect={false}
+            autoComplete="off"
+            spellCheck={false}
+            // 16 characters + 3 dashes
+            maxLength={19}
+            returnKeyType="go"
+            onSubmitEditing={handleActivate}
+            accessibilityLabel="License key"
+            editable={!submitting}
+            mono
+            inputTextStyle={styles.keyInput}
+            error={keyHint && (keyComplete || /[01OI]/.test(key)) ? keyHint : null}
+            help={
+              keyHint && (keyComplete || /[01OI]/.test(key))
+                ? undefined
+                : 'Dashes are added for you. Keys never contain 0, O, 1 or I.'
+            }
+          />
+        </View>
 
-        <TouchableOpacity
-          onPress={openManagePage}
-          style={styles.linkButton}
-          accessibilityRole="link"
-        >
-          <Text style={styles.linkButtonText}>Lost your key or moving it from another mirror?</Text>
-          <Text style={styles.linkButtonCaption}>
-            Have it re-sent or release it at {manageUrl.replace(/^https?:\/\//, '')}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={openStore} style={styles.linkButton} accessibilityRole="link">
-          <Text style={styles.linkButtonText}>Don't have a license?</Text>
-          <Text style={styles.linkButtonCaption}>
-            Buy one at {STORE_URL.replace(/^https?:\/\//, '')}
-          </Text>
-        </TouchableOpacity>
+        <RowGroup>
+          <Row
+            title="Lost your key or moving it from another mirror?"
+            caption={`Have it re-sent or release it at ${manageUrl.replace(/^https?:\/\//, '')}`}
+            tone="accent"
+            onPress={openManagePage}
+            style={styles.linkRow}
+          />
+          <Row
+            title="Don't have a license?"
+            caption={`Buy one at ${STORE_URL.replace(/^https?:\/\//, '')}`}
+            tone="accent"
+            onPress={openStore}
+            style={styles.linkRow}
+          />
+        </RowGroup>
 
         {isActive && changingKey && (
-          <TouchableOpacity onPress={() => setChangingKey(false)} style={styles.linkButton}>
-            <Text style={styles.mutedText}>Keep the current key (…{status?.keyLast4})</Text>
-          </TouchableOpacity>
+          <TextButton
+            label={`Keep the current key (…${status?.keyLast4})`}
+            color={colors.textSecondary}
+            onPress={() => setChangingKey(false)}
+          />
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.primaryButton, !normalized && styles.primaryButtonDisabled]}
+      <Footer>
+        <Button
+          label="Activate"
+          icon="key-outline"
           onPress={handleActivate}
-          disabled={!normalized || submitting}
-          accessibilityRole="button"
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color={colors.background} />
-          ) : (
-            <>
-              <Ionicons
-                name="key"
-                size={20}
-                color={normalized ? colors.background : colors.textMuted}
-              />
-              <Text
-                style={[styles.primaryButtonText, !normalized && styles.primaryButtonTextDisabled]}
-              >
-                Activate
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+          disabled={!normalized}
+          loading={submitting}
+        />
+      </Footer>
     </KeyboardAvoidingScreen>
+  );
+}
+
+interface StatusScreenProps {
+  icon: IconName;
+  iconColor?: string;
+  /** Accent-outlined circle (success). */
+  accent?: boolean;
+  title: ReactNode;
+  body: (string | null)[];
+  children?: ReactNode;
+  footer: ReactNode;
+}
+
+/** Icon, title and text at the top, actions pinned in the footer. */
+function StatusScreen({ icon, iconColor, accent, title, body, children, footer }: StatusScreenProps) {
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.statusContent}>
+        <IconCircle icon={icon} color={iconColor} style={accent ? styles.accentCircle : undefined} />
+        <View style={styles.statusText}>
+          <Text style={styles.statusTitle} accessibilityRole="header">
+            {title}
+          </Text>
+          {body.filter(Boolean).map((line) => (
+            <Text key={line} style={styles.statusBody}>
+              {line}
+            </Text>
+          ))}
+        </View>
+        {children}
+      </ScrollView>
+      <Footer>{footer}</Footer>
+    </View>
   );
 }
 
@@ -520,7 +539,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    gap: 20,
   },
   centerContainer: {
     flex: 1,
@@ -529,184 +551,75 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     backgroundColor: colors.background,
   },
-  centerTitle: {
-    ...typography.h2,
-    color: colors.text,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  centerText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
   mutedText: {
     ...typography.bodySmall,
     color: colors.textMuted,
     marginTop: spacing.sm,
   },
-  activeBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  statusContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: 48,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
+  },
+  accentCircle: {
+    borderColor: colors.primary,
+  },
+  statusText: {
+    gap: 10,
+  },
+  statusTitle: {
+    ...typography.h1,
+    color: colors.text,
+  },
+  titleKey: {
+    fontFamily: fonts.mono,
+    fontSize: 20,
+    color: colors.textSecondary,
+  },
+  statusBody: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   instructions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 12,
     padding: spacing.md,
-    backgroundColor: colors.accentMuted,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.sheetBorder,
+    backgroundColor: colors.surfaceTint,
   },
-  instructionsBody: {
-    flex: 1,
-    gap: spacing.xs,
+  instructionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   instructionsTitle: {
-    ...typography.bodySmall,
+    fontSize: 15,
     color: colors.text,
-    fontWeight: '600',
   },
   instructionsText: {
-    ...typography.bodySmall,
+    fontSize: 13,
+    lineHeight: 20,
     color: colors.textSecondary,
   },
-  notice: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    marginBottom: spacing.lg,
-  },
-  noticeError: {
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    borderColor: 'rgba(255, 68, 68, 0.3)',
-  },
-  noticeWarning: {
-    backgroundColor: 'rgba(255, 170, 0, 0.1)',
-    borderColor: 'rgba(255, 170, 0, 0.3)',
-  },
-  noticeBody: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  noticeTitle: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  noticeText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  noticeLink: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '600',
-    paddingVertical: spacing.xs,
+  mono: {
+    fontFamily: fonts.mono,
   },
   noticeAction: {
+    minHeight: 28,
+    justifyContent: 'center',
     alignSelf: 'flex-start',
-    minHeight: 32,
-    justifyContent: 'center',
   },
-  label: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  keyInput: {
-    height: 64,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    fontFamily: fonts.mono,
-    fontSize: 22,
-    letterSpacing: 2,
-    textAlign: 'center',
-  },
-  keyInputValid: {
-    borderColor: colors.borderFocus,
-  },
-  hint: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  hintError: {
-    ...typography.caption,
-    color: colors.warning,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  linkButton: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  linkButtonText: {
-    ...typography.bodySmall,
+  noticeLink: {
+    fontSize: 13,
     color: colors.primary,
   },
-  linkButtonCaption: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
+  keyInput: {
+    fontSize: 18,
+    letterSpacing: 1,
   },
-  footer: {
-    padding: spacing.lg,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: 56,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-  },
-  primaryButtonInline: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    marginTop: spacing.sm,
-  },
-  primaryButtonDisabled: {
-    backgroundColor: colors.surfaceHighlight,
-  },
-  primaryButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
-  },
-  primaryButtonTextDisabled: {
-    color: colors.textMuted,
-  },
-  secondaryButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-  },
-  secondaryButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
+  linkRow: {
+    minHeight: 56,
   },
 });

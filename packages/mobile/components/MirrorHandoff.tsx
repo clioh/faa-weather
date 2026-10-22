@@ -18,11 +18,9 @@ import {
   AppState,
   View,
   StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { Button, Footer, Spinner, Text } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -33,7 +31,7 @@ import {
 } from '@/lib/mirrorLocator';
 import { storage } from '@/lib/storage';
 import { goToManualEntry } from './MirrorNotFound';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, fonts, spacing, typography } from '@/lib/theme';
 
 /** Joining (up to ~30 s), DHCP, and the mirror's services starting on a Pi. */
 const HANDOFF_TIMEOUT_MS = 3 * 60 * 1000;
@@ -158,18 +156,20 @@ export function MirrorHandoff({
       <ScrollView
         contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + spacing.lg }]}
       >
-        <View style={styles.hero}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" style={styles.spinner} />
+        <View style={styles.heading}>
           <Text style={styles.title}>Connecting your mirror to {ssid}…</Text>
           <Text style={styles.subtitle}>
-            This usually takes a minute or two{seconds > 5 ? ` (${seconds}s)` : ''}.
+            This usually takes a minute or two
+            {seconds > 5 ? <Text style={styles.seconds}>{` (${seconds}s)`}</Text> : ''}.
           </Text>
         </View>
 
         {fromHotspot && (
-          <View style={styles.card}>
+          <View style={styles.steps}>
             <Step n={1}>
-              Your mirror is leaving the "{SETUP_HOTSPOT_SSID}" network and joining {ssid}.
+              Your mirror is leaving the "<Text style={styles.mono}>{SETUP_HOTSPOT_SSID}</Text>" network and
+              joining {ssid}.
             </Step>
             <Step n={2}>
               Your phone should switch back to {ssid} on its own. If it doesn't, open Settings ›
@@ -183,170 +183,195 @@ export function MirrorHandoff({
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + spacing.lg }]}
-    >
-      <View style={styles.hero}>
-        <Ionicons name="warning-outline" size={48} color={colors.warning} />
-        <Text style={styles.title}>
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={[styles.container, styles.failedContainer]}>
+        <View style={styles.status}>
+          <Ionicons name="warning-outline" size={18} color={colors.warning} />
+          {phase === 'failed' && failure ? <Text style={styles.statusText}>{failure}</Text> : null}
+        </View>
+        <Text style={[styles.title, styles.failedTitle]}>
           {phase === 'failed'
             ? `Your mirror couldn't join ${ssid}`
             : `We couldn't find your mirror on ${ssid}`}
         </Text>
-        {phase === 'failed' && failure && <Text style={styles.subtitle}>{failure}</Text>}
         {phase === 'timeout' && !mirrorId && (
           <Text style={styles.subtitle}>
             This mirror didn't report an id, so the app can't look for it automatically.
           </Text>
         )}
-      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Common causes</Text>
-        <Bullet>The WiFi password was mistyped (passwords are case-sensitive).</Bullet>
-        <Bullet>
-          The network is 5 GHz only. The mirror needs a 2.4 GHz network; many routers have a
-          setting to turn 2.4 GHz on or split the bands.
-        </Bullet>
-        <Bullet>
-          It's a guest network or one with a sign-in page, which keeps devices from seeing each
-          other.
-        </Bullet>
-        <Bullet>The mirror is too far from the router.</Bullet>
-        <Bullet>Your phone isn't on {ssid}. Check Settings › Wi-Fi.</Bullet>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Common causes</Text>
+          <Bullet>The WiFi password was mistyped (passwords are case-sensitive).</Bullet>
+          <Bullet>
+            The network is 5 GHz only. The mirror needs a 2.4 GHz network; many routers have a
+            setting to turn 2.4 GHz on or split the bands.
+          </Bullet>
+          <Bullet>
+            It's a guest network or one with a sign-in page, which keeps devices from seeing each
+            other.
+          </Bullet>
+          <Bullet>The mirror is too far from the router.</Bullet>
+          <Bullet>Your phone isn't on {ssid}. Check Settings › Wi-Fi.</Bullet>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>To try again</Text>
-        <Text style={styles.cardText}>
-          {phase === 'failed'
-            ? `The mirror has reopened the "${SETUP_HOTSPOT_SSID}" network. Join it in Settings › Wi-Fi, then choose your network again.`
-            : `If the mirror's screen shows the "${SETUP_HOTSPOT_SSID}" instructions again, it couldn't join. Join "${SETUP_HOTSPOT_SSID}" in Settings › Wi-Fi, then choose your network again.`}
-        </Text>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>To try again</Text>
+          <Text style={styles.sectionText}>
+            {phase === 'failed'
+              ? `The mirror has reopened the "${SETUP_HOTSPOT_SSID}" network. Join it in Settings › Wi-Fi, then choose your network again.`
+              : `If the mirror's screen shows the "${SETUP_HOTSPOT_SSID}" instructions again, it couldn't join. Join "${SETUP_HOTSPOT_SSID}" in Settings › Wi-Fi, then choose your network again.`}
+          </Text>
+        </View>
+      </ScrollView>
 
-      <View style={styles.actions}>
-        <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={onChooseNetwork}>
-          <Ionicons name="wifi" size={18} color={colors.background} />
-          <Text style={styles.primaryText}>Choose network again</Text>
-        </TouchableOpacity>
-        {mirrorId && (
-          <TouchableOpacity style={styles.button} onPress={keepSearching}>
-            <Ionicons name="refresh" size={18} color={colors.text} />
-            <Text style={styles.buttonText}>Search again</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.button} onPress={goToManualEntry}>
-          <Ionicons name="create-outline" size={18} color={colors.text} />
-          <Text style={styles.buttonText}>Enter address manually</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      <Footer>
+        <Button label="Choose network again" icon="wifi" onPress={onChooseNetwork} />
+        <View style={styles.secondaryActions}>
+          {mirrorId && (
+            <Button
+              label="Search again"
+              variant="secondary"
+              size="small"
+              onPress={keepSearching}
+              style={styles.secondaryButton}
+            />
+          )}
+          <Button
+            label="Enter address manually"
+            variant="secondary"
+            size="small"
+            onPress={goToManualEntry}
+            style={styles.secondaryButton}
+          />
+        </View>
+      </Footer>
+    </View>
   );
 }
 
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
-    <View style={styles.row}>
-      <View style={styles.stepNumber}>
-        <Text style={styles.stepNumberText}>{n}</Text>
-      </View>
-      <Text style={styles.cardText}>{children}</Text>
+    <View style={styles.step}>
+      <Text style={styles.stepNumber}>{String(n).padStart(2, '0')}</Text>
+      <Text style={styles.stepText}>{children}</Text>
     </View>
   );
 }
 
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
-    <View style={styles.row}>
+    <View style={styles.bulletRow}>
       <Text style={styles.bullet}>•</Text>
-      <Text style={styles.cardText}>{children}</Text>
+      <Text style={styles.sectionText}>{children}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: spacing.lg,
-    gap: spacing.md,
+  screen: {
+    flex: 1,
   },
-  hero: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.lg,
+  container: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: 48,
+    gap: 26,
+  },
+  failedContainer: {
+    paddingTop: 12,
+    paddingBottom: spacing.lg,
+    gap: 18,
+  },
+  spinner: {
+    alignSelf: 'flex-start',
+  },
+  heading: {
+    gap: 10,
   },
   title: {
-    ...typography.h3,
+    ...typography.h1,
     color: colors.text,
-    textAlign: 'center',
+  },
+  failedTitle: {
+    fontSize: 26,
   },
   subtitle: {
-    ...typography.bodySmall,
+    ...typography.body,
     color: colors.textSecondary,
-    textAlign: 'center',
   },
-  card: {
+  seconds: {
+    fontFamily: fonts.mono,
+    color: colors.textSecondary,
+  },
+  mono: {
+    fontFamily: fonts.mono,
+  },
+  steps: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
+  },
+  step: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  stepNumber: {
+    width: 20,
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    lineHeight: 21,
+    color: colors.primary,
+  },
+  stepText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.text,
+  },
+  status: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  statusText: {
+    ...typography.label,
+    color: colors.warning,
+    flexShrink: 1,
+  },
+  section: {
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceElevated,
   },
-  cardTitle: {
+  sectionTitle: {
     ...typography.label,
     color: colors.textMuted,
   },
-  cardText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  sectionText: {
     flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
   },
-  row: {
+  bulletRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  stepNumber: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primaryMuted,
-  },
-  stepNumberText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '700',
-  },
   bullet: {
-    ...typography.bodySmall,
+    fontSize: 13,
+    lineHeight: 19,
     color: colors.textMuted,
   },
-  actions: {
-    gap: spacing.sm,
-  },
-  button: {
+  secondaryActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: spacing.sm,
-    minHeight: 52,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.surfaceHighlight,
   },
-  primaryButton: {
-    backgroundColor: colors.primary,
-  },
-  buttonText: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  primaryText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
+  secondaryButton: {
+    flex: 1,
+    alignSelf: 'auto',
+    height: 44,
+    borderRadius: 22,
   },
 });

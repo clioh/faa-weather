@@ -4,21 +4,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { api } from '@/lib/api';
-import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
+import { Button, Footer, Notice, Text } from '@/components/ui';
+import { colors, spacing, typography, fonts } from '@/lib/theme';
 
 interface LocationData {
   latitude: number;
@@ -27,7 +20,6 @@ interface LocationData {
 }
 
 export default function LocationSetupScreen() {
-  const insets = useSafeAreaInsets();
   const [location, setLocation] = useState<LocationData | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -119,124 +111,77 @@ export default function LocationSetupScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         {/* Instructions */}
-        <View style={styles.instructions}>
-          <Ionicons name="location-outline" size={20} color={colors.accent} />
-          <Text style={styles.instructionsText}>
-            Your location is used to calculate accurate sunrise, sunset, and twilight times for pilot currency tracking
-          </Text>
-        </View>
+        <Text style={styles.instructionsText}>
+          Your location is used to calculate accurate sunrise, sunset, and twilight times for pilot currency tracking
+        </Text>
 
-        {/* Location card */}
-        <View style={styles.locationCard}>
-          {location ? (
-            <>
-              <View style={styles.locationHeader}>
-                <View style={styles.locationIconContainer}>
-                  <Ionicons name="checkmark-circle" size={32} color={colors.primary} />
-                </View>
-                <Text style={styles.locationTitle}>Location Set</Text>
+        {location ? (
+          <View style={styles.locationSet}>
+            <View style={styles.locationHeader}>
+              <Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />
+              <Text style={styles.locationTitle}>Location Set</Text>
+            </View>
+
+            <View style={styles.rows}>
+              <View style={styles.dataRow}>
+                <Text style={styles.dataLabel}>Latitude</Text>
+                <Text style={styles.dataValue}>{formatCoordinate(location.latitude, true)}</Text>
               </View>
-
-              <View style={styles.coordinatesContainer}>
-                <View style={styles.coordinateRow}>
-                  <Text style={styles.coordinateLabel}>Latitude</Text>
-                  <Text style={styles.coordinateValue}>
-                    {formatCoordinate(location.latitude, true)}
-                  </Text>
-                </View>
-                <View style={styles.coordinateRow}>
-                  <Text style={styles.coordinateLabel}>Longitude</Text>
-                  <Text style={styles.coordinateValue}>
-                    {formatCoordinate(location.longitude, false)}
-                  </Text>
-                </View>
-                <View style={styles.coordinateRow}>
-                  <Text style={styles.coordinateLabel}>Timezone</Text>
-                  <Text style={styles.coordinateValue}>{location.timezone}</Text>
-                </View>
+              <View style={styles.dataRow}>
+                <Text style={styles.dataLabel}>Longitude</Text>
+                <Text style={styles.dataValue}>{formatCoordinate(location.longitude, false)}</Text>
               </View>
-
-              <TouchableOpacity
-                style={styles.updateButton}
-                onPress={detectLocation}
-                disabled={detecting}
-              >
-                {detecting ? (
-                  <ActivityIndicator size="small" color={colors.text} />
-                ) : (
-                  <>
-                    <Ionicons name="refresh" size={18} color={colors.text} />
-                    <Text style={styles.updateButtonText}>Update Location</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <View style={styles.detectContainer}>
-                <View style={styles.detectIconContainer}>
-                  <Ionicons name="navigate-outline" size={48} color={colors.primary} />
-                </View>
-                <Text style={styles.detectTitle}>Detect Your Location</Text>
-                <Text style={styles.detectSubtitle}>
-                  Tap below to automatically detect your current location using your phone's GPS
-                </Text>
-
-                <TouchableOpacity
-                  style={styles.detectButton}
-                  onPress={detectLocation}
-                  disabled={detecting}
-                >
-                  {detecting ? (
-                    <ActivityIndicator size="small" color={colors.background} />
-                  ) : (
-                    <>
-                      <Ionicons name="locate" size={20} color={colors.background} />
-                      <Text style={styles.detectButtonText}>Detect Location</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+              <View style={styles.dataRow}>
+                <Text style={styles.dataLabel}>Timezone</Text>
+                <Text style={[styles.dataValue, styles.dataValueSmall]}>{location.timezone}</Text>
               </View>
-            </>
-          )}
-        </View>
+            </View>
 
-        {/* Privacy note */}
-        <View style={styles.privacyNote}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.privacyNoteText}>
-            Your location is stored locally on your mirror and never shared with third parties
-          </Text>
-        </View>
-
-        {/* Error message */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="warning-outline" size={16} color={colors.error} />
-            <Text style={styles.errorText}>{error}</Text>
+            <Button
+              label="Update Location"
+              variant="secondary"
+              size="small"
+              icon="refresh"
+              onPress={detectLocation}
+              loading={detecting}
+              style={styles.updateButton}
+            />
+          </View>
+        ) : (
+          <View style={styles.detect}>
+            <Text style={styles.detectTitle}>Detect Your Location</Text>
+            <Text style={styles.detectSubtitle}>
+              Tap below to automatically detect your current location using your phone's GPS
+            </Text>
+            <Button
+              label="Detect Location"
+              variant="secondary"
+              icon="locate-outline"
+              onPress={detectLocation}
+              loading={detecting}
+            />
           </View>
         )}
-      </View>
+
+        {/* Error message */}
+        {error && <Notice tone="error" message={error} />}
+
+        <View style={styles.spacer} />
+
+        {/* Privacy note */}
+        <Notice
+          tone="info"
+          icon="shield-checkmark-outline"
+          message="Your location is stored locally on your mirror and never shared with third parties"
+        />
+      </ScrollView>
 
       {/* Save button */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <TouchableOpacity
-          style={[styles.saveButton, !location && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={!location || saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.background} />
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={20} color={colors.background} />
-              <Text style={styles.saveButtonText}>Save Location</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+      <Footer>
+        <Button label="Save Location" onPress={handleSave} disabled={!location} loading={saving} />
+      </Footer>
     </View>
   );
 }
@@ -247,170 +192,69 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  instructions: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.accentMuted,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
   },
   instructionsText: {
-    ...typography.bodySmall,
-    color: colors.accent,
-    flex: 1,
-    lineHeight: 20,
+    ...typography.body,
+    color: colors.textSecondary,
   },
-  locationCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    marginBottom: spacing.lg,
+  locationSet: {
+    gap: 10,
   },
   locationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  locationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.sm,
   },
   locationTitle: {
-    ...typography.h3,
-    color: colors.text,
+    ...typography.label,
+    color: colors.primary,
   },
-  coordinatesContainer: {
-    padding: spacing.lg,
+  rows: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
   },
-  coordinateRow: {
+  dataRow: {
+    minHeight: 52,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    gap: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
-  coordinateLabel: {
-    ...typography.body,
+  dataLabel: {
+    flex: 1,
+    fontSize: 15,
     color: colors.textSecondary,
   },
-  coordinateValue: {
-    ...typography.body,
-    color: colors.text,
+  dataValue: {
     fontFamily: fonts.mono,
-    fontWeight: '600',
+    fontSize: 15,
+    color: colors.text,
+  },
+  dataValueSmall: {
+    fontSize: 14,
   },
   updateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    marginTop: 6,
   },
-  updateButtonText: {
-    ...typography.bodySmall,
-    color: colors.text,
-  },
-  detectContainer: {
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  detectIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
+  detect: {
+    gap: 10,
   },
   detectTitle: {
     ...typography.h3,
     color: colors.text,
-    marginBottom: spacing.sm,
   },
   detectSubtitle: {
     ...typography.body,
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  detectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-  },
-  detectButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
-  },
-  privacyNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.surfaceHighlight,
-    borderRadius: borderRadius.md,
-  },
-  privacyNoteText: {
-    ...typography.caption,
-    color: colors.textMuted,
+  spacer: {
     flex: 1,
-    lineHeight: 16,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    borderRadius: borderRadius.md,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
-  },
-  footer: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: 56,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-  },
-  saveButtonDisabled: {
-    backgroundColor: colors.surfaceHighlight,
-  },
-  saveButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
   },
 });

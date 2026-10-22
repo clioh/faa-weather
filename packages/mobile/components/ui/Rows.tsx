@@ -33,7 +33,8 @@ export function SectionLabel({ children, style }: { children: ReactNode; style?:
 
 export interface RowProps {
   title: string;
-  caption?: string;
+  /** String, or Text-nestable content (e.g. a mono span). */
+  caption?: ReactNode;
   /** Caption is data (address, version): set it in mono. */
   captionMono?: boolean;
   icon?: IconName;

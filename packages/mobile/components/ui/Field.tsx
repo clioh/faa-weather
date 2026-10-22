@@ -28,6 +28,8 @@ export interface FieldProps extends Omit<TextInputProps, 'style'> {
   mono?: boolean;
   /** Adds a show/hide toggle for secure fields. */
   revealable?: boolean;
+  /** Content at the right edge of the input box, e.g. a clear button. */
+  trailing?: ReactNode;
   inputRef?: Ref<TextInput>;
   /** Extra style for the input text (e.g. a larger mono key). */
   inputTextStyle?: TextInputProps['style'];
@@ -41,6 +43,7 @@ export function Field({
   icon,
   mono,
   revealable,
+  trailing,
   secureTextEntry,
   inputRef,
   inputTextStyle,
@@ -86,6 +89,7 @@ export function Field({
             <Ionicons name={revealed ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textMuted} />
           </Pressable>
         ) : null}
+        {trailing}
       </View>
       {error ? (
         <Text style={styles.errorText} accessibilityRole="alert">

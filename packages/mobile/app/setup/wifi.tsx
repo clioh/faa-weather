@@ -10,17 +10,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  FlatList,
-} from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { api, ApiError } from '@/lib/api';
 import { KeyboardAvoidingScreen, MirrorHandoff } from '@/components';
@@ -30,7 +22,8 @@ import { continueSetup } from '@/lib/setupSteps';
 import { ensurePaired } from '@/lib/pairing';
 import { isSetupHotspot, type FoundMirror } from '@/lib/mirrorLocator';
 import { logError } from '@/lib/errors';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { Button, Field, Footer, Notice, Row, Spinner, Text } from '@/components/ui';
+import { colors, spacing, typography } from '@/lib/theme';
 
 interface WifiNetwork {
   ssid: string;
@@ -39,7 +32,6 @@ interface WifiNetwork {
 }
 
 export default function WifiSetupScreen() {
-  const insets = useSafeAreaInsets();
   // 'setup' when opened from the setup checklist; absent from Settings.
   const { flow } = useLocalSearchParams<{ flow?: string }>();
   const [networks, setNetworks] = useState<WifiNetwork[]>([]);
@@ -47,7 +39,6 @@ export default function WifiSetupScreen() {
   const [selectedNetwork, setSelectedNetwork] = useState<WifiNetwork | null>(null);
   const [password, setPassword] = useState('');
   const [connecting, setConnecting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Credentials sent: waiting for the mirror to show up on the new network. */
   const [handoff, setHandoff] = useState<{
@@ -175,41 +166,26 @@ export default function WifiSetupScreen() {
     return 'wifi-outline';
   };
 
-  const renderNetwork = ({ item }: { item: WifiNetwork }) => (
-    <TouchableOpacity
-      style={[
-        styles.networkItem,
-        selectedNetwork?.ssid === item.ssid && styles.networkItemSelected,
-      ]}
-      onPress={() => {
-        setSelectedNetwork(item);
-        setPassword('');
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }}
-    >
-      <Ionicons
-        name={getSignalIcon(item.signal)}
-        size={24}
-        color={selectedNetwork?.ssid === item.ssid ? colors.primary : colors.textMuted}
+  const renderNetwork = ({ item, index }: { item: WifiNetwork; index: number }) => {
+    const selected = selectedNetwork?.ssid === item.ssid;
+    return (
+      <Row
+        icon={getSignalIcon(item.signal)}
+        title={item.ssid}
+        caption={`${item.secure ? 'Secured' : 'Open'} • Signal: ${item.signal}%`}
+        selected={selected}
+        onPress={() => {
+          setSelectedNetwork(item);
+          setPassword('');
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+        trailing={item.secure ? <Ionicons name="lock-closed-outline" size={16} color={colors.textMuted} /> : undefined}
+        chevron={false}
+        // A row under the selected one keeps its hairline hidden too.
+        style={index > 0 && networks[index - 1]?.ssid === selectedNetwork?.ssid ? styles.afterSelected : undefined}
       />
-      <View style={styles.networkInfo}>
-        <Text
-          style={[
-            styles.networkName,
-            selectedNetwork?.ssid === item.ssid && styles.networkNameSelected,
-          ]}
-        >
-          {item.ssid}
-        </Text>
-        <Text style={styles.networkMeta}>
-          {item.secure ? 'Secured' : 'Open'} • Signal: {item.signal}%
-        </Text>
-      </View>
-      {item.secure && (
-        <Ionicons name="lock-closed" size={16} color={colors.textMuted} />
-      )}
-    </TouchableOpacity>
-  );
+    );
+  };
 
   if (handoff) {
     return (
@@ -228,17 +204,14 @@ export default function WifiSetupScreen() {
   return (
     <KeyboardAvoidingScreen style={styles.container}>
       {/* Instructions */}
-      <View style={styles.instructions}>
-        <Ionicons name="wifi" size={20} color={colors.accent} />
-        <Text style={styles.instructionsText}>
-          Select your home WiFi network to connect your mirror to the internet
-        </Text>
-      </View>
+      <Text style={styles.instructionsText}>
+        Select your home WiFi network to connect your mirror to the internet
+      </Text>
 
       {/* Network list */}
       {scanning ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <Spinner size="large" />
           <Text style={styles.loadingText}>Scanning for networks...</Text>
         </View>
       ) : (
@@ -247,78 +220,49 @@ export default function WifiSetupScreen() {
           renderItem={renderNetwork}
           keyExtractor={(item) => item.ssid}
           style={styles.networkList}
-          contentContainerStyle={styles.networkListContent}
+          contentContainerStyle={[styles.networkListContent, networks.length > 0 && styles.networkListRows]}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="wifi-outline" size={48} color={colors.textMuted} />
+              <Ionicons name="wifi-outline" size={40} color={colors.textMuted} />
               <Text style={styles.emptyText}>No networks found</Text>
-              <TouchableOpacity style={styles.rescanButton} onPress={scanNetworks}>
-                <Text style={styles.rescanButtonText}>Scan Again</Text>
-              </TouchableOpacity>
+              <Button label="Scan Again" variant="secondary" size="small" icon="refresh" onPress={scanNetworks} style={styles.rescanButton} />
             </View>
           }
         />
       )}
 
-      {/* Password input */}
-      {selectedNetwork?.secure && (
-        <View style={styles.passwordContainer}>
-          <Text style={styles.passwordLabel}>
-            Password for "{selectedNetwork.ssid}"
-          </Text>
-          <View style={styles.passwordInputContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Enter WiFi password"
-              placeholderTextColor={colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="go"
-              onSubmitEditing={handleConnect}
-            />
-            <TouchableOpacity
-              style={styles.showPasswordButton}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Ionicons
-                name={showPassword ? 'eye-off' : 'eye'}
-                size={20}
-                color={colors.textMuted}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      <View style={styles.form}>
+        {/* Password input */}
+        {selectedNetwork?.secure && (
+          <Field
+            label={`Password for "${selectedNetwork.ssid}"`}
+            placeholder="Enter WiFi password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            revealable
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="go"
+            onSubmitEditing={handleConnect}
+          />
+        )}
 
-      {/* Error message */}
-      {error && (
-        <View style={styles.errorContainer}>
-          <Ionicons name="warning-outline" size={16} color={colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+        {/* Error message */}
+        {error && <Notice tone="error" message={error} />}
+      </View>
 
       {/* Connect button */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <TouchableOpacity
-          style={[styles.connectButton, !selectedNetwork && styles.connectButtonDisabled]}
+      <Footer>
+        <Button
+          label="Connect"
+          icon="link"
           onPress={handleConnect}
-          disabled={!selectedNetwork || connecting}
-        >
-          {connecting ? (
-            <ActivityIndicator size="small" color={colors.background} />
-          ) : (
-            <>
-              <Ionicons name="link" size={20} color={colors.background} />
-              <Text style={styles.connectButtonText}>Connect</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+          disabled={!selectedNetwork}
+          loading={connecting}
+        />
+      </Footer>
     </KeyboardAvoidingScreen>
   );
 }
@@ -328,21 +272,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  instructions: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    margin: spacing.lg,
-    marginBottom: 0,
-    backgroundColor: colors.accentMuted,
-    borderRadius: borderRadius.md,
-  },
   instructionsText: {
-    ...typography.bodySmall,
-    color: colors.accent,
-    flex: 1,
-    lineHeight: 20,
+    ...typography.body,
+    color: colors.textSecondary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   loadingContainer: {
     flex: 1,
@@ -358,38 +293,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   networkListContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
-  networkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
+  networkListRows: {
+    // Bottom hairline under the last row, like a RowGroup.
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: 0,
+    marginBottom: spacing.md,
   },
-  networkItemSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryMuted,
-  },
-  networkInfo: {
-    flex: 1,
-  },
-  networkName: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  networkNameSelected: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  networkMeta: {
-    ...typography.caption,
-    color: colors.textMuted,
+  afterSelected: {
+    borderTopColor: 'transparent',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -402,79 +318,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   rescanButton: {
-    minHeight: 44,
-    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  form: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surfaceHighlight,
-    borderRadius: borderRadius.md,
-  },
-  rescanButtonText: {
-    ...typography.bodySmall,
-    color: colors.text,
-  },
-  passwordContainer: {
-    padding: spacing.lg,
-    paddingTop: 0,
-  },
-  passwordLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  passwordInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  passwordInput: {
-    flex: 1,
-    height: 48,
-    paddingHorizontal: spacing.md,
-    color: colors.text,
-    ...typography.body,
-  },
-  showPasswordButton: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    borderRadius: borderRadius.md,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
-    flex: 1,
-  },
-  footer: {
-    padding: spacing.lg,
-  },
-  connectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: 56,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-  },
-  connectButtonDisabled: {
-    backgroundColor: colors.surfaceHighlight,
-  },
-  connectButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
+    gap: spacing.md,
   },
 });

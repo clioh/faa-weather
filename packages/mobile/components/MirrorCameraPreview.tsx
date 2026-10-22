@@ -14,8 +14,8 @@
  */
 
 import { useMemo } from 'react';
-import { View, StyleSheet, ActivityIndicator, StyleProp, ViewStyle } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Spinner, Text } from '@/components/ui';
 import { WebView } from 'react-native-webview';
 import { colors, spacing, typography } from '@/lib/theme';
 
@@ -74,7 +74,7 @@ export function MirrorCameraPreview({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.placeholder}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" />
         <Text style={styles.placeholderText}>{placeholderText}</Text>
       </View>
       {source && (
@@ -96,7 +96,7 @@ export function MirrorCameraPreview({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   placeholder: {

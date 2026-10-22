@@ -10,11 +10,11 @@ import { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
+  Pressable,
   Animated,
+  ScrollView,
 } from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
+import Svg, { Ellipse } from 'react-native-svg';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -23,7 +23,8 @@ import { api, WS_CLOSE_PAIRING_REQUIRED } from '@/lib/api';
 import { MirrorCameraPreview, KeyboardAvoidingScreen } from '@/components';
 import { goBack } from '@/lib/navigation';
 import { useUser } from '@/context/UserContext';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { Button, Field, Footer, IconCircle, Notice, Spinner, Text } from '@/components/ui';
+import { colors, spacing, typography, fonts } from '@/lib/theme';
 
 const REQUIRED_PHOTOS = 5;
 
@@ -255,20 +256,19 @@ export default function FaceRegistrationScreen() {
   if (step === 'name') {
     return (
       <KeyboardAvoidingScreen style={styles.container}>
-        <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="person-circle-outline" size={80} color={colors.primary} />
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <IconCircle icon="person-outline" />
+
+          <View style={styles.heading}>
+            <Text style={styles.title}>What's your name?</Text>
+            <Text style={styles.subtitle}>
+              The mirror will greet you personally when it recognizes you
+            </Text>
           </View>
 
-          <Text style={styles.title}>What's your name?</Text>
-          <Text style={styles.subtitle}>
-            The mirror will greet you personally when it recognizes you
-          </Text>
-
-          <TextInput
-            style={styles.nameInput}
+          <Field
+            label="Name"
             placeholder="Enter your name"
-            placeholderTextColor={colors.textMuted}
             value={name}
             onChangeText={setName}
             autoCapitalize="words"
@@ -277,36 +277,25 @@ export default function FaceRegistrationScreen() {
             onSubmitEditing={startRegistration}
           />
 
-          {error && (
-            <View style={styles.errorContainer}>
-              <Ionicons name="warning-outline" size={16} color={colors.error} />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-        </View>
+          {error && <Notice tone="error" message={error} />}
+        </ScrollView>
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-          <TouchableOpacity
-            style={[styles.primaryButton, !name.trim() && styles.buttonDisabled]}
+        <Footer>
+          <Button
+            label="Start Registration"
+            trailingIcon="arrow-forward"
             onPress={startRegistration}
-            disabled={!name.trim() || processing}
-          >
-            {processing ? (
-              <ActivityIndicator size="small" color={colors.background} />
-            ) : (
-              <>
-                <Text style={styles.primaryButtonText}>Start Registration</Text>
-                <Ionicons name="arrow-forward" size={20} color={colors.background} />
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+            disabled={!name.trim()}
+            loading={processing}
+          />
+        </Footer>
       </KeyboardAvoidingScreen>
     );
   }
 
   // Capture step - remote control for mirror camera
   if (step === 'capture') {
+    const collected = registration?.samplesCollected || 0;
     return (
       <View style={styles.container}>
         <Stack.Screen
@@ -319,81 +308,95 @@ export default function FaceRegistrationScreen() {
           pointerEvents="none"
         />
 
-        {/* Camera preview from mirror */}
-        <View style={styles.previewContainer}>
-          <MirrorCameraPreview streamUrl={videoStreamUrl} style={styles.preview} />
+        <ScrollView contentContainerStyle={styles.captureContent}>
+          {/* Camera preview from mirror */}
+          <View style={styles.previewContainer}>
+            <MirrorCameraPreview streamUrl={videoStreamUrl} style={styles.preview} />
 
-          {/* Countdown overlay */}
-          {countdown !== null && countdown > 0 && (
-            <View style={styles.countdownOverlay}>
-              <Text style={styles.countdownNumber}>{countdown}</Text>
+            {/* Face guide */}
+            <View style={styles.faceGuide} pointerEvents="none">
+              <Svg width={170} height={220}>
+                <Ellipse
+                  cx={85}
+                  cy={110}
+                  rx={84}
+                  ry={109}
+                  stroke={colors.faceGuide}
+                  strokeWidth={1.5}
+                  strokeDasharray="6 5"
+                  fill="none"
+                />
+              </Svg>
             </View>
-          )}
 
-          {/* "Look at mirror" badge */}
-          <View style={styles.mirrorBadge}>
-            <Ionicons name="tv-outline" size={16} color={colors.primary} />
-            <Text style={styles.mirrorBadgeText}>Look at the mirror</Text>
+            {/* Countdown overlay */}
+            {countdown !== null && countdown > 0 && (
+              <View style={styles.countdownOverlay}>
+                <Text style={styles.countdownNumber}>{countdown}</Text>
+              </View>
+            )}
+
+            {/* "Look at mirror" badge */}
+            <View style={styles.mirrorBadge}>
+              <Ionicons name="tv-outline" size={14} color={colors.primary} />
+              <Text style={styles.mirrorBadgeText}>Look at the mirror</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Instruction */}
-        <View style={styles.instructionContainer}>
-          <Ionicons
-            name={currentInstruction.icon as keyof typeof Ionicons.glyphMap}
-            size={32}
-            color={colors.primary}
-          />
-          <Text style={styles.instructionText}>{currentInstruction.text}</Text>
-        </View>
-
-        {/* Progress */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressDots}>
-            {Array.from({ length: REQUIRED_PHOTOS }).map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.progressDot,
-                  i < (registration?.samplesCollected || 0) && styles.progressDotComplete,
-                  i === (registration?.samplesCollected || 0) && styles.progressDotCurrent,
-                ]}
-              />
-            ))}
+          {/* Instruction */}
+          <View style={styles.instructionContainer}>
+            <Ionicons
+              name={currentInstruction.icon as keyof typeof Ionicons.glyphMap}
+              size={22}
+              color={colors.primary}
+            />
+            <Text style={styles.instructionText}>{currentInstruction.text}</Text>
           </View>
-          <Text style={styles.progressText}>
-            {registration?.samplesCollected || 0} of {REQUIRED_PHOTOS} photos
-          </Text>
-        </View>
+
+          {/* Progress */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressDots}>
+              {Array.from({ length: REQUIRED_PHOTOS }).map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.progressDot,
+                    i < collected && styles.progressDotComplete,
+                    i === collected && styles.progressDotCurrent,
+                  ]}
+                />
+              ))}
+            </View>
+            <Text style={styles.progressText}>
+              {collected} of {REQUIRED_PHOTOS} photos
+            </Text>
+          </View>
+
+          {error && <Notice tone="error" message={error} style={styles.captureError} />}
+        </ScrollView>
 
         {/* Capture button */}
-        <View style={styles.captureSection}>
+        <Footer style={styles.captureSection}>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity
-              style={[styles.captureButton, capturing && styles.captureButtonDisabled]}
+            <Pressable
+              style={({ pressed }) => [styles.captureButton, pressed && styles.captureButtonPressed]}
               onPress={capturePhoto}
               disabled={capturing}
+              accessibilityRole="button"
+              accessibilityLabel="Capture photo"
+              accessibilityState={{ disabled: capturing, busy: capturing }}
             >
               {capturing ? (
-                <ActivityIndicator size="large" color={colors.primary} />
+                <Spinner size="large" />
               ) : (
-                <View style={styles.captureButtonInner}>
-                  <Ionicons name="camera" size={32} color={colors.background} />
-                </View>
+                <View style={styles.captureButtonInner} />
               )}
-            </TouchableOpacity>
+            </Pressable>
           </Animated.View>
           <Text style={styles.captureHint}>
             {capturing ? 'Capturing...' : 'Tap to capture'}
           </Text>
-        </View>
-
-        {error && (
-          <View style={styles.errorBanner}>
-            <Ionicons name="warning-outline" size={20} color={colors.error} />
-            <Text style={styles.errorBannerText}>{error}</Text>
-          </View>
-        )}
+        </Footer>
       </View>
     );
   }
@@ -408,34 +411,29 @@ export default function FaceRegistrationScreen() {
   };
 
   return (
-    <View style={styles.successContainer}>
-      <Animated.View style={[styles.successContent, { transform: [{ scale: successScale }] }]}>
-        <View style={styles.successIconContainer}>
-          <View style={styles.successCircle}>
-            <Ionicons name="checkmark" size={60} color={colors.background} />
-          </View>
+    <View style={styles.container}>
+      <Animated.View
+        style={[
+          styles.successContent,
+          { paddingTop: insets.top + 112, transform: [{ scale: successScale }] },
+        ]}
+      >
+        <View style={styles.successCircle}>
+          <Ionicons name="checkmark" size={32} color={colors.primary} />
         </View>
 
-        <Text style={styles.successTitle}>
-          {`Welcome, ${name}!`}
-        </Text>
-        <Text style={styles.successSubtitle}>
-          Your face has been registered
-        </Text>
-        <Text style={styles.successDescription}>
-          The mirror will now recognize you and wake up automatically when you approach
-        </Text>
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleComplete}
-        >
-          <Text style={styles.primaryButtonText}>
-            Continue Setup
+        <View style={styles.heading}>
+          <Text style={styles.successTitle}>{`Welcome, ${name}!`}</Text>
+          <Text style={styles.successSubtitle}>Your face has been registered</Text>
+          <Text style={styles.subtitle}>
+            The mirror will now recognize you and wake up automatically when you approach
           </Text>
-          <Ionicons name="arrow-forward" size={20} color={colors.background} />
-        </TouchableOpacity>
+        </View>
       </Animated.View>
+
+      <Footer>
+        <Button label="Continue Setup" trailingIcon="arrow-forward" onPress={handleComplete} />
+      </Footer>
     </View>
   );
 }
@@ -446,242 +444,166 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    flex: 1,
-    padding: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: 40,
+    paddingBottom: spacing.lg,
+    gap: 28,
   },
-  iconContainer: {
-    marginBottom: spacing.xl,
+  heading: {
+    gap: 10,
   },
   title: {
     ...typography.h1,
     color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
+  },
+  captureContent: {
     paddingHorizontal: spacing.lg,
-  },
-  nameInput: {
-    width: '100%',
-    height: 56,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    ...typography.h3,
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flexDirection: 'row',
+    paddingTop: 12,
+    paddingBottom: spacing.md,
+    gap: 20,
     alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
-  },
-  footer: {
-    padding: spacing.lg,
-  },
-  primaryButton: {
-    height: 56,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  buttonDisabled: {
-    backgroundColor: colors.surfaceHighlight,
-  },
-  primaryButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
   },
   previewContainer: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    aspectRatio: 4 / 3,
-    borderRadius: borderRadius.xl,
+    width: '100%',
+    aspectRatio: 3 / 4,
+    maxHeight: 400,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.thumbTileBorder,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceElevated,
-    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   preview: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFill,
+  },
+  faceGuide: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   countdownOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   countdownNumber: {
-    fontSize: 120,
+    fontSize: 96,
     fontWeight: '200',
-    color: colors.primary,
+    color: colors.text,
+    opacity: 0.9,
   },
   mirrorBadge: {
     position: 'absolute',
-    top: spacing.md,
-    alignSelf: 'center',
+    top: 12,
+    left: 12,
+    height: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: colors.previewPill,
   },
   mirrorBadgeText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '500',
+    fontSize: 12,
+    color: colors.text,
   },
   instructionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 10,
   },
   instructionText: {
-    ...typography.body,
+    fontSize: 17,
     color: colors.text,
-    fontWeight: '500',
   },
   progressContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.lg,
+    gap: 12,
   },
   progressDots: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
+    gap: 6,
   },
   progressDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.surfaceHighlight,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.progressPending,
   },
   progressDotComplete: {
     backgroundColor: colors.primary,
   },
   progressDotCurrent: {
-    backgroundColor: colors.accent,
-    transform: [{ scale: 1.3 }],
+    backgroundColor: colors.text,
   },
   progressText: {
-    ...typography.bodySmall,
+    ...typography.caption,
+    fontFamily: fonts.mono,
     color: colors.textMuted,
+  },
+  captureError: {
+    alignSelf: 'stretch',
   },
   captureSection: {
     alignItems: 'center',
-    paddingVertical: spacing.lg,
   },
   captureButton: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: colors.surfaceElevated,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 2,
+    borderColor: colors.text,
+    padding: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: colors.primary,
   },
-  captureButtonDisabled: {
-    borderColor: colors.textMuted,
+  captureButtonPressed: {
+    opacity: 0.7,
   },
   captureButtonInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: '100%',
+    height: '100%',
+    borderRadius: 33,
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   captureHint: {
-    ...typography.bodySmall,
+    ...typography.caption,
     color: colors.textMuted,
-    marginTop: spacing.sm,
   },
   flashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#fff',
+    backgroundColor: colors.text,
     zIndex: 100,
   },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  errorBannerText: {
-    ...typography.bodySmall,
-    color: colors.error,
-    flex: 1,
-  },
-  successContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
   successContent: {
-    alignItems: 'center',
-  },
-  successIconContainer: {
-    marginBottom: spacing.xl,
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.lg,
   },
   successCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.primary,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 1,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   successTitle: {
     ...typography.h1,
+    fontSize: 36,
+    fontWeight: '200',
     color: colors.text,
-    marginBottom: spacing.sm,
   },
   successSubtitle: {
-    ...typography.h3,
-    color: colors.primary,
-    marginBottom: spacing.md,
-  },
-  successDescription: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
+    fontSize: 17,
+    color: colors.text,
   },
 });

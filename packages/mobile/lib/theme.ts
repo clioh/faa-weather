@@ -86,6 +86,8 @@ export const colors = {
   badgeWarningBorder: 'rgba(255, 183, 77, 0.6)',
   thumbTile: 'rgba(255, 255, 255, 0.14)', // layout thumbnail tiles
   thumbTileBorder: 'rgba(255, 255, 255, 0.18)',
+  faceGuide: 'rgba(122, 215, 255, 0.6)', // dashed oval on the camera preview
+  previewPill: 'rgba(0, 0, 0, 0.6)', // pills over the camera preview
 };
 
 /** Notice tones: tinted fill, stronger border, light text in the tone's hue. */

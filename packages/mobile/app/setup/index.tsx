@@ -4,13 +4,7 @@
  */
 
 import { useCallback, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +14,8 @@ import { storage } from '@/lib/storage';
 import { logError } from '@/lib/errors';
 import { HeaderBackButton, MirrorNotFound } from '@/components';
 import { goToDashboard } from '@/lib/navigation';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { Badge, Button, Footer, Spinner, Text, TextButton } from '@/components/ui';
+import { colors, fonts, spacing, typography } from '@/lib/theme';
 
 interface SetupStep {
   id: string;
@@ -182,10 +177,10 @@ export default function SetupIndex() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <View style={[styles.errorBackButton, { top: insets.top + spacing.sm }]}>
+        <View style={[styles.errorBackButton, { top: insets.top + spacing.xs }]}>
           {backButton}
         </View>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" />
         <Text style={styles.loadingText}>Loading setup status...</Text>
       </View>
     );
@@ -194,8 +189,8 @@ export default function SetupIndex() {
   if (error) {
     return (
       <View style={styles.centerContainer}>
-        <Ionicons name="warning-outline" size={48} color={colors.warning} />
-        <View style={[styles.errorBackButton, { top: insets.top + spacing.sm }]}>
+        <Ionicons name="warning-outline" size={40} color={colors.warning} />
+        <View style={[styles.errorBackButton, { top: insets.top + spacing.xs }]}>
           {backButton}
         </View>
         <Text style={styles.errorTitle}>Connection Error</Text>
@@ -203,82 +198,75 @@ export default function SetupIndex() {
         {unreachable ? (
           <MirrorNotFound visible onFound={loadStatus} />
         ) : (
-          <TouchableOpacity style={styles.retryButton} onPress={loadStatus}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          <Button label="Retry" size="small" onPress={loadStatus} style={styles.retryButton} />
         )}
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.xs }]}>
       {backButton}
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Setup Your Mirror</Text>
-        <Text style={styles.subtitle}>
-          Complete these steps to get your SkyGlass ready
-        </Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Setup Your Mirror</Text>
+          <Text style={styles.subtitle}>
+            Complete these steps to get your SkyGlass ready
+          </Text>
+        </View>
 
         {/* Progress bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View
-              style={[styles.progressFill, { width: `${progressPercent}%` }]}
-            />
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
           </View>
           <Text style={styles.progressText}>
             {completedSteps} of {steps.length} complete
           </Text>
         </View>
-      </View>
 
-      {/* Steps */}
-      <View style={styles.stepsContainer}>
-        {steps.map((step, index) => {
-          const stepStatus = getStepStatus(step);
-          const locked = isLocked(step);
-          const isLast = index === steps.length - 1;
+        {/* Steps */}
+        <View style={styles.steps}>
+          {steps.map((step, index) => {
+            const stepStatus = getStepStatus(step);
+            const locked = isLocked(step);
+            const current = stepStatus === 'current';
+            const number = String(index + 1).padStart(2, '0');
 
-          return (
-            <View key={step.id}>
-              <TouchableOpacity
-                style={[
-                  styles.stepCard,
-                  stepStatus === 'current' && styles.stepCardCurrent,
-                  stepStatus === 'complete' && styles.stepCardComplete,
+            return (
+              <Pressable
+                key={step.id}
+                style={({ pressed }) => [
+                  styles.step,
+                  current && styles.stepCurrent,
+                  pressed && styles.pressed,
                 ]}
                 onPress={() => handleStepPress(step)}
+                accessibilityRole="button"
+                accessibilityLabel={`${step.title}, ${
+                  stepStatus === 'complete' ? 'done' : locked ? 'locked' : current ? 'next' : 'not started'
+                }`}
               >
                 <View
                   style={[
-                    styles.stepIcon,
-                    stepStatus === 'complete' && styles.stepIconComplete,
-                    stepStatus === 'current' && styles.stepIconCurrent,
+                    styles.stepNumber,
+                    stepStatus === 'complete' && styles.stepNumberComplete,
+                    current && styles.stepNumberCurrent,
                   ]}
                 >
                   {stepStatus === 'complete' ? (
-                    <Ionicons name="checkmark" size={24} color={colors.background} />
+                    <Ionicons name="checkmark" size={16} color={colors.onPrimary} />
                   ) : (
-                    <Ionicons
-                      name={step.icon}
-                      size={24}
-                      color={
-                        stepStatus === 'current' ? colors.primary : colors.textMuted
-                      }
-                    />
+                    <Text style={[styles.stepNumberText, current && styles.stepNumberTextCurrent]}>
+                      {number}
+                    </Text>
                   )}
                 </View>
 
                 <View style={styles.stepContent}>
-                  <Text
-                    style={[
-                      styles.stepTitle,
-                      stepStatus === 'pending' && styles.stepTitlePending,
-                    ]}
-                  >
+                  <Text style={[styles.stepTitle, stepStatus === 'pending' && styles.stepTitlePending]}>
                     {step.title}
                   </Text>
                   <Text style={styles.stepDescription}>
@@ -286,38 +274,25 @@ export default function SetupIndex() {
                   </Text>
                 </View>
 
-                <Ionicons
-                  name={locked ? 'lock-closed-outline' : 'chevron-forward'}
-                  size={20}
-                  color={stepStatus === 'pending' ? colors.textDisabled : colors.textMuted}
-                />
-              </TouchableOpacity>
-
-              {/* Connector line */}
-              {!isLast && (
-                <View style={styles.connector}>
-                  <View
-                    style={[
-                      styles.connectorLine,
-                      stepStatus === 'complete' && styles.connectorLineComplete,
-                    ]}
+                {current && !locked ? (
+                  <Badge label="NEXT" />
+                ) : (
+                  <Ionicons
+                    name={locked ? 'lock-closed-outline' : 'chevron-forward'}
+                    size={14}
+                    color={colors.chevron}
                   />
-                </View>
-              )}
-            </View>
-          );
-        })}
-      </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
 
       {/* Skip for now / Done button */}
-      <TouchableOpacity
-        style={styles.skipButton}
-        onPress={leaveSetup}
-      >
-        <Text style={styles.skipButtonText}>
-          {allComplete ? 'Done' : 'Skip for now'}
-        </Text>
-      </TouchableOpacity>
+      <Footer>
+        <TextButton label={allComplete ? 'Done' : 'Skip for now'} onPress={leaveSetup} />
+      </Footer>
     </View>
   );
 }
@@ -326,22 +301,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: spacing.lg,
   },
   topRow: {
     flexDirection: 'row',
-    marginLeft: -spacing.sm,
-    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   errorBackButton: {
     position: 'absolute',
-    left: spacing.lg,
+    left: 0,
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
+    padding: spacing.lg,
+    backgroundColor: colors.background,
   },
   loadingText: {
     ...typography.body,
@@ -349,7 +323,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   errorTitle: {
-    ...typography.h2,
+    ...typography.h3,
     color: colors.text,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
@@ -361,120 +335,104 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   retryButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
+    alignSelf: 'center',
   },
-  retryButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
   },
   header: {
-    marginBottom: spacing.xl,
+    gap: 10,
   },
   title: {
     ...typography.h1,
     color: colors.text,
-    marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
-    marginBottom: spacing.lg,
   },
   progressContainer: {
-    marginTop: spacing.sm,
+    gap: spacing.sm,
   },
   progressBar: {
-    height: 6,
-    backgroundColor: colors.surfaceHighlight,
-    borderRadius: borderRadius.full,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.progressPending,
     overflow: 'hidden',
-    marginBottom: spacing.sm,
   },
   progressFill: {
-    height: '100%',
+    height: 3,
+    borderRadius: 2,
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.full,
   },
   progressText: {
     ...typography.caption,
+    fontFamily: fonts.mono,
     color: colors.textMuted,
   },
-  stepsContainer: {
-    flex: 1,
+  steps: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
   },
-  stepCard: {
+  step: {
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
-  stepCardCurrent: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryMuted,
+  stepCurrent: {
+    backgroundColor: colors.primarySelected,
+    borderTopColor: 'transparent',
+    borderRadius: 12,
+    marginHorizontal: -12,
+    paddingHorizontal: 12,
   },
-  stepCardComplete: {
-    borderColor: colors.primary,
-  },
-  stepIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.full,
+  pressed: {
     backgroundColor: colors.surfaceHighlight,
+  },
+  stepNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
-  stepIconComplete: {
+  stepNumberComplete: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  stepIconCurrent: {
-    backgroundColor: colors.primaryMuted,
+  stepNumberCurrent: {
+    borderColor: colors.text,
+  },
+  stepNumberText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.progressLabel,
+  },
+  stepNumberTextCurrent: {
+    color: colors.text,
   },
   stepContent: {
     flex: 1,
+    gap: 2,
   },
   stepTitle: {
-    ...typography.body,
+    fontSize: 15,
     color: colors.text,
-    fontWeight: '600',
-    marginBottom: 2,
   },
   stepTitlePending: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   stepDescription: {
     ...typography.caption,
-    color: colors.textMuted,
-  },
-  connector: {
-    paddingLeft: 40,
-    height: 20,
-  },
-  connectorLine: {
-    width: 2,
-    height: '100%',
-    backgroundColor: colors.border,
-    marginLeft: 23,
-  },
-  connectorLineComplete: {
-    backgroundColor: colors.primary,
-  },
-  skipButton: {
-    alignItems: 'center',
-    padding: spacing.md,
-    marginTop: spacing.lg,
-  },
-  skipButtonText: {
-    ...typography.body,
     color: colors.textMuted,
   },
 });
