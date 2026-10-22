@@ -35,6 +35,7 @@ export function ColorPicker({
 }: ColorPickerProps) {
   const [selectedColor, setSelectedColor] = useState(currentValue || COLOR_PRESETS[0].value);
   const [customHex, setCustomHex] = useState('');
+  const [hexError, setHexError] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
 
   useEffect(() => {
@@ -63,8 +64,10 @@ export function ColorPicker({
     // Validate hex color
     if (!/^[0-9A-Fa-f]{6}$/.test(hex) && !/^[0-9A-Fa-f]{3}$/.test(hex)) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setHexError('Use 3 or 6 hex digits (0–9, A–F).');
       return;
     }
+    setHexError(null);
 
     // Expand 3-character hex to 6
     if (hex.length === 3) {
@@ -88,6 +91,7 @@ export function ColorPicker({
   const handleClose = () => {
     setShowCustom(false);
     setCustomHex('');
+    setHexError(null);
     Keyboard.dismiss();
     onClose();
   };
@@ -161,12 +165,15 @@ export function ColorPicker({
           {showCustom && (
             <View style={styles.customForm}>
               <View style={styles.hexRow}>
-                <View style={styles.hexInputContainer}>
+                <View style={[styles.hexInputContainer, hexError ? styles.hexInputError : null]}>
                   <Text style={styles.hexPrefix}>#</Text>
                   <TextInput
                     style={styles.hexInput}
                     value={customHex}
-                    onChangeText={(text) => setCustomHex(text.replace(/[^0-9A-Fa-f]/g, ''))}
+                    onChangeText={(text) => {
+                      setCustomHex(text.replace(/[^0-9A-Fa-f]/g, ''));
+                      if (hexError) setHexError(null);
+                    }}
                     placeholder="FF5500"
                     placeholderTextColor={colors.textMuted}
                     maxLength={6}
@@ -179,7 +186,13 @@ export function ColorPicker({
                 </View>
                 <Button label="Apply" size="small" onPress={handleCustomSubmit} style={styles.applyButton} />
               </View>
-              <Text style={styles.hexHint}>Enter a 6-digit hex code (e.g., FF5500 for orange)</Text>
+              {hexError ? (
+                <Text style={styles.hexError} accessibilityRole="alert">
+                  {hexError}
+                </Text>
+              ) : (
+                <Text style={styles.hexHint}>Enter a 6-digit hex code (e.g., FF5500 for orange)</Text>
+              )}
             </View>
           )}
         </ScrollView>
@@ -289,6 +302,13 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 14,
     alignSelf: 'auto',
+  },
+  hexInputError: {
+    borderColor: colors.error,
+  },
+  hexError: {
+    ...typography.caption,
+    color: colors.error,
   },
   hexHint: {
     ...typography.caption,

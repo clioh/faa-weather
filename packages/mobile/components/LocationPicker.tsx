@@ -38,12 +38,13 @@ export function LocationPicker({
   const [showManual, setShowManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Each opening starts from the saved value (or nothing), so a location
+  // detected and then abandoned last time isn't offered again.
   useEffect(() => {
-    if (visible && currentValue) {
-      setLocation(currentValue);
-      setManualLat(currentValue.latitude.toString());
-      setManualLon(currentValue.longitude.toString());
-    }
+    if (!visible) return;
+    setLocation(currentValue ?? null);
+    setManualLat(currentValue ? currentValue.latitude.toString() : '');
+    setManualLon(currentValue ? currentValue.longitude.toString() : '');
   }, [visible, currentValue]);
 
   const detectLocation = async () => {
@@ -96,8 +97,10 @@ export function LocationPicker({
   };
 
   const handleManualSave = () => {
-    const lat = parseFloat(manualLat);
-    const lon = parseFloat(manualLon);
+    // Number(), not parseFloat(): "40abc" must be rejected, not read as 40.
+    const parse = (raw: string) => (raw.trim() === '' ? NaN : Number(raw.trim().replace(',', '.')));
+    const lat = parse(manualLat);
+    const lon = parse(manualLon);
 
     if (isNaN(lat) || isNaN(lon)) {
       Alert.alert('Invalid Coordinates', 'Please enter valid latitude and longitude values.');

@@ -16,6 +16,8 @@ import { SIZE_LABELS, type ModuleDefinition, type ModuleInstance, type ModuleSiz
 import { colors, spacing, typography } from '@/lib/theme';
 import { SizeChips, type SizeOption } from './SizeChips';
 
+const CONFIRM_TIMEOUT_MS = 3500;
+
 interface ConfigSheetProps {
   visible: boolean;
   instance: ModuleInstance | null;
@@ -46,6 +48,13 @@ export function ConfigSheet({
       setBlockedHint(null);
     }
   }, [visible]);
+
+  // Like the selection bar: an unanswered "Tap again to remove" goes away.
+  useEffect(() => {
+    if (!confirmRemove) return;
+    const t = setTimeout(() => setConfirmRemove(false), CONFIRM_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [confirmRemove]);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onDone}>

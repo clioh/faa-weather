@@ -327,8 +327,15 @@ export default function EditorScreen() {
 
   /** Append a tile placed against `snapshot`, re-checking it against the latest layout. */
   const appendTile = (inst: ModuleInstance) =>
-    commit((present) =>
-      canPlace(toRects(present), rectOf(inst), null) ? [...present, inst] : null
+    commit(
+      (present) => (canPlace(toRects(present), rectOf(inst), null) ? [...present, inst] : null),
+      // The snapshot the tile was placed against was stale and the spot is
+      // taken after all: undo the optimistic selection and say so.
+      () => {
+        setSelectedId((s) => (s === inst.instanceId ? null : s));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        showToast('No room — remove or shrink a widget', 'error');
+      }
     );
 
   const pulseTile = (id: string) => {
