@@ -45,7 +45,8 @@ export function BottomSheet({ visible, onClose, title, body, children, closeLabe
       onRequestClose={onClose}
       onDismiss={Platform.OS === 'ios' ? onDismissed : undefined}
     >
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Padding on Android too: edge-to-edge windows don't resize for the keyboard. */}
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel={closeLabel}>
           <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) + 18 }]} onPress={() => {}}>
             <View style={styles.grabber} />

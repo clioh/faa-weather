@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,7 +65,12 @@ export default function ProfileScreen() {
         <OnboardingProgress currentPhase="profile" />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Title */}
         <View style={styles.heading}>
           <Text style={styles.title}>Create Your Profile</Text>
@@ -100,7 +105,7 @@ export default function ProfileScreen() {
           icon="shield-checkmark-outline"
           message="Your profile stays on your device. Face data is stored locally on each mirror for privacy."
         />
-      </View>
+      </ScrollView>
 
       {/* Continue Button */}
       <Footer>
@@ -125,8 +130,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: spacing.sm,
   },
-  content: {
+  scroll: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,

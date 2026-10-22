@@ -102,7 +102,8 @@ export function TimezonePickerModal({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
       <View style={styles.container}>
         <PageSheetHeader title={title} onClose={close} />
-        <KeyboardAvoidingScreen>
+        {/* iOS: the FlatList insets itself (exact in a page sheet); Android: padding. */}
+        <KeyboardAvoidingScreen avoidOnIOS={false}>
           <View style={styles.search}>
             <Ionicons name="search" size={18} color={colors.textMuted} />
             <TextInput
@@ -137,6 +138,7 @@ export function TimezonePickerModal({
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={styles.list}
+            automaticallyAdjustKeyboardInsets
             ListHeaderComponent={
               customCandidate ? (
                 <TouchableOpacity

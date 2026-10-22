@@ -34,6 +34,7 @@ import {
 import { colors, fonts, spacing, typography } from '@/lib/theme';
 import { goToDashboard } from '@/lib/navigation';
 import { ensurePaired } from '@/lib/pairing';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 
 /**
  * Point the API client at the mirror an interrupted onboarding was using.
@@ -268,10 +269,9 @@ export default function HomeScreen() {
   const chevron = <Ionicons name="chevron-forward" size={14} color={colors.chevron} />;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingScreen style={styles.container}>
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.md }]}
-        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         refreshControl={
@@ -464,7 +464,7 @@ export default function HomeScreen() {
           />
         )}
       </Footer>
-    </View>
+    </KeyboardAvoidingScreen>
   );
 }
 

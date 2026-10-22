@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import { Button, Field, Footer, Notice, PageSheetHeader, Row, RowGroup, Spinner, Text } from '@/components/ui';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
 
 export interface LocationData {
@@ -152,91 +153,93 @@ export function LocationPicker({
       <View style={styles.container}>
         {/* Header */}
         <PageSheetHeader title="Set Location" onClose={handleClose} />
+        {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
+        <KeyboardAvoidingScreen avoidOnIOS={false}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets
+          >
+            <RowGroup>
+              {/* Detect Location Button */}
+              <Row
+                leading={detecting ? <Spinner /> : <Ionicons name="locate-outline" size={22} color={colors.primary} />}
+                title={detecting ? 'Detecting...' : 'Detect My Location'}
+                caption="Use GPS to find your location"
+                onPress={detectLocation}
+                disabled={detecting}
+                style={detecting ? styles.active : undefined}
+              />
 
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          automaticallyAdjustKeyboardInsets
-        >
-          <RowGroup>
-            {/* Detect Location Button */}
-            <Row
-              leading={detecting ? <Spinner /> : <Ionicons name="locate-outline" size={22} color={colors.primary} />}
-              title={detecting ? 'Detecting...' : 'Detect My Location'}
-              caption="Use GPS to find your location"
-              onPress={detectLocation}
-              disabled={detecting}
-              style={detecting ? styles.active : undefined}
-            />
+              {/* Manual Entry Toggle */}
+              <Row
+                icon="create-outline"
+                title="Enter coordinates manually"
+                onPress={() => setShowManual(!showManual)}
+                trailing={
+                  <Ionicons name={showManual ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+                }
+              />
+            </RowGroup>
 
-            {/* Manual Entry Toggle */}
-            <Row
-              icon="create-outline"
-              title="Enter coordinates manually"
-              onPress={() => setShowManual(!showManual)}
-              trailing={
-                <Ionicons name={showManual ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
-              }
-            />
-          </RowGroup>
-
-          {/* Manual Entry Form */}
-          {showManual && (
-            <View style={styles.manualForm}>
-              <View style={styles.inputRow}>
-                <Field
-                  style={styles.inputCol}
-                  label="Latitude"
-                  mono
-                  value={manualLat}
-                  onChangeText={setManualLat}
-                  placeholder="40.7128"
-                  keyboardType="numeric"
-                  returnKeyType="next"
-                />
-                <Field
-                  style={styles.inputCol}
-                  label="Longitude"
-                  mono
-                  value={manualLon}
-                  onChangeText={setManualLon}
-                  placeholder="-74.0060"
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={handleManualSave}
-                />
+            {/* Manual Entry Form */}
+            {showManual && (
+              <View style={styles.manualForm}>
+                <View style={styles.inputRow}>
+                  <Field
+                    style={styles.inputCol}
+                    label="Latitude"
+                    mono
+                    value={manualLat}
+                    onChangeText={setManualLat}
+                    placeholder="40.7128"
+                    keyboardType="numeric"
+                    returnKeyType="next"
+                  />
+                  <Field
+                    style={styles.inputCol}
+                    label="Longitude"
+                    mono
+                    value={manualLon}
+                    onChangeText={setManualLon}
+                    placeholder="-74.0060"
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={handleManualSave}
+                  />
+                </View>
+                <Button label="Apply Coordinates" variant="secondary" onPress={handleManualSave} style={styles.apply} />
               </View>
-              <Button label="Apply Coordinates" variant="secondary" onPress={handleManualSave} style={styles.apply} />
-            </View>
-          )}
+            )}
 
-          {/* Error */}
-          {error && <Notice tone="error" message={error} />}
+            {/* Error */}
+            {error && <Notice tone="error" message={error} />}
 
-          {/* Current Location Display */}
-          {location && (
-            <View style={styles.locationDisplay}>
-              <View style={styles.locationHeader}>
-                <Ionicons name="location-outline" size={18} color={colors.primary} />
-                <Text style={styles.locationTitle}>{location.city || 'Location Set'}</Text>
+            {/* Current Location Display */}
+            {location && (
+              <View style={styles.locationDisplay}>
+                <View style={styles.locationHeader}>
+                  <Ionicons name="location-outline" size={18} color={colors.primary} />
+                  <Text style={styles.locationTitle}>{location.city || 'Location Set'}</Text>
+                </View>
+                <Text style={styles.coordinates}>
+                  {location.latitude}, {location.longitude}
+                </Text>
               </View>
-              <Text style={styles.coordinates}>
-                {location.latitude}, {location.longitude}
-              </Text>
-            </View>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
 
-        {/* Footer */}
-        <Footer>
-          <Button
-            label={location ? 'Use This Location' : 'Select a Location'}
-            onPress={handleConfirm}
-            disabled={!location}
-          />
-        </Footer>
+          {/* Footer */}
+          <Footer>
+            <Button
+              label={location ? 'Use This Location' : 'Select a Location'}
+              onPress={handleConfirm}
+              disabled={!location}
+            />
+          </Footer>
+        </KeyboardAvoidingScreen>
       </View>
     </Modal>
   );

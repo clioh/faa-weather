@@ -26,6 +26,7 @@ import {
   TextButton,
   Toast,
 } from '@/components/ui';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { colors, fonts, spacing, typography } from '@/lib/theme';
 
 const noop = () => {};
@@ -41,7 +42,8 @@ export default function DevUiScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'UI primitives', headerBackTitle: 'Back' }} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingScreen>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <SectionLabel>Type</SectionLabel>
         <Text style={[typography.hero, styles.white]}>08:42</Text>
         <Text style={[typography.h1, styles.white]}>Find your mirror</Text>
@@ -125,6 +127,7 @@ export default function DevUiScreen() {
         </View>
         <Button label="Open bottom sheet" variant="secondary" onPress={() => setSheet(true)} />
       </ScrollView>
+      </KeyboardAvoidingScreen>
       <TabBar
         items={[
           { key: 'mirror', label: 'Mirror', icon: 'tablet-portrait-outline' },

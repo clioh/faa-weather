@@ -8,6 +8,7 @@ import { View, StyleSheet, Modal, TouchableOpacity, FlatList, Keyboard } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Field, PageSheetHeader, Row, SectionLabel, Text } from '@/components/ui';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
 import { HEADER_HIT_SLOP } from './ScreenHeader';
 
@@ -120,69 +121,72 @@ export function AirportPicker({
       <View style={styles.container}>
         {/* Header */}
         <PageSheetHeader title="Select Airport" onClose={handleClose} />
+        {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
+        <KeyboardAvoidingScreen avoidOnIOS={false}>
+          <View style={styles.top}>
+            {/* Search Input */}
+            <Field
+              icon="search"
+              placeholder="Search by ICAO, name, or city..."
+              accessibilityLabel="Search airports"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              returnKeyType="search"
+              trailing={
+                searchQuery.length > 0 ? (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery('')}
+                    hitSlop={HEADER_HIT_SLOP}
+                    style={styles.clearButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear search"
+                  >
+                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+                ) : undefined
+              }
+            />
 
-        <View style={styles.top}>
-          {/* Search Input */}
-          <Field
-            icon="search"
-            placeholder="Search by ICAO, name, or city..."
-            accessibilityLabel="Search airports"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            returnKeyType="search"
-            trailing={
-              searchQuery.length > 0 ? (
-                <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
-                  hitSlop={HEADER_HIT_SLOP}
-                  style={styles.clearButton}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear search"
-                >
-                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-                </TouchableOpacity>
-              ) : undefined
+            {/* Current Selection */}
+            {currentValue && (
+              <Text style={styles.caption}>
+                Current: <Text style={styles.currentValue}>{currentValue}</Text>
+              </Text>
+            )}
+          </View>
+
+          {/* Results */}
+          <FlatList
+            data={results}
+            keyExtractor={(item) => item.icao}
+            renderItem={renderAirport}
+            contentContainerStyle={styles.listContent}
+            automaticallyAdjustKeyboardInsets
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            ListHeaderComponent={
+              searchQuery.length === 0 ? <SectionLabel>Popular Airports</SectionLabel> : null
+            }
+            ListFooterComponent={results.length > 0 ? <View style={styles.listEnd} /> : null}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="airplane-outline" size={32} color={colors.textMuted} />
+                <Text style={styles.emptyText}>No airports found</Text>
+                <Text style={styles.emptySubtext}>
+                  Enter a 4-letter ICAO code directly (e.g., KJFK)
+                </Text>
+              </View>
             }
           />
 
-          {/* Current Selection */}
-          {currentValue && (
-            <Text style={styles.caption}>
-              Current: <Text style={styles.currentValue}>{currentValue}</Text>
-            </Text>
-          )}
-        </View>
-
-        {/* Results */}
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.icao}
-          renderItem={renderAirport}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          ListHeaderComponent={
-            searchQuery.length === 0 ? <SectionLabel>Popular Airports</SectionLabel> : null
-          }
-          ListFooterComponent={results.length > 0 ? <View style={styles.listEnd} /> : null}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="airplane-outline" size={32} color={colors.textMuted} />
-              <Text style={styles.emptyText}>No airports found</Text>
-              <Text style={styles.emptySubtext}>
-                Enter a 4-letter ICAO code directly (e.g., KJFK)
-              </Text>
-            </View>
-          }
-        />
-
-        {/* Info */}
-        <Text style={[styles.caption, styles.info]}>
-          Enter the 4-letter ICAO airport code (e.g., KJFK for JFK)
-        </Text>
+          {/* Info */}
+          <Text style={[styles.caption, styles.info]}>
+            Enter the 4-letter ICAO airport code (e.g., KJFK for JFK)
+          </Text>
+        </KeyboardAvoidingScreen>
       </View>
     </Modal>
   );

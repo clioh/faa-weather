@@ -10,8 +10,16 @@
  * position in the window and feeds that in as `keyboardVerticalOffset`, so it
  * works the same whether or not the screen has a header.
  *
- * On Android the window already resizes for the keyboard (Expo's default
- * `softwareKeyboardLayoutMode` is "resize"), so no behavior is applied there.
+ * Android uses the same padding. Apps are edge-to-edge there (mandatory with
+ * Expo's target SDK on Android 15+), and an edge-to-edge window does not
+ * resize for the keyboard, so `adjustResize` alone leaves inputs covered.
+ * Padding is the overlap between this view's bottom and the keyboard's top,
+ * so on older devices where the window does still resize it comes out as 0
+ * rather than doubling up.
+ *
+ * Inside iOS page-sheet modals, pass `avoidOnIOS={false}` and let the
+ * ScrollView handle it with `automaticallyAdjustKeyboardInsets`, which is
+ * exact there; Android still gets the padding.
  */
 
 import { useCallback, useRef, useState, type ReactNode } from 'react';
@@ -27,9 +35,11 @@ import {
 interface KeyboardAvoidingScreenProps {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** False when an inner ScrollView already adjusts its insets on iOS. */
+  avoidOnIOS?: boolean;
 }
 
-export function KeyboardAvoidingScreen({ children, style }: KeyboardAvoidingScreenProps) {
+export function KeyboardAvoidingScreen({ children, style, avoidOnIOS = true }: KeyboardAvoidingScreenProps) {
   const outerRef = useRef<View>(null);
   const [offset, setOffset] = useState(0);
 
@@ -43,7 +53,7 @@ export function KeyboardAvoidingScreen({ children, style }: KeyboardAvoidingScre
     <View ref={outerRef} onLayout={handleLayout} style={[styles.flex, style]}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' && !avoidOnIOS ? undefined : 'padding'}
         keyboardVerticalOffset={offset}
       >
         {children}

@@ -9,6 +9,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { PageSheetHeader, Row, RowGroup, SectionLabel, Text } from '@/components/ui';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { ModuleConfigForm } from '@/components/ModuleConfigForm';
 import { TodoManager } from '@/components/config/TodoManager';
 import { PhotoManager } from '@/components/config/PhotoManager';
@@ -64,85 +65,87 @@ export function ConfigSheet({
           icon={definition ? (definition.icon as keyof typeof Ionicons.glyphMap) : undefined}
           action={{ label: 'Done', onPress: onDone }}
         />
-
-        {instance && (
-          <ScrollView
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="interactive"
-            // A KeyboardAvoidingView mis-measures inside an iOS pageSheet (the
-            // sheet is inset from the window top), leaving fields under the
-            // keyboard. Letting the ScrollView inset itself is exact; Android
-            // modals resize with the window.
-            automaticallyAdjustKeyboardInsets
-          >
-            {definition ? (
-              definition.configFields.length > 0 ? (
-                <ModuleConfigForm
-                  definition={definition}
-                  config={instance.config ?? {}}
-                  onChange={onChangeConfig}
-                />
-              ) : definition.manages ? null : (
-                <Text style={styles.noSettings}>This widget has no settings.</Text>
-              )
-            ) : (
-              <Text style={styles.noSettings}>
-                This widget is no longer available in SkyGlass. Remove it to free up its space.
-              </Text>
-            )}
-
-            {/* Data that lives on the mirror rather than in the widget config. */}
-            {definition?.manages === 'todos' && <TodoManager />}
-            {definition?.manages === 'photos' && <PhotoManager />}
-            {definition?.manages === 'calendars' && (
-              <RowGroup>
-                <Row
-                  icon="calendar-outline"
-                  title="Manage calendars"
-                  onPress={() => {
-                    // Close the sheet first: a pushed screen would sit under the modal.
-                    onDone();
-                    router.push('/calendars');
-                  }}
-                  accessibilityLabel="Manage calendars"
-                  accessibilityHint="Connect and manage the calendars shown on the mirror"
-                />
-              </RowGroup>
-            )}
-
-            {sizeOptions.length > 1 && instance && (
-              <View style={styles.section}>
-                <SectionLabel style={styles.sectionLabel}>Size</SectionLabel>
-                <SizeChips
-                  wrap
-                  options={sizeOptions}
-                  current={instance.size}
-                  onSelect={(s) => {
-                    setBlockedHint(null);
-                    onChangeSize(s);
-                  }}
-                  onBlocked={(s) =>
-                    setBlockedHint(`No room for ${SIZE_LABELS[s]} where this widget sits. Move it or shrink a neighbour.`)
-                  }
-                />
-                {blockedHint ? <Text style={styles.blocked}>{blockedHint}</Text> : null}
-              </View>
-            )}
-
-            <Pressable
-              onPress={() => (confirmRemove ? onRemove() : setConfirmRemove(true))}
-              style={({ pressed }) => [styles.remove, confirmRemove && styles.removeConfirm, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={confirmRemove ? 'Confirm remove widget' : 'Remove widget'}
+        {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
+        <KeyboardAvoidingScreen avoidOnIOS={false}>
+          {instance && (
+            <ScrollView
+              contentContainerStyle={styles.content}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              // A KeyboardAvoidingView mis-measures inside an iOS pageSheet (the
+              // sheet is inset from the window top), leaving fields under the
+              // keyboard. Letting the ScrollView inset itself is exact; Android
+              // modals resize with the window.
+              automaticallyAdjustKeyboardInsets
             >
-              <Ionicons name="trash-outline" size={18} color={confirmRemove ? colors.background : colors.danger} />
-              <Text style={[styles.removeText, confirmRemove && styles.removeTextConfirm]}>
-                {confirmRemove ? 'Tap again to remove' : 'Remove widget'}
-              </Text>
-            </Pressable>
-          </ScrollView>
-        )}
+              {definition ? (
+                definition.configFields.length > 0 ? (
+                  <ModuleConfigForm
+                    definition={definition}
+                    config={instance.config ?? {}}
+                    onChange={onChangeConfig}
+                  />
+                ) : definition.manages ? null : (
+                  <Text style={styles.noSettings}>This widget has no settings.</Text>
+                )
+              ) : (
+                <Text style={styles.noSettings}>
+                  This widget is no longer available in SkyGlass. Remove it to free up its space.
+                </Text>
+              )}
+
+              {/* Data that lives on the mirror rather than in the widget config. */}
+              {definition?.manages === 'todos' && <TodoManager />}
+              {definition?.manages === 'photos' && <PhotoManager />}
+              {definition?.manages === 'calendars' && (
+                <RowGroup>
+                  <Row
+                    icon="calendar-outline"
+                    title="Manage calendars"
+                    onPress={() => {
+                      // Close the sheet first: a pushed screen would sit under the modal.
+                      onDone();
+                      router.push('/calendars');
+                    }}
+                    accessibilityLabel="Manage calendars"
+                    accessibilityHint="Connect and manage the calendars shown on the mirror"
+                  />
+                </RowGroup>
+              )}
+
+              {sizeOptions.length > 1 && instance && (
+                <View style={styles.section}>
+                  <SectionLabel style={styles.sectionLabel}>Size</SectionLabel>
+                  <SizeChips
+                    wrap
+                    options={sizeOptions}
+                    current={instance.size}
+                    onSelect={(s) => {
+                      setBlockedHint(null);
+                      onChangeSize(s);
+                    }}
+                    onBlocked={(s) =>
+                      setBlockedHint(`No room for ${SIZE_LABELS[s]} where this widget sits. Move it or shrink a neighbour.`)
+                    }
+                  />
+                  {blockedHint ? <Text style={styles.blocked}>{blockedHint}</Text> : null}
+                </View>
+              )}
+
+              <Pressable
+                onPress={() => (confirmRemove ? onRemove() : setConfirmRemove(true))}
+                style={({ pressed }) => [styles.remove, confirmRemove && styles.removeConfirm, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={confirmRemove ? 'Confirm remove widget' : 'Remove widget'}
+              >
+                <Ionicons name="trash-outline" size={18} color={confirmRemove ? colors.background : colors.danger} />
+                <Text style={[styles.removeText, confirmRemove && styles.removeTextConfirm]}>
+                  {confirmRemove ? 'Tap again to remove' : 'Remove widget'}
+                </Text>
+              </Pressable>
+            </ScrollView>
+          )}
+        </KeyboardAvoidingScreen>
       </View>
     </Modal>
   );

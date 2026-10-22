@@ -16,6 +16,7 @@ import { storage, LinkedMirror } from '@/lib/storage';
 import { OnboardingProgress } from '@/components/OnboardingProgress';
 import { InlineError } from '@/components/ErrorToast';
 import { HeaderBackButton } from '@/components';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { goBack, goHome, goToDashboard } from '@/lib/navigation';
 import { ensurePaired } from '@/lib/pairing';
 import { classifyError, ErrorType, ERROR_MESSAGES, logError } from '@/lib/errors';
@@ -251,7 +252,7 @@ export default function DiscoverScreen() {
   const emptyState = !scanning && discoveredMirrors.length === 0;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingScreen style={styles.container}>
       {/* Back + Progress Indicator */}
       <View style={{ paddingTop: insets.top + spacing.xs }}>
         <View style={styles.topBar}>
@@ -262,7 +263,6 @@ export default function DiscoverScreen() {
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -392,7 +392,7 @@ export default function DiscoverScreen() {
         <Button label="Scan Again" variant="secondary" icon="refresh" onPress={startScan} disabled={scanning} />
         <TextButton label="Set up later" onPress={handleSkip} />
       </Footer>
-    </View>
+    </KeyboardAvoidingScreen>
   );
 }
 

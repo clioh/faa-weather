@@ -8,6 +8,7 @@ import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, Keyboard } from 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Button, Footer, PageSheetHeader, Row, RowGroup, SectionLabel, Text, TextInput } from '@/components/ui';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
 import { CALENDAR_PALETTE, colorName } from './calendar/meta';
 
@@ -106,101 +107,103 @@ export function ColorPicker({
       <View style={styles.container}>
         {/* Header */}
         <PageSheetHeader title="Choose Color" onClose={handleClose} />
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          automaticallyAdjustKeyboardInsets
-        >
-          {/* Preview */}
-          <View style={styles.previewSection}>
-            <View style={[styles.previewSwatch, { backgroundColor: selectedColor }]} />
-            <Text style={styles.previewHex}>{selectedColor.toUpperCase()}</Text>
-          </View>
-
-          {/* Preset Colors */}
-          <View>
-            <SectionLabel>Preset Colors</SectionLabel>
-            <View style={styles.presetsGrid} accessibilityRole="radiogroup" accessibilityLabel="Preset colors">
-              {COLOR_PRESETS.map((preset) => {
-                const active = selectedColor.toLowerCase() === preset.value.toLowerCase();
-                return (
-                  <TouchableOpacity
-                    key={preset.value}
-                    style={[styles.presetItem, active && styles.presetItemSelected]}
-                    onPress={() => handlePresetSelect(preset.value)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: active }}
-                    accessibilityLabel={preset.name}
-                  >
-                    <View style={[styles.presetSwatch, { backgroundColor: preset.value }]}>
-                      {active && (
-                        <Ionicons
-                          name="checkmark"
-                          size={22}
-                          color={isLightColor(preset.value) ? colors.background : colors.text}
-                        />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+        {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
+        <KeyboardAvoidingScreen avoidOnIOS={false}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets
+          >
+            {/* Preview */}
+            <View style={styles.previewSection}>
+              <View style={[styles.previewSwatch, { backgroundColor: selectedColor }]} />
+              <Text style={styles.previewHex}>{selectedColor.toUpperCase()}</Text>
             </View>
-          </View>
 
-          {/* Custom Color Toggle */}
-          <RowGroup>
-            <Row
-              icon="color-palette-outline"
-              title="Enter custom hex color"
-              onPress={() => setShowCustom(!showCustom)}
-              trailing={
-                <Ionicons name={showCustom ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
-              }
-            />
-          </RowGroup>
-
-          {/* Custom Hex Input */}
-          {showCustom && (
-            <View style={styles.customForm}>
-              <View style={styles.hexRow}>
-                <View style={[styles.hexInputContainer, hexError ? styles.hexInputError : null]}>
-                  <Text style={styles.hexPrefix}>#</Text>
-                  <TextInput
-                    style={styles.hexInput}
-                    value={customHex}
-                    onChangeText={(text) => {
-                      setCustomHex(text.replace(/[^0-9A-Fa-f]/g, ''));
-                      if (hexError) setHexError(null);
-                    }}
-                    placeholder="FF5500"
-                    placeholderTextColor={colors.textMuted}
-                    maxLength={6}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                    returnKeyType="done"
-                    onSubmitEditing={handleCustomSubmit}
-                    accessibilityLabel="Custom hex color"
-                  />
-                </View>
-                <Button label="Apply" size="small" onPress={handleCustomSubmit} style={styles.applyButton} />
+            {/* Preset Colors */}
+            <View>
+              <SectionLabel>Preset Colors</SectionLabel>
+              <View style={styles.presetsGrid} accessibilityRole="radiogroup" accessibilityLabel="Preset colors">
+                {COLOR_PRESETS.map((preset) => {
+                  const active = selectedColor.toLowerCase() === preset.value.toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={preset.value}
+                      style={[styles.presetItem, active && styles.presetItemSelected]}
+                      onPress={() => handlePresetSelect(preset.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: active }}
+                      accessibilityLabel={preset.name}
+                    >
+                      <View style={[styles.presetSwatch, { backgroundColor: preset.value }]}>
+                        {active && (
+                          <Ionicons
+                            name="checkmark"
+                            size={22}
+                            color={isLightColor(preset.value) ? colors.background : colors.text}
+                          />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              {hexError ? (
-                <Text style={styles.hexError} accessibilityRole="alert">
-                  {hexError}
-                </Text>
-              ) : (
-                <Text style={styles.hexHint}>Enter a 6-digit hex code (e.g., FF5500 for orange)</Text>
-              )}
             </View>
-          )}
-        </ScrollView>
 
-        {/* Footer */}
-        <Footer>
-          <Button label="Use This Color" onPress={handleConfirm} />
-        </Footer>
+            {/* Custom Color Toggle */}
+            <RowGroup>
+              <Row
+                icon="color-palette-outline"
+                title="Enter custom hex color"
+                onPress={() => setShowCustom(!showCustom)}
+                trailing={
+                  <Ionicons name={showCustom ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+                }
+              />
+            </RowGroup>
+
+            {/* Custom Hex Input */}
+            {showCustom && (
+              <View style={styles.customForm}>
+                <View style={styles.hexRow}>
+                  <View style={[styles.hexInputContainer, hexError ? styles.hexInputError : null]}>
+                    <Text style={styles.hexPrefix}>#</Text>
+                    <TextInput
+                      style={styles.hexInput}
+                      value={customHex}
+                      onChangeText={(text) => {
+                        setCustomHex(text.replace(/[^0-9A-Fa-f]/g, ''));
+                        if (hexError) setHexError(null);
+                      }}
+                      placeholder="FF5500"
+                      placeholderTextColor={colors.textMuted}
+                      maxLength={6}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      returnKeyType="done"
+                      onSubmitEditing={handleCustomSubmit}
+                      accessibilityLabel="Custom hex color"
+                    />
+                  </View>
+                  <Button label="Apply" size="small" onPress={handleCustomSubmit} style={styles.applyButton} />
+                </View>
+                {hexError ? (
+                  <Text style={styles.hexError} accessibilityRole="alert">
+                    {hexError}
+                  </Text>
+                ) : (
+                  <Text style={styles.hexHint}>Enter a 6-digit hex code (e.g., FF5500 for orange)</Text>
+                )}
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Footer */}
+          <Footer>
+            <Button label="Use This Color" onPress={handleConfirm} />
+          </Footer>
+        </KeyboardAvoidingScreen>
       </View>
     </Modal>
   );

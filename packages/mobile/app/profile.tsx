@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useUser } from '@/context/UserContext';
 import { ScreenHeader, HeaderTextButton } from '@/components';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import {
   Button,
   Field,
@@ -75,7 +76,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingScreen style={styles.container}>
       <ScreenHeader
         title="Profile"
         fallbackHref="/"
@@ -90,7 +91,6 @@ export default function ProfileScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -185,7 +185,7 @@ export default function ProfileScreen() {
           <Button label="Save Changes" onPress={handleSave} loading={isSaving} />
         </Footer>
       )}
-    </View>
+    </KeyboardAvoidingScreen>
   );
 }
 

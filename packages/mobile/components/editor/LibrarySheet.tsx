@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Chip, PageSheetHeader, Text, TextInput } from '@/components/ui';
+import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import {
   CATEGORIES,
   CATEGORY_ORDER,
@@ -54,66 +55,69 @@ export function LibrarySheet({ visible, onClose, onAdd, noRoomIds }: LibraryShee
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.container}>
         <PageSheetHeader title="Add widget" action={{ label: 'Done', onPress: onClose }} />
-
-        <View style={styles.search}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search widgets"
-            placeholderTextColor={colors.textMuted}
-            style={styles.searchInput}
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-            returnKeyType="search"
-            accessibilityLabel="Search widgets"
-          />
-        </View>
-
-        <View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filters}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Chip
-              label="All"
-              selected={filter === 'all'}
-              onPress={() => setFilter('all')}
-              accessibilityLabel="Show All"
+        {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
+        <KeyboardAvoidingScreen avoidOnIOS={false}>
+          <View style={styles.search}>
+            <Ionicons name="search" size={18} color={colors.textMuted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search widgets"
+              placeholderTextColor={colors.textMuted}
+              style={styles.searchInput}
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+              returnKeyType="search"
+              accessibilityLabel="Search widgets"
             />
-            {CATEGORY_ORDER.map((c) => (
-              <Chip
-                key={c}
-                label={CATEGORIES[c].label}
-                selected={filter === c}
-                onPress={() => setFilter(c)}
-                accessibilityLabel={`Show ${CATEGORIES[c].label}`}
-              />
-            ))}
-          </ScrollView>
-        </View>
+          </View>
 
-        <FlatList
-          data={results}
-          keyExtractor={(m) => m.id}
-          numColumns={2}
-          columnWrapperStyle={styles.columns}
-          contentContainerStyle={styles.list}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          renderItem={({ item }) => (
-            <WidgetCard definition={item} noRoom={noRoomIds.has(item.id)} onPress={() => handleAdd(item)} />
-          )}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="search-outline" size={28} color={colors.textMuted} />
-              <Text style={styles.emptyText}>No widgets match “{query.trim()}”</Text>
-            </View>
-          }
-        />
-        <EditorToast toast={toast} bottom={spacing.xl} />
+          <View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Chip
+                label="All"
+                selected={filter === 'all'}
+                onPress={() => setFilter('all')}
+                accessibilityLabel="Show All"
+              />
+              {CATEGORY_ORDER.map((c) => (
+                <Chip
+                  key={c}
+                  label={CATEGORIES[c].label}
+                  selected={filter === c}
+                  onPress={() => setFilter(c)}
+                  accessibilityLabel={`Show ${CATEGORIES[c].label}`}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          <FlatList
+            data={results}
+            keyExtractor={(m) => m.id}
+            numColumns={2}
+            columnWrapperStyle={styles.columns}
+            contentContainerStyle={styles.list}
+            automaticallyAdjustKeyboardInsets
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            renderItem={({ item }) => (
+              <WidgetCard definition={item} noRoom={noRoomIds.has(item.id)} onPress={() => handleAdd(item)} />
+            )}
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Ionicons name="search-outline" size={28} color={colors.textMuted} />
+                <Text style={styles.emptyText}>No widgets match “{query.trim()}”</Text>
+              </View>
+            }
+          />
+          <EditorToast toast={toast} bottom={spacing.xl} />
+        </KeyboardAvoidingScreen>
       </View>
     </Modal>
   );
