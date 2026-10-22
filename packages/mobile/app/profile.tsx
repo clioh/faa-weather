@@ -5,21 +5,25 @@
  */
 
 import { useState } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useUser } from '@/context/UserContext';
-import { ScreenHeader, HeaderTextButton, HEADER_HIT_SLOP } from '@/components';
-import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
+import { ScreenHeader, HeaderTextButton } from '@/components';
+import {
+  Button,
+  Field,
+  Footer,
+  Notice,
+  Row,
+  RowGroup,
+  SectionLabel,
+  Spinner,
+  Text,
+  TextButton,
+} from '@/components/ui';
+import { colors, spacing, typography, fonts } from '@/lib/theme';
 import { goHome } from '@/lib/navigation';
 
 export default function ProfileScreen() {
@@ -64,7 +68,7 @@ export default function ProfileScreen() {
       <View style={styles.container}>
         <ScreenHeader title="Profile" fallbackHref="/" />
         <View style={[styles.container, styles.centered]}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <Spinner size="large" />
         </View>
       </View>
     );
@@ -93,118 +97,94 @@ export default function ProfileScreen() {
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user.name.charAt(0).toUpperCase()}
-            </Text>
+            <Text style={styles.avatarText}>{user.name.charAt(0).toUpperCase()}</Text>
           </View>
-          <Text style={styles.userId}>ID: {user.id.slice(0, 8)}...</Text>
+          <View style={styles.identity}>
+            <Text style={styles.displayName}>{user.name}</Text>
+            <Text style={styles.userId}>ID: {user.id.slice(0, 8)}...</Text>
+          </View>
         </View>
 
         {/* Profile Info */}
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>NAME</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your name"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-              autoCorrect={false}
-              autoFocus
-              maxLength={50}
-            />
-          ) : (
-            <Text style={styles.cardValue}>{user.name}</Text>
+        {isEditing ? (
+          <Field
+            label="Name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Enter your name"
+            autoCapitalize="words"
+            autoCorrect={false}
+            autoFocus
+            maxLength={50}
+          />
+        ) : null}
+        <View style={styles.rows}>
+          {!isEditing && (
+            <View style={styles.dataRow}>
+              <Text style={styles.dataLabel}>Name</Text>
+              <Text style={styles.dataValue}>{user.name}</Text>
+            </View>
           )}
+          <View style={styles.dataRow}>
+            <Text style={styles.dataLabel}>Member since</Text>
+            <Text style={styles.dataValue}>
+              {new Date(user.createdAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </Text>
+          </View>
         </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>MEMBER SINCE</Text>
-          <Text style={styles.cardValue}>
-            {new Date(user.createdAt).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </Text>
-        </View>
-
-        {/* Save Button */}
-        {isEditing && (
-          <TouchableOpacity
-            style={[styles.saveButton, isSaving && styles.buttonDisabled]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color={colors.background} />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            )}
-          </TouchableOpacity>
-        )}
 
         {/* Linked Mirrors Section */}
-        <View style={styles.section}>
+        <View>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Linked Mirrors</Text>
-            <TouchableOpacity
-              onPress={() => router.push('/mirrors')}
-              hitSlop={HEADER_HIT_SLOP}
-              accessibilityRole="button"
-            >
-              <Text style={styles.sectionAction}>Manage</Text>
-            </TouchableOpacity>
+            <SectionLabel style={styles.labelInRow}>Linked Mirrors</SectionLabel>
+            <TextButton label="Manage" onPress={() => router.push('/mirrors')} />
           </View>
 
           {linkedMirrors.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="tv-outline" size={32} color={colors.textMuted} />
               <Text style={styles.emptyText}>No mirrors linked yet</Text>
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={goHome}
-              >
-                <Text style={styles.linkButtonText}>Find a Mirror</Text>
-              </TouchableOpacity>
+              <TextButton label="Find a Mirror" onPress={goHome} />
             </View>
           ) : (
-            <View style={styles.mirrorsList}>
+            <RowGroup>
               {linkedMirrors.map((mirror) => (
-                <View key={mirror.mirrorId} style={styles.mirrorItem}>
-                  <View style={styles.mirrorIcon}>
-                    <Ionicons
-                      name={mirror.faceEnrolled ? 'person-circle' : 'tv-outline'}
-                      size={20}
-                      color={colors.primary}
-                    />
-                  </View>
-                  <View style={styles.mirrorInfo}>
-                    <Text style={styles.mirrorName}>{mirror.mirrorName}</Text>
-                    <Text style={styles.mirrorDetails}>
-                      {mirror.faceEnrolled ? 'Face enrolled' : 'Face not enrolled'}
-                    </Text>
-                  </View>
-                  {mirror.faceEnrolled && (
-                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                  )}
-                </View>
+                <Row
+                  key={mirror.mirrorId}
+                  icon={mirror.faceEnrolled ? 'person-circle-outline' : 'tv-outline'}
+                  title={mirror.mirrorName}
+                  caption={mirror.faceEnrolled ? 'Face enrolled' : 'Face not enrolled'}
+                  trailing={
+                    mirror.faceEnrolled ? (
+                      <Ionicons name="checkmark" size={18} color={colors.success} />
+                    ) : undefined
+                  }
+                />
               ))}
-            </View>
+            </RowGroup>
           )}
         </View>
 
+        <View style={styles.spacer} />
+
         {/* Privacy Info */}
-        <View style={styles.infoBox}>
-          <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
-          <Text style={styles.infoText}>
-            Your face data is stored locally on each mirror and never leaves the device.
-            Your profile info syncs between your phone and linked mirrors.
-          </Text>
-        </View>
+        <Notice
+          tone="info"
+          icon="shield-checkmark-outline"
+          message="Your face data is stored locally on each mirror and never leaves the device. Your profile info syncs between your phone and linked mirrors."
+        />
       </ScrollView>
+
+      {/* Save Button */}
+      {isEditing && (
+        <Footer>
+          <Button label="Save Changes" onPress={handleSave} loading={isSaving} />
+        </Footer>
+      )}
     </View>
   );
 }
@@ -219,169 +199,84 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl * 2,
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 20,
+    paddingBottom: spacing.lg,
+    gap: 26,
   },
   avatarSection: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    gap: spacing.md,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: colors.switchOffBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.background,
+    fontSize: 26,
+    fontWeight: '300',
+    color: colors.text,
+  },
+  identity: {
+    flex: 1,
+    gap: 2,
+  },
+  displayName: {
+    fontSize: 22,
+    fontWeight: '300',
+    color: colors.text,
   },
   userId: {
     ...typography.caption,
-    color: colors.textMuted,
     fontFamily: fonts.mono,
-  },
-  card: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardLabel: {
-    ...typography.label,
     color: colors.textMuted,
-    marginBottom: spacing.xs,
   },
-  cardValue: {
-    ...typography.body,
-    color: colors.text,
-    fontSize: 17,
-  },
-  input: {
-    ...typography.body,
-    color: colors.text,
-    fontSize: 17,
-    padding: 0,
+  rows: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.primary,
-    paddingBottom: spacing.xs,
+    borderBottomColor: colors.hairline,
   },
-  saveButton: {
-    height: 50,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
+  dataRow: {
+    minHeight: 52,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.xl,
+    gap: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
-  buttonDisabled: {
-    backgroundColor: colors.surfaceHighlight,
+  dataLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textSecondary,
   },
-  saveButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
-  },
-  section: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
+  dataValue: {
+    fontSize: 15,
+    color: colors.text,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
   },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
-  },
-  sectionAction: {
-    ...typography.body,
-    color: colors.primary,
-    paddingVertical: spacing.xs,
+  labelInRow: {
+    marginBottom: 0,
   },
   emptyState: {
     alignItems: 'center',
-    padding: spacing.xl,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
   },
   emptyText: {
     ...typography.body,
     color: colors.textMuted,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
   },
-  linkButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-  },
-  linkButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
-  },
-  mirrorsList: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  mirrorItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  mirrorIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  mirrorInfo: {
+  spacer: {
     flex: 1,
-  },
-  mirrorName: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  mirrorDetails: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  infoText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 20,
   },
 });

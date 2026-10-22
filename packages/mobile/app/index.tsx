@@ -7,14 +7,11 @@ import { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
+  Pressable,
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
 import { router, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +19,19 @@ import { useUser } from '@/context/UserContext';
 import { useMirrorDiscovery } from '@/hooks/useMirrorDiscovery';
 import { api, MirrorDevice } from '@/lib/api';
 import { storage, LinkedMirror } from '@/lib/storage';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import {
+  Badge,
+  Button,
+  Field,
+  Footer,
+  Notice,
+  Row,
+  RowGroup,
+  SectionLabel,
+  Spinner,
+  Text,
+} from '@/components/ui';
+import { colors, fonts, spacing, typography } from '@/lib/theme';
 import { goToDashboard } from '@/lib/navigation';
 import { ensurePaired } from '@/lib/pairing';
 
@@ -241,31 +250,27 @@ export default function HomeScreen() {
   if (userLoading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" />
       </View>
     );
   }
 
+  const newMirrors = discoveredMirrors.filter(
+    (d) => !linkedMirrors.some((l) => l.host === d.host && l.port === d.port)
+  );
+
   // Merge linked mirrors with discovered (prioritize linked)
   const allMirrors = [
     ...linkedMirrors.map((m) => ({ ...m, isLinked: true })),
-    ...discoveredMirrors
-      .filter((d) => !linkedMirrors.some((l) => l.host === d.host && l.port === d.port))
-      .map((m) => ({ ...m, isLinked: false })),
+    ...newMirrors.map((m) => ({ ...m, isLinked: false })),
   ];
+
+  const chevron = <Ionicons name="chevron-forward" size={14} color={colors.chevron} />;
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['rgba(0, 255, 136, 0.1)', 'transparent']}
-        style={styles.headerGradient}
-      />
-
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.lg },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing.md }]}
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -279,30 +284,27 @@ export default function HomeScreen() {
       >
         {/* User Profile Header */}
         {user && (
-          <TouchableOpacity
-            style={styles.profileHeader}
+          <Pressable
+            style={({ pressed }) => [styles.profileHeader, pressed && styles.pressed]}
             onPress={() => router.push('/profile')}
+            accessibilityRole="button"
+            accessibilityLabel={`Hello, ${user.name}. Open profile`}
           >
-            <View style={styles.avatarContainer}>
-              <Text style={styles.avatarText}>
-                {user.name.charAt(0).toUpperCase()}
-              </Text>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{user.name.charAt(0).toUpperCase()}</Text>
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.greeting}>Hello, {user.name}</Text>
-              <Text style={styles.profileSubtext}>
+              <Text style={styles.caption}>
                 {linkedMirrors.length} mirror{linkedMirrors.length !== 1 ? 's' : ''} linked
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
+            {chevron}
+          </Pressable>
         )}
 
-        {/* Logo and title */}
+        {/* Title */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="glasses-outline" size={48} color={colors.primary} />
-          </View>
           <Text style={styles.title}>Connect to Mirror</Text>
           <Text style={styles.subtitle}>
             {linkedMirrors.length > 0
@@ -311,196 +313,157 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Scanning indicator */}
-        {scanning && (
-          <View style={styles.scanningContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.scanningText}>Scanning network...</Text>
-          </View>
-        )}
-
         {/* Error message */}
         {error && !scanning && linkedMirrors.length === 0 && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="warning-outline" size={20} color={colors.warning} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
+          <Notice tone="warning" message={error} />
         )}
 
         {/* Linked Mirrors (saved) */}
         {linkedMirrors.length > 0 && (
-          <View style={styles.mirrorsSection}>
-            <Text style={styles.sectionLabel}>MY MIRRORS</Text>
-            {linkedMirrors.map((mirror) => (
-              <TouchableOpacity
-                key={mirror.mirrorId}
-                style={styles.mirrorCard}
-                onPress={() => handleConnect(mirror)}
-                disabled={connecting !== null}
-              >
-                <View style={styles.mirrorIcon}>
-                  <Ionicons
-                    name={mirror.faceEnrolled ? 'person-circle-outline' : 'tv-outline'}
-                    size={24}
-                    color={colors.primary}
-                  />
-                </View>
-                <View style={styles.mirrorInfo}>
-                  <Text style={styles.mirrorName}>{mirror.mirrorName}</Text>
-                  <Text style={styles.mirrorHost}>
-                    {mirror.host}:{mirror.port}
-                    {mirror.faceEnrolled && ' • Face enrolled'}
-                  </Text>
-                </View>
-                {connecting === mirror.mirrorId ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-                )}
-              </TouchableOpacity>
-            ))}
+          <View>
+            <SectionLabel>MY MIRRORS</SectionLabel>
+            <RowGroup>
+              {linkedMirrors.map((mirror) => (
+                <Row
+                  key={mirror.mirrorId}
+                  icon={mirror.faceEnrolled ? 'person-circle-outline' : 'tv-outline'}
+                  title={mirror.mirrorName}
+                  caption={
+                    <>
+                      <Text style={styles.mono}>{`${mirror.host}:${mirror.port}`}</Text>
+                      {mirror.faceEnrolled && ' • Face enrolled'}
+                    </>
+                  }
+                  onPress={() => handleConnect(mirror)}
+                  disabled={connecting !== null}
+                  trailing={connecting === mirror.mirrorId ? <Spinner /> : chevron}
+                  style={connecting === mirror.mirrorId ? styles.active : undefined}
+                />
+              ))}
+            </RowGroup>
           </View>
         )}
 
-        {/* Discovered Mirrors (not yet linked) */}
-        {discoveredMirrors.filter(
-          (d) => !linkedMirrors.some((l) => l.host === d.host && l.port === d.port)
-        ).length > 0 && (
-          <View style={styles.mirrorsSection}>
-            <Text style={styles.sectionLabel}>DISCOVERED ON NETWORK</Text>
-            {discoveredMirrors
-              .filter(
-                (d) => !linkedMirrors.some((l) => l.host === d.host && l.port === d.port)
-              )
-              .map((mirror) => (
-                <TouchableOpacity
-                  key={mirror.id}
-                  style={styles.mirrorCard}
-                  onPress={() => handleConnect(mirror)}
-                  disabled={connecting !== null}
-                >
-                  <View style={[styles.mirrorIcon, styles.newMirrorIcon]}>
-                    <Ionicons
-                      name={mirror.setupComplete ? 'tv-outline' : 'construct-outline'}
-                      size={24}
-                      color={colors.accent}
-                    />
-                  </View>
-                  <View style={styles.mirrorInfo}>
-                    <Text style={styles.mirrorName}>{mirror.name}</Text>
-                    <Text style={styles.mirrorHost}>
-                      {mirror.host}:{mirror.port}
-                      {mirror.version && ` • v${mirror.version}`}
-                    </Text>
-                  </View>
-                  {connecting === mirror.id ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <View style={styles.newBadge}>
-                      <Text style={styles.newBadgeText}>NEW</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+        {/* Discovered Mirrors (not yet linked); the scan indicator sits in the label row */}
+        {(newMirrors.length > 0 || scanning) && (
+          <View>
+            <View style={styles.labelRow}>
+              <SectionLabel style={styles.labelInRow}>DISCOVERED ON NETWORK</SectionLabel>
+              {scanning && (
+                <View style={styles.scanning}>
+                  <Spinner />
+                  <Text style={styles.caption}>Scanning network...</Text>
+                </View>
+              )}
+            </View>
+            {newMirrors.length > 0 && (
+              <RowGroup>
+                {newMirrors.map((mirror) => (
+                  <Row
+                    key={mirror.id}
+                    icon={mirror.setupComplete ? 'tv-outline' : 'construct-outline'}
+                    title={mirror.name}
+                    caption={`${mirror.host}:${mirror.port}${mirror.version ? ` • v${mirror.version}` : ''}`}
+                    captionMono
+                    onPress={() => handleConnect(mirror)}
+                    disabled={connecting !== null}
+                    trailing={connecting === mirror.id ? <Spinner /> : <Badge label="NEW" />}
+                    style={connecting === mirror.id ? styles.active : undefined}
+                  />
+                ))}
+              </RowGroup>
+            )}
           </View>
         )}
 
         {/* Instructions when no mirrors found */}
         {!scanning && allMirrors.length === 0 && (
-          <View style={styles.instructionsContainer}>
-            <Text style={styles.instructionsTitle}>No mirrors found</Text>
-            <Text style={styles.instructionsText}>
-              Make sure your SkyGlass is powered on and connected to the same network,
-              or connect to its WiFi hotspot for initial setup.
-            </Text>
+          <View style={styles.instructions}>
+            <View style={styles.header}>
+              <Text style={styles.instructionsTitle}>No mirrors found</Text>
+              <Text style={styles.subtitle}>
+                Make sure your SkyGlass is powered on and connected to the same network,
+                or connect to its WiFi hotspot for initial setup.
+              </Text>
+            </View>
 
-            <View style={styles.helpSteps}>
+            <RowGroup>
               <View style={styles.helpStep}>
-                <View style={styles.helpStepNumber}>
-                  <Text style={styles.helpStepNumberText}>1</Text>
-                </View>
+                <Text style={styles.helpStepNumber}>01</Text>
                 <Text style={styles.helpStepText}>
-                  For new mirrors: Connect to the "SkyGlass-Setup" WiFi network
+                  For new mirrors: Connect to the "<Text style={styles.mono}>SkyGlass-Setup</Text>" WiFi network
                 </Text>
               </View>
               <View style={styles.helpStep}>
-                <View style={styles.helpStepNumber}>
-                  <Text style={styles.helpStepNumberText}>2</Text>
-                </View>
+                <Text style={styles.helpStepNumber}>02</Text>
                 <Text style={styles.helpStepText}>
                   For configured mirrors: Make sure you're on the same WiFi network
                 </Text>
               </View>
-            </View>
+            </RowGroup>
           </View>
         )}
 
         {/* Manual connection */}
-        <TouchableOpacity
-          style={styles.manualButton}
-          onPress={() => setShowManual(!showManual)}
-        >
-          <Ionicons
-            name={showManual ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={colors.textMuted}
-          />
-          <Text style={styles.manualButtonText}>Enter IP manually</Text>
-        </TouchableOpacity>
-
-        {showManual && (
-          <View style={styles.manualForm}>
-            <TextInput
-              style={styles.manualInput}
-              placeholder="IP address (e.g., 192.168.1.100)"
-              placeholderTextColor={colors.textMuted}
-              value={manualHost}
-              onChangeText={setManualHost}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              returnKeyType="go"
-              onSubmitEditing={handleManualConnect}
+        <View style={styles.manual}>
+          <RowGroup>
+            <Row
+              title="Enter IP manually"
+              onPress={() => setShowManual(!showManual)}
+              trailing={
+                <Ionicons name={showManual ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+              }
             />
-            <TouchableOpacity
-              style={[
-                styles.connectButton,
-                !manualHost.trim() && styles.connectButtonDisabled,
-              ]}
-              onPress={handleManualConnect}
-              disabled={!manualHost.trim() || connecting !== null}
-            >
-              {connecting === 'manual' ? (
-                <ActivityIndicator size="small" color={colors.background} />
-              ) : (
-                <Text style={styles.connectButtonText}>Connect</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+          </RowGroup>
 
-        {/* Action buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={startScan}
-            disabled={scanning}
-          >
-            <Ionicons name="refresh" size={20} color={colors.text} />
-            <Text style={styles.actionButtonText}>Scan Again</Text>
-          </TouchableOpacity>
-
-          {linkedMirrors.length > 0 && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => router.push('/mirrors')}
-            >
-              <Ionicons name="layers-outline" size={20} color={colors.text} />
-              <Text style={styles.actionButtonText}>Manage Mirrors</Text>
-            </TouchableOpacity>
+          {showManual && (
+            <View style={styles.manualForm}>
+              <Field
+                style={styles.manualField}
+                mono
+                placeholder="IP address (e.g., 192.168.1.100)"
+                accessibilityLabel="IP address"
+                value={manualHost}
+                onChangeText={setManualHost}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                returnKeyType="go"
+                onSubmitEditing={handleManualConnect}
+              />
+              <Button
+                label="Connect"
+                size="small"
+                style={styles.connectButton}
+                onPress={handleManualConnect}
+                disabled={!manualHost.trim() || (connecting !== null && connecting !== 'manual')}
+                loading={connecting === 'manual'}
+              />
+            </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Action buttons */}
+      <Footer style={styles.footer}>
+        <Button
+          label="Scan Again"
+          variant="secondary"
+          icon="refresh"
+          onPress={startScan}
+          disabled={scanning}
+          style={styles.footerButton}
+        />
+        {linkedMirrors.length > 0 && (
+          <Button
+            label="Manage Mirrors"
+            variant="secondary"
+            icon="layers-outline"
+            onPress={() => router.push('/mirrors')}
+            style={styles.footerButton}
+          />
+        )}
+      </Footer>
     </View>
   );
 }
@@ -514,262 +477,126 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 300,
-  },
   scrollContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: 26,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   profileHeader: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 12,
   },
-  avatarContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.switchOffBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
   avatarText: {
-    ...typography.h2,
-    color: colors.background,
-    fontWeight: '700',
+    fontSize: 14,
+    color: colors.text,
   },
   profileInfo: {
     flex: 1,
+    gap: 2,
   },
   greeting: {
-    ...typography.body,
+    fontSize: 15,
     color: colors.text,
-    fontWeight: '600',
   },
-  profileSubtext: {
+  caption: {
     ...typography.caption,
     color: colors.textMuted,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   title: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.text,
-    marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
-    textAlign: 'center',
   },
-  scanningContainer: {
+  mono: {
+    fontFamily: fonts.mono,
+  },
+  active: {
+    opacity: 1,
+  },
+  labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    minHeight: 20,
+    marginBottom: 6,
+  },
+  labelInRow: {
+    marginBottom: 0,
+  },
+  scanning: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
-  scanningText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 170, 0, 0.1)',
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.warning,
-    flex: 1,
-  },
-  mirrorsSection: {
-    marginBottom: spacing.xl,
-  },
-  sectionLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  mirrorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  mirrorIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  newMirrorIcon: {
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-  },
-  mirrorInfo: {
-    flex: 1,
-  },
-  mirrorName: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  mirrorHost: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  newBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.accent,
-    borderRadius: borderRadius.sm,
-  },
-  newBadgeText: {
-    ...typography.label,
-    color: colors.background,
-    fontSize: 10,
-  },
-  instructionsContainer: {
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+  instructions: {
+    gap: spacing.lg,
   },
   instructionsTitle: {
     ...typography.h3,
     color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  instructionsText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-    lineHeight: 22,
-  },
-  helpSteps: {
-    gap: spacing.md,
   },
   helpStep: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.md,
+    gap: 14,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
   helpStepNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  helpStepNumberText: {
-    ...typography.caption,
+    width: 20,
+    paddingTop: 1,
+    fontFamily: fonts.mono,
+    fontSize: 13,
     color: colors.primary,
-    fontWeight: '700',
   },
   helpStepText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
     flex: 1,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.text,
   },
-  manualButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  manualButtonText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
+  manual: {
+    gap: 10,
   },
   manualForm: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
-  manualInput: {
+  manualField: {
     flex: 1,
-    height: 48,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    ...typography.body,
   },
   connectButton: {
-    height: 48,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 52,
+    borderRadius: 14,
+    alignSelf: 'auto',
   },
-  connectButtonDisabled: {
-    backgroundColor: colors.surfaceHighlight,
-  },
-  connectButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
-  },
-  actionButtons: {
+  footer: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  actionButton: {
+  footerButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: 48,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionButtonText: {
-    ...typography.bodySmall,
-    color: colors.text,
+    alignSelf: 'auto',
   },
 });

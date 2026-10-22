@@ -37,6 +37,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     fontSize: 10,
     letterSpacing: 1,
+    textTransform: 'uppercase',
     color: colors.primary,
   },
   warningText: {

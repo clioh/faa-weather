@@ -4,20 +4,13 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  ScrollView,
-  RefreshControl,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { api, UpdateStatus } from '@/lib/api';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { Button, Footer, Notice, SectionLabel, Spinner, Text, TextButton } from '@/components/ui';
+import { colors, fonts, spacing, typography } from '@/lib/theme';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -49,8 +42,8 @@ function formatDate(dateString: string): string {
 }
 
 // Circular progress component
-function CircularProgress({ percent, size = 120 }: { percent: number; size?: number }) {
-  const strokeWidth = 8;
+function CircularProgress({ percent, size = 200 }: { percent: number; size?: number }) {
+  const strokeWidth = 4;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percent / 100) * circumference;
@@ -64,7 +57,7 @@ function CircularProgress({ percent, size = 120 }: { percent: number; size?: num
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={colors.surfaceHighlight}
+          stroke={colors.ringTrack}
           strokeWidth={strokeWidth}
         />
         {/* Progress circle */}
@@ -172,7 +165,7 @@ export default function UpdatesScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <Spinner size="large" />
       </View>
     );
   }
@@ -189,441 +182,346 @@ export default function UpdatesScreen() {
     error: 'Error',
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={checking}
-          onRefresh={checkForUpdates}
-          tintColor={colors.primary}
-        />
-      }
-    >
-      {/* Current version */}
-      <View style={styles.versionCard}>
-        <View style={styles.versionIcon}>
-          <Ionicons name="tv-outline" size={32} color={colors.primary} />
-        </View>
-        <View style={styles.versionInfo}>
-          <Text style={styles.versionLabel}>Current Version</Text>
-          <Text style={styles.versionNumber}>v{status?.currentVersion || '0.0.0'}</Text>
-        </View>
+  const updateAvailable = !!status?.updateAvailable;
+  const lastChecked = status?.lastChecked ? (
+    <Text style={styles.lastChecked}>
+      Last checked: {new Date(status.lastChecked).toLocaleString()}
+    </Text>
+  ) : null;
+  const currentVersionRow = (
+    <View style={styles.rows}>
+      <View style={styles.dataRow}>
+        <Text style={styles.dataLabel}>Current Version</Text>
+        <Text style={styles.dataValue}>v{status?.currentVersion || '0.0.0'}</Text>
       </View>
+    </View>
+  );
+  const phaseIndex = PHASES.indexOf(downloadProgress.phase as (typeof PHASES)[number]);
 
-      {/* Update status */}
-      {status?.updateAvailable ? (
-        <View style={styles.updateCard}>
-          {/* Progress indicator when active */}
-          {isActive ? (
-            <View style={styles.progressContainer}>
-              <CircularProgress percent={downloadProgress.percent} />
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={checking}
+            onRefresh={checkForUpdates}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {updateAvailable && status && isActive ? (
+          /* Progress while downloading / extracting / installing */
+          <View style={styles.progressContainer}>
+            <CircularProgress percent={downloadProgress.percent} />
 
-              <Text style={styles.phaseText}>
-                {phaseLabels[downloadProgress.phase]}
-              </Text>
-
+            <View style={styles.progressText}>
+              <Text style={styles.phaseText}>{phaseLabels[downloadProgress.phase]}</Text>
               {downloadProgress.phase === 'downloading' && (
                 <>
-                  <Text style={styles.progressDetail}>
+                  <Text style={styles.monoCaption}>
                     {formatBytes(downloadProgress.bytesDownloaded || 0)} / {formatBytes(status.downloadSize)}
                   </Text>
-                  <Text style={styles.progressMeta}>
+                  <Text style={styles.monoCaption}>
                     {formatSpeed(downloadProgress.speed || 0)}
                     {downloadProgress.eta ? ` • ${formatEta(downloadProgress.eta)}` : ''}
                   </Text>
                 </>
               )}
             </View>
-          ) : (
-            <>
-              {/* Update available header */}
-              <View style={styles.updateHeader}>
-                <View style={styles.updateBadge}>
-                  <Ionicons name="arrow-up-circle" size={20} color={colors.primary} />
-                  <Text style={styles.updateBadgeText}>Update Available</Text>
-                </View>
-              </View>
 
-              {/* Version comparison */}
-              <View style={styles.versionCompare}>
-                <View style={styles.versionBox}>
-                  <Text style={styles.versionBoxLabel}>Current</Text>
-                  <Text style={styles.versionBoxValue}>v{status.currentVersion}</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={24} color={colors.textMuted} />
-                <View style={[styles.versionBox, styles.versionBoxNew]}>
-                  <Text style={styles.versionBoxLabel}>New</Text>
-                  <Text style={[styles.versionBoxValue, styles.versionBoxValueNew]}>
-                    v{status.latestVersion}
+            {/* Phase bar */}
+            <View style={styles.phaseBar}>
+              {PHASES.map((phase, i) => (
+                <View key={phase} style={styles.phaseStep}>
+                  <View style={[styles.phaseSegment, i <= phaseIndex && styles.phaseSegmentDone]} />
+                  <Text style={[styles.phaseLabel, i === phaseIndex && styles.phaseLabelCurrent]}>
+                    {PHASE_STEP_LABELS[phase]}
                   </Text>
                 </View>
-              </View>
+              ))}
+            </View>
 
-              {/* Release info */}
-              {status.releaseName && (
-                <Text style={styles.releaseName}>{status.releaseName}</Text>
-              )}
-
-              {status.publishedAt && (
-                <Text style={styles.releaseDate}>
-                  Released {formatDate(status.publishedAt)}
-                </Text>
-              )}
-
-              {/* Download size */}
-              <View style={styles.downloadInfo}>
-                <Ionicons name="download-outline" size={16} color={colors.textMuted} />
-                <Text style={styles.downloadSize}>{formatBytes(status.downloadSize)}</Text>
-              </View>
-
-              {/* Downloaded badge */}
-              {status.downloadReady && (
-                <View style={styles.readyBadge}>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                  <Text style={styles.readyBadgeText}>Downloaded - Ready to install</Text>
-                </View>
-              )}
-
-              {/* Release notes */}
-              {status.releaseNotes && (
-                <View style={styles.releaseNotes}>
-                  <Text style={styles.releaseNotesTitle}>What's New</Text>
-                  <Text style={styles.releaseNotesText}>
-                    {status.releaseNotes.slice(0, 500)}
-                    {status.releaseNotes.length > 500 ? '...' : ''}
-                  </Text>
-                </View>
-              )}
-
-              {/* Action buttons */}
-              <View style={styles.actions}>
-                {status.downloadReady ? (
-                  <TouchableOpacity style={styles.installButton} onPress={installUpdate}>
-                    <Ionicons name="rocket-outline" size={20} color={colors.background} />
-                    <Text style={styles.installButtonText}>Install Now</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={styles.downloadButton} onPress={downloadUpdate}>
-                    <Ionicons name="cloud-download-outline" size={20} color={colors.text} />
-                    <Text style={styles.downloadButtonText}>Download Update</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>
-          )}
-        </View>
-      ) : (
-        <View style={styles.upToDateCard}>
-          <View style={styles.upToDateIcon}>
-            <Ionicons name="checkmark-circle" size={48} color={colors.primary} />
+            <View style={styles.spacer} />
+            {currentVersionRow}
           </View>
-          <Text style={styles.upToDateTitle}>You're Up to Date</Text>
-          <Text style={styles.upToDateText}>
-            Your SkyGlass is running the latest version
-          </Text>
-        </View>
-      )}
+        ) : updateAvailable && status ? (
+          <>
+            {/* Update available header */}
+            <View style={styles.statusLabel}>
+              <Ionicons name="arrow-up-circle-outline" size={18} color={colors.primary} />
+              <Text style={styles.statusLabelText}>Update Available</Text>
+            </View>
 
-      {/* Error message */}
-      {error && (
-        <View style={styles.errorCard}>
-          <Ionicons name="warning-outline" size={20} color={colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+            {/* Version comparison */}
+            <View style={styles.versionCompare}>
+              <View style={styles.versionBox}>
+                <Text style={styles.caption}>Current</Text>
+                <Text style={[styles.versionValue, styles.versionValueOld]}>v{status.currentVersion}</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={20} color={colors.progressLabel} />
+              <View style={styles.versionBox}>
+                <Text style={styles.caption}>New</Text>
+                <Text style={styles.versionValue}>v{status.latestVersion}</Text>
+              </View>
+            </View>
 
-      {/* Check for updates button */}
-      <TouchableOpacity
-        style={styles.checkButton}
-        onPress={checkForUpdates}
-        disabled={checking || isActive}
-      >
-        {checking ? (
-          <ActivityIndicator size="small" color={colors.text} />
+            {/* Release info */}
+            <View style={styles.releaseInfo}>
+              {status.releaseName && <Text style={styles.releaseName}>{status.releaseName}</Text>}
+              <Text style={styles.caption}>
+                {status.publishedAt ? `Released ${formatDate(status.publishedAt)} · ` : ''}
+                <Text style={styles.mono}>{formatBytes(status.downloadSize)}</Text>
+              </Text>
+            </View>
+
+            {/* Downloaded badge */}
+            {status.downloadReady && (
+              <View style={styles.statusLabel}>
+                <Ionicons name="checkmark" size={18} color={colors.success} />
+                <Text style={styles.readyText}>Downloaded - Ready to install</Text>
+              </View>
+            )}
+
+            {/* Release notes */}
+            {status.releaseNotes && (
+              <View style={styles.releaseNotes}>
+                <SectionLabel>What's New</SectionLabel>
+                <Text style={styles.releaseNotesText}>
+                  {status.releaseNotes.slice(0, 500)}
+                  {status.releaseNotes.length > 500 ? '...' : ''}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.spacer} />
+            {lastChecked}
+          </>
         ) : (
           <>
-            <Ionicons name="refresh" size={20} color={colors.text} />
-            <Text style={styles.checkButtonText}>Check for Updates</Text>
+            <View style={styles.upToDate}>
+              <View style={styles.upToDateIcon}>
+                <Ionicons name="checkmark" size={32} color={colors.primary} />
+              </View>
+              <View style={styles.upToDateText}>
+                <Text style={styles.upToDateTitle}>You're Up to Date</Text>
+                <Text style={styles.body}>Your SkyGlass is running the latest version</Text>
+              </View>
+            </View>
+            {currentVersionRow}
+            <View style={styles.spacer} />
+            {lastChecked}
           </>
         )}
-      </TouchableOpacity>
 
-      {/* Last checked */}
-      {status?.lastChecked && (
-        <Text style={styles.lastChecked}>
-          Last checked: {new Date(status.lastChecked).toLocaleString()}
-        </Text>
-      )}
-    </ScrollView>
+        {/* Error message */}
+        {error && <Notice tone="error" message={error} />}
+      </ScrollView>
+
+      <Footer>
+        {updateAvailable && status && !isActive ? (
+          <>
+            {status.downloadReady ? (
+              <Button label="Install Now" icon="rocket-outline" onPress={installUpdate} />
+            ) : (
+              <Button label="Download Update" icon="cloud-download-outline" onPress={downloadUpdate} />
+            )}
+            <TextButton label="Check for Updates" onPress={checkForUpdates} disabled={checking} />
+          </>
+        ) : (
+          <Button
+            label="Check for Updates"
+            variant="secondary"
+            icon="refresh"
+            onPress={checkForUpdates}
+            disabled={isActive}
+            loading={checking}
+          />
+        )}
+      </Footer>
+    </View>
   );
 }
+
+const PHASES = ['downloading', 'extracting', 'installing'] as const;
+const PHASE_STEP_LABELS: Record<(typeof PHASES)[number], string> = {
+  downloading: 'Download',
+  extracting: 'Extract',
+  installing: 'Install',
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.background,
   },
-  versionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
   },
-  versionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  versionInfo: {
+  spacer: {
     flex: 1,
   },
-  versionLabel: {
+  caption: {
     ...typography.caption,
     color: colors.textMuted,
-    marginBottom: 2,
   },
-  versionNumber: {
-    ...typography.h2,
-    color: colors.text,
+  mono: {
+    fontFamily: fonts.mono,
   },
-  updateCard: {
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.primary,
+  monoCaption: {
+    ...typography.caption,
+    fontFamily: fonts.mono,
+    color: colors.textMuted,
+  },
+  body: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   progressContainer: {
+    flexGrow: 1,
     alignItems: 'center',
-    paddingVertical: spacing.lg,
+    gap: 28,
+    paddingTop: 40,
   },
   progressPercent: {
-    ...typography.h1,
-    color: colors.primary,
+    ...typography.hero,
+    fontSize: 52,
+    color: colors.text,
+  },
+  progressText: {
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   phaseText: {
     ...typography.h3,
     color: colors.text,
-    marginTop: spacing.lg,
+    textAlign: 'center',
   },
-  progressDetail: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
+  phaseBar: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    gap: 6,
   },
-  progressMeta: {
+  phaseStep: {
+    flex: 1,
+    gap: 6,
+  },
+  phaseSegment: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.progressPending,
+  },
+  phaseSegmentDone: {
+    backgroundColor: colors.primary,
+  },
+  phaseLabel: {
     ...typography.caption,
     color: colors.textMuted,
-    marginTop: spacing.xs,
   },
-  updateHeader: {
-    marginBottom: spacing.lg,
+  phaseLabelCurrent: {
+    color: colors.text,
   },
-  updateBadge: {
+  rows: {
+    alignSelf: 'stretch',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.hairline,
+  },
+  dataRow: {
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primaryMuted,
-    borderRadius: borderRadius.full,
+    gap: 14,
   },
-  updateBadgeText: {
-    ...typography.bodySmall,
+  dataLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  dataValue: {
+    fontFamily: fonts.mono,
+    fontSize: 15,
+    color: colors.text,
+  },
+  statusLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  statusLabelText: {
+    ...typography.label,
     color: colors.primary,
-    fontWeight: '600',
+  },
+  readyText: {
+    ...typography.bodySmall,
+    color: colors.text,
   },
   versionCompare: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-end',
     gap: spacing.md,
-    marginBottom: spacing.lg,
   },
   versionBox: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surfaceHighlight,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
+    gap: 2,
   },
-  versionBoxNew: {
-    backgroundColor: colors.primaryMuted,
-  },
-  versionBoxLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  versionBoxValue: {
-    ...typography.h3,
+  versionValue: {
+    fontFamily: fonts.mono,
+    fontSize: 22,
     color: colors.text,
   },
-  versionBoxValueNew: {
-    color: colors.primary,
+  versionValueOld: {
+    color: colors.textSecondary,
+  },
+  releaseInfo: {
+    gap: spacing.xs,
   },
   releaseName: {
     ...typography.h3,
     color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  releaseDate: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  downloadInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.lg,
-  },
-  downloadSize: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  readyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.primaryMuted,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
-  },
-  readyBadgeText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '600',
   },
   releaseNotes: {
-    padding: spacing.md,
-    backgroundColor: colors.surfaceHighlight,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
-  },
-  releaseNotesTitle: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    paddingTop: spacing.md,
   },
   releaseNotesText: {
     ...typography.bodySmall,
+    lineHeight: 21,
     color: colors.textSecondary,
-    lineHeight: 20,
   },
-  actions: {
-    gap: spacing.sm,
-  },
-  downloadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: 52,
-    backgroundColor: colors.accentMuted,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  downloadButtonText: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  installButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: 52,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-  },
-  installButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
-  },
-  upToDateCard: {
-    alignItems: 'center',
-    padding: spacing.xl,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+  upToDate: {
+    gap: spacing.lg,
+    paddingTop: spacing.xl,
   },
   upToDateIcon: {
-    marginBottom: spacing.md,
-  },
-  upToDateTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  upToDateText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  errorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
-    flex: 1,
-  },
-  checkButton: {
-    flexDirection: 'row',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    height: 48,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
   },
-  checkButtonText: {
-    ...typography.body,
+  upToDateText: {
+    gap: 10,
+  },
+  upToDateTitle: {
+    ...typography.h1,
     color: colors.text,
   },
   lastChecked: {
     ...typography.caption,
+    fontFamily: fonts.mono,
     color: colors.textMuted,
     textAlign: 'center',
   },

@@ -6,21 +6,14 @@
  */
 
 import { useState } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useUser } from '@/context/UserContext';
 import { api } from '@/lib/api';
 import { LinkedMirror } from '@/lib/storage';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { Badge, Button, Notice, Text, TextButton } from '@/components/ui';
+import { colors, fonts, spacing, typography } from '@/lib/theme';
 import { ScreenHeader, goToManualEntry } from '@/components';
 import { goHome, goToDashboard } from '@/lib/navigation';
 import { ensurePaired } from '@/lib/pairing';
@@ -113,15 +106,14 @@ export default function MirrorsScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Mirror Count */}
-        <View style={styles.statsCard}>
+        <View style={styles.stats}>
           <View style={styles.stat}>
             <Text style={styles.statValue}>{linkedMirrors.length}</Text>
             <Text style={styles.statLabel}>
               Mirror{linkedMirrors.length !== 1 ? 's' : ''} Linked
             </Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.stat}>
+          <View style={[styles.stat, styles.statSecond]}>
             <Text style={styles.statValue}>
               {linkedMirrors.filter((m) => m.faceEnrolled).length}
             </Text>
@@ -132,136 +124,98 @@ export default function MirrorsScreen() {
         {/* Mirrors List */}
         {linkedMirrors.length === 0 ? (
           <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="tv-outline" size={48} color={colors.textMuted} />
-            </View>
+            <Ionicons name="tv-outline" size={32} color={colors.textMuted} />
             <Text style={styles.emptyTitle}>No Mirrors Linked</Text>
             <Text style={styles.emptyText}>
               Link a mirror to control it from your phone and enable personalized features.
             </Text>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={goHome}
-            >
-              <Ionicons name="add" size={20} color={colors.background} />
-              <Text style={styles.addButtonText}>Find a Mirror</Text>
-            </TouchableOpacity>
+            <Button label="Find a Mirror" icon="add" onPress={goHome} />
           </View>
         ) : (
           <View style={styles.mirrorsList}>
-            {linkedMirrors.map((mirror) => (
-              <View key={mirror.mirrorId}>
-                <TouchableOpacity
-                  style={styles.mirrorCard}
-                  onPress={() =>
-                    setExpandedMirror(
-                      expandedMirror === mirror.mirrorId ? null : mirror.mirrorId
-                    )
-                  }
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.mirrorIconContainer}>
+            {linkedMirrors.map((mirror) => {
+              const expanded = expandedMirror === mirror.mirrorId;
+              return (
+                <View key={mirror.mirrorId} style={styles.mirrorItem}>
+                  <Pressable
+                    style={({ pressed }) => [styles.mirrorRow, pressed && styles.pressed]}
+                    onPress={() => setExpandedMirror(expanded ? null : mirror.mirrorId)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded }}
+                  >
                     <Ionicons
-                      name={mirror.faceEnrolled ? 'person-circle' : 'tv'}
-                      size={28}
-                      color={colors.primary}
+                      name={mirror.faceEnrolled ? 'person-circle-outline' : 'tv-outline'}
+                      size={22}
+                      color={colors.text}
                     />
-                  </View>
-                  <View style={styles.mirrorInfo}>
-                    <Text style={styles.mirrorName}>{mirror.mirrorName}</Text>
-                    <Text style={styles.mirrorHost}>
-                      {mirror.host}:{mirror.port}
-                    </Text>
-                    <View style={styles.mirrorMeta}>
-                      {mirror.faceEnrolled ? (
-                        <View style={styles.badge}>
-                          <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                          <Text style={styles.badgeText}>
-                            {mirror.enrolledAt
-                              ? `Enrolled ${formatEnrollmentDate(mirror.enrolledAt)}`
-                              : 'Face Enrolled'}
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={[styles.badge, styles.badgeWarning]}>
-                          <Ionicons name="alert-circle" size={12} color={colors.warning} />
-                          <Text style={[styles.badgeText, styles.badgeWarningText]}>
-                            No Face Data
-                          </Text>
-                        </View>
-                      )}
-                      <Text style={styles.lastConnected}>
-                        Last: {formatLastConnected(mirror.lastConnected)}
+                    <View style={styles.mirrorInfo}>
+                      <Text style={styles.mirrorName}>{mirror.mirrorName}</Text>
+                      <Text style={styles.mirrorMeta}>
+                        <Text style={styles.mono}>{`${mirror.host}:${mirror.port}`}</Text>
+                        {` · Last: ${formatLastConnected(mirror.lastConnected)}`}
                       </Text>
                     </View>
-                  </View>
-                  <Ionicons
-                    name={expandedMirror === mirror.mirrorId ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={colors.textMuted}
-                  />
-                </TouchableOpacity>
+                    {mirror.faceEnrolled ? (
+                      <Badge
+                        label={
+                          mirror.enrolledAt
+                            ? `Enrolled ${formatEnrollmentDate(mirror.enrolledAt)}`
+                            : 'Face Enrolled'
+                        }
+                      />
+                    ) : (
+                      <Badge label="No Face Data" tone="warning" />
+                    )}
+                    <Ionicons
+                      name={expanded ? 'chevron-up' : 'chevron-down'}
+                      size={14}
+                      color={colors.chevron}
+                    />
+                  </Pressable>
 
-                {/* Expanded Actions */}
-                {expandedMirror === mirror.mirrorId && (
-                  <View style={styles.actionsContainer}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleConnect(mirror)}
-                      disabled={loadingAction !== null}
-                    >
-                      {loadingAction === `connect-${mirror.mirrorId}` ? (
-                        <ActivityIndicator size="small" color={colors.primary} />
-                      ) : (
-                        <>
-                          <Ionicons name="enter-outline" size={18} color={colors.primary} />
-                          <Text style={styles.actionButtonText}>Connect</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.actionButtonDanger]}
-                      onPress={() => handleRemoveMirror(mirror)}
-                      disabled={loadingAction !== null}
-                    >
-                      {loadingAction === `remove-${mirror.mirrorId}` ? (
-                        <ActivityIndicator size="small" color={colors.error} />
-                      ) : (
-                        <>
-                          <Ionicons name="unlink-outline" size={18} color={colors.error} />
-                          <Text style={[styles.actionButtonText, styles.actionButtonTextDanger]}>
-                            Unlink
-                          </Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            ))}
+                  {/* Expanded Actions */}
+                  {expanded && (
+                    <View style={styles.actionsContainer}>
+                      <Button
+                        label="Connect"
+                        size="small"
+                        onPress={() => handleConnect(mirror)}
+                        disabled={loadingAction !== null && loadingAction !== `connect-${mirror.mirrorId}`}
+                        loading={loadingAction === `connect-${mirror.mirrorId}`}
+                      />
+                      <Button
+                        label="Unlink"
+                        size="small"
+                        variant="danger"
+                        onPress={() => handleRemoveMirror(mirror)}
+                        disabled={loadingAction !== null && loadingAction !== `remove-${mirror.mirrorId}`}
+                        loading={loadingAction === `remove-${mirror.mirrorId}`}
+                      />
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </View>
         )}
 
         {/* Add Another Mirror */}
         {linkedMirrors.length > 0 && (
-          <TouchableOpacity
-            style={styles.addAnotherButton}
+          <TextButton
+            label="Add Another Mirror"
+            icon="add"
             onPress={goHome}
-          >
-            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.addAnotherText}>Add Another Mirror</Text>
-          </TouchableOpacity>
+            style={styles.addAnother}
+          />
         )}
 
+        <View style={styles.spacer} />
+
         {/* Info Box */}
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.infoText}>
-            Each mirror stores its face data locally. Unlinking a mirror leaves that data on the
-            device; to add or remove faces, connect to the mirror and open Settings.
-          </Text>
-        </View>
+        <Notice
+          tone="info"
+          message="Each mirror stores its face data locally. Unlinking a mirror leaves that data on the device; to add or remove faces, connect to the mirror and open Settings."
+        />
       </ScrollView>
     </View>
   );
@@ -273,210 +227,95 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl * 2,
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: spacing.lg,
   },
-  statsCard: {
+  stats: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.hairline,
   },
   stat: {
     flex: 1,
-    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: 2,
+  },
+  statSecond: {
+    paddingLeft: spacing.md,
+    borderLeftWidth: 1,
+    borderLeftColor: colors.hairline,
   },
   statValue: {
-    ...typography.h1,
-    color: colors.primary,
-    marginBottom: spacing.xs,
+    fontSize: 32,
+    fontWeight: '200',
+    color: colors.text,
   },
   statLabel: {
     ...typography.caption,
     color: colors.textMuted,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.lg,
-  },
   emptyState: {
     alignItems: 'center',
-    padding: spacing.xl * 2,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  emptyIcon: {
-    marginBottom: spacing.lg,
-    opacity: 0.5,
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
   },
   emptyTitle: {
     ...typography.h3,
     color: colors.text,
-    marginBottom: spacing.sm,
   },
   emptyText: {
     ...typography.body,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    lineHeight: 22,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-  },
-  addButtonText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '600',
   },
   mirrorsList: {
-    gap: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
   },
-  mirrorCard: {
+  mirrorItem: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  mirrorRow: {
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 14,
+    paddingVertical: spacing.sm,
   },
-  mirrorIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
+  pressed: {
+    backgroundColor: colors.surfaceHighlight,
   },
   mirrorInfo: {
     flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
   mirrorName: {
-    ...typography.body,
+    fontSize: 15,
     color: colors.text,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  mirrorHost: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
   },
   mirrorMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    backgroundColor: 'rgba(0, 255, 136, 0.15)',
-    borderRadius: borderRadius.sm,
-  },
-  badgeText: {
-    ...typography.label,
-    color: colors.success,
-    fontSize: 10,
-  },
-  badgeWarning: {
-    backgroundColor: 'rgba(255, 170, 0, 0.15)',
-  },
-  badgeWarningText: {
-    color: colors.warning,
-  },
-  lastConnected: {
     ...typography.caption,
     color: colors.textMuted,
-    fontSize: 11,
+  },
+  mono: {
+    fontFamily: fonts.mono,
   },
   actionsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomLeftRadius: borderRadius.lg,
-    borderBottomRightRadius: borderRadius.lg,
-    marginTop: -spacing.sm,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: colors.border,
+    paddingLeft: 36,
+    paddingBottom: 14,
   },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+  addAnother: {
+    alignSelf: 'flex-start',
   },
-  actionButtonText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  actionButtonDanger: {
-    borderColor: 'rgba(255, 82, 82, 0.3)',
-  },
-  actionButtonTextDanger: {
-    color: colors.error,
-  },
-  addAnotherButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    padding: spacing.lg,
-    marginTop: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-  },
-  addAnotherText: {
-    ...typography.body,
-    color: colors.primary,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginTop: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  infoText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  spacer: {
     flex: 1,
-    lineHeight: 20,
   },
 });
