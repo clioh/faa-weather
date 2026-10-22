@@ -1,14 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
+import { evaluatePromotion, findPromotionCode } from './_lib/checkout.js'
+import { getDb } from './_lib/db.js'
+import { readJsonObject } from './_lib/http.js'
+import { normalizeEmail } from './_lib/license.js'
+import { stripe } from './_lib/stripe.js'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-12-15.clover',
-})
-
-interface ValidatePromoBody {
-  code: string
-  subtotal: number // in cents
-}
+/**
+ * Check a promo code for the checkout UI.
+ *
+ *   POST { code, subtotal (cents, before discount), email? }
+ *
+ * Display only: create-payment-intent re-runs the same checks against its own
+ * subtotal. `email` is optional; without it a code restricted to one customer
+ * is accepted here and checked against the order email at payment.
+ */
 
 interface PromoResult {
   valid: boolean
@@ -37,106 +43,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  const body = readJsonObject(req)
+  if (!body) {
+    return res.status(400).json({ valid: false, error: 'Body must be a JSON object' } as PromoResult)
+  }
+
+  const { code, subtotal } = body
+  if (!code || typeof code !== 'string' || code.length > 64) {
+    return res.status(400).json({ valid: false, error: 'Promo code is required' } as PromoResult)
+  }
+  if (typeof subtotal !== 'number' || !Number.isInteger(subtotal) || subtotal < 0) {
+    return res.status(400).json({ valid: false, error: 'Invalid subtotal' } as PromoResult)
+  }
+  const email = body.email === undefined ? undefined : (normalizeEmail(body.email) ?? undefined)
+
   try {
-    const { code, subtotal } = req.body as ValidatePromoBody
-
-    if (!code || typeof code !== 'string') {
-      return res.status(400).json({
-        valid: false,
-        error: 'Promo code is required',
-      } as PromoResult)
-    }
-
     const normalizedCode = code.trim().toUpperCase()
-
-    // Search for promotion codes matching the input
-    const promotionCodes = await stripe.promotionCodes.list({
-      code: normalizedCode,
-      active: true,
-      limit: 1,
+    const result = await evaluatePromotion(await findPromotionCode(stripe, normalizedCode), {
+      subtotal,
+      email,
+      sql: getDb(),
     })
 
-    if (promotionCodes.data.length === 0) {
-      return res.status(200).json({
-        valid: false,
-        error: 'Invalid promo code',
-      } as PromoResult)
+    if (!result.ok) {
+      return res.status(200).json({ valid: false, error: result.error } as PromoResult)
     }
 
-    const promotionCode = promotionCodes.data[0]
-    const coupon = promotionCode.coupon
+    const promo = result.value
+    console.log(
+      `[Promo] Valid code "${promo.code}": ${promo.discountType === 'percent' ? `${promo.percentOff}% off` : `$${(promo.amountOff ?? 0) / 100} off`}`,
+    )
 
-    // Check if coupon is still valid
-    if (!coupon.valid) {
-      return res.status(200).json({
-        valid: false,
-        error: 'This promo code has expired',
-      } as PromoResult)
-    }
-
-    // Check redemption limits
-    if (promotionCode.max_redemptions && promotionCode.times_redeemed >= promotionCode.max_redemptions) {
-      return res.status(200).json({
-        valid: false,
-        error: 'This promo code has reached its usage limit',
-      } as PromoResult)
-    }
-
-    // Check expiration
-    if (promotionCode.expires_at && promotionCode.expires_at < Math.floor(Date.now() / 1000)) {
-      return res.status(200).json({
-        valid: false,
-        error: 'This promo code has expired',
-      } as PromoResult)
-    }
-
-    // Check minimum amount requirement
-    if (coupon.minimum_amount && subtotal < coupon.minimum_amount) {
-      const minAmount = (coupon.minimum_amount / 100).toFixed(2)
-      return res.status(200).json({
-        valid: false,
-        error: `Minimum order of $${minAmount} required for this code`,
-      } as PromoResult)
-    }
-
-    // Calculate discount amount
-    let discountAmount = 0
-    let discountType: 'percent' | 'amount' = 'percent'
-
-    if (coupon.percent_off) {
-      discountAmount = Math.round(subtotal * (coupon.percent_off / 100))
-      discountType = 'percent'
-    } else if (coupon.amount_off) {
-      discountAmount = Math.min(coupon.amount_off, subtotal) // Don't discount more than subtotal
-      discountType = 'amount'
-    }
-
-    console.log(`[Promo] Valid code "${normalizedCode}": ${discountType === 'percent' ? `${coupon.percent_off}% off` : `$${(coupon.amount_off || 0) / 100} off`}`)
-
-    return res.status(200).json({
-      valid: true,
-      promotionCodeId: promotionCode.id,
-      couponId: coupon.id,
-      code: normalizedCode,
-      discountType,
-      percentOff: coupon.percent_off || undefined,
-      amountOff: coupon.amount_off || undefined,
-      discountAmount,
-      name: coupon.name || undefined,
-    } as PromoResult)
+    return res.status(200).json({ valid: true, ...promo } as PromoResult)
   } catch (error) {
     console.error('[Promo] Error:', error)
 
     if (error instanceof Stripe.errors.StripeError) {
-      return res.status(400).json({
-        valid: false,
-        error: error.message,
-      } as PromoResult)
+      return res.status(400).json({ valid: false, error: 'Could not check that promo code' } as PromoResult)
     }
 
-    return res.status(500).json({
-      valid: false,
-      error: 'Failed to validate promo code',
-    } as PromoResult)
+    return res.status(500).json({ valid: false, error: 'Failed to validate promo code' } as PromoResult)
   }
 }

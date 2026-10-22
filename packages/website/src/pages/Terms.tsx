@@ -39,7 +39,7 @@ export function Terms() {
         className="max-w-4xl mx-auto px-6 py-16"
       >
         <h1 className="font-display text-4xl font-bold text-light mb-4">Terms of Service</h1>
-        <p className="text-muted mb-12">Last updated: January 2026</p>
+        <p className="text-muted mb-12">Last updated: October 21, 2026</p>
 
         <div className="prose prose-invert max-w-none space-y-8">
           <section className="space-y-4">
@@ -80,8 +80,11 @@ export function Terms() {
               and other information for entertainment and convenience purposes. The product includes:
             </p>
             <ul className="list-disc list-inside text-muted space-y-2 ml-4">
-              <li>Hardware kit (mirror, frame, Raspberry Pi, camera)</li>
-              <li>SkyGlass software</li>
+              <li>
+                Hardware, where purchased (Raspberry Pi and camera; the Complete Kit adds the display,
+                two-way mirror glass, and frame)
+              </li>
+              <li>SkyGlass software and a license for one mirror</li>
               <li>Companion mobile app</li>
               <li>Web-based configuration interface</li>
             </ul>
@@ -96,36 +99,139 @@ export function Terms() {
             <ul className="list-disc list-inside text-muted space-y-2 ml-4">
               <li>Waitlist members will be notified in order of signup</li>
               <li>Pricing and specifications may change before final release</li>
-              <li>Pre-orders are refundable until the product ships</li>
+              <li>
+                Pre-orders are refundable in full until the product ships (see{' '}
+                <a href="#refunds" className="text-amber hover:underline">
+                  Refunds & Returns
+                </a>
+                )
+              </li>
             </ul>
           </section>
 
           <section className="space-y-4">
             <h2 className="font-display text-2xl font-semibold text-light">Software License</h2>
             <p className="text-muted leading-relaxed">
-              The SkyGlass software is licensed, not sold. Your purchase grants you a non-exclusive,
-              non-transferable license to use the software on one SkyGlass device. You may not:
+              The SkyGlass software is licensed, not sold. Each license (sold on its own or
+              pre-installed with a kit) grants you a non-exclusive license to run the software on one
+              mirror at a time. A license is bound to the device it is activated on; reinstalling the
+              software on the same device does not use up a license.
+            </p>
+            <p className="text-muted leading-relaxed">
+              You may move a license to a different mirror by releasing it from the current one at{' '}
+              <Link to="/license" className="text-amber hover:underline">
+                skyglass.dev/license
+              </Link>
+              , up to 3 times in any 12-month period. Beyond that, contact{' '}
+              <a href="mailto:support@skyglass.dev" className="text-amber hover:underline">
+                support@skyglass.dev
+              </a>
+              . A refund or chargeback revokes the license (see{' '}
+              <a href="#refunds" className="text-amber hover:underline">
+                Refunds & Returns
+              </a>
+              ). You may not:
             </p>
             <ul className="list-disc list-inside text-muted space-y-2 ml-4">
-              <li>Redistribute, sublicense, or resell the software</li>
+              <li>Redistribute or sublicense the software, or share a license key across mirrors</li>
               <li>Reverse engineer or decompile the software</li>
               <li>Remove any copyright or proprietary notices</li>
               <li>Use the software for commercial purposes without written permission</li>
             </ul>
           </section>
 
-          <section className="space-y-4">
-            <h2 className="font-display text-2xl font-semibold text-light">Warranty</h2>
+          <section id="refunds" className="space-y-4 scroll-mt-8">
+            <h2 className="font-display text-2xl font-semibold text-light">Refunds & Returns</h2>
             <p className="text-muted leading-relaxed">
-              Hardware kits include a limited one-year warranty covering defects in materials
-              and workmanship under normal use. The warranty does not cover:
+              If SkyGlass isn't right for you, here is how refunds and returns work.
+            </p>
+
+            <h3 className="font-display text-lg font-semibold text-light pt-2">Software License</h3>
+            <p className="text-muted leading-relaxed">
+              Ask within 30 days of purchase and we'll refund it in full, no questions asked. The
+              license is revoked when the refund is issued. A mirror using it stops running SkyGlass
+              at its next license check, which is normally within a day and never more than 30 days
+              later if the mirror is offline.
+            </p>
+
+            <h3 className="font-display text-lg font-semibold text-light pt-2">Hardware Kit and Complete Kit</h3>
+            <p className="text-muted leading-relaxed">
+              You can return a kit within 30 days of delivery for a full refund of the product price.
             </p>
             <ul className="list-disc list-inside text-muted space-y-2 ml-4">
-              <li>Damage from misuse, modification, or improper installation</li>
-              <li>Normal wear and tear</li>
-              <li>Damage from power surges or environmental factors</li>
-              <li>Software issues or third-party integrations</li>
+              <li>Send back everything that came in the box, undamaged. Normal handling during setup is fine.</li>
+              <li>
+                You pay return shipping, unless the kit arrived defective or damaged or we sent the
+                wrong item. In those cases we'll email you a prepaid return label.
+              </li>
+              <li>The original shipping charge isn't refundable, unless the return is our fault.</li>
+              <li>There is no restocking fee.</li>
+              <li>Sales tax charged on a refunded item is refunded with it.</li>
+              <li>Each kit comes with a license pre-installed. Returning the kit revokes that license.</li>
             </ul>
+            <p className="text-muted leading-relaxed">
+              Sometimes we settle a problem with a partial refund instead, such as a credit for a
+              missing accessory. A partial refund doesn't affect your license.
+            </p>
+
+            <h3 className="font-display text-lg font-semibold text-light pt-2">Pre-Orders</h3>
+            <p className="text-muted leading-relaxed">
+              You can cancel a pre-order for a full refund, including shipping and tax, any time
+              before it ships. Once it ships, the kit return terms above apply.
+            </p>
+
+            <h3 className="font-display text-lg font-semibold text-light pt-2">How to Request a Refund</h3>
+            <p className="text-muted leading-relaxed">
+              Email{' '}
+              <a href="mailto:support@skyglass.dev" className="text-amber hover:underline">
+                support@skyglass.dev
+              </a>{' '}
+              with your order number. For a return we'll reply with where to send it; for a damaged
+              or defective item, please include photos. Refunds go back to your original payment
+              method, usually within 5–10 business days after we approve a license refund or
+              receive your returned kit. Your bank may take a little longer to show it.
+            </p>
+
+            <h3 className="font-display text-lg font-semibold text-light pt-2">Chargebacks</h3>
+            <p className="text-muted leading-relaxed">
+              If something is wrong with your order, please contact us before disputing the charge
+              with your bank or card issuer. We can usually fix it faster. A chargeback revokes the
+              licenses on that order.
+            </p>
+          </section>
+
+          <section id="warranty" className="space-y-4 scroll-mt-8">
+            <h2 className="font-display text-2xl font-semibold text-light">Hardware Warranty</h2>
+            <p className="text-muted leading-relaxed">
+              The components we supply in the Hardware Kit and Complete Kit are covered for one year
+              from delivery against defects in materials and workmanship under normal use. If a
+              covered part fails, we'll repair or replace it, at our option. To make a claim, email{' '}
+              <a href="mailto:support@skyglass.dev" className="text-amber hover:underline">
+                support@skyglass.dev
+              </a>{' '}
+              with your order number and a description of the problem. If we need the part back, we
+              pay shipping for covered claims.
+            </p>
+            <p className="text-muted leading-relaxed">The warranty does not cover:</p>
+            <ul className="list-disc list-inside text-muted space-y-2 ml-4">
+              <li>Physical damage, such as drops or cracked glass after delivery</li>
+              <li>Water or other liquid damage</li>
+              <li>Modification, misuse, or improper installation</li>
+              <li>Normal wear and tear, or damage from power surges</li>
+              <li>
+                Parts you supply yourself, such as the mirror glass, frame, and display used with the
+                Hardware Kit
+              </li>
+              <li>Software and third-party services, which are supported separately</li>
+            </ul>
+            <p className="text-muted leading-relaxed">
+              <strong className="text-light">Glass broken in transit:</strong> if the two-way mirror
+              glass in your Complete Kit arrives broken, tell us within 7 days of delivery and send
+              photos of the glass and the packaging. We'll replace it at no cost.
+            </p>
+            <p className="text-muted leading-relaxed">
+              This warranty is in addition to any rights you have under consumer protection law.
+            </p>
           </section>
 
           <section className="space-y-4">

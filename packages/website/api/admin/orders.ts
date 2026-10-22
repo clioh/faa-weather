@@ -1,17 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-12-15.clover',
-})
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
-
-// Product display names
-const PRODUCT_NAMES: Record<string, string> = {
-  'hardware-kit': 'Hardware Kit',
-  'complete-kit': 'Complete Kit',
-}
+import { getCatalogProduct } from '../../shared/catalog.js'
+import { requireAdmin } from '../_lib/admin.js'
+import { stripe } from '../_lib/stripe.js'
 
 interface OrderLineItem {
   productId: string
@@ -50,11 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  // Simple password auth via header
-  const authHeader = req.headers.authorization
-  if (!authHeader || authHeader !== `Bearer ${ADMIN_PASSWORD}`) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
+  // Authorization: Bearer $ADMIN_PASSWORD (503 when unset, constant-time compare, failures rate-limited)
+  if (!(await requireAdmin(req, res))) return
 
   try {
     const { limit = '25', starting_after, status } = req.query
@@ -81,7 +69,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Transform to order format
     const orders: Order[] = filteredIntents.map((pi) => {
       const metadata = pi.metadata
-      const items: OrderLineItem[] = JSON.parse(metadata.order_items || '[]')
+      let items: OrderLineItem[] = []
+      try {
+        const parsed: unknown = JSON.parse(metadata.order_items || '[]')
+        if (Array.isArray(parsed)) items = parsed as OrderLineItem[]
+      } catch {
+        // not one of our PaymentIntents
+      }
 
       const shipping = pi.shipping
         ? {
@@ -103,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         amount: pi.amount,
         status: pi.status,
         items: items.map((item) => ({
-          name: PRODUCT_NAMES[item.productId] || item.productId,
+          name: getCatalogProduct(item.productId)?.name ?? item.productId,
           quantity: item.quantity,
           price: item.unitPrice,
         })),

@@ -1,8 +1,9 @@
 import { motion } from 'motion/react'
 import { useInView } from 'motion/react'
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
-const faqs = [
+const faqs: { question: string; answer: string; link?: { to: string; label: string } }[] = [
   {
     question: 'What exactly is SkyGlass?',
     answer: 'SkyGlass is a smart mirror that looks like a regular mirror when idle. When you walk up to it, it detects your presence and displays aviation weather (METAR/TAF), TFRs, NOTAMs, your flight schedule, and more. Step away, and it returns to being just a mirror.',
@@ -21,7 +22,7 @@ const faqs = [
   },
   {
     question: 'How hard is it to set up?',
-    answer: 'The Complete Kit takes about 30 minutes to assemble—just mount the mirror, connect the Pi, and run through the app setup. The Hardware Kit requires sourcing your own mirror and frame but includes detailed instructions. Software-only is for experienced DIYers.',
+    answer: 'The Complete Kit takes about 30 minutes to assemble—just mount the mirror, connect the Pi, and run through the app setup. The Hardware Kit requires sourcing your own mirror and frame but includes detailed instructions. The Software License is for experienced DIYers bringing their own Pi, display, and mirror.',
   },
   {
     question: 'What size mirror does it use?',
@@ -32,8 +33,17 @@ const faqs = [
     answer: 'Yes. SkyGlass supports multiple face profiles, each with their own home airports, calendar connections, and widget preferences. It automatically shows the right dashboard when it recognizes you.',
   },
   {
+    question: 'How does licensing work?',
+    answer: 'Each mirror needs one SkyGlass license. Kits ship with the license pre-installed, so the mirror activates itself on first boot. If you buy the Software License, we email you a key to enter in the companion app during setup. A license runs one mirror at a time; to move it to a new mirror, release it at skyglass.dev/license (up to 3 times in any 12 months). Reinstalling or re-flashing the same Pi never uses up a license.',
+  },
+  {
+    question: "What's your refund policy?",
+    answer: "The Software License is fully refundable within 30 days of purchase, no questions asked. Kits can be returned within 30 days of delivery for a full refund of the product price (no restocking fee; return shipping is on us if the kit arrived damaged or defective, or we sent the wrong item). Pre-orders are refundable in full until they ship. Kits also carry a 1-year hardware warranty. A refund revokes the license that came with the purchase. Email support@skyglass.dev with your order number to start.",
+    link: { to: '/terms#refunds', label: 'Read the full refund and warranty policy' },
+  },
+  {
     question: 'Does it work without internet?',
-    answer: 'Basic features like time, date, and cached weather work offline. Live weather updates, TFRs, and calendar sync require an internet connection. The mirror itself will always function.',
+    answer: 'Basic features like time, date, and cached weather work offline. Live weather updates, TFRs, and calendar sync require an internet connection. The mirror itself will always function, and its license keeps working for 30 days between check-ins.',
   },
 ]
 
@@ -113,6 +123,11 @@ export function FAQ() {
                   <p className="text-muted leading-relaxed">
                     {faq.answer}
                   </p>
+                  {faq.link && (
+                    <Link to={faq.link.to} className="inline-block mt-3 text-sm text-amber hover:underline">
+                      {faq.link.label}
+                    </Link>
+                  )}
                 </div>
               </motion.div>
             </div>

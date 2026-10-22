@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { SEO } from '../components'
-import { useCart, formatPrice } from '../store/cart'
+import { useCart, formatPrice, cartRequiresShipping } from '../store/cart'
 import { stripePromise, stripeAppearance } from '../config/stripe'
+import { FALLBACK_TAX_RATE, isUsZip, shippingCostFor, type BillingAddress } from '../../shared/catalog'
 
 type CheckoutStep = 'information' | 'shipping' | 'payment'
 
@@ -37,16 +38,28 @@ const initialShippingData: ShippingData = {
 // Payment form component that uses Stripe hooks
 function PaymentForm({
   shippingData,
+  needsShipping,
+  billingAddress,
   onBack,
   onSuccess,
+  onProcessingChange,
 }: {
   shippingData: ShippingData
+  needsShipping: boolean
+  /** Tax address for a license-only cart; null when the cart ships. */
+  billingAddress: BillingAddress | null
   onBack: () => void
   onSuccess: () => void
+  /** Lets the page lock the promo box while a payment is being confirmed. */
+  onProcessingChange: (processing: boolean) => void
 }) {
   const stripe = useStripe()
   const elements = useElements()
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [isProcessing, setIsProcessingState] = useState(false)
+  const setIsProcessing = (processing: boolean) => {
+    setIsProcessingState(processing)
+    onProcessingChange(processing)
+  }
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,17 +77,19 @@ function PaymentForm({
       confirmParams: {
         return_url: `${window.location.origin}/checkout/success`,
         receipt_email: shippingData.email,
-        shipping: {
-          name: `${shippingData.firstName} ${shippingData.lastName}`,
-          address: {
-            line1: shippingData.address,
-            line2: shippingData.apartment || undefined,
-            city: shippingData.city,
-            state: shippingData.state,
-            postal_code: shippingData.zip,
-            country: shippingData.country,
+        ...(needsShipping && {
+          shipping: {
+            name: `${shippingData.firstName} ${shippingData.lastName}`,
+            address: {
+              line1: shippingData.address,
+              line2: shippingData.apartment || undefined,
+              city: shippingData.city,
+              state: shippingData.state,
+              postal_code: shippingData.zip,
+              country: shippingData.country,
+            },
           },
-        },
+        }),
       },
     })
 
@@ -100,23 +115,33 @@ function PaymentForm({
           onClick={onBack}
           className="text-sm text-amber hover:underline"
         >
-          Edit shipping
+          {needsShipping ? 'Edit shipping' : 'Edit contact'}
         </button>
       </div>
 
-      {/* Shipping summary */}
-      <div className="p-4 bg-panel border border-border rounded-lg">
-        <p className="text-sm text-muted mb-1">Shipping to</p>
-        <p className="text-light">
-          {shippingData.firstName} {shippingData.lastName}
-        </p>
-        <p className="text-muted text-sm">
-          {shippingData.address}
-          {shippingData.apartment && `, ${shippingData.apartment}`}
-          <br />
-          {shippingData.city}, {shippingData.state} {shippingData.zip}
-        </p>
-      </div>
+      {/* Delivery summary */}
+      {needsShipping ? (
+        <div className="p-4 bg-panel border border-border rounded-lg">
+          <p className="text-sm text-muted mb-1">Shipping to</p>
+          <p className="text-light">
+            {shippingData.firstName} {shippingData.lastName}
+          </p>
+          <p className="text-muted text-sm">
+            {shippingData.address}
+            {shippingData.apartment && `, ${shippingData.apartment}`}
+            <br />
+            {shippingData.city}, {shippingData.state} {shippingData.zip}
+          </p>
+        </div>
+      ) : (
+        <div className="p-4 bg-panel border border-border rounded-lg">
+          <p className="text-sm text-muted mb-1">License key will be emailed to</p>
+          <p className="text-light font-mono break-all">{shippingData.email}</p>
+          {billingAddress && (
+            <p className="text-muted text-sm mt-1">Billing ZIP {billingAddress.postal_code}</p>
+          )}
+        </div>
+      )}
 
       {/* Stripe Payment Element */}
       <div className="instrument-card p-6">
@@ -131,6 +156,17 @@ function PaymentForm({
           options={{
             layout: 'tabs',
             paymentMethodOrder: ['card', 'apple_pay', 'google_pay'],
+            // License-only carts: prefill the card's billing ZIP with the one used for tax.
+            // A prefill rather than a confirmPayment override, so a buyer whose card is
+            // billed elsewhere can still correct it for address verification.
+            ...(billingAddress && {
+              defaultValues: {
+                billingDetails: {
+                  email: shippingData.email,
+                  address: { postal_code: billingAddress.postal_code, country: billingAddress.country },
+                },
+              },
+            }),
           }}
         />
       </div>
@@ -144,6 +180,18 @@ function PaymentForm({
           {error}
         </div>
       )}
+
+      <p className="text-xs text-muted text-center">
+        By placing your order you agree to the{' '}
+        <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link to="/terms#refunds" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline">
+          Refund Policy
+        </Link>
+        .
+      </p>
 
       {/* Submit button */}
       <button
@@ -200,6 +248,7 @@ export function Checkout() {
   const [shippingData, setShippingData] = useState<ShippingData>(initialShippingData)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [isLoadingPayment, setIsLoadingPayment] = useState(false)
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Tax calculation state
@@ -223,16 +272,30 @@ export function Checkout() {
     error: null,
   })
 
+  // A cart with only the Software License has nothing to ship: no shipping address or
+  // charge. Sales tax is then based on the buyer's billing ZIP instead.
+  const needsShipping = cartRequiresShipping(items)
+  const billingZip = shippingData.zip.trim()
+  // Memoized: it is a dependency of the PaymentIntent effect below
+  const billingAddress = useMemo<BillingAddress | null>(
+    () => (!needsShipping && isUsZip(billingZip) ? { postal_code: billingZip, country: 'US' } : null),
+    [needsShipping, billingZip]
+  )
+
   const subtotal = total()
   const subtotalCents = Math.round(subtotal * 100)
   const discountCents = promoData.discountAmount
   const discountedSubtotalCents = subtotalCents - discountCents
-  const shippingCents = subtotalCents >= 50000 ? 0 : 2500 // Free shipping based on original subtotal
+  // Free shipping based on original subtotal
+  const shippingCents = shippingCostFor(
+    items.map((item) => ({ productId: item.product.id })),
+    subtotalCents
+  )
   const shipping = shippingCents / 100
 
   // Use calculated tax or estimate (on discounted amount)
   const taxCents = taxData.taxSource === 'estimating'
-    ? Math.round(discountedSubtotalCents * 0.0875) // Estimate at 8.75%
+    ? Math.round(discountedSubtotalCents * FALLBACK_TAX_RATE) // Estimate until calculated
     : Math.round(taxData.taxAmount * (discountedSubtotalCents / subtotalCents || 1)) // Proportional if discount applied
   const tax = taxCents / 100
 
@@ -242,16 +305,30 @@ export function Checkout() {
   const updateField = (field: keyof ShippingData, value: string) => {
     setShippingData((prev) => ({ ...prev, [field]: value }))
     setError(null)
+    // Any change before payment invalidates a PaymentIntent created for the old details
+    setClientSecret(null)
     // Reset tax calculation when address changes
     if (['city', 'state', 'zip', 'country'].includes(field)) {
       setTaxData((prev) => ({ ...prev, calculationId: null, taxSource: 'estimating' }))
     }
   }
 
-  // Calculate tax when shipping address is complete
-  const calculateTax = async () => {
-    if (!shippingData.city || !shippingData.state || !shippingData.zip) {
-      return
+  // Calculate tax from the shipping address, or from the billing ZIP for a license-only cart.
+  // Resolves false (with an error shown) when the address must be corrected first.
+  const fallbackTax = () =>
+    setTaxData({
+      calculationId: null,
+      taxAmount: Math.round(subtotalCents * FALLBACK_TAX_RATE),
+      isCalculating: false,
+      taxSource: 'fallback',
+    })
+
+  const calculateTax = async (): Promise<boolean> => {
+    if (needsShipping && (!shippingData.city || !shippingData.state || !shippingData.zip)) {
+      return false
+    }
+    if (!needsShipping && !billingAddress) {
+      return false
     }
 
     setTaxData((prev) => ({ ...prev, isCalculating: true }))
@@ -265,44 +342,47 @@ export function Checkout() {
             productId: item.product.id,
             quantity: item.quantity,
           })),
-          shipping: {
-            line1: shippingData.address,
-            line2: shippingData.apartment || undefined,
-            city: shippingData.city,
-            state: shippingData.state,
-            postal_code: shippingData.zip,
-            country: shippingData.country,
-          },
+          ...(needsShipping
+            ? {
+                shipping: {
+                  line1: shippingData.address,
+                  line2: shippingData.apartment || undefined,
+                  city: shippingData.city,
+                  state: shippingData.state,
+                  postal_code: shippingData.zip,
+                  country: shippingData.country,
+                },
+              }
+            : { billingAddress }),
         }),
       })
 
       const data = await response.json()
 
       if (data.error) {
-        // If tax calculation fails, use fallback
-        console.warn('Tax calculation failed, using fallback:', data.error)
-        setTaxData({
-          calculationId: null,
-          taxAmount: Math.round(subtotalCents * 0.0875),
-          isCalculating: false,
-          taxSource: 'fallback',
-        })
-      } else {
-        setTaxData({
-          calculationId: data.calculationId,
-          taxAmount: data.taxAmount,
-          isCalculating: false,
-          taxSource: 'stripe_tax',
-        })
+        if (data.fallback || response.status >= 500) {
+          // Stripe Tax itself is unavailable: use the fallback rate
+          console.warn('Tax calculation failed, using fallback:', data.error)
+          fallbackTax()
+          return true
+        }
+        // The address was rejected: let the buyer fix it
+        setTaxData((prev) => ({ ...prev, isCalculating: false }))
+        setError(data.error)
+        return false
       }
-    } catch {
-      // Use fallback on error
+
       setTaxData({
-        calculationId: null,
-        taxAmount: Math.round(subtotalCents * 0.0875),
+        calculationId: data.calculationId,
+        taxAmount: data.taxAmount,
         isCalculating: false,
-        taxSource: 'fallback',
+        taxSource: 'stripe_tax',
       })
+      return true
+    } catch {
+      // Network error: use fallback
+      fallbackTax()
+      return true
     }
   }
 
@@ -345,6 +425,8 @@ export function Checkout() {
           error: null,
         })
         setPromoInput('') // Clear input on success
+        // The PaymentIntent was priced without this code: recreate it so the charge matches the total shown
+        setClientSecret(null)
       }
     } catch {
       setPromoData((prev) => ({
@@ -368,11 +450,19 @@ export function Checkout() {
       error: null,
     })
     setPromoInput('')
+    // Recreate the PaymentIntent at the undiscounted price
+    setClientSecret(null)
   }
+
+  // Changing the code mid-request or mid-confirmation could charge a different amount than shown
+  const promoLocked = isLoadingPayment || isPaymentProcessing
 
   // Create PaymentIntent when entering payment step
   useEffect(() => {
     if (step === 'payment' && !clientSecret && items.length > 0) {
+      // Ignore a response whose inputs changed while it was in flight (e.g. a promo code
+      // applied mid-request); the re-run creates the intent for the current inputs instead.
+      let cancelled = false
       setIsLoadingPayment(true)
       setError(null)
 
@@ -387,26 +477,43 @@ export function Checkout() {
             quantity: item.quantity,
           })),
           email: shippingData.email,
-          shipping: {
-            name: `${shippingData.firstName} ${shippingData.lastName}`,
-            address: {
-              line1: shippingData.address,
-              line2: shippingData.apartment || undefined,
-              city: shippingData.city,
-              state: shippingData.state,
-              postal_code: shippingData.zip,
-              country: shippingData.country,
-            },
-          },
-          // Pass tax calculation ID if available
-          taxCalculationId: taxData.calculationId,
+          // A shipping address when anything ships, else the billing ZIP for sales tax
+          ...(needsShipping
+            ? {
+                shipping: {
+                  name: `${shippingData.firstName} ${shippingData.lastName}`,
+                  address: {
+                    line1: shippingData.address,
+                    line2: shippingData.apartment || undefined,
+                    city: shippingData.city,
+                    state: shippingData.state,
+                    postal_code: shippingData.zip,
+                    country: shippingData.country,
+                  },
+                },
+              }
+            : { billingAddress }),
           // Pass promotion code ID if available
           promotionCodeId: promoData.promotionCodeId,
         }),
       })
         .then((res) => res.json())
         .then((data) => {
-          if (data.error) {
+          if (cancelled) return
+          if (data.promoError) {
+            // The server re-checks the code at payment time. Drop it (which
+            // re-runs this effect without a code) and show why on the promo field.
+            setPromoData({
+              promotionCodeId: null,
+              code: '',
+              discountType: null,
+              percentOff: null,
+              amountOff: null,
+              discountAmount: 0,
+              isValidating: false,
+              error: data.error || 'This promo code can no longer be applied',
+            })
+          } else if (data.error) {
             setError(data.error)
           } else {
             setClientSecret(data.clientSecret)
@@ -428,18 +535,29 @@ export function Checkout() {
           }
         })
         .catch(() => {
-          setError('Failed to initialize payment. Please try again.')
+          if (!cancelled) setError('Failed to initialize payment. Please try again.')
         })
         .finally(() => {
-          setIsLoadingPayment(false)
+          if (!cancelled) setIsLoadingPayment(false)
         })
+      return () => {
+        cancelled = true
+      }
     }
-  }, [step, clientSecret, items, shippingData, taxData.calculationId, promoData.promotionCodeId])
+  }, [step, clientSecret, items, needsShipping, shippingData, billingAddress, taxData.calculationId, promoData.promotionCodeId])
 
-  const handleInformationSubmit = (e: React.FormEvent) => {
+  const handleInformationSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!shippingData.email) {
       setError('Email is required')
+      return
+    }
+    if (!needsShipping) {
+      if (!billingAddress) {
+        setError('Enter a 5-digit US ZIP code (or ZIP+4)')
+        return
+      }
+      if (await calculateTax()) setStep('payment')
       return
     }
     setStep('shipping')
@@ -460,8 +578,7 @@ export function Checkout() {
     }
 
     // Calculate tax before moving to payment
-    await calculateTax()
-    setStep('payment')
+    if (await calculateTax()) setStep('payment')
   }
 
   const handlePaymentSuccess = () => {
@@ -514,10 +631,14 @@ export function Checkout() {
             <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <span className={step === 'shipping' ? 'text-amber' : 'text-muted'}>Shipping</span>
-            <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            {needsShipping && (
+              <>
+                <span className={step === 'shipping' ? 'text-amber' : 'text-muted'}>Shipping</span>
+                <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </>
+            )}
             <span className={step === 'payment' ? 'text-amber' : 'text-muted'}>Payment</span>
           </div>
         </div>
@@ -549,6 +670,38 @@ export function Checkout() {
                   />
                 </div>
 
+                {!needsShipping && (
+                  <>
+                    <div>
+                      <label
+                        htmlFor="billing-zip"
+                        className="block font-mono text-xs text-amber uppercase tracking-wider mb-2"
+                      >
+                        Billing ZIP Code
+                      </label>
+                      <input
+                        id="billing-zip"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        value={shippingData.zip}
+                        onChange={(e) => updateField('zip', e.target.value)}
+                        placeholder="94102"
+                        maxLength={10}
+                        pattern="\d{5}(-\d{4})?"
+                        title="5-digit ZIP code or ZIP+4"
+                        required
+                        className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50 font-mono"
+                      />
+                      <p className="text-xs text-muted mt-2">Used to calculate sales tax. US only.</p>
+                    </div>
+                    <p className="text-sm text-muted">
+                      Nothing ships with a Software License. Your license key is emailed here
+                      after checkout.
+                    </p>
+                  </>
+                )}
+
                 {error && (
                   <div className="px-4 py-3 bg-ifr/10 border border-ifr/30 rounded-lg text-ifr text-sm">
                     {error}
@@ -556,13 +709,13 @@ export function Checkout() {
                 )}
 
                 <button type="submit" className="w-full btn-primary">
-                  Continue to Shipping
+                  {needsShipping ? 'Continue to Shipping' : 'Continue to Payment'}
                 </button>
               </form>
             )}
 
             {/* Shipping Step */}
-            {step === 'shipping' && (
+            {step === 'shipping' && needsShipping && (
               <form onSubmit={handleShippingSubmit} className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="font-display text-2xl font-bold text-light">Shipping</h2>
@@ -727,6 +880,8 @@ export function Checkout() {
                   </div>
                 ) : clientSecret ? (
                   <Elements
+                    // A new intent (e.g. after a promo change) needs a fresh Payment Element
+                    key={clientSecret}
                     stripe={stripePromise}
                     options={{
                       clientSecret,
@@ -735,8 +890,11 @@ export function Checkout() {
                   >
                     <PaymentForm
                       shippingData={shippingData}
-                      onBack={() => setStep('shipping')}
+                      needsShipping={needsShipping}
+                      billingAddress={billingAddress}
+                      onBack={() => setStep(needsShipping ? 'shipping' : 'information')}
                       onSuccess={handlePaymentSuccess}
+                      onProcessingChange={setIsPaymentProcessing}
                     />
                   </Elements>
                 ) : null}
@@ -796,7 +954,8 @@ export function Checkout() {
                   </div>
                   <button
                     onClick={removePromoCode}
-                    className="text-muted hover:text-light transition-colors"
+                    disabled={promoLocked}
+                    className="text-muted hover:text-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Remove promo code"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -815,18 +974,19 @@ export function Checkout() {
                         setPromoInput(e.target.value.toUpperCase())
                         setPromoData((prev) => ({ ...prev, error: null }))
                       }}
+                      disabled={promoLocked}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault()
-                          validatePromoCode()
+                          if (!promoLocked && !promoData.isValidating) validatePromoCode()
                         }
                       }}
                       placeholder="Promo code"
-                      className="flex-1 px-3 py-2 bg-panel border border-border rounded-lg text-light placeholder:text-muted text-sm font-mono focus:outline-none focus:border-amber/50 uppercase"
+                      className="flex-1 px-3 py-2 bg-panel border border-border rounded-lg text-light placeholder:text-muted text-sm font-mono focus:outline-none focus:border-amber/50 uppercase disabled:opacity-50"
                     />
                     <button
                       onClick={validatePromoCode}
-                      disabled={promoData.isValidating || !promoInput.trim()}
+                      disabled={promoLocked || promoData.isValidating || !promoInput.trim()}
                       className="px-4 py-2 bg-instrument border border-border rounded-lg text-sm text-light hover:bg-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {promoData.isValidating ? (
@@ -857,12 +1017,14 @@ export function Checkout() {
                   <span className="text-vfr font-mono">-{formatPrice(discountCents / 100)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm">
-                <span className="text-muted">Shipping</span>
-                <span className="text-light font-mono">
-                  {shipping === 0 ? 'Free' : formatPrice(shipping)}
-                </span>
-              </div>
+              {needsShipping && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Shipping</span>
+                  <span className="text-light font-mono">
+                    {shipping === 0 ? 'Free' : formatPrice(shipping)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted flex items-center gap-2">
                   Tax
@@ -893,24 +1055,27 @@ export function Checkout() {
                   </svg>
                   <span>Secure checkout</span>
                 </div>
-                <div className="flex items-center gap-2 text-muted">
-                  <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  <span>1-year warranty</span>
-                </div>
+                {/* The hardware warranty only applies to kits */}
+                {needsShipping && (
+                  <Link to="/terms#warranty" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted hover:text-light transition-colors">
+                    <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span>1-year warranty</span>
+                  </Link>
+                )}
                 <div className="flex items-center gap-2 text-muted">
                   <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                   <span>Powered by Stripe</span>
                 </div>
-                <div className="flex items-center gap-2 text-muted">
+                <Link to="/terms#refunds" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted hover:text-light transition-colors">
                   <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
                   </svg>
-                  <span>30-day returns</span>
-                </div>
+                  <span>{needsShipping ? '30-day returns' : '30-day hassle-free refund'}</span>
+                </Link>
               </div>
             </div>
           </motion.div>

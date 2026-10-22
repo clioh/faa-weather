@@ -1,8 +1,10 @@
 import { motion } from 'motion/react'
 import { useInView } from 'motion/react'
 import { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { products, useCart, formatPrice } from '../store/cart'
-import { canPurchase } from '../config/features'
+import { canPurchase, isPreorderMode } from '../config/features'
+import { FREE_SHIPPING_THRESHOLD_CENTS, centsToDollars } from '../../shared/catalog'
 
 interface PricingProps {
   onWaitlistClick: () => void
@@ -20,27 +22,11 @@ export function Pricing({ onWaitlistClick }: PricingProps) {
       return
     }
 
-    // Free product - just show waitlist for now (could link to download page)
-    if (product.price === 0) {
-      onWaitlistClick()
-      return
-    }
-
     // Add to cart
     addItem(product)
   }
 
-  const getButtonText = (product: typeof products[0]) => {
-    if (!ecommerceEnabled) {
-      return 'Join Waitlist'
-    }
-
-    if (product.price === 0) {
-      return 'Get Started Free'
-    }
-
-    return 'Add to Cart'
-  }
+  const buttonText = ecommerceEnabled ? 'Add to Cart' : 'Join Waitlist'
 
   return (
     <section id="pricing" className="relative py-32 overflow-hidden">
@@ -60,7 +46,7 @@ export function Pricing({ onWaitlistClick }: PricingProps) {
             Pick your <span className="text-gradient-amber">build.</span>
           </h2>
           <p className="text-lg text-muted max-w-xl mx-auto">
-            Software-only for tinkerers, or a complete kit ready to mount.
+            A software license for tinkerers, or a complete kit ready to mount.
             Lifetime updates included.
           </p>
         </motion.div>
@@ -86,7 +72,7 @@ export function Pricing({ onWaitlistClick }: PricingProps) {
                   </div>
                 )}
 
-                {/* Badge for free tier */}
+                {/* Secondary badge */}
                 {product.badge && !isPopular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-vfr text-void font-display text-xs uppercase tracking-wider font-bold">
                     {product.badge}
@@ -109,10 +95,14 @@ export function Pricing({ onWaitlistClick }: PricingProps) {
                     <span className="font-display text-4xl font-bold text-light">
                       {formatPrice(product.price)}
                     </span>
-                    {product.price > 0 && <span className="text-muted">USD</span>}
+                    <span className="text-muted">USD</span>
                   </div>
                   <div className="text-sm text-muted mt-1">
-                    {product.price === 0 ? 'Open source' : 'Ships Q2 2026'}
+                    {product.physical
+                      ? isPreorderMode()
+                        ? 'Pre-order, refundable until it ships'
+                        : 'Ships in 2–3 weeks'
+                      : 'Key delivered by email'}
                   </div>
                 </div>
 
@@ -148,7 +138,7 @@ export function Pricing({ onWaitlistClick }: PricingProps) {
                       : 'bg-transparent border-2 border-amber/50 text-amber hover:bg-amber/10 hover:border-amber'
                   }`}
                 >
-                  {getButtonText(product)}
+                  {buttonText}
                 </button>
               </motion.div>
             )
@@ -165,7 +155,12 @@ export function Pricing({ onWaitlistClick }: PricingProps) {
           <p className="text-sm text-muted">
             {ecommerceEnabled ? (
               <>
-                Free shipping on orders over $500.{' '}
+                Free shipping on orders over {formatPrice(centsToDollars(FREE_SHIPPING_THRESHOLD_CENTS))}. One license per mirror,
+                transferable from{' '}
+                <Link to="/license" className="text-amber hover:underline">
+                  your license page
+                </Link>
+                .{' '}
                 <a href="mailto:hello@skyglass.dev" className="text-amber hover:underline">
                   Questions?
                 </a>

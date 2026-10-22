@@ -125,6 +125,11 @@ export function Footer({ onWaitlistClick }: FooterProps) {
                 </Link>
               </li>
               <li>
+                <Link to="/license" className="text-muted hover:text-light transition-colors">
+                  Manage License
+                </Link>
+              </li>
+              <li>
                 <a
                   href="mailto:hello@skyglass.dev"
                   className="text-muted hover:text-light transition-colors"
@@ -157,6 +162,9 @@ export function Footer({ onWaitlistClick }: FooterProps) {
             </Link>
             <Link to="/terms" className="hover:text-light transition-colors">
               Terms of Service
+            </Link>
+            <Link to="/license" className="hover:text-light transition-colors">
+              License
             </Link>
             <Link to="/team" className="hover:text-light transition-colors">
               About

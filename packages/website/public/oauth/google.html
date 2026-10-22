@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Returning to SkyGlass</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='5' fill='%2315151f' stroke='%23ffb300' stroke-width='2'/%3E%3C/svg%3E">
+<!--
+  Google OAuth bounce page. Google redirects here with ?code=&state= (or
+  ?error=&state=); `state` is base64url(JSON {n, r}) where r is the SkyGlass
+  app's deep link. We forward the query to r and nothing else: no external
+  resources, no analytics, no requests. The query is also wiped from this
+  page's URL/history before leaving.
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px 16px;
+    background: #05050a; color: #e8e8ec;
+    font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    width: 100%; max-width: 380px;
+    padding: 28px 24px;
+    background: #0d0d14; border: 1px solid #252530; border-radius: 14px;
+    text-align: center;
+  }
+  .brand {
+    margin: 0 0 20px;
+    font-family: 'Chakra Petch', ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+    color: #ffb300;
+  }
+  h1 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
+  p { margin: 0; font-size: 15px; line-height: 1.5; color: #6b6b80; }
+  .dot {
+    display: inline-block; width: 8px; height: 8px; margin-right: 10px; vertical-align: middle;
+    border-radius: 50%; background: #ffb300; box-shadow: 0 0 10px #ffb30080;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+  .btn {
+    display: inline-block; margin-top: 22px; padding: 12px 22px;
+    border-radius: 10px; background: #ffb300; color: #05050a;
+    font-weight: 600; font-size: 15px; text-decoration: none;
+  }
+  .btn:focus-visible { outline: 2px solid #e8e8ec; outline-offset: 3px; }
+  .error h1 { color: #e8e8ec; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main id="ok">
+  <div class="brand">SkyGlass</div>
+  <h1><span class="dot" aria-hidden="true"></span>Returning to SkyGlass…</h1>
+  <p id="ok-hint">If the app doesn't open on its own, tap the button below.</p>
+  <a id="open" class="btn" href="#" hidden>Open SkyGlass</a>
+</main>
+<main id="bad" class="error" hidden>
+  <div class="brand">SkyGlass</div>
+  <h1>This sign-in link is invalid.</h1>
+  <p>Start again from the SkyGlass app.</p>
+</main>
+<noscript><style>#ok { display: none; } #bad { display: block !important; }</style></noscript>
+<script>
+/* BEGIN skyglassBounce (tested by scripts outside the repo; keep self-contained) */
+function skyglassBounce(search) {
+  var ALLOWED = /^(skyglass|exp|exp\+skyglass):\/\//;
+  var params = new URLSearchParams(search || '');
+  var state = params.get('state');
+  if (!state || state.length > 4096) return { error: 'missing-state' };
+
+  var payload;
+  try {
+    var b64 = state.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  } catch (e) {
+    return { error: 'bad-state' };
+  }
+
+  var r = payload && typeof payload === 'object' ? payload.r : null;
+  if (typeof r !== 'string' || r.length > 2048 || !ALLOWED.test(r)) return { error: 'bad-return' };
+  // No whitespace or control characters anywhere in the deep link.
+  if (/[\u0000- \u007f-\u009f]/.test(r)) return { error: 'bad-return' };
+
+  if (!params.get('code') && !params.get('error')) return { error: 'missing-result' };
+
+  var out = [];
+  ['code', 'state', 'error', 'error_description'].forEach(function (key) {
+    var value = params.get(key);
+    if (value !== null) out.push(key + '=' + encodeURIComponent(value));
+  });
+
+  // Keep any fragment on the deep link after the query we add.
+  var hashAt = r.indexOf('#');
+  var base = hashAt === -1 ? r : r.slice(0, hashAt);
+  var hash = hashAt === -1 ? '' : r.slice(hashAt);
+  return { url: base + (base.indexOf('?') === -1 ? '?' : '&') + out.join('&') + hash };
+}
+/* END skyglassBounce */
+
+(function () {
+  if (typeof document === 'undefined') return;
+  var result = skyglassBounce(window.location.search);
+  // Drop code/state from this page's URL and history before doing anything else.
+  try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
+
+  if (!result.url) {
+    document.getElementById('ok').hidden = true;
+    document.getElementById('bad').hidden = false;
+    document.title = 'Invalid sign-in link';
+    return;
+  }
+  var link = document.getElementById('open');
+  link.href = result.url;
+  link.hidden = false;
+  window.location.replace(result.url);
+})();
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 {
-  "name": "@magic-mirror/cloud-api",
+  "name": "@skyglass/cloud-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",

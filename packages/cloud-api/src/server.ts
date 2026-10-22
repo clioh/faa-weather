@@ -79,8 +79,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // Initialize WebSocket relay
 relayService.initialize(server);
 
-// Start server. 3001 belongs to the mirror backend and 3002 to the license
-// server, so the cloud API defaults to 3003 to allow all three to run locally.
+// Start server. 3001 belongs to the mirror backend, so the cloud API defaults
+// to 3003 to allow both to run locally.
 const PORT = parseInt(process.env.PORT || '3003', 10);
 
 server.listen(PORT, () => {

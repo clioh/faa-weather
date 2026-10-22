@@ -6,6 +6,8 @@ interface SEOProps {
   canonical?: string
   type?: 'website' | 'article'
   image?: string
+  /** Keep this page out of search results (e.g. pages reached from emailed links). */
+  noindex?: boolean
 }
 
 const defaultMeta = {
@@ -22,6 +24,7 @@ export function SEO({
   canonical,
   type = 'website',
   image = defaultMeta.image,
+  noindex = false,
 }: SEOProps) {
   const pageTitle = title
     ? `${title} | SkyGlass`
@@ -38,6 +41,7 @@ export function SEO({
       <meta name="title" content={pageTitle} />
       <meta name="description" content={description} />
       <link rel="canonical" href={url} />
+      {noindex && <meta name="robots" content="noindex" />}
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={type} />

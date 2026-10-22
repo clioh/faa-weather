@@ -47,7 +47,7 @@ This document tracks all remaining work needed before the website is 100% produc
 ### Product & Pricing
 - [ ] Add actual product images/renders to replace placeholders
 - [ ] Create product gallery with multiple angles
-- [ ] Finalize pricing ($349 hardware kit, $549 complete kit)
+- [ ] Finalize pricing ($99 software license, $349 hardware kit, $549 complete kit; set in `shared/catalog.ts`)
 - [ ] Write detailed product descriptions
 - [ ] Add product specs to pricing cards
 

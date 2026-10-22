@@ -20,7 +20,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src"],
-  "exclude": ["src/**/*.stories.tsx", "src/**/*.stories.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src", "shared"],
+  "exclude": ["src/**/*.stories.tsx", "src/**/*.stories.ts"]
 }

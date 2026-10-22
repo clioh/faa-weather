@@ -54,7 +54,7 @@ Required variables:
 npm run dev
 ```
 
-Open http://localhost:5173
+Open http://localhost:5174 (port set in `vite.config.ts`; 5173 belongs to the mirror UI)
 
 ### Local Stripe Webhook Testing
 
@@ -126,11 +126,12 @@ Enable with `VITE_FEATURE_ECOMMERCE=true`
 #### Cart System
 - Zustand store with localStorage persistence
 - CartDrawer component with quantity controls
-- Products: Hardware Kit ($349), Complete Kit ($549)
+- Products: Software License ($99), Hardware Kit ($349), Complete Kit ($549). Ids, names,
+  prices and shipping rules live in `shared/catalog.ts`, used by both `src/` and `api/`
 
 #### Checkout Flow
-1. **Information** - Email collection
-2. **Shipping** - Address entry with validation
+1. **Information** - Email collection (license-only carts also collect a US billing ZIP for sales tax)
+2. **Shipping** - Address entry with validation (only when the cart contains a kit)
 3. **Payment** - Stripe Elements with custom styling
 
 #### Stripe Integration
@@ -140,7 +141,7 @@ Enable with `VITE_FEATURE_ECOMMERCE=true`
 | Payment | PaymentIntent with Elements |
 | Tax | Stripe Tax (location-based) with fallback |
 | Discounts | Promotion Codes via Coupons API |
-| Webhooks | payment_intent.succeeded/failed |
+| Webhooks | payment_intent.succeeded, charge.refunded, refund.updated, charge.dispute.created |
 
 #### Promo Codes
 - Validates against Stripe Promotion Codes
@@ -150,7 +151,7 @@ Enable with `VITE_FEATURE_ECOMMERCE=true`
 
 #### Order Emails
 - Confirmation email on successful payment
-- Payment failed email with retry link
+- License key (software) or pre-installed note (kits) in the confirmation; declines are shown inline by Stripe Elements, no email
 - Styled to match brand (dark theme, amber accents)
 
 ### Admin Dashboard (`/admin`)
@@ -194,7 +195,8 @@ When `VITE_FEATURE_ECOMMERCE=false`:
 2. Add endpoint: `https://your-domain.com/api/webhook`
 3. Select events:
    - `payment_intent.succeeded`
-   - `payment_intent.payment_failed`
+   - `payment_intent.payment_failed` (logged only)
+   - `charge.refunded`, `refund.updated`, `charge.dispute.created` (license revocation; see `docs/LICENSING.md`)
 4. Copy signing secret to `STRIPE_WEBHOOK_SECRET`
 
 ### Stripe Tax Setup

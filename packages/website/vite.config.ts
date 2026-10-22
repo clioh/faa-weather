@@ -1,9 +1,27 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { getCatalogProduct } from './shared/catalog'
+
+/**
+ * Fills `{{CATALOG_PRICE_USD:<product-id>}}` in index.html (structured data)
+ * from shared/catalog.ts so the static HTML never carries its own price.
+ */
+function catalogHtml(): Plugin {
+  return {
+    name: 'skyglass-catalog-html',
+    transformIndexHtml(html) {
+      return html.replace(/\{\{CATALOG_PRICE_USD:([a-z-]+)\}\}/g, (_, id: string) => {
+        const product = getCatalogProduct(id)
+        if (!product) throw new Error(`index.html: unknown catalog product "${id}"`)
+        return String(product.priceCents / 100)
+      })
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), catalogHtml()],
   // The mirror UI (packages/frontend) owns 5173; keep the marketing site off it
   // so `npm run dev` gives each a predictable port.
   server: {

@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react'
 import { Link } from 'react-router-dom'
-import { useCart, formatPrice } from '../store/cart'
+import { useCart, formatPrice, cartRequiresShipping, MAX_QUANTITY_PER_ITEM } from '../store/cart'
 
 export function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, total, itemCount } = useCart()
@@ -106,7 +106,9 @@ export function CartDrawer() {
                               </span>
                               <button
                                 onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                                className="w-8 h-8 flex items-center justify-center text-muted hover:text-light transition-colors"
+                                disabled={item.quantity >= MAX_QUANTITY_PER_ITEM}
+                                title={item.quantity >= MAX_QUANTITY_PER_ITEM ? `Limit ${MAX_QUANTITY_PER_ITEM} per order` : undefined}
+                                className="w-8 h-8 flex items-center justify-center text-muted hover:text-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted"
                                 aria-label="Increase quantity"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,7 +151,9 @@ export function CartDrawer() {
                 </div>
 
                 <p className="text-xs text-muted">
-                  Shipping and taxes calculated at checkout
+                  {cartRequiresShipping(items)
+                    ? 'Shipping and taxes calculated at checkout'
+                    : 'Taxes calculated at checkout. Your license key is delivered by email.'}
                 </p>
 
                 {/* Checkout button */}

@@ -1,13 +1,17 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { CATALOG, centsToDollars, type ProductId } from '../../shared/catalog'
 
 export interface Product {
-  id: string
+  id: ProductId
   name: string
   shortName: string
   description: string
+  /** Unit price in dollars, derived from shared/catalog.ts. */
   price: number
   features: string[]
+  /** True when the product is a physical shipment. A cart with no physical items needs no address. */
+  physical: boolean
   badge?: string
   popular?: boolean
 }
@@ -31,6 +35,63 @@ interface CartState {
   itemCount: () => number
 }
 
+// Storefront copy for each product. Ids, names, prices and the physical flag
+// come from shared/catalog.ts, which the server charges from.
+const storefront = (id: ProductId, copy: Omit<Product, 'id' | 'name' | 'price' | 'physical'>): Product => ({
+  id,
+  name: CATALOG[id].name,
+  price: centsToDollars(CATALOG[id].priceCents),
+  physical: CATALOG[id].physical,
+  ...copy,
+})
+
+export const products: Product[] = [
+  storefront('software-license', {
+    shortName: 'License',
+    description: 'For makers with their own Pi, display, and mirror',
+    features: [
+      'License for one mirror',
+      'SkyGlass OS image',
+      'Companion app',
+      'Email support',
+      'DIY build guide',
+    ],
+  }),
+  storefront('hardware-kit', {
+    shortName: 'Kit',
+    description: 'Electronics + software, bring your own mirror',
+    features: [
+      'Raspberry Pi 5 (4GB)',
+      'Pi Camera Module 3',
+      'Power supply + cables',
+      'Pre-flashed SD card',
+      'SkyGlass license pre-installed',
+      'Email support',
+    ],
+  }),
+  storefront('complete-kit', {
+    shortName: 'Complete',
+    description: 'Everything you need, ready to mount',
+    features: [
+      'Everything in Hardware Kit',
+      'SkyGlass license pre-installed',
+      '24" IPS display (1080p)',
+      'Two-way mirror glass',
+      'Aluminum frame',
+      'Wall mount hardware',
+      'Priority support',
+    ],
+    popular: true,
+    badge: 'Most Popular',
+  }),
+]
+
+export const getProduct = (id: string | undefined) => products.find((p) => p.id === id)
+
+/** Most units of one product per order; the checkout API rejects more. */
+export const MAX_QUANTITY_PER_ITEM = 10
+const clampQuantity = (quantity: number) => Math.min(MAX_QUANTITY_PER_ITEM, Math.max(1, Math.floor(quantity)))
+
 export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
@@ -38,9 +99,6 @@ export const useCart = create<CartState>()(
       isOpen: false,
 
       addItem: (product) => {
-        // Don't add free items to cart
-        if (product.price === 0) return
-
         set((state) => {
           const existingItem = state.items.find(
             (item) => item.product.id === product.id
@@ -49,7 +107,7 @@ export const useCart = create<CartState>()(
             return {
               items: state.items.map((item) =>
                 item.product.id === product.id
-                  ? { ...item, quantity: item.quantity + 1 }
+                  ? { ...item, quantity: clampQuantity(item.quantity + 1) }
                   : item
               ),
               isOpen: true, // Open cart when adding
@@ -75,7 +133,7 @@ export const useCart = create<CartState>()(
         }
         set((state) => ({
           items: state.items.map((item) =>
-            item.product.id === productId ? { ...item, quantity } : item
+            item.product.id === productId ? { ...item, quantity: clampQuantity(quantity) } : item
           ),
         }))
       },
@@ -98,65 +156,33 @@ export const useCart = create<CartState>()(
     }),
     {
       name: 'skyglass-cart',
+      // v2: catalog renamed software-only -> software-license (now paid). Drop older carts.
+      version: 2,
+      migrate: () => ({ items: [] }),
       partialize: (state) => ({ items: state.items }), // Only persist items
+      // Re-resolve stored items against the current catalog so a persisted cart
+      // never shows a stale price or name; unknown products are dropped.
+      merge: (persisted, current) => {
+        const stored = (persisted as Partial<Pick<CartState, 'items'>> | undefined)?.items ?? []
+        const items: CartItem[] = []
+        for (const item of stored) {
+          const product = getProduct(item?.product?.id)
+          if (product && Number.isInteger(item.quantity) && item.quantity > 0) {
+            items.push({ product, quantity: clampQuantity(item.quantity) })
+          }
+        }
+        return { ...current, items }
+      },
     }
   )
 )
 
-// Products catalog - matches Pricing component
-export const products: Product[] = [
-  {
-    id: 'software-only',
-    name: 'Software Only',
-    shortName: 'Software',
-    description: 'For experienced makers with their own hardware',
-    price: 0,
-    features: [
-      'SkyGlass OS image',
-      'Companion app access',
-      'Community support',
-      'DIY documentation',
-    ],
-    badge: 'Free',
-  },
-  {
-    id: 'hardware-kit',
-    name: 'Hardware Kit',
-    shortName: 'Kit',
-    description: 'Electronics + software, bring your own mirror',
-    price: 349,
-    features: [
-      'Raspberry Pi 5 (4GB)',
-      'Pi Camera Module 3',
-      'Power supply + cables',
-      'Pre-flashed SD card',
-      'SkyGlass software license',
-      'Email support',
-    ],
-  },
-  {
-    id: 'complete-kit',
-    name: 'Complete Kit',
-    shortName: 'Complete',
-    description: 'Everything you need, ready to mount',
-    price: 549,
-    features: [
-      'Everything in Hardware Kit',
-      '24" IPS display (1080p)',
-      'Two-way mirror glass',
-      'Aluminum frame',
-      'Wall mount hardware',
-      'Priority support',
-    ],
-    popular: true,
-    badge: 'Most Popular',
-  },
-]
 
-export const getProduct = (id: string) => products.find((p) => p.id === id)
+/** Whether any item in the cart has to be shipped. Software-only carts need no address or shipping charge. */
+export const cartRequiresShipping = (items: CartItem[]) =>
+  items.some((item) => item.product.physical)
 
 export const formatPrice = (price: number) => {
-  if (price === 0) return 'Free'
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
