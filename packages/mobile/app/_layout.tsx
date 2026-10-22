@@ -4,7 +4,7 @@
  */
 
 import { useEffect } from 'react';
-import { Stack, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -22,8 +22,8 @@ import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400R
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono/500Medium';
 import { ClerkProvider, ClerkLoaded } from '@clerk/expo';
 import { UserProvider } from '@/context/UserContext';
-import { HeaderBackButton, HeaderIconButton } from '@/components/ScreenHeader';
-import { goBack, goHome } from '@/lib/navigation';
+import { HeaderBackButton } from '@/components/ScreenHeader';
+import { goBack } from '@/lib/navigation';
 import { usePairingRedirect } from '@/lib/pairing';
 import { colors, fonts } from '@/lib/theme';
 
@@ -112,27 +112,13 @@ function RootLayoutNav() {
         }}
       />
       {/*
-        The dashboard is entered with replace(), so it is the bottom of the
-        stack. Give it explicit ways out: the mirror list on the left and the
-        profile on the right.
+        Mirror · Layout · Settings tabs (/dashboard, /settings). The dashboard
+        is entered with replace(), so the tabs are the bottom of the stack; the
+        dashboard draws its own header with the way back to the mirror list
+        and the profile.
       */}
-      <Stack.Screen
-        name="dashboard"
-        options={{
-          title: 'SkyGlass',
-          headerBackVisible: false,
-          headerLeft: () => <HeaderBackButton label="Mirrors" onPress={goHome} />,
-          headerRight: () => (
-            <HeaderIconButton
-              icon="person-circle-outline"
-              accessibilityLabel="Profile"
-              onPress={() => router.push('/profile')}
-            />
-          ),
-        }}
-      />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       {/* Pushed (not modal); same back control as every other screen. */}
-      <Stack.Screen name="settings" options={{ title: 'Settings', ...pushedHeader }} />
       <Stack.Screen name="updates" options={{ title: 'Software Updates', ...pushedHeader }} />
       {/* These screens draw their own ScreenHeader. */}
       <Stack.Screen name="profile" options={{ headerShown: false }} />

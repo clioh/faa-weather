@@ -8,8 +8,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet } from 'react-native';
+import { Button, Spinner, Text } from '@/components/ui';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api, type MirrorConnectionState } from '@/lib/api';
@@ -61,95 +61,69 @@ export function MirrorNotFound({ visible, onFound }: MirrorNotFoundProps) {
     if (found) onFound?.();
   };
 
+  if (busy) {
+    return (
+      <View style={[styles.container, styles.searchingRow]} accessibilityRole="alert">
+        <Spinner />
+        <Text style={styles.searchingText}>Looking for your mirror…</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container} accessibilityRole="alert">
       <View style={styles.header}>
-        {busy ? (
-          <ActivityIndicator size="small" color={colors.warning} />
-        ) : (
-          <Ionicons name="search-outline" size={18} color={colors.warning} />
-        )}
-        <Text style={styles.title}>{busy ? 'Looking for your mirror…' : 'Mirror not found'}</Text>
+        <Ionicons name="search-outline" size={18} color={colors.warning} />
+        <Text style={styles.title}>Mirror not found</Text>
       </View>
-      {!busy && (
-        <Text style={styles.text}>
-          {missed ? 'Still no answer. ' : ''}Make sure the mirror is powered on and your phone is on the same WiFi network. If
-          your router changed, the mirror may need to be set up on the new network.
-        </Text>
-      )}
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.button, styles.primaryButton]}
-          onPress={searchAgain}
-          disabled={busy}
-          accessibilityRole="button"
-        >
-          <Ionicons name="refresh" size={16} color={colors.background} />
-          <Text style={styles.primaryText}>Search again</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={goToManualEntry}
-          accessibilityRole="button"
-        >
-          <Ionicons name="create-outline" size={16} color={colors.text} />
-          <Text style={styles.buttonText}>Enter address manually</Text>
-        </TouchableOpacity>
-      </View>
+      <Text style={styles.text}>
+        {missed ? 'Still no answer. ' : ''}Make sure the mirror is powered on and your phone is on the same WiFi network. If
+        your router changed, the mirror may need to be set up on the new network.
+      </Text>
+      <Button label="Search again" icon="refresh" onPress={searchAgain} style={styles.button} />
+      <Button
+        label="Enter address manually"
+        variant="secondary"
+        onPress={goToManualEntry}
+        style={styles.button}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.sm,
+    gap: 14,
     padding: spacing.md,
-    marginVertical: spacing.sm,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 170, 0, 0.35)',
-    backgroundColor: 'rgba(255, 170, 0, 0.08)',
+    borderColor: colors.sheetBorder,
+    backgroundColor: colors.surfaceTint,
+  },
+  searchingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchingText: {
+    ...typography.caption,
+    color: colors.chipText,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 10,
   },
   title: {
-    ...typography.body,
+    fontSize: 16,
     color: colors.text,
-    fontWeight: '600',
   },
   text: {
     ...typography.bodySmall,
+    lineHeight: 21,
     color: colors.textSecondary,
   },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surfaceHighlight,
-  },
-  primaryButton: {
-    backgroundColor: colors.warning,
-  },
-  buttonText: {
-    ...typography.bodySmall,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  primaryText: {
-    ...typography.bodySmall,
-    color: colors.background,
-    fontWeight: '600',
+    height: 48,
   },
 });

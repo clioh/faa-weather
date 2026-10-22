@@ -24,6 +24,7 @@ import { logError } from '@/lib/errors';
 import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { goHome } from '@/lib/navigation';
 import { useUser } from '@/context/UserContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LICENSE_STATE_LABELS: Record<LicenseState, string> = {
   active: 'Active',
@@ -48,6 +49,7 @@ interface RegisteredFace {
 }
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const { resetAppData } = useUser();
   const [updateConfig, setUpdateConfig] = useState<UpdateConfig | null>(null);
   const [faces, setFaces] = useState<RegisteredFace[]>([]);
@@ -176,7 +178,15 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
+    >
+      {/* Reached from the tab bar, so a large title instead of a nav header. */}
+      <Text style={styles.largeTitle} accessibilityRole="header">
+        Settings
+      </Text>
+
       {/* Update Settings */}
       <Text style={styles.sectionTitle}>SOFTWARE UPDATES</Text>
       <View style={styles.card}>
@@ -454,6 +464,11 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
+  },
+  largeTitle: {
+    ...typography.h1,
+    color: colors.text,
+    marginBottom: spacing.lg,
   },
   centerContainer: {
     flex: 1,
