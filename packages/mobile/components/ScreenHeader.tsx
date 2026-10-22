@@ -71,7 +71,7 @@ export function HeaderBackButton({ onPress, label = 'Back', color = colors.text 
       accessibilityLabel={label === 'Back' ? 'Back' : `Back to ${label}`}
       style={styles.backButton}
     >
-      <Ionicons name="chevron-back" size={26} color={color} style={styles.backChevron} />
+      <Ionicons name="chevron-back" size={24} color={color} style={styles.backChevron} />
       <Text style={[styles.backLabel, { color }]} numberOfLines={1}>
         {label}
       </Text>
@@ -132,7 +132,7 @@ export function ScreenHeader({
   const handleLeft = onLeftPress ?? (() => goBack(fallbackHref));
 
   return (
-    <View style={[styles.header, { paddingTop: (useTopInset ? insets.top : 0) + spacing.sm }]}>
+    <View style={[styles.header, { paddingTop: (useTopInset ? insets.top : 0) + spacing.xs }]}>
       <View style={styles.side}>
         {leftIcon === 'back' && <HeaderBackButton onPress={handleLeft} label={backLabel} />}
         {leftIcon === 'close' && (
@@ -158,10 +158,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: 48,
     paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingBottom: spacing.xs,
     backgroundColor: colors.background,
   },
   side: {
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    ...typography.h3,
+    ...typography.header,
     color: colors.text,
   },
   subtitle: {
@@ -189,14 +189,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 2,
+    paddingLeft: spacing.xs,
     paddingRight: spacing.sm,
   },
   backChevron: {
     marginLeft: -2,
   },
   backLabel: {
-    ...typography.body,
-    fontSize: 17,
+    fontSize: 15,
   },
   iconButton: {
     width: 44,
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   textButtonLabel: {
-    ...typography.body,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

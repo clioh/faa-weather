@@ -8,10 +8,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { Toast } from '@/components/ui/Toast';
+import { spacing } from '@/lib/theme';
 
 export type EditorToastKind = 'success' | 'info' | 'error';
 
@@ -20,12 +19,6 @@ export interface EditorToastState {
   message: string;
   kind: EditorToastKind;
 }
-
-const ICONS: Record<EditorToastKind, { name: keyof typeof Ionicons.glyphMap; color: string }> = {
-  success: { name: 'checkmark-circle', color: colors.success },
-  info: { name: 'information-circle', color: colors.info },
-  error: { name: 'alert-circle', color: colors.error },
-};
 
 export function useEditorToast(durationMs = 2400) {
   const [toast, setToast] = useState<EditorToastState | null>(null);
@@ -68,10 +61,7 @@ export function EditorToast({ toast, bottom }: EditorToastProps) {
           accessibilityLiveRegion="polite"
           accessibilityRole="alert"
         >
-          <Ionicons name={ICONS[toast.kind].name} size={18} color={ICONS[toast.kind].color} />
-          <Text style={styles.text} numberOfLines={2}>
-            {toast.message}
-          </Text>
+          <Toast message={toast.message} tone={toast.kind} />
         </Animated.View>
       )}
     </View>
@@ -81,32 +71,12 @@ export function EditorToast({ toast, bottom }: EditorToastProps) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
+    left: spacing.lg,
+    right: spacing.lg,
     alignItems: 'center',
     zIndex: 1000,
   },
   toast: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceHighlight,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
     maxWidth: 420,
-  },
-  text: {
-    ...typography.bodySmall,
-    color: colors.text,
-    fontWeight: '500',
-    flexShrink: 1,
   },
 });

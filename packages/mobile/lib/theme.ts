@@ -68,7 +68,32 @@ export const colors = {
   // Overlays
   overlay: 'rgba(0, 0, 0, 0.66)',
   modalBackground: 'rgba(0, 0, 0, 0.9)',
+
+  // Component details (components/ui). Values from docs/design/mockups/app.css.
+  primarySelected: 'rgba(122, 215, 255, 0.06)', // selected row
+  dangerBorder: 'rgba(255, 107, 122, 0.5)',
+  disabledFill: 'rgba(255, 255, 255, 0.10)',
+  chevron: 'rgba(255, 255, 255, 0.45)',
+  grabber: 'rgba(255, 255, 255, 0.25)',
+  sheetBorder: 'rgba(255, 255, 255, 0.12)', // sheet top edge, toast, cards
+  chipBorder: 'rgba(255, 255, 255, 0.20)',
+  chipText: 'rgba(255, 255, 255, 0.75)',
+  switchOffBorder: 'rgba(255, 255, 255, 0.30)',
+  switchOffKnob: 'rgba(255, 255, 255, 0.70)',
+  progressPending: 'rgba(255, 255, 255, 0.18)',
+  progressLabel: 'rgba(255, 255, 255, 0.50)',
+  badgeBorder: 'rgba(122, 215, 255, 0.5)',
+  badgeWarningBorder: 'rgba(255, 183, 77, 0.6)',
 };
+
+/** Notice tones: tinted fill, stronger border, light text in the tone's hue. */
+export const tones = {
+  info: { fill: 'rgba(122, 215, 255, 0.08)', border: 'rgba(122, 215, 255, 0.25)', text: '#D6F2FF', icon: '#7AD7FF' },
+  warning: { fill: 'rgba(255, 183, 77, 0.08)', border: 'rgba(255, 183, 77, 0.35)', text: '#FFE2B8', icon: '#FFB74D' },
+  error: { fill: 'rgba(255, 107, 122, 0.08)', border: 'rgba(255, 107, 122, 0.4)', text: '#FFD0D6', icon: '#FF6B7A' },
+};
+
+export type Tone = keyof typeof tones;
 
 export const fonts = {
   // Loaded in app/_layout.tsx (see IMPLEMENTATION_PLAN phase 1). Until then

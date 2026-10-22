@@ -9,14 +9,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Dimensions,
 } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { Notice } from '@/components/ui/Notice';
+import { Toast } from '@/components/ui/Toast';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { colors, spacing } from '@/lib/theme';
 
 export type ToastType = 'error' | 'warning' | 'info' | 'success';
 
@@ -29,29 +27,6 @@ interface ErrorToastProps {
   autoDismiss?: boolean;
   dismissAfter?: number;
 }
-
-const TOAST_COLORS: Record<ToastType, { bg: string; icon: string; iconName: keyof typeof Ionicons.glyphMap }> = {
-  error: {
-    bg: 'rgba(255, 68, 68, 0.15)',
-    icon: colors.error,
-    iconName: 'alert-circle',
-  },
-  warning: {
-    bg: 'rgba(255, 170, 0, 0.15)',
-    icon: colors.warning,
-    iconName: 'warning',
-  },
-  info: {
-    bg: 'rgba(0, 136, 255, 0.15)',
-    icon: colors.info,
-    iconName: 'information-circle',
-  },
-  success: {
-    bg: 'rgba(0, 255, 136, 0.15)',
-    icon: colors.success,
-    iconName: 'checkmark-circle',
-  },
-};
 
 export function ErrorToast({
   visible,
@@ -134,8 +109,6 @@ export function ErrorToast({
     return null;
   }
 
-  const toastStyle = TOAST_COLORS[type];
-
   return (
     <Animated.View
       style={[
@@ -146,38 +119,34 @@ export function ErrorToast({
         },
       ]}
     >
-      <View style={[styles.toast, { backgroundColor: toastStyle.bg }]}>
-        <Ionicons
-          name={toastStyle.iconName}
-          size={24}
-          color={toastStyle.icon}
-          style={styles.icon}
-        />
+      <Toast
+        message={message}
+        tone={type}
+        numberOfLines={3}
+        actions={
+          <View style={styles.actions}>
+            {onRetry && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleRetry}
+                accessibilityRole="button"
+                accessibilityLabel="Retry"
+              >
+                <Ionicons name="refresh" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
 
-        <Text style={styles.message} numberOfLines={3}>
-          {message}
-        </Text>
-
-        <View style={styles.actions}>
-          {onRetry && (
             <TouchableOpacity
-              style={styles.retryButton}
-              onPress={handleRetry}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.actionButton}
+              onPress={handleDismiss}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss"
             >
-              <Ionicons name="refresh" size={18} color={colors.primary} />
+              <Ionicons name="close" size={18} color={colors.textMuted} />
             </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={styles.dismissButton}
-            onPress={handleDismiss}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="close" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-      </View>
+          </View>
+        }
+      />
     </Animated.View>
   );
 }
@@ -196,77 +165,25 @@ export function InlineError({ message, onDismiss, onRetry }: InlineErrorProps) {
     return null;
   }
 
-  return (
-    <View style={styles.inlineContainer}>
-      <Ionicons name="alert-circle" size={18} color={colors.error} />
-      <Text style={styles.inlineMessage}>{message}</Text>
-      {onRetry && (
-        <TouchableOpacity onPress={onRetry} style={styles.inlineAction}>
-          <Ionicons name="refresh" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      )}
-      {onDismiss && (
-        <TouchableOpacity onPress={onDismiss} style={styles.inlineAction}>
-          <Ionicons name="close" size={16} color={colors.textMuted} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  return <Notice tone="error" message={message} onRetry={onRetry} onDismiss={onDismiss} />;
 }
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: 60,
-    left: spacing.md,
-    right: spacing.md,
+    left: spacing.lg,
+    right: spacing.lg,
     zIndex: 1000,
-  },
-  toast: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    maxWidth: SCREEN_WIDTH - spacing.md * 2,
-  },
-  icon: {
-    marginRight: spacing.sm,
-  },
-  message: {
-    ...typography.bodySmall,
-    color: colors.text,
-    flex: 1,
-    marginRight: spacing.sm,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
   },
-  retryButton: {
-    padding: spacing.xs,
-  },
-  dismissButton: {
-    padding: spacing.xs,
-  },
-
-  // Inline error styles
-  inlineContainer: {
-    flexDirection: 'row',
+  actionButton: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
-  },
-  inlineMessage: {
-    ...typography.bodySmall,
-    color: colors.error,
-    flex: 1,
-  },
-  inlineAction: {
-    padding: spacing.xs,
+    justifyContent: 'center',
   },
 });
