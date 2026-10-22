@@ -3,7 +3,8 @@
  * Visual indicator showing progress through the onboarding flow
  */
 
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@/lib/theme';
 

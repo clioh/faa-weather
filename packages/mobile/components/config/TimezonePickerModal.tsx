@@ -9,11 +9,10 @@ import {
   Keyboard,
   Modal,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';

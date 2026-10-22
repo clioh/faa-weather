@@ -6,7 +6,8 @@
  */
 
 import { forwardRef, useImperativeHandle, useRef } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { colors, borderRadius, spacing } from '@/lib/theme';
 
 export const CODE_LENGTH = 6;

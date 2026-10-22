@@ -6,13 +6,12 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  TextInput,
   ScrollView,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';

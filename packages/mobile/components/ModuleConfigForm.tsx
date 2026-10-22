@@ -15,7 +15,8 @@
  */
 
 import { useState } from 'react';
-import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import * as Haptics from 'expo-haptics';
 import type { ModuleConfigField, ModuleDefinition } from '@/lib/modules';
 import { isFieldVisible } from '@/lib/modules';

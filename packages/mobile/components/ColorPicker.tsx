@@ -6,17 +6,16 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Keyboard,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { ScreenHeader } from './ScreenHeader';
 
 // Preset color palettes
@@ -252,7 +251,7 @@ const styles = StyleSheet.create({
   previewHex: {
     ...typography.body,
     color: colors.text,
-    fontFamily: 'monospace',
+    fontFamily: fonts.mono,
     fontWeight: '600',
   },
   sectionTitle: {
@@ -331,7 +330,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     color: colors.text,
     ...typography.body,
-    fontFamily: 'monospace',
+    fontFamily: fonts.mono,
   },
   applyButton: {
     paddingHorizontal: spacing.lg,

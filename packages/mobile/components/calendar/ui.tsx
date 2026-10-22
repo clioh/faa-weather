@@ -13,14 +13,13 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
   type StyleProp,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, borderRadius, spacing, typography } from '@/lib/theme';

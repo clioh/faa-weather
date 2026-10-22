@@ -7,13 +7,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

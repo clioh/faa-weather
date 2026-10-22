@@ -4,7 +4,7 @@
  */
 
 import { Stack } from 'expo-router';
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 export default function OnboardingLayout() {
   return (
@@ -15,7 +15,8 @@ export default function OnboardingLayout() {
         },
         headerTintColor: colors.text,
         headerTitleStyle: {
-          fontWeight: '600',
+          fontFamily: fonts.uiMedium,
+          fontSize: 16,
         },
         contentStyle: {
           backgroundColor: colors.background,

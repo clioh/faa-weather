@@ -6,12 +6,13 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useFocusEffect } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
 import { ApiError, api, type CalendarAccount, type MicrosoftDeviceCode } from '@/lib/api';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { colors, borderRadius, spacing, typography, fonts } from '@/lib/theme';
 import { calendarErrorMessage } from './meta';
 import { Notice, PrimaryButton, SecondaryButton } from './ui';
 
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   code: {
-    fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }),
+    fontFamily: fonts.mono,
     fontSize: 34,
     fontWeight: '700',
     letterSpacing: 4,

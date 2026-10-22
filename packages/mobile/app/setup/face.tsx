@@ -9,13 +9,12 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  TextInput,
   Animated,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';

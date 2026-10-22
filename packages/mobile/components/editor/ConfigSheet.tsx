@@ -9,10 +9,10 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { HeaderTextButton } from '@/components/ScreenHeader';

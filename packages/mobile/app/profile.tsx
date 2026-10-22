@@ -7,20 +7,19 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useUser } from '@/context/UserContext';
 import { ScreenHeader, HeaderTextButton, HEADER_HIT_SLOP } from '@/components';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { goHome } from '@/lib/navigation';
 
 export default function ProfileScreen() {
@@ -244,7 +243,7 @@ const styles = StyleSheet.create({
   userId: {
     ...typography.caption,
     color: colors.textMuted,
-    fontFamily: 'monospace',
+    fontFamily: fonts.mono,
   },
   card: {
     backgroundColor: colors.surfaceElevated,

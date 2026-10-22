@@ -6,17 +6,16 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
-  TextInput,
   FlatList,
   Keyboard,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { ScreenHeader, HEADER_HIT_SLOP } from './ScreenHeader';
 
 interface Airport {
@@ -303,7 +302,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text,
     fontWeight: '700',
-    fontFamily: 'monospace',
+    fontFamily: fonts.mono,
   },
   airportName: {
     ...typography.bodySmall,

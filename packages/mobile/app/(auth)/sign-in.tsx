@@ -6,14 +6,13 @@
 import { useState, useCallback } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Platform,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { useRouter, Link } from 'expo-router';
 import { useSSO } from '@clerk/expo';
 import { useSignIn } from '@clerk/expo/legacy';

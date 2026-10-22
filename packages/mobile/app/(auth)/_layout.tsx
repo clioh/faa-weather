@@ -6,7 +6,7 @@
 import { Stack } from 'expo-router';
 import { HeaderBackButton } from '@/components/ScreenHeader';
 import { goBack } from '@/lib/navigation';
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 export default function AuthLayout() {
   return (
@@ -17,7 +17,8 @@ export default function AuthLayout() {
         },
         headerTintColor: colors.text,
         headerTitleStyle: {
-          fontWeight: '600',
+          fontFamily: fonts.uiMedium,
+          fontSize: 16,
         },
         contentStyle: {
           backgroundColor: colors.background,

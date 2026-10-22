@@ -6,20 +6,19 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Modal,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   Alert,
   Keyboard,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { ScreenHeader } from './ScreenHeader';
 
 export interface LocationData {
@@ -418,7 +417,7 @@ const styles = StyleSheet.create({
   coordinateValue: {
     ...typography.body,
     color: colors.text,
-    fontFamily: 'monospace',
+    fontFamily: fonts.mono,
   },
   footer: {
     padding: spacing.lg,

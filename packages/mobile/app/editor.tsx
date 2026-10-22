@@ -9,7 +9,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 // expo-router bundles its own copy of React Navigation; hooks must come from
 // it or they cannot find the navigator.

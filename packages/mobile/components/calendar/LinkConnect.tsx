@@ -5,7 +5,8 @@
  */
 
 import { useRef, useState } from 'react';
-import { LayoutAnimation, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { LayoutAnimation, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api, type CalendarAccount } from '@/lib/api';

@@ -8,7 +8,8 @@
  */
 
 import { memo, useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View, type AccessibilityActionEvent } from 'react-native';
+import { StyleSheet, View, type AccessibilityActionEvent } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,

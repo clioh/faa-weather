@@ -6,11 +6,11 @@
 import { useCallback, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

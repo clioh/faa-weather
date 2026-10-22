@@ -10,13 +10,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -33,7 +32,7 @@ import { logError } from '@/lib/errors';
 import { KeyboardAvoidingScreen } from '@/components';
 import { goBack } from '@/lib/navigation';
 import { continueSetup } from '@/lib/setupSteps';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 
 interface ScreenError {
   title: string;
@@ -630,7 +629,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     color: colors.text,
-    fontFamily: 'monospace',
+    fontFamily: fonts.mono,
     fontSize: 22,
     letterSpacing: 2,
     textAlign: 'center',

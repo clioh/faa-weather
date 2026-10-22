@@ -8,7 +8,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api, type MirrorConnectionState } from '@/lib/api';

@@ -8,7 +8,8 @@
  */
 
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Href } from 'expo-router';

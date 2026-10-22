@@ -6,14 +6,13 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  TextInput,
   ScrollView,
   RefreshControl,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';

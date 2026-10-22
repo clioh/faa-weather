@@ -8,11 +8,10 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { HeaderTextButton } from '@/components/ScreenHeader';
 import {

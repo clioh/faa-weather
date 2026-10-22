@@ -6,7 +6,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -14,6 +13,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -21,7 +21,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { api, type LicenseStatus, type LicenseState, type UpdateConfig } from '@/lib/api';
 import { LICENSE_MANAGE_URL } from '@/lib/license';
 import { logError } from '@/lib/errors';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { goHome } from '@/lib/navigation';
 import { useUser } from '@/context/UserContext';
 
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   aboutValue: {
     ...typography.body,
     color: colors.text,
-    fontFamily: 'monospace',
+    fontFamily: fonts.mono,
   },
   disconnectButton: {
     flexDirection: 'row',

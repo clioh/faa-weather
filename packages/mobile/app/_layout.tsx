@@ -10,12 +10,22 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SecureStore from 'expo-secure-store';
+import { useFonts } from 'expo-font';
+// Per-weight imports so only these faces are bundled (the package index pulls
+// in every weight and italic).
+import { Inter_200ExtraLight } from '@expo-google-fonts/inter/200ExtraLight';
+import { Inter_300Light } from '@expo-google-fonts/inter/300Light';
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400Regular';
+import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono/500Medium';
 import { ClerkProvider, ClerkLoaded } from '@clerk/expo';
 import { UserProvider } from '@/context/UserContext';
 import { HeaderBackButton, HeaderIconButton } from '@/components/ScreenHeader';
 import { goBack, goHome } from '@/lib/navigation';
 import { usePairingRedirect } from '@/lib/pairing';
-import { colors } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 
 // Clerk publishable key from environment
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -66,7 +76,8 @@ function RootLayoutNav() {
         },
         headerTintColor: colors.text,
         headerTitleStyle: {
-          fontWeight: '600',
+          fontFamily: fonts.uiMedium,
+          fontSize: 16,
         },
         contentStyle: {
           backgroundColor: colors.background,
@@ -146,14 +157,24 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    // Hide splash screen after a short delay
-    const timer = setTimeout(() => {
-      SplashScreen.hideAsync();
-    }, 500);
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_200ExtraLight,
+    Inter_300Light,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
+  });
+  const fontsReady = fontsLoaded || fontError != null;
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Hold the splash screen until the fonts are in (or failed, in which case
+  // text falls back to the system font).
+  useEffect(() => {
+    if (fontsReady) SplashScreen.hideAsync();
+  }, [fontsReady]);
+
+  if (!fontsReady) return null;
 
   // GestureHandlerRootView must wrap everything that uses gesture-handler
   // gestures (the layout editor canvas).

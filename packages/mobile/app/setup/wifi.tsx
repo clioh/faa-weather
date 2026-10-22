@@ -12,13 +12,12 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   FlatList,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

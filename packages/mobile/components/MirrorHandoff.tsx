@@ -17,12 +17,12 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AppState,
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {

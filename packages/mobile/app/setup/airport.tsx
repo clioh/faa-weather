@@ -6,13 +6,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';

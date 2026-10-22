@@ -3,7 +3,8 @@
  * dimmed; tapping one explains why instead of silently doing nothing.
  */
 
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { SIZE_DIMENSIONS, SIZE_LABELS, type ModuleSize } from '@/lib/modules';
 import { colors, borderRadius, spacing, typography } from '@/lib/theme';
 

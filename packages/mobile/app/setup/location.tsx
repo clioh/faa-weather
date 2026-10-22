@@ -6,19 +6,19 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { api } from '@/lib/api';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 
 interface LocationData {
   latitude: number;
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   coordinateValue: {
     ...typography.body,
     color: colors.text,
-    fontFamily: 'monospace',
+    fontFamily: fonts.mono,
     fontWeight: '600',
   },
   updateButton: {

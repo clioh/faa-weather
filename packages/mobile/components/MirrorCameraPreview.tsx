@@ -14,7 +14,8 @@
  */
 
 import { useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, StyleProp, ViewStyle } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, StyleProp, ViewStyle } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { WebView } from 'react-native-webview';
 import { colors, spacing, typography } from '@/lib/theme';
 

@@ -6,7 +6,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { api, type CalendarAccount } from '@/lib/api';

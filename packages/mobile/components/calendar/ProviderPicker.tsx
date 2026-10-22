@@ -4,7 +4,8 @@
  * can't use are shown greyed out with the mirror's explanation.
  */
 
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { CalendarProvider } from '@/lib/api';
