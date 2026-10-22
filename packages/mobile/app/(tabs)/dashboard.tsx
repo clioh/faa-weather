@@ -38,10 +38,12 @@ export default function DashboardScreen() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const health = await api.ping();
+      // /api/discovery is as public as /api/health and also reports the
+      // mirror's version, so one request answers both.
+      const info = await api.getDiscoveryInfo();
       setStatus({
         online: true,
-        version: health.version,
+        version: info.version,
       });
     } catch {
       setStatus({ online: false, version: '' });
@@ -150,8 +152,7 @@ export default function DashboardScreen() {
           <Text style={styles.mirrorName}>{currentMirror?.mirrorName ?? 'SkyGlass'}</Text>
           <Text style={[styles.caption, online && styles.mono]}>
             {online
-              ? // /api/health may not report a version; show only what we have.
-                [status?.version ? `v${status.version}` : null, address].filter(Boolean).join(' · ')
+              ? [status?.version ? `v${status.version}` : null, address].filter(Boolean).join(' · ')
               : 'Unable to reach mirror'}
           </Text>
         </View>

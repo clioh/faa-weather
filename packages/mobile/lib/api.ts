@@ -799,7 +799,7 @@ class MirrorAPI {
   }
 
   // Health check
-  async ping(): Promise<{ status: string; version: string }> {
+  async ping(): Promise<{ status: string; timestamp?: number }> {
     return this.request('/api/health');
   }
 

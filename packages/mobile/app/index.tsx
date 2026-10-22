@@ -75,6 +75,17 @@ export default function HomeScreen() {
 
   // ?manual=1 (from "Enter address manually" on a Mirror not found notice)
   const { manual } = useLocalSearchParams<{ manual?: string }>();
+  // A pull shows the RefreshControl spinner; any other scan (on open, Scan
+  // Again) shows the one in the "Discovered on network" row. Never both.
+  const [pulled, setPulled] = useState(false);
+  const pullToScan = async () => {
+    setPulled(true);
+    try {
+      await startScan();
+    } finally {
+      setPulled(false);
+    }
+  };
   const [showManual, setShowManual] = useState(manual === '1');
   useEffect(() => {
     if (manual === '1') setShowManual(true);
@@ -276,8 +287,8 @@ export default function HomeScreen() {
         keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
-            refreshing={scanning}
-            onRefresh={startScan}
+            refreshing={pulled && scanning}
+            onRefresh={pullToScan}
             tintColor={colors.primary}
           />
         }
@@ -351,7 +362,7 @@ export default function HomeScreen() {
               <SectionLabel style={styles.labelInRow}>DISCOVERED ON NETWORK</SectionLabel>
               {scanning && (
                 <View style={styles.scanning}>
-                  <Spinner />
+                  {pulled ? null : <Spinner />}
                   <Text style={styles.caption}>Scanning network...</Text>
                 </View>
               )}

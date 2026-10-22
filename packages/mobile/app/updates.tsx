@@ -87,6 +87,9 @@ export default function UpdatesScreen() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A pull shows the RefreshControl spinner; the button shows its own when
+  // tapped. Never both.
+  const [pulled, setPulled] = useState(false);
   const [pollInterval, setPollInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   const loadStatus = useCallback(async () => {
@@ -204,8 +207,15 @@ export default function UpdatesScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={checking}
-            onRefresh={checkForUpdates}
+            refreshing={pulled}
+            onRefresh={async () => {
+              setPulled(true);
+              try {
+                await checkForUpdates();
+              } finally {
+                setPulled(false);
+              }
+            }}
             tintColor={colors.primary}
           />
         }
@@ -335,7 +345,7 @@ export default function UpdatesScreen() {
             icon="refresh"
             onPress={checkForUpdates}
             disabled={isActive}
-            loading={checking}
+            loading={checking && !pulled}
           />
         )}
       </Footer>
