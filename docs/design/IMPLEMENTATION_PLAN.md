@@ -47,6 +47,7 @@ Follow `SCREENS.md` row by row and check each screen against its mockup.
 
 Rebuild `Home` to match `mockups/A-Site.dc.html` using the same tokens in `index.css` `@theme`:
 - Remove Chakra Petch, the amber CRT palette, scanlines, glow and radar animations.
+- Brand assets are in `docs/design/brand/`: use `favicon.svg` as the favicon and the horizontal lockup (`logo-lockup-horizontal.svg`) in the header.
 - Keep the existing data (FAQ, features, Stripe products, waitlist modal) and wire prices from `config/stripe.ts` instead of `[PRICE]`.
 
 ## Not in scope
