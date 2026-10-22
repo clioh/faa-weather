@@ -81,7 +81,7 @@ export const colors = {
   switchOffBorder: 'rgba(255, 255, 255, 0.30)',
   switchOffKnob: 'rgba(255, 255, 255, 0.70)',
   progressPending: 'rgba(255, 255, 255, 0.18)',
-  progressLabel: 'rgba(255, 255, 255, 0.50)',
+  progressLabel: 'rgba(255, 255, 255, 0.58)', // = textMuted, the 4.5:1 floor
   badgeBorder: 'rgba(122, 215, 255, 0.5)',
   badgeWarningBorder: 'rgba(255, 183, 77, 0.6)',
   thumbTile: 'rgba(255, 255, 255, 0.14)', // layout thumbnail tiles

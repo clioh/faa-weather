@@ -421,6 +421,7 @@ export function ListField({ label, itemLabel = 'item', value, placeholder, onCha
               <TouchableOpacity
                 onPress={() => remove(index)}
                 style={styles.listChipRemove}
+                hitSlop={{ top: 5, bottom: 5 }}
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${item}`}
               >
@@ -558,7 +559,7 @@ const styles = StyleSheet.create({
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   listChip: { flexDirection: 'row', paddingRight: 0, maxWidth: '100%' },
   listChipText: { color: colors.text, flexShrink: 1 },
-  listChipRemove: { width: 36, height: 34, alignItems: 'center', justifyContent: 'center' },
+  listChipRemove: { width: TOUCH, height: 34, alignItems: 'center', justifyContent: 'center' },
   listEmpty: { ...typography.bodySmall, color: colors.textMuted },
   listInputRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   listInput: { flex: 1, minHeight: 48 },

@@ -3,12 +3,17 @@
  * Handles authentication screens with a consistent style
  */
 
-import { Stack } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import { HeaderBackButton } from '@/components/ScreenHeader';
 import { goBack } from '@/lib/navigation';
 import { colors, fonts } from '@/lib/theme';
 
 export default function AuthLayout() {
+  // Without a Clerk key the root layout renders no ClerkProvider (local-only
+  // use), and these screens' Clerk hooks would throw. Nothing links here in
+  // that mode; a stray deep link goes home instead of crashing.
+  if (!process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY) return <Redirect href="/" />;
+
   return (
     <Stack
       screenOptions={{

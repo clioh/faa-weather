@@ -7,7 +7,8 @@
  */
 
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { colors } from '@/lib/theme';
 
@@ -19,7 +20,7 @@ export default function GoogleOAuthRedirect() {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator color={colors.primary} />
+      <Spinner />
     </View>
   );
 }

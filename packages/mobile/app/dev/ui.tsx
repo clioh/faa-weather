@@ -40,7 +40,7 @@ export default function DevUiScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'UI primitives' }} />
+      <Stack.Screen options={{ title: 'UI primitives', headerBackTitle: 'Back' }} />
       <ScrollView contentContainerStyle={styles.content}>
         <SectionLabel>Type</SectionLabel>
         <Text style={[typography.hero, styles.white]}>08:42</Text>

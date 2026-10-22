@@ -104,6 +104,7 @@ function SelectedContent({
           <TouchableOpacity
             onPress={onConfigure}
             style={styles.setupPill}
+            hitSlop={{ top: 9, bottom: 9, left: 4, right: 4 }}
             accessibilityRole="button"
             accessibilityLabel="Needs setup. Configure this widget."
           >

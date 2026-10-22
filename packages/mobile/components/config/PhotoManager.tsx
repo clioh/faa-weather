@@ -190,6 +190,7 @@ export function PhotoManager() {
                         ) : (
                           <TouchableOpacity
                             style={styles.deleteButton}
+                            hitSlop={{ top: 4, bottom: 4 }}
                             onPress={() => remove(photo)}
                             accessibilityRole="button"
                             accessibilityLabel={`Delete photo ${index + 1}`}

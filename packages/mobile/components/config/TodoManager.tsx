@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   boxDone: { backgroundColor: colors.primary, borderColor: colors.primary },
   text: { fontSize: 14, lineHeight: 20, color: colors.text, flex: 1, paddingVertical: spacing.sm },
   textDone: { color: colors.textMuted, textDecorationLine: 'line-through' },
-  smallButton: { width: 36, height: TOUCH, alignItems: 'center', justifyContent: 'center' },
+  smallButton: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' },
   addRow: { flexDirection: 'row', gap: spacing.sm, marginTop: 14 },
   addInput: { flex: 1, minHeight: 48 },
   addButton: {
