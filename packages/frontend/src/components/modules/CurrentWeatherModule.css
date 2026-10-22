@@ -1,0 +1,87 @@
+.cw-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--mf-gap) * 1.5);
+  min-height: 0;
+}
+
+.cw-hero {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 0.5);
+  min-width: 0;
+}
+
+.cw-now {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--mf-gap) * 1.5);
+}
+
+.cw-temp {
+  font-size: var(--mf-hero);
+  font-weight: 200;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cw-unit {
+  font-size: 0.3em;
+  font-weight: 300;
+  color: var(--color-text-dim);
+  vertical-align: top;
+  position: relative;
+  top: 0.35em;
+  margin-left: 0.1em;
+  letter-spacing: 0;
+}
+
+.cw-icon {
+  font-size: calc(var(--mf-hero) * 0.75);
+  color: var(--color-text-dim);
+}
+
+.cw-condition {
+  font-size: var(--mf-body);
+  font-weight: 300;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cw-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--mf-gap) calc(var(--mf-gap) * 2);
+}
+
+.cw-metrics .mf-metric-value {
+  font-size: var(--mf-body);
+}
+
+/* Wide: hero left, metrics as a column on the right. */
+.cw-wide .cw-body {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--mf-gap) * 3);
+}
+
+.cw-wide .cw-metrics {
+  grid-template-columns: 1fr;
+  gap: calc(var(--mf-gap) * 0.6);
+  flex-shrink: 0;
+  min-width: 38%;
+}
+
+.cw-wide .cw-metrics .mf-metric {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mf-gap);
+}

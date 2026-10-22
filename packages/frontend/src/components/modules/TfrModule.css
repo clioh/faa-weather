@@ -1,0 +1,69 @@
+.tfr-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mf-gap);
+}
+
+.tfr-meta .mf-pill {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.tfr-list {
+  flex: 1;
+}
+
+.tfr-row {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 0.35);
+  padding: calc(var(--mf-gap) * 0.9) 0;
+  border-top: 1px solid var(--color-hairline);
+  min-width: 0;
+}
+
+.tfr-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.tfr-desc {
+  font-size: var(--mf-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tfr-sub {
+  display: flex;
+  align-items: baseline;
+  gap: var(--mf-gap);
+  font-size: var(--mf-caption);
+  color: var(--color-text-dim);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.tfr-type {
+  font-size: var(--mf-label);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.tfr-where {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.tfr-when {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Small tiles keep only the description and window. */
+.tfr-small .tfr-where {
+  display: none;
+}

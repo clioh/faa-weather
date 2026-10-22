@@ -1,0 +1,156 @@
+.taf-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 1.5);
+  min-height: 0;
+}
+
+.taf-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 0.5);
+  flex-shrink: 0;
+}
+
+.taf-lane {
+  position: relative;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.taf-lane-main {
+  height: clamp(0.4rem, 3.2cqmin, 0.9rem);
+}
+
+.taf-lane-overlay {
+  height: clamp(0.2rem, 1.4cqmin, 0.4rem);
+}
+
+.taf-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* A hairline gap between segments so rule changes read as steps. */
+  box-shadow: inset -2px 0 0 #000;
+  background: var(--color-text-faint);
+}
+
+.taf-seg.vfr { background: var(--color-vfr); }
+.taf-seg.mvfr { background: var(--color-mvfr); }
+.taf-seg.ifr { background: var(--color-ifr); }
+.taf-seg.lifr { background: var(--color-lifr); }
+
+.taf-lane-overlay .taf-seg {
+  opacity: 0.75;
+}
+
+.taf-ticks {
+  position: relative;
+  height: 1.3em;
+  font-size: var(--mf-label);
+  color: var(--color-text-faint);
+}
+
+.taf-tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.taf-tick.start { transform: none; }
+.taf-tick.end { transform: translateX(-100%); }
+
+.taf-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.taf-list-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  column-gap: calc(var(--mf-gap) * 3);
+}
+
+.taf-row {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--mf-gap);
+  padding: calc(var(--mf-gap) * 0.7) 0;
+  border-top: 1px solid var(--color-hairline);
+  font-size: var(--mf-caption);
+  color: var(--color-text-dim);
+  min-width: 0;
+}
+
+.taf-row:first-child,
+.taf-list-cols .taf-row:nth-child(2) {
+  border-top: none;
+}
+
+.taf-row.active {
+  color: var(--color-text);
+}
+
+.taf-row.overlay .taf-row-type,
+.taf-row.overlay .taf-row-time {
+  color: var(--color-text-faint);
+}
+
+.taf-row-time {
+  white-space: nowrap;
+}
+
+.taf-row-type {
+  font-size: var(--mf-label);
+  letter-spacing: 0.1em;
+  color: var(--color-text-faint);
+  min-width: 3.2em;
+}
+
+.taf-row-rules {
+  font-weight: 600;
+  font-size: var(--mf-label);
+  letter-spacing: 0.08em;
+  min-width: 2.6em;
+}
+
+.taf-row-data {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.taf-medium .taf-row,
+.taf-wide .taf-row {
+  border-top: none;
+  font-size: var(--mf-body);
+}
+
+/* Medium is narrow: wrap the data under the time and rules. */
+.taf-medium .taf-row {
+  grid-template-columns: auto auto auto;
+}
+
+.taf-medium .taf-row-data {
+  grid-column: 1 / -1;
+}
+
+.taf-raw {
+  margin: auto 0 0;
+  font-size: var(--mf-label);
+  line-height: 1.5;
+  color: var(--color-text-faint);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex-shrink: 0;
+}

@@ -1,39 +1,54 @@
 /**
- * Module Registry
+ * Module registry
  *
- * Maps module IDs from the layout API to React components.
- * This enables dynamic module rendering based on the layout configuration.
+ * Maps widget ids from a layout to React components. The list of ids is the
+ * widget catalog in packages/mobile/lib/modules.ts; keep the two in step.
  */
 
 import { ComponentType } from 'react';
 
-// Import existing widgets as modules
-import { ClockWidget } from '../widgets/ClockWidget';
-import { AviationWidget } from '../widgets/AviationWidget';
-import { ScheduleWidget } from '../widgets/ScheduleWidget';
-import { TfrWidget } from '../widgets/TfrWidget';
-import { NotamWidget } from '../widgets/NotamWidget';
-import { AstroWidget } from '../widgets/AstroWidget';
-import { RadarWidget } from '../widgets/RadarWidget';
-
-// Import new module components
+// Aviation
 import { MetarModule } from './MetarModule';
 import { TafModule } from './TafModule';
 import { FlightRulesModule } from './FlightRulesModule';
+import { NotamsModule } from './NotamsModule';
+import { TfrModule } from './TfrModule';
+import { WindsAloftModule } from './WindsAloftModule';
+
+// Weather
 import { CurrentWeatherModule } from './CurrentWeatherModule';
 import { WeatherForecastModule } from './WeatherForecastModule';
+import { RadarModule } from './RadarModule';
+import { SunTimesModule } from './SunTimesModule';
+
+// Time
 import { DigitalClockModule } from './DigitalClockModule';
 import { AnalogClockModule } from './AnalogClockModule';
 import { WorldClocksModule } from './WorldClocksModule';
+
+// Calendar
 import { CalendarModule } from './CalendarModule';
 import { CountdownModule } from './CountdownModule';
+
+// News
 import { NewsModule } from './NewsModule';
+
+// Finance
 import { StocksModule } from './StocksModule';
 import { CryptoModule } from './CryptoModule';
-import { QuotesModule } from './QuotesModule';
-import { TextLabelModule } from './TextLabelModule';
 
-// Module size dimensions (matching mobile app)
+// Productivity
+import { TodoModule } from './TodoModule';
+import { QuotesModule } from './QuotesModule';
+
+// Media
+import { PhotoFrameModule } from './PhotoFrameModule';
+
+// Utilities
+import { QrCodeModule } from './QrCodeModule';
+import { TextLabelModule } from './TextLabelModule';
+import { SpacerModule } from './SpacerModule';
+
 export type ModuleSize = 'small' | 'medium' | 'large' | 'wide' | 'tall' | 'full';
 
 export const SIZE_DIMENSIONS: Record<ModuleSize, { cols: number; rows: number }> = {
@@ -45,7 +60,6 @@ export const SIZE_DIMENSIONS: Record<ModuleSize, { cols: number; rows: number }>
   full: { cols: 12, rows: 4 },
 };
 
-// Module instance from layout API
 export interface ModuleInstance {
   instanceId: string;
   moduleId: string;
@@ -57,7 +71,6 @@ export interface ModuleInstance {
   config: Record<string, unknown>;
 }
 
-// Layout from API
 export interface MirrorLayout {
   id: string;
   name: string;
@@ -66,91 +79,122 @@ export interface MirrorLayout {
   updatedAt: string;
 }
 
-// Props passed to every module component
+/** A point the mirror or a widget setting can refer to. */
+export interface LocationValue {
+  latitude: number;
+  longitude: number;
+  city?: string;
+  timezone?: string;
+}
+
+/** Props every widget receives. */
 export interface ModuleProps {
   instanceId: string;
   moduleId: string;
   size: ModuleSize;
+  /** The instance's settings as saved from the phone app. */
   config: Record<string, unknown>;
-  // Global config passed to all modules
+  /** Mirror-wide defaults from config.yaml, used when a setting is empty. */
   airport?: string;
   timezone?: string;
   latitude?: number;
   longitude?: number;
 }
 
-// Registry mapping module IDs to components
-// Note: Legacy widgets use 'as unknown as' to bypass type checking since they have different prop types
-export const moduleRegistry: Record<string, ComponentType<ModuleProps>> = {
-  // Aviation modules
-  'metar': MetarModule,
-  'taf': TafModule,
+const moduleRegistry: Record<string, ComponentType<ModuleProps>> = {
+  // Aviation
+  metar: MetarModule,
+  taf: TafModule,
   'flight-rules': FlightRulesModule,
-  'notams': NotamWidget as unknown as ComponentType<ModuleProps>,
-  'winds-aloft': MetarModule, // TODO: Create dedicated component
-  'sectional-map': MetarModule, // TODO: Create dedicated component
+  notams: NotamsModule,
+  tfr: TfrModule,
+  'winds-aloft': WindsAloftModule,
 
-  // Weather modules
+  // Weather
   'current-weather': CurrentWeatherModule,
   'weather-forecast': WeatherForecastModule,
-  'radar-map': RadarWidget as unknown as ComponentType<ModuleProps>,
-  'sun-times': AstroWidget as unknown as ComponentType<ModuleProps>,
+  'radar-map': RadarModule,
+  'sun-times': SunTimesModule,
 
-  // Time modules
+  // Time
   'digital-clock': DigitalClockModule,
   'analog-clock': AnalogClockModule,
   'world-clocks': WorldClocksModule,
 
-  // Calendar modules
-  'calendar': CalendarModule,
-  'countdown': CountdownModule,
+  // Calendar
+  calendar: CalendarModule,
+  countdown: CountdownModule,
 
-  // News modules
-  'news-headlines': NewsModule,
-  'rss-feed': NewsModule, // Reuse news component
+  // News
+  news: NewsModule,
 
-  // Finance modules
-  'stocks': StocksModule,
-  'crypto': CryptoModule,
+  // Finance
+  stocks: StocksModule,
+  crypto: CryptoModule,
 
-  // Productivity modules
-  'todo-list': ScheduleWidget as unknown as ComponentType<ModuleProps>,
-  'quotes': QuotesModule,
+  // Productivity
+  'todo-list': TodoModule,
+  quotes: QuotesModule,
 
-  // Media modules
-  'photo-frame': TextLabelModule, // TODO: Create photo frame component
-  'spotify': TextLabelModule, // TODO: Create spotify component
-
-  // Smart home modules
-  'hue-lights': TextLabelModule, // TODO: Create hue component
-  'thermostat': TextLabelModule, // TODO: Create thermostat component
-
-  // Health modules
-  'fitness-ring': TextLabelModule, // TODO: Create fitness component
-
-  // Social modules (placeholders)
+  // Media
+  'photo-frame': PhotoFrameModule,
 
   // Utilities
-  'qr-code': TextLabelModule, // TODO: Create QR component
+  'qr-code': QrCodeModule,
   'text-label': TextLabelModule,
-  'spacer': TextLabelModule, // Empty spacer
-
-  // Legacy widget mappings (for backward compatibility)
-  'clock': ClockWidget as unknown as ComponentType<ModuleProps>,
-  'aviation': AviationWidget as unknown as ComponentType<ModuleProps>,
-  'schedule': ScheduleWidget as unknown as ComponentType<ModuleProps>,
-  'tfr': TfrWidget as unknown as ComponentType<ModuleProps>,
-  'notam': NotamWidget as unknown as ComponentType<ModuleProps>,
-  'astro': AstroWidget as unknown as ComponentType<ModuleProps>,
-  'radar': RadarWidget as unknown as ComponentType<ModuleProps>,
+  spacer: SpacerModule,
 };
 
-// Get component for a module ID
 export function getModuleComponent(moduleId: string): ComponentType<ModuleProps> | null {
   return moduleRegistry[moduleId] || null;
 }
 
-// Check if a module ID is valid
-export function isValidModule(moduleId: string): boolean {
-  return moduleId in moduleRegistry;
+/* ------------------------------------------------------------ Helpers */
+
+/** Resolve a widget's location setting, falling back to the mirror's. */
+export function resolveLocation(
+  config: Record<string, unknown>,
+  props: Pick<ModuleProps, 'latitude' | 'longitude' | 'timezone'>,
+  key = 'location'
+): LocationValue | null {
+  const value = config[key] as Partial<LocationValue> | undefined;
+  if (
+    value &&
+    typeof value.latitude === 'number' &&
+    typeof value.longitude === 'number' &&
+    Number.isFinite(value.latitude) &&
+    Number.isFinite(value.longitude)
+  ) {
+    return {
+      latitude: value.latitude,
+      longitude: value.longitude,
+      city: value.city,
+      timezone: value.timezone ?? props.timezone,
+    };
+  }
+  if (typeof props.latitude === 'number' && typeof props.longitude === 'number') {
+    return { latitude: props.latitude, longitude: props.longitude, timezone: props.timezone };
+  }
+  return null;
+}
+
+/** Resolve a widget's ICAO setting, falling back to the mirror's airport. */
+export function resolveAirport(config: Record<string, unknown>, airport?: string): string | null {
+  const value = typeof config.icao === 'string' ? config.icao.trim().toUpperCase() : '';
+  if (value) return value;
+  return airport ? airport.toUpperCase() : null;
+}
+
+/** Normalise a list setting that may be an array or a comma-separated string. */
+export function resolveList(value: unknown, fallback: string[] = []): string[] {
+  if (Array.isArray(value)) {
+    return value.map((v) => String(v).trim()).filter(Boolean);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+  return fallback;
 }

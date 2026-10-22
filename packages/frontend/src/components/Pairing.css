@@ -1,0 +1,244 @@
+/*
+ * Phone pairing: the full-screen code overlay, the connect QR, and the note
+ * shown when the UI is opened somewhere other than the mirror. Mirror tokens
+ * from styles/theme.css: black ground, thin light type, mono for the code,
+ * accent only for the "waiting on you" cue, green only for success.
+ */
+
+/* ------------------------------------------------------------ Overlay */
+
+.pairing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 16px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-primary);
+  text-align: center;
+  animation: pairing-in 0.5s ease-out both;
+}
+
+.pairing-overlay.is-leaving {
+  animation: pairing-out 0.45s ease-in both;
+}
+
+@keyframes pairing-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pairing-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.pairing-overlay__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 60rem;
+}
+
+.pairing-overlay__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: max(0.95rem, 1.6vmin);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+}
+
+.pairing-overlay__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0.75rem var(--color-accent);
+  animation: pairing-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes pairing-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.pairing-overlay__title {
+  margin: 0;
+  max-width: 100%;
+  font-size: max(2rem, 5.2vmin);
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  /* The body's tabular figures widen hyphens in device names. */
+  font-feature-settings: 'cv11' 1;
+}
+
+.pairing-overlay__device {
+  font-weight: 500;
+}
+
+.pairing-overlay__code {
+  display: flex;
+  justify-content: center;
+  gap: 0.45em;
+  margin: 3.5rem 0 3rem;
+  font-family: var(--font-mono);
+  /* Sized on the short edge so landscape and portrait panels match;
+     capped by width so six digits always fit. */
+  font-size: min(16vmin, 13vw);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums slashed-zero;
+  color: var(--color-text);
+}
+
+/* Letter-spacing adds trailing space after the last digit; pull it back so
+   the groups stay optically centred. */
+.pairing-overlay__group {
+  margin-right: -0.06em;
+}
+
+.pairing-overlay__hint {
+  margin: 0;
+  font-size: max(1.25rem, 2.7vmin);
+  font-weight: 300;
+  color: var(--color-text-dim);
+}
+
+.pairing-overlay__timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 3.5rem;
+  width: min(36vmin, 70vw);
+}
+
+.pairing-overlay__track {
+  width: 100%;
+  height: 2px;
+  background: var(--color-hairline);
+  overflow: hidden;
+}
+
+.pairing-overlay__bar {
+  width: 100%;
+  height: 100%;
+  background: var(--color-accent-dim);
+  transform-origin: left center;
+  transition: transform 0.25s linear;
+}
+
+.pairing-overlay__remaining {
+  font-family: var(--font-mono);
+  font-size: max(1rem, 1.7vmin);
+  letter-spacing: 0.04em;
+  color: var(--color-text-faint);
+}
+
+/* Result */
+
+.pairing-overlay__result.tone-positive {
+  --pairing-tone: var(--color-positive);
+}
+
+.pairing-overlay__result.tone-neutral {
+  --pairing-tone: var(--color-text-dim);
+}
+
+.pairing-overlay__result-mark {
+  width: max(4rem, 9vmin);
+  height: max(4rem, 9vmin);
+  margin-bottom: 2rem;
+  color: var(--pairing-tone);
+}
+
+.pairing-overlay__result-title {
+  margin: 0 0 1rem;
+  font-size: max(2.5rem, 7vmin);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pairing-overlay,
+  .pairing-overlay.is-leaving,
+  .pairing-overlay__dot {
+    animation: none;
+  }
+  .pairing-overlay__bar {
+    transition: none;
+  }
+}
+
+/* ----------------------------------------------------------- Connect QR */
+
+.pairing-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* White quiet zone: phone cameras need it on a black screen. */
+.pairing-qr__code {
+  padding: 14px;
+  background: #fff;
+  border-radius: 10px;
+  line-height: 0;
+}
+
+.pairing-qr__hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  color: var(--color-text-dim);
+}
+
+.pairing-qr__dev {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+/* -------------------------------------------------- Not on the mirror */
+
+.pairing-remote {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 16px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-primary);
+  text-align: center;
+}
+
+.pairing-remote__content {
+  max-width: 46rem;
+}
+
+.pairing-remote__title {
+  margin: 0 0 1rem;
+  font-size: 2.25rem;
+  font-weight: 300;
+}
+
+.pairing-remote__body {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--color-text-dim);
+}

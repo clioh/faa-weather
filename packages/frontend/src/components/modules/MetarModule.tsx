@@ -1,177 +1,159 @@
 /**
- * METAR Module
- * Displays current weather conditions at an airport
+ * METAR — current observation at an airport.
+ *
+ * small: flight-rules pill, wind and visibility on one line
+ * medium: pill (+ altimeter), then wind / vis / ceiling / temp in a 2x2 grid
+ * wide: pill beside a single row of metrics
+ * large: all metrics, present weather, raw report at the bottom (showRaw)
  */
 
-import { useEffect, useState } from 'react';
-import { ModuleProps } from './index';
+import { ModuleProps, resolveAirport } from './index';
+import {
+  Age,
+  FlightRulesPill,
+  Metric,
+  ModuleEmpty,
+  ModuleError,
+  ModuleFrame,
+  ModuleLoading,
+} from './ModuleFrame';
+import { useModuleData } from './useModuleData';
+import {
+  MetarResponse,
+  fetchErrorHint,
+  formatAltimeter,
+  formatCeiling,
+  formatSigned,
+  formatVisibility,
+  formatVisibilityValue,
+  formatWind,
+  parseDayTime,
+  windParts,
+} from './aviationFormat';
+import './MetarModule.css';
 
-interface MetarData {
-  raw: string;
-  flightRules: string;
-  parsed?: {
-    temp?: number;
-    dewpoint?: number;
-    wind?: string;
-    visibility?: string;
-    altimeter?: string;
-    clouds?: string;
-  };
+// METARs are hourly; older than this one has probably been missed.
+const STALE_OBS_MS = 90 * 60_000;
+
+export function MetarModule({ config, airport, size }: ModuleProps) {
+  const icao = resolveAirport(config, airport);
+  const showRaw = config.showRaw !== false;
+  const { data, loading, error, isStale, lastUpdated } = useModuleData<MetarResponse>(
+    icao ? `/api/aviation/metar/${encodeURIComponent(icao)}` : null,
+    { refreshMs: 5 * 60_000 }
+  );
+
+  const observed = data?.parsed?.observationTime
+    ? parseDayTime(data.parsed.observationTime)?.getTime() ?? null
+    : null;
+  const ageAt = observed ?? lastUpdated;
+  const stale = isStale || (observed !== null && Date.now() - observed > STALE_OBS_MS);
+
+  return (
+    <ModuleFrame
+      title="METAR"
+      accent={icao ?? undefined}
+      meta={data ? <Age at={ageAt} stale={stale} /> : undefined}
+      className={`metar metar-${size}`}
+    >
+      {!icao ? (
+        <ModuleEmpty title="No airport set" hint="Choose an airport in the app" />
+      ) : loading ? (
+        <ModuleLoading />
+      ) : !data ? (
+        <ModuleError title="METAR unavailable" hint={fetchErrorHint(error, `No report for ${icao}`)} />
+      ) : (
+        <MetarBody data={data} size={size} showRaw={showRaw} />
+      )}
+    </ModuleFrame>
+  );
 }
 
-interface MetarConfig {
-  icao?: string;
-  showRaw?: boolean;
-  showDecoded?: boolean;
-}
+function MetarBody({
+  data,
+  size,
+  showRaw,
+}: {
+  data: MetarResponse;
+  size: ModuleProps['size'];
+  showRaw: boolean;
+}) {
+  const p = data.parsed;
+  const wind = windParts(p?.wind);
+  const vis = formatVisibilityValue(p?.visibility);
+  const ceiling = formatCeiling(p?.clouds, p?.ceiling);
+  const temp =
+    p && p.temperature !== null
+      ? `${formatSigned(p.temperature)}°/${formatSigned(p.dewpoint)}°`
+      : '—';
+  const altimeter = formatAltimeter(p?.altimeter);
+  const weather = p?.weather?.join(' ') ?? '';
 
-export function MetarModule({ config, airport }: ModuleProps) {
-  const [metar, setMetar] = useState<MetarData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const metarConfig = config as MetarConfig;
-  const icao = metarConfig.icao || airport || 'KJFK';
-
-  useEffect(() => {
-    const fetchMetar = async () => {
-      try {
-        const response = await fetch(`/api/aviation/metar/${icao}`);
-        if (!response.ok) throw new Error('Failed to fetch METAR');
-        const data = await response.json();
-        setMetar(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMetar();
-    const interval = setInterval(fetchMetar, 5 * 60 * 1000); // Refresh every 5 minutes
-    return () => clearInterval(interval);
-  }, [icao]);
-
-  if (loading) {
-    return <div className="module-loading">Loading METAR...</div>;
+  if (size === 'small') {
+    return (
+      <div className="metar-line">
+        <FlightRulesPill rules={data.flightRules} />
+        <span className="metar-line-text mono">
+          {formatWind(p?.wind)}
+          {vis && <span className="text-dim"> · {formatVisibility(p?.visibility)}</span>}
+        </span>
+      </div>
+    );
   }
 
-  if (error) {
-    return <div className="module-error">{error}</div>;
+  const metrics = [
+    <Metric key="wind" label="Wind" value={wind.value} unit={wind.unit || undefined} />,
+    <Metric key="vis" label="Vis" value={vis ?? '—'} unit={vis ? 'SM' : undefined} />,
+    <Metric key="sky" label={p?.ceiling != null ? 'Ceiling' : 'Sky'} value={ceiling} />,
+    <Metric key="temp" label="Temp / Dew" value={temp} unit={p?.temperature != null ? 'C' : undefined} />,
+  ];
+  const altMetric = (
+    <Metric key="alt" label="Altimeter" value={altimeter ?? '—'} unit={altimeter ? 'inHg' : undefined} />
+  );
+
+  if (size === 'medium') {
+    return (
+      <div className="metar-stack">
+        <div className="metar-top">
+          <FlightRulesPill rules={data.flightRules} />
+          {weather && <span className="metar-wx mono">{weather}</span>}
+          {altimeter && (
+            <span className="metar-alt mono">
+              A{altimeter}
+            </span>
+          )}
+        </div>
+        <div className="metar-grid">{metrics}</div>
+      </div>
+    );
   }
 
-  if (!metar) {
-    return <div className="module-error">No METAR data</div>;
+  if (size === 'wide') {
+    return (
+      <div className="metar-wide">
+        <div className="metar-wide-rules">
+          <FlightRulesPill rules={data.flightRules} />
+          {weather && <span className="metar-wx mono">{weather}</span>}
+        </div>
+        <div className="metar-row">
+          {metrics}
+          {altMetric}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="metar-module">
-      <div className="metar-header">
-        <span className="metar-icao">{icao}</span>
-        <span className={`flight-rules ${metar.flightRules?.toLowerCase()}`}>
-          {metar.flightRules}
-        </span>
+    <div className="metar-stack">
+      <div className="metar-top">
+        <FlightRulesPill rules={data.flightRules} />
+        {weather && <span className="metar-wx mono">{weather}</span>}
       </div>
-
-      {metarConfig.showDecoded !== false && metar.parsed && (
-        <div className="metar-decoded">
-          {metar.parsed.temp !== undefined && (
-            <div className="metar-item">
-              <span className="label">Temp</span>
-              <span className="value">{metar.parsed.temp}°C</span>
-            </div>
-          )}
-          {metar.parsed.wind && (
-            <div className="metar-item">
-              <span className="label">Wind</span>
-              <span className="value">{metar.parsed.wind}</span>
-            </div>
-          )}
-          {metar.parsed.visibility && (
-            <div className="metar-item">
-              <span className="label">Vis</span>
-              <span className="value">{metar.parsed.visibility}</span>
-            </div>
-          )}
-          {metar.parsed.altimeter && (
-            <div className="metar-item">
-              <span className="label">Alt</span>
-              <span className="value">{metar.parsed.altimeter}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {(metarConfig.showRaw || !metarConfig.showDecoded) && (
-        <div className="metar-raw">{metar.raw}</div>
-      )}
-
-      <style>{`
-        .metar-module {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-
-        .metar-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 0.75rem;
-        }
-
-        .metar-icao {
-          font-size: 1.5rem;
-          font-weight: 600;
-          font-family: var(--font-mono);
-        }
-
-        .flight-rules {
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-weight: 600;
-          font-size: 0.875rem;
-          text-transform: uppercase;
-        }
-
-        .flight-rules.vfr { background: var(--color-vfr); color: #000; }
-        .flight-rules.mvfr { background: var(--color-mvfr); color: #fff; }
-        .flight-rules.ifr { background: var(--color-ifr); color: #fff; }
-        .flight-rules.lifr { background: var(--color-lifr); color: #fff; }
-
-        .metar-decoded {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 0.5rem;
-          margin-bottom: 0.75rem;
-        }
-
-        .metar-item {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .metar-item .label {
-          font-size: 0.7rem;
-          color: var(--color-text-dim);
-          text-transform: uppercase;
-        }
-
-        .metar-item .value {
-          font-size: 1rem;
-          font-family: var(--font-mono);
-        }
-
-        .metar-raw {
-          font-family: var(--font-mono);
-          font-size: 0.75rem;
-          color: var(--color-text-dim);
-          word-break: break-all;
-          line-height: 1.4;
-          margin-top: auto;
-        }
-      `}</style>
+      <div className="metar-grid metar-grid-large">
+        {metrics}
+        {altMetric}
+      </div>
+      {showRaw && data.raw && <p className="metar-raw mono">{data.raw}</p>}
     </div>
   );
 }

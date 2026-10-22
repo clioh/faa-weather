@@ -1,0 +1,286 @@
+/*
+ * Module grid and the shared widget primitives (ModuleFrame et al).
+ *
+ * Every tile is a CSS container, so widget type scales with the tile rather
+ * than the screen: use the --mf-* size tokens (or cqmin/cqw/cqh units) inside
+ * widgets instead of fixed rem values. 1cqmin = 1% of the tile's shorter side.
+ */
+
+/* ------------------------------------------------------------------ Grid */
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  height: 100vh;
+  width: 100vw;
+  padding: var(--grid-padding);
+  gap: var(--grid-gap);
+  box-sizing: border-box;
+}
+
+.module-grid.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.module-grid .empty-state {
+  text-align: center;
+  color: var(--color-text-dim);
+}
+
+.module-grid .empty-state p {
+  font-size: 1.5rem;
+  font-weight: 300;
+  margin-bottom: 0.5rem;
+}
+
+.module-grid .empty-state .hint {
+  font-size: 1rem;
+  color: var(--color-text-faint);
+}
+
+/* ------------------------------------------------------------------ Tile */
+
+.module {
+  position: relative;
+  container-type: size;
+  container-name: tile;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.75rem;
+  transition: outline-color 0.3s ease;
+  outline: 1px dashed transparent;
+  outline-offset: -1px;
+
+  /* Type scale, relative to the tile. Widgets use these instead of rem. */
+  --mf-label: clamp(0.6rem, 4.5cqmin, 0.95rem);
+  --mf-caption: clamp(0.65rem, 5cqmin, 1rem);
+  --mf-body: clamp(0.8rem, 6.5cqmin, 1.35rem);
+  --mf-title: clamp(1rem, 9cqmin, 2rem);
+  --mf-display: clamp(1.6rem, 18cqmin, 5rem);
+  --mf-hero: clamp(2.2rem, 30cqmin, 9rem);
+  --mf-gap: clamp(0.25rem, 2.5cqmin, 0.75rem);
+  --mf-pad: clamp(0.5rem, 4cqmin, 1.25rem);
+}
+
+/* While the phone is previewing an unsaved layout, outline every tile so
+   placement can be checked on the glass. */
+.module-grid[data-preview='true'] .module {
+  outline-color: var(--color-accent-dim);
+}
+
+.module[data-unknown='true'] {
+  outline-color: var(--color-negative);
+}
+
+/* Tile padding lives on the frame so edge-to-edge widgets (radar, photos)
+   can opt out with a class. */
+.mf {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: var(--mf-pad);
+  gap: var(--mf-gap);
+}
+
+.mf.mf-flush {
+  padding: 0;
+  gap: 0;
+}
+
+/* Header: small-caps label, optional live/status badge on the right */
+.mf-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mf-gap);
+  flex-shrink: 0;
+}
+
+.mf-title {
+  font-size: var(--mf-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mf-title .mf-title-accent {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+.mf-meta {
+  font-size: var(--mf-label);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--color-text-faint);
+  white-space: nowrap;
+}
+
+.mf-meta.stale {
+  color: var(--color-warning);
+}
+
+.mf-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mf-footer {
+  flex-shrink: 0;
+  font-size: var(--mf-caption);
+  color: var(--color-text-faint);
+}
+
+/* ------------------------------------------------------- Empty / error */
+
+.mf-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.25em;
+  font-size: var(--mf-body);
+  color: var(--color-text-dim);
+  font-weight: 300;
+}
+
+.mf-state .mf-state-title {
+  color: var(--color-text);
+  font-weight: 400;
+}
+
+.mf-state .mf-state-hint {
+  font-size: var(--mf-caption);
+  color: var(--color-text-faint);
+}
+
+.mf-state.error .mf-state-title {
+  color: var(--color-negative);
+}
+
+/* Loading skeleton: a few breathing bars sized to the tile */
+.mf-skeleton {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--mf-gap);
+}
+
+.mf-skeleton span {
+  display: block;
+  height: var(--mf-body);
+  border-radius: 999px;
+  background: var(--color-surface-strong);
+  animation: mfBreathe 1.6s ease-in-out infinite;
+}
+
+.mf-skeleton span:nth-child(1) { width: 55%; }
+.mf-skeleton span:nth-child(2) { width: 85%; animation-delay: 0.15s; }
+.mf-skeleton span:nth-child(3) { width: 70%; animation-delay: 0.3s; }
+
+@keyframes mfBreathe {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.8; }
+}
+
+/* ------------------------------------------------------------ Metrics */
+
+/* label-over-value stat, used for wind / vis / temp / price etc. */
+.mf-metric {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mf-metric-label {
+  font-size: var(--mf-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.mf-metric-value {
+  font-size: var(--mf-title);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mf-metric-value .unit {
+  font-size: 0.55em;
+  color: var(--color-text-dim);
+  margin-left: 0.15em;
+}
+
+.mf-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5em, 1fr));
+  gap: var(--mf-gap) calc(var(--mf-gap) * 2);
+}
+
+/* --------------------------------------------------------------- Lists */
+
+.mf-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------- Pills */
+
+.mf-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.2em 0.6em;
+  border-radius: 999px;
+  font-size: var(--mf-label);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #000;
+  background: var(--color-text);
+  line-height: 1.4;
+}
+
+.mf-pill.vfr { background: var(--color-vfr); color: #002b12; }
+.mf-pill.mvfr { background: var(--color-mvfr); color: #fff; }
+.mf-pill.ifr { background: var(--color-ifr); color: #fff; }
+.mf-pill.lifr { background: var(--color-lifr); color: #fff; }
+.mf-pill.outline {
+  background: transparent;
+  color: var(--color-text-dim);
+  box-shadow: inset 0 0 0 1px var(--color-hairline);
+}
+
+/* Text colour helpers */
+.text-vfr { color: var(--color-vfr); }
+.text-mvfr { color: var(--color-mvfr); }
+.text-ifr { color: var(--color-ifr); }
+.text-lifr { color: var(--color-lifr); }
+.text-positive { color: var(--color-positive); }
+.text-negative { color: var(--color-negative); }
+.text-warning { color: var(--color-warning); }
+.text-dim { color: var(--color-text-dim); }
+.text-faint { color: var(--color-text-faint); }
+.mono { font-family: var(--font-mono); }

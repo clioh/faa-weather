@@ -1,0 +1,104 @@
+.metar-line {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--mf-gap);
+  min-width: 0;
+}
+
+.metar-line-text {
+  font-size: var(--mf-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.metar-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 1.5);
+  min-height: 0;
+}
+
+.metar-top {
+  display: flex;
+  align-items: center;
+  gap: var(--mf-gap);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.metar-wx {
+  font-size: var(--mf-caption);
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.metar-alt {
+  margin-left: auto;
+  font-size: var(--mf-caption);
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+
+.metar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--mf-gap) calc(var(--mf-gap) * 2);
+  align-content: start;
+}
+
+.metar-grid-large {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metar-wide {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--mf-gap) * 2);
+  min-width: 0;
+}
+
+.metar-wide-rules {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--mf-gap) * 0.5);
+  flex-shrink: 0;
+  max-width: 22%;
+}
+
+.metar-wide-rules .metar-wx {
+  max-width: 100%;
+}
+
+.metar-row {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: calc(var(--mf-gap) * 1.5);
+  min-width: 0;
+}
+
+/* Wide tiles are short, so the metric numerals step down a size. */
+.metar-row .mf-metric-value {
+  font-size: var(--mf-body);
+}
+
+.metar-raw {
+  margin: auto 0 0;
+  font-size: var(--mf-caption);
+  line-height: 1.45;
+  color: var(--color-text-faint);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

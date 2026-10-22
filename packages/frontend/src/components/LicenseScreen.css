@@ -1,0 +1,188 @@
+/*
+ * License screen. Uses the mirror tokens from styles/theme.css: black ground,
+ * thin light type, colour only for the state dot. Sized in rem so it scales
+ * with the display and stays legible from across the room.
+ */
+
+.license-screen {
+  --license-tone: var(--color-accent);
+
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-primary);
+}
+
+.license-screen.tone-warning {
+  --license-tone: var(--color-warning);
+}
+
+.license-screen.tone-alert {
+  --license-tone: var(--color-negative);
+}
+
+.license-screen .mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.license-screen__content {
+  width: 100%;
+  max-width: 44rem;
+}
+
+.license-screen__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+}
+
+.license-screen__dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--license-tone);
+  box-shadow: 0 0 0.75rem var(--license-tone);
+}
+
+.license-screen__title {
+  margin: 0 0 1rem;
+  font-size: 3.25rem;
+  font-weight: 200;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.license-screen__body {
+  margin: 0 0 2rem;
+  font-size: 1.4rem;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--color-text-dim);
+}
+
+.license-screen__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 3rem;
+  margin: 0 0 2rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--color-hairline);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.license-screen__facts dt {
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.license-screen__facts dd {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 300;
+}
+
+.license-screen__next {
+  display: flex;
+  align-items: flex-start;
+  gap: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.license-screen__steps {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: license-step;
+}
+
+.license-screen__steps li {
+  position: relative;
+  padding-left: 2.75rem;
+  margin-bottom: 1.1rem;
+  font-size: 1.3rem;
+  font-weight: 300;
+  line-height: 1.45;
+  counter-increment: license-step;
+}
+
+.license-screen__steps li::before {
+  content: counter(license-step);
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid var(--color-hairline);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--color-text-dim);
+}
+
+.license-screen__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--color-text-dim);
+}
+
+/* QR codes need a light quiet zone to scan, even behind mirror glass. */
+.license-screen__qr-code {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: #fff;
+  line-height: 0;
+}
+
+.license-screen__support {
+  margin: 0 0 2rem;
+  font-size: 1.1rem;
+  color: var(--color-text-dim);
+}
+
+.license-screen__waiting {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--color-text-faint);
+}
+
+.license-screen__pulse {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-text-faint);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@media (max-width: 720px), (orientation: portrait) {
+  .license-screen__next {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .license-screen__qr {
+    align-self: flex-start;
+  }
+}

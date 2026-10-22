@@ -1,0 +1,44 @@
+.quote .mf-body {
+  justify-content: center;
+}
+
+.quote-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 1.2);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.quote-text {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: var(--mf-title);
+  font-weight: 300;
+  font-style: normal;
+  line-height: 1.32;
+  color: var(--color-text);
+  text-wrap: pretty;
+}
+
+.quote-text::before { content: '\201C'; }
+.quote-text::after { content: '\201D'; }
+
+.quote-text.long {
+  font-size: calc(var(--mf-title) * 0.85);
+}
+
+.quote-author {
+  font-family: var(--font-mono);
+  font-size: var(--mf-caption);
+  letter-spacing: 0.04em;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quote-full .quote-figure {
+  max-width: 60em;
+}

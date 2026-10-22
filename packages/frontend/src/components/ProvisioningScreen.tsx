@@ -1,40 +1,6 @@
 import { useState, useEffect } from 'react';
 
-// QR Code component - uses simple text display
-// Install qrcode.react for actual QR code rendering
-function QRCodeSVG({ value, size }: { value: string; size: number; level?: string; bgColor?: string; fgColor?: string }) {
-  return (
-    <div style={{
-      width: size,
-      height: size,
-      background: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#333',
-      fontSize: '0.65rem',
-      textAlign: 'center',
-      padding: '0.5rem',
-      boxSizing: 'border-box',
-      borderRadius: '8px',
-      fontFamily: 'monospace',
-    }}>
-      <span style={{ wordBreak: 'break-all' }}>
-        {value.startsWith('WIFI:') ? (
-          <>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📶</div>
-            <div>Connect to WiFi</div>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔗</div>
-            <div>{value.replace('http://', '')}</div>
-          </>
-        )}
-      </span>
-    </div>
-  );
-}
+import { QRCodeSVG } from 'qrcode.react';
 
 interface ProvisioningScreenProps {
   ssid?: string;
@@ -146,8 +112,7 @@ export function ProvisioningScreen({
 
           {/* After setup info */}
           <div style={styles.afterSetup}>
-            <p>After setup, access your mirror at:</p>
-            <span style={styles.localUrl}>http://skyglass.local</span>
+            <p>Once the mirror is online, finish setup in the SkyGlass app on your phone.</p>
           </div>
         </div>
 
@@ -283,13 +248,6 @@ const styles: Record<string, React.CSSProperties> = {
     paddingTop: '1.5rem',
     color: '#888',
     fontSize: '0.9rem',
-  },
-  localUrl: {
-    display: 'inline-block',
-    marginTop: '0.5rem',
-    color: '#4ecca3',
-    fontFamily: 'monospace',
-    fontSize: '1.1rem',
   },
   waiting: {
     display: 'flex',

@@ -1,186 +1,98 @@
 /**
- * Weather Forecast Module
- * Multi-day weather forecast
+ * Forecast — daily highs, lows and conditions.
+ *
+ * wide: up to 5 day columns
+ * large: one row of up to 4, or two rows when more days are configured
+ * full: up to 7 columns
  */
 
-import { useEffect, useState } from 'react';
-import { ModuleProps } from './index';
+import { ModuleProps, resolveLocation } from './index';
+import { Age, ModuleEmpty, ModuleError, ModuleFrame, ModuleLoading } from './ModuleFrame';
+import { useModuleData } from './useModuleData';
+import { fetchErrorHint } from './aviationFormat';
+import { WeatherIcon } from './WeatherIcon';
+import './WeatherForecastModule.css';
 
 interface ForecastDay {
-  date: string;
-  dayName: string;
+  date: string; // YYYY-MM-DD in the location's zone
   high: number;
   low: number;
-  icon: string;
-  condition: string;
+  weatherCode: number;
+  description: string;
+  precipitationProbability: number | null;
 }
 
-interface ForecastConfig {
-  days?: number;
-  units?: 'imperial' | 'metric';
+interface ForecastResponse {
+  days: ForecastDay[];
+  units: 'imperial' | 'metric';
+  fetchedAt: string;
 }
 
-export function WeatherForecastModule({ config, latitude, longitude, size }: ModuleProps) {
-  const [forecast, setForecast] = useState<ForecastDay[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const forecastConfig = config as ForecastConfig;
-  const days = forecastConfig.days || 5;
-  const units = forecastConfig.units || 'imperial';
+/** Weekday from a calendar date without a UTC round-trip shifting the day. */
+function weekday(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return WEEKDAYS[new Date(y, m - 1, d).getDay()] ?? date;
+}
 
-  useEffect(() => {
-    const fetchForecast = async () => {
-      if (!latitude || !longitude) {
-        setError('Location not configured');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=${units === 'imperial' ? 'fahrenheit' : 'celsius'}&forecast_days=${days}`
-        );
-        if (!response.ok) throw new Error('Failed to fetch forecast');
-        const data = await response.json();
-
-        const forecastData: ForecastDay[] = data.daily.time.map((date: string, i: number) => ({
-          date,
-          dayName: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-          high: Math.round(data.daily.temperature_2m_max[i]),
-          low: Math.round(data.daily.temperature_2m_min[i]),
-          icon: getWeatherIcon(data.daily.weather_code[i]),
-          condition: getWeatherCondition(data.daily.weather_code[i]),
-        }));
-
-        setForecast(forecastData);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchForecast();
-    const interval = setInterval(fetchForecast, 60 * 60 * 1000); // Refresh hourly
-    return () => clearInterval(interval);
-  }, [latitude, longitude, days, units]);
-
-  if (loading) {
-    return <div className="module-loading">Loading forecast...</div>;
+function todayIn(timeZone?: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date());
+  } catch {
+    return new Intl.DateTimeFormat('en-CA').format(new Date());
   }
+}
 
-  if (error) {
-    return <div className="module-error">{error}</div>;
-  }
+export function WeatherForecastModule({ config, size, latitude, longitude, timezone }: ModuleProps) {
+  const location = resolveLocation(config, { latitude, longitude, timezone });
+  const units = config.units === 'metric' ? 'metric' : 'imperial';
+  const days = Math.min(7, Math.max(3, Number(config.days) || 5));
+  const url = location
+    ? `/api/weather/forecast?lat=${location.latitude.toFixed(3)}&lon=${location.longitude.toFixed(3)}&units=${units}&days=${days}`
+    : null;
+  const { data, loading, error, isStale, lastUpdated } = useModuleData<ForecastResponse>(url, {
+    refreshMs: 10 * 60_000,
+  });
 
-  const isWide = size === 'wide' || size === 'full';
-  const tempUnit = units === 'imperial' ? '°' : '°';
+  const fit = size === 'full' ? 7 : size === 'large' ? 8 : 5;
+  const shown = (data?.days ?? []).slice(0, Math.min(days, fit));
+  const twoRows = size === 'large' && shown.length > 4;
+  const columns = twoRows ? Math.ceil(shown.length / 2) : Math.max(shown.length, 1);
+  const today = todayIn(location?.timezone);
 
   return (
-    <div className={`weather-forecast-module ${isWide ? 'horizontal' : 'vertical'}`}>
-      {forecast.map((day, i) => (
-        <div key={day.date} className={`forecast-day ${i === 0 ? 'today' : ''}`}>
-          <span className="day-name">{i === 0 ? 'Today' : day.dayName}</span>
-          <span className="day-icon">{day.icon}</span>
-          <div className="day-temps">
-            <span className="temp-high">{day.high}{tempUnit}</span>
-            <span className="temp-low">{day.low}{tempUnit}</span>
-          </div>
+    <ModuleFrame
+      title="Forecast"
+      accent={location?.city}
+      meta={data ? <Age at={lastUpdated} stale={isStale} /> : undefined}
+      className={`fc fc-${size}${twoRows ? ' fc-two-rows' : ''}`}
+    >
+      {!location ? (
+        <ModuleEmpty title="No location set" hint="Set a location in the app" />
+      ) : loading ? (
+        <ModuleLoading />
+      ) : !data ? (
+        <ModuleError title="Forecast unavailable" hint={fetchErrorHint(error, 'No data for this location')} />
+      ) : shown.length === 0 ? (
+        <ModuleEmpty title="No forecast" />
+      ) : (
+        <div className="fc-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+          {shown.map((d) => (
+            <div key={d.date} className={`fc-day${d.date === today ? ' today' : ''}`}>
+              <span className="fc-name">{d.date === today ? 'Today' : weekday(d.date)}</span>
+              <WeatherIcon code={d.weatherCode} className="fc-icon" title={d.description} />
+              <span className="fc-temps mono">
+                <span className="fc-high">{Math.round(d.high)}°</span>
+                <span className="fc-low">{Math.round(d.low)}°</span>
+              </span>
+              <span className="fc-precip mono">
+                {d.precipitationProbability ? `${Math.round(d.precipitationProbability)}%` : ''}
+              </span>
+            </div>
+          ))}
         </div>
-      ))}
-
-      <style>{`
-        .weather-forecast-module {
-          display: flex;
-          height: 100%;
-          gap: 0.5rem;
-        }
-
-        .weather-forecast-module.horizontal {
-          flex-direction: row;
-          justify-content: space-around;
-          align-items: center;
-        }
-
-        .weather-forecast-module.vertical {
-          flex-direction: column;
-          justify-content: space-around;
-        }
-
-        .forecast-day {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.5rem;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.03);
-        }
-
-        .forecast-day.today {
-          background: rgba(255, 255, 255, 0.08);
-        }
-
-        .horizontal .forecast-day {
-          flex-direction: column;
-          gap: 0.25rem;
-          padding: 0.75rem;
-          min-width: 60px;
-        }
-
-        .day-name {
-          font-size: 0.8rem;
-          color: var(--color-text-dim);
-          font-weight: 500;
-        }
-
-        .day-icon {
-          font-size: 1.5rem;
-        }
-
-        .day-temps {
-          display: flex;
-          gap: 0.5rem;
-          font-size: 0.9rem;
-        }
-
-        .horizontal .day-temps {
-          flex-direction: column;
-          gap: 0;
-          text-align: center;
-        }
-
-        .temp-high {
-          font-weight: 600;
-        }
-
-        .temp-low {
-          color: var(--color-text-dim);
-        }
-      `}</style>
-    </div>
+      )}
+    </ModuleFrame>
   );
-}
-
-function getWeatherCondition(code: number): string {
-  const conditions: Record<number, string> = {
-    0: 'Clear', 1: 'Mostly Clear', 2: 'Partly Cloudy', 3: 'Cloudy',
-    45: 'Fog', 48: 'Fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle',
-    61: 'Rain', 63: 'Rain', 65: 'Heavy Rain', 71: 'Snow', 73: 'Snow',
-    75: 'Heavy Snow', 80: 'Showers', 81: 'Showers', 82: 'Heavy Showers',
-    95: 'Thunderstorm', 96: 'T-Storm', 99: 'Severe T-Storm',
-  };
-  return conditions[code] || 'Unknown';
-}
-
-function getWeatherIcon(code: number): string {
-  if (code === 0) return '☀️';
-  if (code <= 3) return '⛅';
-  if (code <= 48) return '🌫️';
-  if (code <= 55) return '🌧️';
-  if (code <= 65) return '🌧️';
-  if (code <= 77) return '❄️';
-  if (code <= 82) return '🌦️';
-  return '⛈️';
 }

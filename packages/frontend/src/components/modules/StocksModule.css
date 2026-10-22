@@ -1,0 +1,135 @@
+/* Shared by StocksModule and CryptoModule. */
+
+.ticker-rows {
+  display: grid;
+  grid-template-columns: minmax(3.5em, auto) minmax(0, 1fr) auto;
+  grid-auto-rows: min-content;
+  align-items: center;
+  column-gap: calc(var(--mf-gap) * 1.5);
+  font-size: var(--mf-body);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ticker-rows.with-spark {
+  grid-template-columns: minmax(3.5em, auto) minmax(2em, 1fr) auto auto;
+}
+
+/* Rows are grid "subrows": children sit in the parent's columns. */
+.ticker-row {
+  display: contents;
+}
+
+.ticker-row > * {
+  padding: calc(var(--mf-gap) * 0.9) 0;
+  border-top: 1px solid var(--color-hairline);
+  min-width: 0;
+}
+
+.ticker-row:first-child > * {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ticker-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ticker-symbol {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.ticker-name {
+  font-size: var(--mf-caption);
+  color: var(--color-text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12em;
+}
+
+.ticker-price {
+  font-family: var(--font-mono);
+  font-weight: 300;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ticker-rows:not(.with-spark) .ticker-price {
+  text-align: right;
+  justify-self: end;
+}
+
+.ticker-change {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ticker-glyph {
+  font-size: 0.7em;
+  margin-right: 0.25em;
+  vertical-align: 0.1em;
+}
+
+.ticker-spark {
+  display: block;
+  height: 1.1em;
+  align-self: center;
+  box-sizing: content-box;
+}
+
+/* Narrow tiles drop the trend before anything gets squeezed. */
+@container tile (max-width: 15rem) {
+  .ticker-rows.with-spark {
+    grid-template-columns: minmax(3.5em, auto) minmax(0, 1fr) auto;
+  }
+  .ticker-rows.with-spark .ticker-spark {
+    display: none;
+  }
+}
+
+/* Wide: one card per symbol, side by side. */
+.ticker-cards {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--ticker-n), minmax(0, 1fr));
+  column-gap: calc(var(--mf-gap) * 2.5);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ticker-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ticker-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mf-gap);
+  font-size: var(--mf-caption);
+}
+
+.ticker-card .ticker-price {
+  text-align: left;
+  /* "12,345.67" is ≈5.5em of mono; keep it inside its card. */
+  font-size: min(var(--mf-title), calc(100cqw / var(--ticker-n) / 6.2));
+}
+
+.ticker-card .ticker-spark {
+  flex: 1;
+  min-height: 1em;
+  height: auto;
+  margin-top: calc(var(--mf-gap) * 0.5);
+}

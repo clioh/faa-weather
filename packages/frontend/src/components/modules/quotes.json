@@ -1,0 +1,536 @@
+{
+  "aviation": [
+    {
+      "text": "There is an art, or rather, a knack to flying. The knack lies in learning how to throw yourself at the ground and miss.",
+      "author": "Douglas Adams"
+    },
+    {
+      "text": "It is possible to fly without motors, but not without knowledge and skill.",
+      "author": "Wilbur Wright"
+    },
+    {
+      "text": "More than anything else the sensation is one of perfect peace mingled with an excitement that strains every nerve to the utmost, if you can conceive of such a combination.",
+      "author": "Wilbur Wright"
+    },
+    {
+      "text": "If we worked on the assumption that what is accepted as true really is true, then there would be little hope for advance.",
+      "author": "Orville Wright"
+    },
+    {
+      "text": "The exhilaration of flying is too keen, the pleasure too great, for it to be neglected as a sport.",
+      "author": "Orville Wright"
+    },
+    {
+      "text": "Science, freedom, beauty, adventure: what more could you ask of life? Aviation combined all the elements I loved.",
+      "author": "Charles Lindbergh"
+    },
+    {
+      "text": "Life is like a landscape. You live in the midst of it but can describe it only from the vantage point of distance.",
+      "author": "Charles Lindbergh"
+    },
+    {
+      "text": "I don't believe in taking foolish chances, but nothing can be accomplished without taking any chance at all.",
+      "author": "Charles Lindbergh"
+    },
+    {
+      "text": "The most effective way to do it, is to do it.",
+      "author": "Amelia Earhart"
+    },
+    {
+      "text": "The more one does and sees and feels, the more one is able to do.",
+      "author": "Amelia Earhart"
+    },
+    {
+      "text": "Adventure is worthwhile in itself.",
+      "author": "Amelia Earhart"
+    },
+    {
+      "text": "Courage is the price that life exacts for granting peace.",
+      "author": "Amelia Earhart"
+    },
+    {
+      "text": "Please know I am quite aware of the hazards. I want to do it because I want to do it. Women must try to do things as men have tried.",
+      "author": "Amelia Earhart"
+    },
+    {
+      "text": "The air is the only place free from prejudice.",
+      "author": "Bessie Coleman"
+    },
+    {
+      "text": "Oh! I have slipped the surly bonds of Earth and danced the skies on laughter-silvered wings.",
+      "author": "John Gillespie Magee Jr."
+    },
+    {
+      "text": "Put out my hand, and touched the face of God.",
+      "author": "John Gillespie Magee Jr."
+    },
+    {
+      "text": "The air up there in the clouds is very pure and fine, bracing and delicious. And why shouldn't it be? It is the same the angels breathe.",
+      "author": "Mark Twain"
+    },
+    {
+      "text": "A bird is an instrument working according to mathematical law, which instrument it is within the capacity of man to reproduce with all its movements.",
+      "author": "Leonardo da Vinci"
+    },
+    {
+      "text": "Perfection is achieved, not when there is nothing more to add, but when there is nothing left to take away.",
+      "author": "Antoine de Saint-Exupéry"
+    },
+    {
+      "text": "The airplane has unveiled for us the true face of the earth.",
+      "author": "Antoine de Saint-Exupéry"
+    },
+    {
+      "text": "What saves a man is to take a step. Then another step.",
+      "author": "Antoine de Saint-Exupéry"
+    },
+    {
+      "text": "A map in the hands of a pilot is a testimony of a man's faith in other men.",
+      "author": "Beryl Markham"
+    },
+    {
+      "text": "To fly as fast as thought, to anywhere that is, you must begin by knowing that you have already arrived.",
+      "author": "Richard Bach"
+    },
+    {
+      "text": "Aeronautics was neither an industry nor a science. It was a miracle.",
+      "author": "Igor Sikorsky"
+    },
+    {
+      "text": "If you are in trouble anywhere in the world, an airplane can fly over and drop flowers, but a helicopter can land and save your life.",
+      "author": "Igor Sikorsky"
+    },
+    {
+      "text": "You do what you can for as long as you can, and when you finally can't, you do the next best thing. You back up but you don't give up.",
+      "author": "Chuck Yeager"
+    },
+    {
+      "text": "If you're faced with a forced landing, fly the thing as far into the crash as possible.",
+      "author": "Bob Hoover"
+    },
+    {
+      "text": "One way of looking at this might be that for 42 years, I've been making small, regular deposits in this bank of experience, education and training. And on January 15 the balance was sufficient so that I could make a very large withdrawal.",
+      "author": "Chesley Sullenberger"
+    },
+    {
+      "text": "From this day forward, Flight Control will be known by two words: Tough and Competent.",
+      "author": "Gene Kranz"
+    },
+    {
+      "text": "Houston, Tranquility Base here. The Eagle has landed.",
+      "author": "Neil Armstrong"
+    },
+    {
+      "text": "That's one small step for man, one giant leap for mankind.",
+      "author": "Neil Armstrong"
+    },
+    {
+      "text": "Mystery creates wonder and wonder is the basis of man's desire to understand.",
+      "author": "Neil Armstrong"
+    },
+    {
+      "text": "I don't know what you could say about a day in which you have seen four beautiful sunsets.",
+      "author": "John Glenn"
+    },
+    {
+      "text": "All adventures, especially into new territory, are scary.",
+      "author": "Sally Ride"
+    },
+    {
+      "text": "Never be limited by other people's limited imaginations.",
+      "author": "Mae Jemison"
+    },
+    {
+      "text": "The Earth is the cradle of humanity, but one cannot live in the cradle forever.",
+      "author": "Konstantin Tsiolkovsky"
+    },
+    {
+      "text": "We choose to go to the Moon in this decade and do the other things, not because they are easy, but because they are hard.",
+      "author": "John F. Kennedy"
+    },
+    {
+      "text": "Aviate, navigate, communicate.",
+      "author": "Aviation proverb"
+    },
+    {
+      "text": "There are old pilots and there are bold pilots, but there are no old, bold pilots.",
+      "author": "Aviation proverb"
+    },
+    {
+      "text": "A superior pilot uses superior judgment to avoid situations that require the use of superior skill.",
+      "author": "Aviation proverb"
+    },
+    {
+      "text": "Takeoffs are optional. Landings are mandatory.",
+      "author": "Aviation proverb"
+    },
+    {
+      "text": "Plan the flight, and fly the plan.",
+      "author": "Aviation proverb"
+    },
+    {
+      "text": "Never let an airplane take you somewhere your brain didn't get to five minutes earlier.",
+      "author": "Aviation proverb"
+    },
+    {
+      "text": "The three most useless things to a pilot are the altitude above you, the runway behind you, and a tenth of a second ago.",
+      "author": "Aviation proverb"
+    },
+    {
+      "text": "Try to stay in the middle of the air. Do not go near the edges of it.",
+      "author": "Aviation proverb"
+    },
+    {
+      "text": "Speed is life. Altitude is life insurance.",
+      "author": "Aviation proverb"
+    }
+  ],
+  "motivational": [
+    {
+      "text": "Whether you think you can, or you think you can't, you're right.",
+      "author": "Henry Ford"
+    },
+    {
+      "text": "Do. Or do not. There is no try.",
+      "author": "Yoda, The Empire Strikes Back"
+    },
+    {
+      "text": "The only way to do great work is to love what you do.",
+      "author": "Steve Jobs"
+    },
+    {
+      "text": "Stay hungry. Stay foolish.",
+      "author": "Stewart Brand, Whole Earth Catalog"
+    },
+    {
+      "text": "Genius is one percent inspiration and ninety-nine percent perspiration.",
+      "author": "Thomas Edison"
+    },
+    {
+      "text": "You miss 100% of the shots you don't take.",
+      "author": "Wayne Gretzky"
+    },
+    {
+      "text": "I can accept failure, everyone fails at something. But I can't accept not trying.",
+      "author": "Michael Jordan"
+    },
+    {
+      "text": "Talent wins games, but teamwork and intelligence win championships.",
+      "author": "Michael Jordan"
+    },
+    {
+      "text": "The best way out is always through.",
+      "author": "Robert Frost"
+    },
+    {
+      "text": "Do what you can, with what you have, where you are.",
+      "author": "Theodore Roosevelt"
+    },
+    {
+      "text": "It is not the critic who counts. The credit belongs to the man who is actually in the arena.",
+      "author": "Theodore Roosevelt"
+    },
+    {
+      "text": "Nothing in the world is worth having or worth doing unless it means effort, pain, difficulty.",
+      "author": "Theodore Roosevelt"
+    },
+    {
+      "text": "Keep your eyes on the stars, and your feet on the ground.",
+      "author": "Theodore Roosevelt"
+    },
+    {
+      "text": "Ever tried. Ever failed. No matter. Try again. Fail again. Fail better.",
+      "author": "Samuel Beckett"
+    },
+    {
+      "text": "Hard work beats talent when talent doesn't work hard.",
+      "author": "Tim Notke"
+    },
+    {
+      "text": "Champions keep playing until they get it right.",
+      "author": "Billie Jean King"
+    },
+    {
+      "text": "I am the master of my fate, I am the captain of my soul.",
+      "author": "William Ernest Henley"
+    },
+    {
+      "text": "You must do the thing you think you cannot do.",
+      "author": "Eleanor Roosevelt"
+    },
+    {
+      "text": "Well done is better than well said.",
+      "author": "Benjamin Franklin"
+    },
+    {
+      "text": "Either write something worth reading or do something worth writing.",
+      "author": "Benjamin Franklin"
+    },
+    {
+      "text": "Lost time is never found again.",
+      "author": "Benjamin Franklin"
+    },
+    {
+      "text": "Start where you are. Use what you have. Do what you can.",
+      "author": "Arthur Ashe"
+    },
+    {
+      "text": "Success is where preparation and opportunity meet.",
+      "author": "Bobby Unser"
+    },
+    {
+      "text": "The only limit to our realization of tomorrow will be our doubts of today.",
+      "author": "Franklin D. Roosevelt"
+    },
+    {
+      "text": "The only thing we have to fear is fear itself.",
+      "author": "Franklin D. Roosevelt"
+    },
+    {
+      "text": "Don't watch the clock; do what it does. Keep going.",
+      "author": "Sam Levenson"
+    },
+    {
+      "text": "Perfection is not attainable, but if we chase perfection we can catch excellence.",
+      "author": "Vince Lombardi"
+    },
+    {
+      "text": "Discipline is the bridge between goals and accomplishment.",
+      "author": "Jim Rohn"
+    },
+    {
+      "text": "Motivation is what gets you started. Habit is what keeps you going.",
+      "author": "Jim Rohn"
+    },
+    {
+      "text": "Fall seven times, stand up eight.",
+      "author": "Japanese proverb"
+    },
+    {
+      "text": "Courage doesn't always roar. Sometimes courage is the quiet voice at the end of the day saying, I will try again tomorrow.",
+      "author": "Mary Anne Radmacher"
+    },
+    {
+      "text": "There are no shortcuts to any place worth going.",
+      "author": "Beverly Sills"
+    },
+    {
+      "text": "Strive not to be a success, but rather to be of value.",
+      "author": "Albert Einstein"
+    },
+    {
+      "text": "Life is like riding a bicycle. To keep your balance, you must keep moving.",
+      "author": "Albert Einstein"
+    },
+    {
+      "text": "Do one thing every day that scares you.",
+      "author": "Mary Schmich"
+    },
+    {
+      "text": "Make each day your masterpiece.",
+      "author": "John Wooden"
+    },
+    {
+      "text": "Be quick, but don't hurry.",
+      "author": "John Wooden"
+    },
+    {
+      "text": "It's not the will to win that matters; everyone has that. It's the will to prepare to win that matters.",
+      "author": "Paul \"Bear\" Bryant"
+    },
+    {
+      "text": "Our greatest glory is not in never falling, but in rising every time we fall.",
+      "author": "Oliver Goldsmith"
+    },
+    {
+      "text": "Never give in, never give in, never, never, never, never; in nothing, great or small, large or petty, never give in except to convictions of honour and good sense.",
+      "author": "Winston Churchill"
+    },
+    {
+      "text": "Far better is it to dare mighty things, to win glorious triumphs, even though checkered by failure, than to rank with those poor spirits who neither enjoy much nor suffer much.",
+      "author": "Theodore Roosevelt"
+    },
+    {
+      "text": "The best way to predict the future is to invent it.",
+      "author": "Alan Kay"
+    }
+  ],
+  "wisdom": [
+    {
+      "text": "The unexamined life is not worth living.",
+      "author": "Socrates"
+    },
+    {
+      "text": "Know thyself.",
+      "author": "Delphic maxim"
+    },
+    {
+      "text": "We suffer more often in imagination than in reality.",
+      "author": "Seneca"
+    },
+    {
+      "text": "It is not that we have a short time to live, but that we waste a lot of it.",
+      "author": "Seneca"
+    },
+    {
+      "text": "While we are postponing, life speeds by.",
+      "author": "Seneca"
+    },
+    {
+      "text": "Waste no more time arguing about what a good man should be. Be one.",
+      "author": "Marcus Aurelius"
+    },
+    {
+      "text": "The impediment to action advances action. What stands in the way becomes the way.",
+      "author": "Marcus Aurelius"
+    },
+    {
+      "text": "Very little is needed to make a happy life; it is all within yourself, in your way of thinking.",
+      "author": "Marcus Aurelius"
+    },
+    {
+      "text": "First say to yourself what you would be; and then do what you have to do.",
+      "author": "Epictetus"
+    },
+    {
+      "text": "Men are disturbed not by things, but by the views which they take of things.",
+      "author": "Epictetus"
+    },
+    {
+      "text": "No man ever steps in the same river twice.",
+      "author": "Heraclitus"
+    },
+    {
+      "text": "Knowing others is intelligence; knowing yourself is true wisdom.",
+      "author": "Laozi, Tao Te Ching"
+    },
+    {
+      "text": "A journey of a thousand miles begins with a single step.",
+      "author": "Laozi, Tao Te Ching"
+    },
+    {
+      "text": "To know what you know and to know what you do not know, that is true knowledge.",
+      "author": "Confucius, Analects"
+    },
+    {
+      "text": "In the beginner's mind there are many possibilities, but in the expert's there are few.",
+      "author": "Shunryu Suzuki"
+    },
+    {
+      "text": "If I have seen further it is by standing on the shoulders of giants.",
+      "author": "Isaac Newton"
+    },
+    {
+      "text": "The first principle is that you must not fool yourself, and you are the easiest person to fool.",
+      "author": "Richard Feynman"
+    },
+    {
+      "text": "Nothing in life is to be feared, it is only to be understood.",
+      "author": "Marie Curie"
+    },
+    {
+      "text": "The good life is one inspired by love and guided by knowledge.",
+      "author": "Bertrand Russell"
+    },
+    {
+      "text": "Not everything that is faced can be changed, but nothing can be changed until it is faced.",
+      "author": "James Baldwin"
+    },
+    {
+      "text": "Do not let what you cannot do interfere with what you can do.",
+      "author": "John Wooden"
+    },
+    {
+      "text": "Those who cannot remember the past are condemned to repeat it.",
+      "author": "George Santayana"
+    },
+    {
+      "text": "Life can only be understood backwards; but it must be lived forwards.",
+      "author": "Søren Kierkegaard"
+    },
+    {
+      "text": "He who has a why to live can bear almost any how.",
+      "author": "Friedrich Nietzsche"
+    },
+    {
+      "text": "When we are no longer able to change a situation, we are challenged to change ourselves.",
+      "author": "Viktor Frankl"
+    },
+    {
+      "text": "Happiness is not something ready made. It comes from your own actions.",
+      "author": "Dalai Lama"
+    },
+    {
+      "text": "Well begun is half done.",
+      "author": "Aristotle"
+    },
+    {
+      "text": "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
+      "author": "Will Durant"
+    },
+    {
+      "text": "Philosophy begins in wonder.",
+      "author": "Plato, Theaetetus"
+    },
+    {
+      "text": "The perfect is the enemy of the good.",
+      "author": "Voltaire"
+    },
+    {
+      "text": "I think, therefore I am.",
+      "author": "René Descartes"
+    },
+    {
+      "text": "Imagination is more important than knowledge.",
+      "author": "Albert Einstein"
+    },
+    {
+      "text": "Look deep into nature, and then you will understand everything better.",
+      "author": "Albert Einstein"
+    },
+    {
+      "text": "The limits of my language mean the limits of my world.",
+      "author": "Ludwig Wittgenstein"
+    },
+    {
+      "text": "Whereof one cannot speak, thereof one must be silent.",
+      "author": "Ludwig Wittgenstein"
+    },
+    {
+      "text": "The fool doth think he is wise, but the wise man knows himself to be a fool.",
+      "author": "William Shakespeare, As You Like It"
+    },
+    {
+      "text": "There is nothing either good or bad, but thinking makes it so.",
+      "author": "William Shakespeare, Hamlet"
+    },
+    {
+      "text": "All that is gold does not glitter, not all those who wander are lost.",
+      "author": "J. R. R. Tolkien"
+    },
+    {
+      "text": "All we have to decide is what to do with the time that is given us.",
+      "author": "J. R. R. Tolkien"
+    },
+    {
+      "text": "Two roads diverged in a wood, and I, I took the one less traveled by, and that has made all the difference.",
+      "author": "Robert Frost"
+    },
+    {
+      "text": "In three words I can sum up everything I've learned about life: it goes on.",
+      "author": "Robert Frost"
+    },
+    {
+      "text": "The mind is not a vessel to be filled, but a fire to be kindled.",
+      "author": "Plutarch"
+    },
+    {
+      "text": "It is only with the heart that one can see rightly; what is essential is invisible to the eye.",
+      "author": "Antoine de Saint-Exupéry, The Little Prince"
+    },
+    {
+      "text": "Measure twice, cut once.",
+      "author": "Proverb"
+    }
+  ]
+}

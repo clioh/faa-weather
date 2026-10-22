@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
+import { PairingQr } from './PairingQr';
+import type { LicenseStatus } from '../license';
 
 interface SetupStatus {
   configExists: boolean;
+  /** Always true when licensing is disabled. */
+  licenseActivated: boolean;
   faceEnrolled: boolean;
   airportConfigured: boolean;
   locationConfigured: boolean;
@@ -15,10 +19,43 @@ interface RegistrationStatus {
 }
 
 interface SetupProgressScreenProps {
+  /** Current license status, to explain a key that failed to activate. */
+  license?: LicenseStatus | null;
   onSetupComplete?: () => void;
 }
 
-export function SetupProgressScreen({ onSetupComplete }: SetupProgressScreenProps) {
+/**
+ * The steps the mirror shows, in setup order. WiFi comes first in the phone
+ * app but isn't listed here: the mirror is online if it shows this screen.
+ */
+const STEPS = [
+  { id: 'license', label: 'License' },
+  { id: 'location', label: 'Location' },
+  { id: 'airport', label: 'Airport' },
+  { id: 'face', label: 'Face' },
+] as const;
+
+/** Extra line for the license step when a key exists but isn't usable here. */
+function licenseProblem(license: LicenseStatus | null | undefined): string | null {
+  // Kits: the pre-installed key activates on its own once the mirror is online.
+  if (license?.state === 'unlicensed' && license.keyFilePending) {
+    return license.message ?? 'Activating the pre-installed license…';
+  }
+  switch (license?.state) {
+    case 'bound_elsewhere':
+      return 'This key is active on another mirror. Release it at skyglass.dev/license, or enter a different key.';
+    case 'released':
+      return 'This license was released from this mirror. Enter the key again to bring it back.';
+    case 'revoked':
+      return 'This license was revoked. Enter a different key.';
+    case 'expired':
+      return 'The mirror needs internet access to verify its license.';
+    default:
+      return null;
+  }
+}
+
+export function SetupProgressScreen({ license, onSetupComplete }: SetupProgressScreenProps) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [dots, setDots] = useState('');
@@ -59,52 +96,76 @@ export function SetupProgressScreen({ onSetupComplete }: SetupProgressScreenProp
     return () => clearInterval(interval);
   }, [onSetupComplete]);
 
-  // Determine current step
-  const getCurrentStep = () => {
+  // Licensing switched off (SKYGLASS_LICENSE=off, local development): the
+  // License step is always satisfied, so don't list it, matching the phone.
+  const steps = license?.state === 'disabled' ? STEPS.filter((s) => s.id !== 'license') : STEPS;
+  /** 1-based position of a step in the visible list. */
+  const stepNumber = (id: (typeof STEPS)[number]['id']) =>
+    steps.findIndex((s) => s.id === id) + 1;
+
+  // Determine current step (1-based index into steps; steps.length + 1 = done)
+  const getCurrentStep = (): {
+    step: number;
+    label: string;
+    description: string;
+    detail?: string | null;
+    isFaceRegistration?: boolean;
+  } => {
     if (!status) return { step: 1, label: 'Loading', description: '' };
 
     if (registration?.active) {
       return {
-        step: 4,
+        step: stepNumber('face'),
         label: 'Face Registration',
         description: 'Look at the camera',
         isFaceRegistration: true,
       };
     }
 
-    if (!status.airportConfigured) {
+    if (!status.licenseActivated) {
       return {
-        step: 2,
-        label: 'Airport Setup',
-        description: 'Configure on your phone',
+        step: stepNumber('license'),
+        label: 'Activate Your License',
+        description: license?.keyFilePending
+          ? 'Your pre-installed license activates automatically'
+          : 'Enter your license key in the SkyGlass app',
+        detail: licenseProblem(license),
       };
     }
 
     if (!status.locationConfigured) {
       return {
-        step: 3,
+        step: stepNumber('location'),
         label: 'Location Setup',
+        description: 'Configure on your phone',
+      };
+    }
+
+    if (!status.airportConfigured) {
+      return {
+        step: stepNumber('airport'),
+        label: 'Airport Setup',
         description: 'Configure on your phone',
       };
     }
 
     if (!status.faceEnrolled) {
       return {
-        step: 4,
+        step: stepNumber('face'),
         label: 'Face Registration',
         description: 'Ready when you are',
       };
     }
 
     return {
-      step: 5,
+      step: steps.length + 1,
       label: 'Setup Complete',
       description: 'Starting mirror...',
     };
   };
 
   const currentStep = getCurrentStep();
-  const progress = ((currentStep.step - 1) / 4) * 100;
+  const progress = ((currentStep.step - 1) / steps.length) * 100;
 
   return (
     <div style={styles.container}>
@@ -124,7 +185,7 @@ export function SetupProgressScreen({ onSetupComplete }: SetupProgressScreenProp
             <div style={{ ...styles.progressBar, width: `${progress}%` }} />
           </div>
           <div style={styles.progressSteps}>
-            {[1, 2, 3, 4].map((step) => (
+            {steps.map((_, index) => index + 1).map((step) => (
               <div
                 key={step}
                 style={{
@@ -193,21 +254,36 @@ export function SetupProgressScreen({ onSetupComplete }: SetupProgressScreenProp
 
               <h2 style={styles.cardTitle}>{currentStep.label}</h2>
               <p style={styles.cardDescription}>{currentStep.description}{dots}</p>
+              {currentStep.detail && (
+                <p style={styles.cardDetail}>{currentStep.detail}</p>
+              )}
 
-              <div style={styles.urlHint}>
-                <p>Continue setup on your phone at:</p>
-                <span style={styles.url}>http://skyglass.local/setup</span>
+              {/* Connect QR with a one-time pairing secret (GET /api/pairing/qr);
+                  in `npm run dev:e2e` it opens the Expo dev build instead. */}
+              <div style={styles.pairQr}>
+                <PairingQr
+                  size={168}
+                  fallback={
+                    <div style={styles.urlHint}>
+                      <p>Continue setup in the SkyGlass app on your phone.</p>
+                    </div>
+                  }
+                />
               </div>
             </>
           )}
         </div>
 
-        {/* Step labels */}
+        {/* Step labels, one under each dot */}
         <div style={styles.stepLabels}>
-          <span style={currentStep.step >= 2 ? styles.stepLabelActive : styles.stepLabel}>Airport</span>
-          <span style={currentStep.step >= 3 ? styles.stepLabelActive : styles.stepLabel}>Location</span>
-          <span style={currentStep.step >= 4 ? styles.stepLabelActive : styles.stepLabel}>Face</span>
-          <span style={currentStep.step >= 5 ? styles.stepLabelActive : styles.stepLabel}>Done</span>
+          {steps.map((step, index) => (
+            <span
+              key={step.id}
+              style={currentStep.step >= index + 1 ? styles.stepLabelActive : styles.stepLabel}
+            >
+              {step.label}
+            </span>
+          ))}
         </div>
       </div>
     </div>
@@ -301,15 +377,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '1.1rem',
     marginBottom: '1.5rem',
   },
+  cardDetail: {
+    color: '#ffb74d',
+    fontSize: '1rem',
+    lineHeight: 1.5,
+    margin: '-0.5rem 0 1.5rem',
+  },
+  pairQr: {
+    marginTop: '1.5rem',
+    display: 'flex',
+    justifyContent: 'center',
+  },
   urlHint: {
     background: '#1a1a1a',
     borderRadius: '12px',
     padding: '1rem',
-  },
-  url: {
-    color: '#4ecca3',
-    fontFamily: 'monospace',
-    fontSize: '1rem',
   },
   captureProgress: {
     marginBottom: '1rem',
@@ -344,10 +426,20 @@ const styles: Record<string, React.CSSProperties> = {
   stepLabel: {
     color: '#444',
     fontSize: '0.8rem',
+    // Same width as a progress dot so each label centres under its dot
+    width: '32px',
+    display: 'flex',
+    justifyContent: 'center',
+    whiteSpace: 'nowrap',
   },
   stepLabelActive: {
     color: '#4ecca3',
     fontSize: '0.8rem',
+    // Same width as a progress dot so each label centres under its dot
+    width: '32px',
+    display: 'flex',
+    justifyContent: 'center',
+    whiteSpace: 'nowrap',
     fontWeight: 500,
   },
 };

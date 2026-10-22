@@ -1,100 +1,73 @@
 /**
- * Digital Clock Module
- * Displays time with optional date and Zulu time
+ * Clock — the time, big and thin, with the date and Zulu time beneath.
+ * No header: the time is its own label.
  */
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { ModuleProps } from './index';
+import { ModuleFrame } from './ModuleFrame';
+import { cityFromZone, pickTimeZone, useNow, validTimeZone, zonedParts } from './time';
+import './DigitalClockModule.css';
 
-interface ClockConfig {
-  timezone?: string;
-  format24h?: boolean;
-  showSeconds?: boolean;
-  showDate?: boolean;
-}
+const pad = (n: number) => String(n).padStart(2, '0');
 
-export function DigitalClockModule({ config, size }: ModuleProps) {
-  const [time, setTime] = useState(new Date());
-  const clockConfig = config as ClockConfig;
+export function DigitalClockModule({ config, timezone, size }: ModuleProps) {
+  const format24h = config.format24h === true;
+  const showSeconds = config.showSeconds === true;
+  const showDate = config.showDate !== false;
+  const showZulu = config.showZulu !== false;
 
-  useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const ownZone = validTimeZone(config.timezone);
+  const tz = pickTimeZone(config.timezone, timezone);
+  // Only label the city when the clock deliberately shows another zone.
+  const city = ownZone && ownZone !== validTimeZone(timezone) ? cityFromZone(ownZone) : null;
 
-  const timezone = clockConfig.timezone === 'local' ? undefined : clockConfig.timezone;
+  // Without seconds there is nothing to repaint between minute boundaries.
+  const now = useNow(showSeconds ? 1000 : 60_000);
 
-  const formatTime = (date: Date, tz?: string, format24h = false) => {
-    const options: Intl.DateTimeFormatOptions = {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: clockConfig.showSeconds ? '2-digit' : undefined,
-      hour12: !format24h,
-      timeZone: tz,
-    };
-    return date.toLocaleTimeString('en-US', options);
-  };
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        timeZone: tz,
+        weekday: size === 'small' ? 'short' : 'long',
+        month: size === 'small' ? 'short' : 'long',
+        day: 'numeric',
+      }),
+    [tz, size]
+  );
 
-  const formatDate = (date: Date, tz?: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      timeZone: tz,
-    };
-    return date.toLocaleDateString('en-US', options);
-  };
+  const p = zonedParts(now, tz);
+  const hour = format24h ? pad(p.hour) : String(p.hour % 12 || 12);
+  const period = p.hour < 12 ? 'AM' : 'PM';
+  const zulu = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}Z`;
+  const dateLine = [city, showDate ? dateFormatter.format(now) : null].filter(Boolean).join(' · ');
 
-  const formatZulu = (date: Date) => {
-    return date.toISOString().slice(11, 19) + 'Z';
-  };
-
-  const isCompact = size === 'small';
+  const classes = [
+    'dclock',
+    `dclock-${size}`,
+    format24h ? '' : 'h12',
+    showSeconds ? 'with-seconds' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <div className="digital-clock-module">
-      <div className={`clock-time ${isCompact ? 'compact' : ''}`}>
-        {formatTime(time, timezone, clockConfig.format24h)}
+    <ModuleFrame className={classes}>
+      <div className="dclock-time" aria-label={`${hour}:${pad(p.minute)}${format24h ? '' : ` ${period}`}`}>
+        <span>
+          {hour}
+          <span className="dclock-colon">:</span>
+          {pad(p.minute)}
+        </span>
+        {showSeconds && <span className="dclock-seconds">:{pad(p.second)}</span>}
+        {!format24h && <span className="dclock-period">{period}</span>}
       </div>
-
-      {clockConfig.showDate !== false && (
-        <div className="clock-date">{formatDate(time, timezone)}</div>
+      {(dateLine || showZulu) && (
+        <div className="dclock-meta">
+          {dateLine && <div className="dclock-date">{dateLine}</div>}
+          {showZulu && <div className="dclock-zulu">{zulu}</div>}
+        </div>
       )}
-
-      <div className="clock-zulu">{formatZulu(time)}</div>
-
-      <style>{`
-        .digital-clock-module {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          height: 100%;
-        }
-
-        .clock-time {
-          font-size: 3.5rem;
-          font-weight: 200;
-          letter-spacing: -0.02em;
-          line-height: 1;
-        }
-
-        .clock-time.compact {
-          font-size: 2.5rem;
-        }
-
-        .clock-date {
-          font-size: 1rem;
-          color: var(--color-text-dim);
-          margin-top: 0.5rem;
-        }
-
-        .clock-zulu {
-          font-size: 1.25rem;
-          color: var(--color-accent);
-          font-family: var(--font-mono);
-          margin-top: 0.5rem;
-        }
-      `}</style>
-    </div>
+    </ModuleFrame>
   );
 }

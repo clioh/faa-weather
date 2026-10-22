@@ -1,81 +1,106 @@
 /**
- * News Module
- * Displays news headlines
+ * News — headlines from a preset source or a custom RSS feed.
+ * Wide and full tiles lay the headlines out in columns.
  */
 
+import { CSSProperties } from 'react';
 import { ModuleProps } from './index';
+import { Age, ModuleEmpty, ModuleError, ModuleFrame, ModuleLoading } from './ModuleFrame';
+import { useModuleData } from './useModuleData';
+import { relativeAge, useNow } from './time';
+import './NewsModule.css';
 
-// NewsConfig interface - will be used when integrating with news API
-// interface NewsConfig {
-//   source?: string;
-//   maxItems?: number;
-// }
+interface NewsItem {
+  id: string;
+  title: string;
+  link?: string;
+  publisher?: string | null;
+  publishedAt: string | null;
+}
 
-export function NewsModule(_props: ModuleProps) {
+interface NewsResponse {
+  source: string;
+  items: NewsItem[];
+  fetchedAt?: string;
+}
 
-  // Placeholder - would integrate with news API
-  const headlines = [
-    { id: '1', title: 'News feed coming soon', source: 'SkyGlass' },
-    { id: '2', title: 'Configure news source in settings', source: 'Setup' },
-  ];
+const SOURCE_NAMES: Record<string, string> = {
+  world: 'World news',
+  us: 'US news',
+  business: 'Business',
+  technology: 'Technology',
+  sports: 'Sports',
+  aviation: 'Aviation news',
+  custom: 'News',
+};
+
+/** Columns and headlines that fit each size (two-line headlines + byline). */
+const LAYOUT: Record<string, { cols: number; rows: number }> = {
+  medium: { cols: 1, rows: 3 },
+  tall: { cols: 1, rows: 4 },
+  large: { cols: 1, rows: 5 },
+  wide: { cols: 2, rows: 2 },
+  full: { cols: 3, rows: 3 },
+};
+
+export function NewsModule({ config, size }: ModuleProps) {
+  const source = typeof config.source === 'string' && config.source in SOURCE_NAMES ? config.source : 'world';
+  const feedUrl = typeof config.feedUrl === 'string' ? config.feedUrl.trim() : '';
+  const showSource = config.showSource !== false;
+  const requested = Number(config.maxItems);
+  const layout = LAYOUT[size] ?? LAYOUT.medium;
+  const limit = Math.max(
+    1,
+    Math.min(Number.isFinite(requested) && requested > 0 ? Math.round(requested) : 6, layout.cols * layout.rows)
+  );
+
+  const needsFeed = source === 'custom' && !feedUrl;
+  const url = needsFeed
+    ? null
+    : `/api/news?source=${source}&limit=${limit}${source === 'custom' ? `&url=${encodeURIComponent(feedUrl)}` : ''}`;
+
+  const { data, loading, error, isStale, lastUpdated } = useModuleData<NewsResponse>(url, {
+    refreshMs: 10 * 60_000,
+  });
+  // Keeps "12m ago" bylines honest between fetches.
+  const now = useNow(60_000);
+
+  const items = (data?.items ?? []).slice(0, limit);
+  const title =
+    source === 'custom' ? items.find((i) => i.publisher)?.publisher || SOURCE_NAMES.custom : SOURCE_NAMES[source];
+
+  let body;
+  if (needsFeed) {
+    body = <ModuleEmpty title="No feed" hint="Add a feed URL in the app" />;
+  } else if (loading) {
+    body = <ModuleLoading />;
+  } else if (!data && error) {
+    body = <ModuleError title="Headlines unavailable" hint="Will retry shortly" />;
+  } else if (items.length === 0) {
+    body = <ModuleEmpty title="No headlines right now" />;
+  } else {
+    const cols = Math.min(layout.cols, items.length);
+    body = (
+      <ol className={`news-list news-cols-${cols}`} style={{ '--news-cols': cols } as CSSProperties}>
+        {items.map((item) => {
+          const age = relativeAge(item.publishedAt, now.getTime());
+          const byline = [source === 'custom' ? null : item.publisher, age ? (age === 'now' ? 'just now' : `${age} ago`) : null]
+            .filter(Boolean)
+            .join(' · ');
+          return (
+            <li key={item.id} className="news-item">
+              <span className="news-headline">{item.title}</span>
+              {showSource && byline && <span className="news-byline">{byline}</span>}
+            </li>
+          );
+        })}
+      </ol>
+    );
+  }
 
   return (
-    <div className="news-module">
-      <div className="news-header">
-        <span className="news-title">Headlines</span>
-      </div>
-      <div className="headlines-list">
-        {headlines.map(item => (
-          <div key={item.id} className="headline-item">
-            <span className="headline-text">{item.title}</span>
-            <span className="headline-source">{item.source}</span>
-          </div>
-        ))}
-      </div>
-
-      <style>{`
-        .news-module {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-
-        .news-header {
-          margin-bottom: 0.75rem;
-        }
-
-        .news-title {
-          font-size: 0.75rem;
-          color: var(--color-text-dim);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .headlines-list {
-          flex: 1;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .headline-item {
-          padding-bottom: 0.75rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .headline-text {
-          display: block;
-          font-size: 0.9rem;
-          line-height: 1.4;
-          margin-bottom: 0.25rem;
-        }
-
-        .headline-source {
-          font-size: 0.7rem;
-          color: var(--color-text-dim);
-        }
-      `}</style>
-    </div>
+    <ModuleFrame title={title} meta={<Age at={lastUpdated} stale={isStale} />} className="news">
+      {body}
+    </ModuleFrame>
   );
 }

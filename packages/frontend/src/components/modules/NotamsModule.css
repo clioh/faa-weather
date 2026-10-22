@@ -1,0 +1,58 @@
+.notams-list {
+  flex: 1;
+}
+
+.notams-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'chip text until';
+  align-items: center;
+  column-gap: var(--mf-gap);
+  row-gap: calc(var(--mf-gap) * 0.4);
+  padding: calc(var(--mf-gap) * 0.9) 0;
+  border-top: 1px solid var(--color-hairline);
+  min-width: 0;
+}
+
+.notams-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.notams-row.stacked {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'chip until'
+    'text text';
+}
+
+.notams-chip {
+  grid-area: chip;
+  justify-self: start;
+}
+
+.notams-text {
+  grid-area: text;
+  font-size: var(--mf-body);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.notams-row.stacked .notams-text {
+  font-size: var(--mf-caption);
+}
+
+.notams-until {
+  grid-area: until;
+  font-size: var(--mf-caption);
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+
+.notams-row.stacked .notams-until {
+  justify-self: end;
+}

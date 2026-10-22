@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // Backend to proxy API and WebSocket calls to during `vite dev`.
-// Override with VITE_BACKEND_URL (e.g. http://backend:3001 inside docker-compose.dev.yml).
+// Override with VITE_BACKEND_URL to point the dev UI at another backend.
 const backendUrl = process.env.VITE_BACKEND_URL || 'http://localhost:3001';
 const backendWsUrl = backendUrl.replace(/^http/, 'ws');
 
@@ -19,10 +19,14 @@ export default defineConfig({
       '/api': {
         target: backendUrl,
         changeOrigin: true,
+        // Backend auth treats loopback as the trusted kiosk; forward the real
+        // client address so LAN browsers hitting :5173 are not "local".
+        xfwd: true,
       },
       '/ws': {
         target: backendWsUrl,
         ws: true,
+        xfwd: true,
       },
     },
   },

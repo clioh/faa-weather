@@ -1,51 +1,31 @@
 /**
- * Text Label Module
- * Simple text display with customizable styling
+ * Text — a line of the user's own text.
  */
 
 import { ModuleProps } from './index';
+import { ModuleEmpty, ModuleFrame } from './ModuleFrame';
+import './TextLabelModule.css';
 
-interface TextLabelConfig {
-  text?: string;
-  fontSize?: 'small' | 'medium' | 'large' | 'xlarge';
-  align?: 'left' | 'center' | 'right';
-  color?: string;
-}
-
-const FONT_SIZES = {
-  small: '0.875rem',
-  medium: '1.25rem',
-  large: '2rem',
-  xlarge: '3rem',
-};
+const SIZES = ['small', 'medium', 'large'];
+const ALIGNS = ['left', 'center', 'right'];
 
 export function TextLabelModule({ config }: ModuleProps) {
-  const labelConfig = config as TextLabelConfig;
-  const text = labelConfig.text || 'Label';
-  const fontSize = FONT_SIZES[labelConfig.fontSize || 'medium'];
-  const align = labelConfig.align || 'center';
-  const color = labelConfig.color || 'var(--color-text)';
+  const text = typeof config.text === 'string' ? config.text.trim() : '';
+  const fontSize =
+    typeof config.fontSize === 'string' && SIZES.includes(config.fontSize) ? config.fontSize : 'medium';
+  const align = typeof config.align === 'string' && ALIGNS.includes(config.align) ? config.align : 'left';
+
+  if (!text) {
+    return (
+      <ModuleFrame title="Text">
+        <ModuleEmpty title="No text" hint="Add your text in the app" />
+      </ModuleFrame>
+    );
+  }
 
   return (
-    <div className="text-label-module" style={{ textAlign: align }}>
-      <span className="label-text" style={{ fontSize, color }}>
-        {text}
-      </span>
-
-      <style>{`
-        .text-label-module {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          padding: 0.5rem;
-        }
-
-        .label-text {
-          font-weight: 500;
-          line-height: 1.3;
-        }
-      `}</style>
-    </div>
+    <ModuleFrame className={`textlabel textlabel-${fontSize} textlabel-${align}`}>
+      <p className="textlabel-text">{text}</p>
+    </ModuleFrame>
   );
 }

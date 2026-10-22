@@ -10,6 +10,8 @@ import { useEffect, useState } from 'react';
 interface RegistrationState {
   active: boolean;
   presenceServerUrl: string | null;
+  /** Short-lived token of the active enrollment session; the only key to /video_feed. */
+  enrollmentToken?: string | null;
   samplesCollected: number;
   samplesNeeded: number;
   userName?: string;
@@ -111,9 +113,12 @@ export function RegistrationOverlay() {
     return null;
   }
 
-  const videoStreamUrl = presenceServerUrl
-    ? `${presenceServerUrl}/video_feed`
-    : `http://${window.location.hostname}:5000/video_feed`;
+  // The presence server only streams during an enrollment session, with that
+  // session's token (docs/SECURITY.md). No token, no stream.
+  const enrollmentToken = registration?.enrollmentToken ?? null;
+  const videoStreamUrl = enrollmentToken
+    ? `${presenceServerUrl ?? `http://${window.location.hostname}:5000`}/video_feed?token=${encodeURIComponent(enrollmentToken)}`
+    : null;
 
   // Complete state - celebration!
   if (phase === 'complete') {
@@ -168,11 +173,15 @@ export function RegistrationOverlay() {
         {/* Camera section - hero */}
         <div className="camera-hero">
           <div className="camera-container">
-            <img
-              src={videoStreamUrl}
-              alt="Camera feed"
-              className="camera-feed"
-            />
+            {videoStreamUrl && (
+              <img
+                key={videoStreamUrl}
+                src={videoStreamUrl}
+                alt="Camera feed"
+                className="camera-feed"
+                referrerPolicy="no-referrer"
+              />
+            )}
 
             {/* Animated face guide */}
             <div className={`face-guide ${phase === 'captured' ? 'pulse-success' : ''}`}>

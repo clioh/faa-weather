@@ -1,196 +1,214 @@
 /**
- * TAF Module
- * Terminal Aerodrome Forecast display
+ * TAF — the forecast as a flight-rules timeline.
+ *
+ * A bar of prevailing periods (BASE/FM) coloured by flight rules, a thinner
+ * lane beneath for TEMPO / PROB / BECMG, Zulu hour ticks, then the periods.
+ *
+ * medium / wide: bar + the period in effect now
+ * large / full: bar + period list (two columns on full), raw TAF when showRaw
  */
 
-import { useEffect, useState } from 'react';
-import { ModuleProps } from './index';
+import { ModuleProps, resolveAirport } from './index';
+import {
+  Age,
+  ModuleEmpty,
+  ModuleError,
+  ModuleFrame,
+  ModuleLoading,
+  flightRulesClass,
+} from './ModuleFrame';
+import { useModuleData } from './useModuleData';
+import {
+  Wind,
+  fetchErrorHint,
+  formatTafRange,
+  formatVisibility,
+  formatWind,
+  parseDayTime,
+  useNow,
+} from './aviationFormat';
+import './TafModule.css';
 
 interface TafPeriod {
-  type: string;
-  from: string;
-  to: string;
-  flightRules?: string;
-  wind?: string;
-  visibility?: string;
-  weather?: string;
-  clouds?: string;
+  type: 'BASE' | 'FM' | 'TEMPO' | 'BECMG' | 'PROB';
+  probability?: number;
+  startTime: string; // DDHH or DDHHmm, UTC
+  endTime: string;
+  wind: Wind | null;
+  visibility: number | null;
+  weather: string[];
+  ceiling?: number | null;
+  flightRules?: string | null;
 }
 
-interface TafData {
+interface TafResponse {
+  icao: string;
   raw: string;
-  parsed?: {
-    periods?: TafPeriod[];
-  };
+  parsed?: { issueTime?: string; periods?: TafPeriod[] };
+  fetchedAt?: string;
 }
 
-interface TafConfig {
-  icao?: string;
-  hoursAhead?: number;
+interface Segment {
+  period: TafPeriod;
+  start: number;
+  end: number;
+  overlay: boolean;
+}
+
+const HOUR = 3_600_000;
+
+/** Resolve periods to absolute times; prevailing ones end where the next begins. */
+function buildSegments(periods: TafPeriod[], reference: Date): Segment[] {
+  const resolved = periods
+    .map((period) => {
+      const start = parseDayTime(period.startTime, reference)?.getTime();
+      const end = parseDayTime(period.endTime, reference)?.getTime();
+      if (start === undefined || end === undefined) return null;
+      // A validity crossing month end ("3018/0118") resolves end before start.
+      const fixedEnd = end <= start ? end + 30 * 24 * HOUR : end;
+      return { period, start, end: fixedEnd, overlay: period.type !== 'BASE' && period.type !== 'FM' };
+    })
+    .filter((s): s is Segment => s !== null);
+
+  const prevailing = resolved.filter((s) => !s.overlay).sort((a, b) => a.start - b.start);
+  prevailing.forEach((s, i) => {
+    const next = prevailing[i + 1];
+    if (next && next.start < s.end) s.end = next.start;
+  });
+  const overlays = resolved.filter((s) => s.overlay).sort((a, b) => a.start - b.start);
+  return [...prevailing, ...overlays];
+}
+
+function periodLabel(p: TafPeriod): string {
+  if (p.type === 'PROB') return `PROB${p.probability ?? ''}`;
+  return p.type === 'BASE' ? '' : p.type;
 }
 
 export function TafModule({ config, airport, size }: ModuleProps) {
-  const [taf, setTaf] = useState<TafData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const icao = resolveAirport(config, airport);
+  const hoursAhead = Math.min(30, Math.max(6, Number(config.hoursAhead) || 24));
+  const showRaw = config.showRaw === true;
+  const now = useNow(60_000);
+  const { data, loading, error, isStale, lastUpdated } = useModuleData<TafResponse>(
+    icao ? `/api/aviation/taf/${encodeURIComponent(icao)}` : null,
+    { refreshMs: 15 * 60_000 }
+  );
 
-  const tafConfig = config as TafConfig;
-  const icao = tafConfig.icao || airport || 'KJFK';
+  let body;
+  if (!icao) {
+    body = <ModuleEmpty title="No airport set" hint="Choose an airport in the app" />;
+  } else if (loading) {
+    body = <ModuleLoading />;
+  } else if (!data) {
+    body = <ModuleError title="TAF unavailable" hint={fetchErrorHint(error, `${icao} has no TAF`)} />;
+  } else {
+    const issued = data.parsed?.issueTime ? parseDayTime(data.parsed.issueTime, new Date(now)) : null;
+    const segments = buildSegments(data.parsed?.periods ?? [], issued ?? new Date(now));
+    const windowStart = Math.floor(now / HOUR) * HOUR;
+    const windowEnd = windowStart + hoursAhead * HOUR;
+    const visible = segments.filter((s) => s.end > windowStart && s.start < windowEnd);
 
-  useEffect(() => {
-    const fetchTaf = async () => {
-      try {
-        const response = await fetch(`/api/aviation/taf/${icao}`);
-        if (!response.ok) throw new Error('Failed to fetch TAF');
-        const data = await response.json();
-        setTaf(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (visible.length === 0) {
+      body = <ModuleEmpty title="No forecast periods" hint={`${icao} TAF does not cover the next ${hoursAhead}h`} />;
+    } else {
+      const compact = size === 'medium' || size === 'wide';
+      const current =
+        visible.find((s) => !s.overlay && s.start <= now && s.end > now) ?? visible[0];
+      const listCap = size === 'full' ? 8 : 5;
+      const list = compact
+        ? [current]
+        : [...visible].sort((a, b) => a.start - b.start || Number(a.overlay) - Number(b.overlay)).slice(0, listCap);
 
-    fetchTaf();
-    const interval = setInterval(fetchTaf, 30 * 60 * 1000); // Refresh every 30 minutes
-    return () => clearInterval(interval);
-  }, [icao]);
-
-  if (loading) {
-    return <div className="module-loading">Loading TAF...</div>;
+      body = (
+        <div className="taf-body">
+          <Timeline segments={visible} start={windowStart} end={windowEnd} hours={hoursAhead} />
+          <div className={`taf-list${size === 'full' ? ' taf-list-cols' : ''}`}>
+            {list.map((s, i) => (
+              <PeriodRow key={i} segment={s} now={now} />
+            ))}
+          </div>
+          {showRaw && !compact && data.raw && <p className="taf-raw mono">{data.raw}</p>}
+        </div>
+      );
+    }
   }
-
-  if (error) {
-    return <div className="module-error">{error}</div>;
-  }
-
-  const isCompact = size === 'small' || size === 'wide';
 
   return (
-    <div className="taf-module">
-      <div className="taf-header">
-        <span className="taf-icao">{icao} TAF</span>
+    <ModuleFrame
+      title="TAF"
+      accent={icao ?? undefined}
+      meta={data ? <Age at={lastUpdated} stale={isStale} /> : undefined}
+      className={`taf taf-${size}`}
+    >
+      {body}
+    </ModuleFrame>
+  );
+}
+
+function Timeline({
+  segments,
+  start,
+  end,
+  hours,
+}: {
+  segments: Segment[];
+  start: number;
+  end: number;
+  hours: number;
+}) {
+  const span = end - start;
+  const pct = (t: number) => ((Math.min(end, Math.max(start, t)) - start) / span) * 100;
+  const step = hours <= 12 ? 3 : 6;
+  const ticks: number[] = [];
+  for (let t = start; t <= end; t += HOUR) {
+    if (new Date(t).getUTCHours() % step === 0) ticks.push(t);
+  }
+  const hasOverlay = segments.some((s) => s.overlay);
+
+  const lane = (overlay: boolean) =>
+    segments
+      .filter((s) => s.overlay === overlay)
+      .map((s, i) => (
+        <span
+          key={i}
+          className={`taf-seg ${(s.period.flightRules || 'unk').toLowerCase()}`}
+          style={{ left: `${pct(s.start)}%`, width: `${pct(s.end) - pct(s.start)}%` }}
+        />
+      ));
+
+  return (
+    <div className="taf-timeline" aria-hidden="true">
+      <div className="taf-lane taf-lane-main">{lane(false)}</div>
+      {hasOverlay && <div className="taf-lane taf-lane-overlay">{lane(true)}</div>}
+      <div className="taf-ticks mono">
+        {ticks.map((t) => {
+          const left = pct(t);
+          const edge = left < 4 ? ' start' : left > 96 ? ' end' : '';
+          return (
+            <span key={t} className={`taf-tick${edge}`} style={{ left: `${left}%` }}>
+              {String(new Date(t).getUTCHours()).padStart(2, '0')}Z
+            </span>
+          );
+        })}
       </div>
+    </div>
+  );
+}
 
-      {taf?.parsed?.periods && taf.parsed.periods.length > 0 ? (
-        <div className={`taf-periods ${isCompact ? 'compact' : ''}`}>
-          {taf.parsed.periods.slice(0, isCompact ? 3 : 6).map((period, index) => (
-            <div key={index} className="taf-period">
-              <div className="period-time">
-                <span className="period-type">{period.type}</span>
-                <span className="period-range">{period.from} - {period.to}Z</span>
-              </div>
-              {period.flightRules && (
-                <span className={`period-fr ${period.flightRules.toLowerCase()}`}>
-                  {period.flightRules}
-                </span>
-              )}
-              <div className="period-details">
-                {period.wind && <span>{period.wind}</span>}
-                {period.visibility && <span>{period.visibility}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="taf-raw">{taf?.raw || 'No TAF data'}</div>
-      )}
-
-      <style>{`
-        .taf-module {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          overflow: hidden;
-        }
-
-        .taf-header {
-          margin-bottom: 0.75rem;
-          flex-shrink: 0;
-        }
-
-        .taf-icao {
-          font-size: 1.25rem;
-          font-weight: 600;
-          font-family: var(--font-mono);
-        }
-
-        .taf-periods {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-          overflow-y: auto;
-          flex: 1;
-        }
-
-        .taf-periods.compact {
-          flex-direction: row;
-          overflow-x: auto;
-          gap: 1rem;
-        }
-
-        .taf-period {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 6px;
-          padding: 0.5rem 0.75rem;
-          flex-shrink: 0;
-        }
-
-        .taf-periods.compact .taf-period {
-          min-width: 120px;
-        }
-
-        .period-time {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-bottom: 0.25rem;
-        }
-
-        .period-type {
-          font-size: 0.7rem;
-          color: var(--color-accent);
-          text-transform: uppercase;
-          font-weight: 600;
-        }
-
-        .period-range {
-          font-size: 0.75rem;
-          color: var(--color-text-dim);
-          font-family: var(--font-mono);
-        }
-
-        .period-fr {
-          display: inline-block;
-          padding: 0.125rem 0.5rem;
-          border-radius: 3px;
-          font-size: 0.7rem;
-          font-weight: 600;
-          margin-bottom: 0.25rem;
-        }
-
-        .period-fr.vfr { background: var(--color-vfr); color: #000; }
-        .period-fr.mvfr { background: var(--color-mvfr); color: #fff; }
-        .period-fr.ifr { background: var(--color-ifr); color: #fff; }
-        .period-fr.lifr { background: var(--color-lifr); color: #fff; }
-
-        .period-details {
-          font-size: 0.75rem;
-          color: var(--color-text-dim);
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-
-        .taf-raw {
-          font-family: var(--font-mono);
-          font-size: 0.75rem;
-          color: var(--color-text-dim);
-          word-break: break-all;
-          line-height: 1.4;
-        }
-      `}</style>
+function PeriodRow({ segment, now }: { segment: Segment; now: number }) {
+  const p = segment.period;
+  const active = segment.start <= now && segment.end > now;
+  const vis = formatVisibility(p.visibility, 6);
+  return (
+    <div className={`taf-row${segment.overlay ? ' overlay' : ''}${active ? ' active' : ''}`}>
+      <span className="taf-row-time mono">{formatTafRange(new Date(segment.start), new Date(segment.end))}</span>
+      <span className="taf-row-type">{periodLabel(p)}</span>
+      <span className={`taf-row-rules ${flightRulesClass(p.flightRules)}`}>{p.flightRules ?? '—'}</span>
+      <span className="taf-row-data mono">
+        {formatWind(p.wind)}
+        {vis && ` · ${vis}`}
+        {p.weather?.length > 0 && ` · ${p.weather.join(' ')}`}
+      </span>
     </div>
   );
 }

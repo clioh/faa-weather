@@ -1,86 +1,54 @@
 /**
- * Quotes Module
- * Inspirational quotes display
+ * Quote of the day — one quote per local day, the same on every reload and
+ * on every mirror showing the same theme.
  */
 
-import { useState, useEffect } from 'react';
 import { ModuleProps } from './index';
+import { ModuleFrame } from './ModuleFrame';
+import { dayKey, daysBetween, useNow } from './time';
+import quotes from './quotes.json';
+import './QuotesModule.css';
 
-interface QuotesConfig {
-  category?: string;
-  rotateInterval?: number;
+interface Quote {
+  text: string;
+  author: string;
 }
 
-const DEFAULT_QUOTES = [
-  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-  { text: "Aviation is proof that given the will, we have the capacity to achieve the impossible.", author: "Eddie Rickenbacker" },
-  { text: "The engine is the heart of an airplane, but the pilot is its soul.", author: "Walter Raleigh" },
-  { text: "Once you have tasted flight, you will forever walk the earth with your eyes turned skyward.", author: "Leonardo da Vinci" },
-  { text: "Flying is learning how to throw yourself at the ground and miss.", author: "Douglas Adams" },
-  { text: "The desire to fly is an idea handed down to us by our ancestors.", author: "Wilbur Wright" },
-  { text: "A mile of highway will take you a mile. A mile of runway will take you anywhere.", author: "Unknown" },
-];
+type Category = keyof typeof quotes;
 
-export function QuotesModule({ config }: ModuleProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const quotesConfig = config as QuotesConfig;
-  const rotateInterval = (quotesConfig.rotateInterval || 30) * 1000;
+/** Longest quote that sits comfortably in each size. */
+const MAX_LENGTH: Record<string, number> = { medium: 120, wide: 160, full: 280 };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex(prev => (prev + 1) % DEFAULT_QUOTES.length);
-    }, rotateInterval);
-    return () => clearInterval(interval);
-  }, [rotateInterval]);
+/** Stable per-category offset so two themes don't step in lockstep. */
+function seed(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
 
-  const quote = DEFAULT_QUOTES[currentIndex];
+export function QuotesModule({ config, size }: ModuleProps) {
+  const category: Category =
+    typeof config.category === 'string' && config.category in quotes
+      ? (config.category as Category)
+      : 'aviation';
+
+  // Minute ticks are enough to roll over at local midnight.
+  const now = useNow(60_000);
+  const dayNumber = daysBetween('1970-01-01', dayKey(now));
+
+  const all: Quote[] = quotes[category];
+  const limit = MAX_LENGTH[size] ?? 160;
+  const fitting = all.filter((q) => q.text.length <= limit);
+  const pool = fitting.length ? fitting : all;
+  const quote = pool[(dayNumber + seed(category)) % pool.length];
+  const long = quote.text.length > 100;
 
   return (
-    <div className="quotes-module">
-      <div className="quote-content">
-        <span className="quote-mark">"</span>
-        <p className="quote-text">{quote.text}</p>
-        <p className="quote-author">— {quote.author}</p>
-      </div>
-
-      <style>{`
-        .quotes-module {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          padding: 1rem;
-        }
-
-        .quote-content {
-          text-align: center;
-          max-width: 90%;
-          position: relative;
-        }
-
-        .quote-mark {
-          font-size: 4rem;
-          font-family: Georgia, serif;
-          color: var(--color-accent);
-          opacity: 0.3;
-          position: absolute;
-          top: -2rem;
-          left: -1rem;
-          line-height: 1;
-        }
-
-        .quote-text {
-          font-size: 1.1rem;
-          line-height: 1.6;
-          font-style: italic;
-          margin-bottom: 0.75rem;
-        }
-
-        .quote-author {
-          font-size: 0.85rem;
-          color: var(--color-text-dim);
-        }
-      `}</style>
-    </div>
+    <ModuleFrame className={`quote quote-${size}`}>
+      <figure className="quote-figure">
+        <blockquote className={`quote-text${long ? ' long' : ''}`}>{quote.text}</blockquote>
+        <figcaption className="quote-author">— {quote.author}</figcaption>
+      </figure>
+    </ModuleFrame>
   );
 }

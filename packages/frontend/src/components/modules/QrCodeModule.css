@@ -1,0 +1,34 @@
+.qr .mf-body {
+  align-items: center;
+  justify-content: center;
+  gap: var(--mf-gap);
+}
+
+/* The SVG has a viewBox, so it scales to the shorter side of what's left
+   after the caption. */
+.qr-code {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.qr-code svg {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 1;
+}
+
+.qr-caption {
+  flex-shrink: 0;
+  max-width: 100%;
+  font-size: var(--mf-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

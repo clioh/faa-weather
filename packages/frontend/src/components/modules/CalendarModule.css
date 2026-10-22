@@ -1,0 +1,138 @@
+.cal-days {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 1.4);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cal-days-row {
+  flex-direction: row;
+  gap: calc(var(--mf-gap) * 2.5);
+}
+
+.cal-days-row .cal-day {
+  flex: 1;
+  min-width: 0;
+}
+
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 0.7);
+  min-width: 0;
+}
+
+.cal-day-label {
+  font-size: var(--mf-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.cal-day-label.today {
+  color: var(--color-text-dim);
+}
+
+.cal-event {
+  display: grid;
+  grid-template-columns: 0.22em 5.2em minmax(0, 1fr);
+  column-gap: var(--mf-gap);
+  align-items: baseline;
+  font-size: var(--mf-body);
+  min-width: 0;
+}
+
+/* Calendar colour: a thin bar beside the row, spanning title and second line. */
+.cal-mark {
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0.9em;
+  margin-block: 0.18em;
+  border-radius: 999px;
+}
+
+.cal-mark.colored {
+  opacity: 0.9;
+}
+
+.cal-time {
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+
+.cal-detail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cal-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  min-width: 0;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Plain titles are text, not a flex row, so the ellipsis can show. */
+.cal-title.cal-title-text {
+  display: block;
+}
+
+.cal-flight {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.cal-route {
+  font-family: var(--font-mono);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-sub {
+  font-size: var(--mf-caption);
+  color: var(--color-text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-event.flight .cal-sub {
+  font-family: var(--font-mono);
+}
+
+/* "Google needs reconnecting in the app": quiet, one line. */
+.cal-notice {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Narrow tiles: time above the title instead of in a gutter. */
+@container tile (max-width: 16rem) {
+  .cal-event {
+    grid-template-columns: 0.22em minmax(0, 1fr);
+  }
+
+  .cal-mark {
+    grid-row: 1 / span 2;
+  }
+
+  .cal-time,
+  .cal-detail {
+    grid-column: 2;
+  }
+}

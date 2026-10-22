@@ -1,14 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
-import { WidgetContainer } from './components/WidgetContainer';
-import { widgetRegistry, WidgetConfig } from './components/widgets';
+import { useWsEvent } from './components/modules/useWsEvent';
 import { UpdateNotification } from './components/UpdateNotification';
 import { RegistrationOverlay } from './components/RegistrationOverlay';
-// SetupScreen is currently unused - setup is shown on mobile app
-// import { SetupScreen } from './components/SetupScreen';
 import { ProvisioningScreen } from './components/ProvisioningScreen';
 import { SetupProgressScreen } from './components/SetupProgressScreen';
-import { LicenseInvalidScreen } from './components/LicenseInvalidScreen';
+import { LicenseScreen } from './components/LicenseScreen';
+import { licenseBlocksMirror, type LicenseStatus } from './license';
 import { ModuleRenderer, MirrorLayout } from './components/modules/ModuleRenderer';
 
 interface Config {
@@ -18,14 +16,20 @@ interface Config {
     longitude: number;
     timezone: string;
   };
-  display: {
-    presence_timeout: number;
-    fade_duration: number;
+  display?: {
+    orientation?: 'landscape' | 'portrait';
+    /** Presence fade in milliseconds (config.yaml display.fade_duration). */
+    fade_duration?: number;
+    presence_timeout?: number;
   };
-  widgets: WidgetConfig[];
 }
 
-type AppMode = 'loading' | 'provisioning' | 'setup' | 'ready' | 'license_invalid';
+/**
+ * provisioning (no WiFi) → setup (includes the license step) → ready. Once
+ * ready, a license that is not active (or disabled) shows the license screen
+ * instead of the mirror; see licenseBlocksMirror.
+ */
+type AppMode = 'loading' | 'provisioning' | 'setup' | 'ready';
 
 type PresenceState = 'absent' | 'detecting' | 'present' | 'leaving';
 
@@ -37,57 +41,117 @@ function getTimeOfDayGreeting(): string {
   return 'Good evening';
 }
 
-// Default widget configuration if none provided
-const defaultWidgets: WidgetConfig[] = [
-  { type: 'clock', position: 'top-left', showZulu: true },
-  { type: 'aviation', position: 'top-right' },
-  { type: 'schedule', position: 'center-right', daysAhead: 7 },
-  { type: 'radar', position: 'center-left', zoom: 6 },
-  { type: 'tfr', position: 'bottom-left', radiusNm: 100 },
-  { type: 'notam', position: 'bottom-center', maxItems: 5 },
-  { type: 'astro', position: 'bottom-right', showZulu: true },
-];
+/** Shown when the backend has no layout yet; ModuleRenderer renders its empty state. */
+const EMPTY_LAYOUT: MirrorLayout = {
+  id: 'empty',
+  name: 'Empty',
+  modules: [],
+  createdAt: '',
+  updatedAt: '',
+};
+
+/**
+ * GET /api/layout returns the layout object directly. Anything without a
+ * modules array counts as no layout.
+ */
+function parseLayout(data: unknown): MirrorLayout | null {
+  if (data && Array.isArray((data as MirrorLayout).modules)) {
+    return data as MirrorLayout;
+  }
+  return null;
+}
+
+/** null when the backend can't answer; the mirror is not blocked on a failed check. */
+async function fetchLicenseStatus(): Promise<LicenseStatus | null> {
+  try {
+    const res = await fetch('/api/license/status', { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as LicenseStatus;
+    return typeof data?.state === 'string' ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** While the license screen is up, re-check this often in case a WS event was missed. */
+const LICENSE_RECHECK_MS = 60_000;
+
+/** Startup requests that failed (backend still starting) are retried: 1 s, 2 s, 4 s … up to 30 s. */
+const RETRY_MAX_MS = 30_000;
+function retryDelay(attempt: number): number {
+  return Math.min(1000 * 2 ** attempt, RETRY_MAX_MS);
+}
+
+async function fetchDefaultLayout(): Promise<MirrorLayout> {
+  try {
+    const res = await fetch('/api/layout');
+    if (!res.ok) return EMPTY_LAYOUT;
+    return parseLayout(await res.json()) ?? EMPTY_LAYOUT;
+  } catch {
+    return EMPTY_LAYOUT;
+  }
+}
+
+// Same origin in every setup: Vite proxies /ws in dev, and in production the
+// backend serves the UI and accepts the WebSocket upgrade itself.
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
 function App() {
   const [config, setConfig] = useState<Config | null>(null);
+  // GET /api/config answered 401 pairing_required: this page isn't running
+  // on the mirror (e.g. a dev machine on the LAN).
+  const [notOnMirror, setNotOnMirror] = useState(false);
+
+  // The wake/sleep fade length comes from config.yaml; the CSS default (1 s)
+  // applies until the config arrives.
+  useEffect(() => {
+    const ms = config?.display?.fade_duration;
+    if (typeof ms === 'number' && ms > 0) {
+      document.documentElement.style.setProperty('--transition-fade', `${ms}ms ease-in-out`);
+    }
+  }, [config?.display?.fade_duration]);
   const [layout, setLayout] = useState<MirrorLayout | null>(null);
-  const [useLayoutMode, setUseLayoutMode] = useState(false);
+  // Unsaved layout being edited in the phone app; shown instead of `layout`
+  // until the app releases its display hold.
+  const [previewModules, setPreviewModules] = useState<MirrorLayout['modules'] | null>(null);
+  // Stays false until /api/layout has answered, so the empty state does not
+  // flash before the real layout arrives.
+  const [layoutLoaded, setLayoutLoaded] = useState(false);
   const [isPresent, setIsPresent] = useState(true);
   const [presenceState, setPresenceState] = useState<PresenceState>('present');
   const [registrationMode, setRegistrationMode] = useState(false);
   const [appMode, setAppMode] = useState<AppMode>('loading');
-  const [_adminUrl, setAdminUrl] = useState('');
-  const { lastMessage, isConnected } = useWebSocket('ws://localhost:3001');
+  const { lastMessage, isConnected } = useWebSocket(WS_URL);
 
   // Multi-user state
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [showGreeting, setShowGreeting] = useState(false);
 
-  // License status state
-  const [supportEmail, setSupportEmail] = useState('support@magicmirror.dev');
+  // Latest GET /api/license/status (or WS `license` payload); null until known.
+  const [license, setLicense] = useState<LicenseStatus | null>(null);
+  const licenseBlocked = appMode === 'ready' && licenseBlocksMirror(license);
 
-  // Check app mode: license → provisioning → setup → ready
+  // Check app mode: provisioning → setup → ready. Retried with backoff
+  // while the backend can't answer (kiosk up before the backend), so the
+  // mirror never opens without a license check.
   useEffect(() => {
-    const checkMode = async () => {
-      // Check license status first
-      try {
-        const licenseRes = await fetch('/api/license/status', {
-          signal: AbortSignal.timeout(5000)
-        });
-        const licenseData = await licenseRes.json();
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    let attempt = 0;
+    const retry = () => {
+      if (cancelled) return;
+      retryTimer = window.setTimeout(() => void checkMode(), retryDelay(attempt++));
+    };
 
-        if (licenseData.enabled && licenseData.status === 'invalid') {
-          if (licenseData.supportEmail) {
-            setSupportEmail(licenseData.supportEmail);
-          }
-          setAppMode('license_invalid');
-          return;
-        }
-      } catch {
-        // If license check fails, continue - server might be starting up
-        console.log('License check failed, continuing...');
-      }
+    const checkMode = async () => {
+      if (cancelled) return;
+      // Fetched first: the setup screen shows license problems in its
+      // license step, and awaiting it keeps a ready mirror from flashing its
+      // widgets before the license screen.
+      const licenseStatus = await fetchLicenseStatus();
+      if (cancelled) return;
+      if (licenseStatus) setLicense(licenseStatus);
 
       try {
         // Check if we're in provisioning mode (no WiFi)
@@ -112,72 +176,124 @@ function App() {
 
       // Check if setup is needed
       try {
-        const setupRes = await fetch('/api/setup/status');
+        const setupRes = await fetch('/api/setup/status', { signal: AbortSignal.timeout(5000) });
+        if (!setupRes.ok) throw new Error(`GET /api/setup/status: ${setupRes.status}`);
         const setupData = await setupRes.json();
-
-        if (setupData.adminUrl) {
-          setAdminUrl(setupData.adminUrl);
-        } else {
-          const host = window.location.hostname;
-          setAdminUrl(`http://${host}:5000/admin`);
-        }
-
-        if (setupData.needsSetup) {
-          setAppMode('setup');
-        } else {
-          setAppMode('ready');
-        }
-      } catch {
-        // If we can't check setup status, assume ready
-        setAppMode('ready');
+        if (cancelled) return;
+        // The license status must be known before the mirror opens; a
+        // backend that answered setup will answer it on the retry.
+        if (!setupData.needsSetup && !licenseStatus) throw new Error('license status unavailable');
+        setAppMode(setupData.needsSetup ? 'setup' : 'ready');
+      } catch (error) {
+        console.warn('Mirror status check failed, retrying:', error);
+        retry();
       }
     };
 
-    checkMode();
+    void checkMode();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(retryTimer);
+    };
   }, []);
+
+  // The server sends the current license status to every new socket, and
+  // re-reading it on each (re)connect covers a state change that happened
+  // while the kiosk was disconnected (e.g. the backend restarted released).
+  useEffect(() => {
+    if (!isConnected) return;
+    let cancelled = false;
+    fetchLicenseStatus().then((status) => {
+      if (status && !cancelled) setLicense(status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected]);
+
+  // License changed (key entered in the app, refresh, revocation, connect
+  // snapshot): the payload is the full status object. Listened to via the
+  // per-message window event so it is never lost to React batching.
+  useWsEvent('license', (data) => {
+    const status = data as LicenseStatus | null;
+    if (status && typeof status.state === 'string') setLicense(status);
+  });
+
+  // Setup finishes with the license already active, but re-read it so the
+  // mirror never opens on a stale status.
+  const handleSetupComplete = useCallback(() => {
+    fetchLicenseStatus().then((status) => {
+      if (status) setLicense(status);
+      setAppMode('ready');
+    });
+  }, []);
+
+  // The WS `license` event normally clears the license screen; poll as a
+  // fallback (e.g. the socket reconnected after the event was sent).
+  useEffect(() => {
+    if (!licenseBlocked) return;
+    const interval = setInterval(() => {
+      fetchLicenseStatus().then((status) => {
+        if (status) setLicense(status);
+      });
+    }, LICENSE_RECHECK_MS);
+    return () => clearInterval(interval);
+  }, [licenseBlocked]);
 
   // Fetch configuration and layout (only if ready)
   useEffect(() => {
-    if (appMode !== 'ready') return;
+    if (appMode !== 'ready' || licenseBlocked) return;
 
-    // Try to fetch the new layout API first
-    const fetchLayout = async () => {
-      try {
-        const res = await fetch('/api/layout');
-        if (res.ok) {
-          const data = await res.json();
-          // GET /api/layout returns the layout object directly; accept a
-          // legacy `{ layout }` wrapper too.
-          const layoutData = data?.layout ?? data;
-          if (layoutData && Array.isArray(layoutData.modules) && layoutData.modules.length > 0) {
-            setLayout(layoutData);
-            setUseLayoutMode(true);
-            console.log('Using layout mode with', layoutData.modules.length, 'modules');
+    let cancelled = false;
+    let configRetry: number | undefined;
+    let configAttempt = 0;
+
+    // Global settings (airport, location) that widgets fall back to. The
+    // mirror shows "Loading..." until this arrives, so keep retrying.
+    const loadConfig = () => {
+      fetch('/api/config', { signal: AbortSignal.timeout(5000) })
+        .then(async (res) => {
+          // The API only trusts the mirror itself (and paired phones). Opened
+          // from another machine, say so instead of showing an empty mirror.
+          if (res.status === 401) {
+            const body = (await res.json().catch(() => null)) as { error?: string } | null;
+            if (body?.error === 'pairing_required') {
+              if (!cancelled) setNotOnMirror(true);
+              return;
+            }
           }
-        }
-      } catch (err) {
-        console.log('Layout API not available, falling back to legacy config');
-      }
+          if (!res.ok) throw new Error(`GET /api/config: ${res.status}`);
+          const data = (await res.json()) as Config;
+          if (!cancelled) setConfig(data);
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          console.error(error);
+          configRetry = window.setTimeout(loadConfig, retryDelay(configAttempt++));
+        });
     };
+    loadConfig();
 
-    // Always fetch config for global settings (airport, location, etc.)
-    fetch('/api/config')
-      .then((res) => res.json())
-      .then(setConfig)
-      .catch(console.error);
-
-    // Try to fetch layout
-    fetchLayout();
+    fetchDefaultLayout().then((defaultLayout) => {
+      // A user layout pushed over the WebSocket while this was in flight wins.
+      setLayout((current) => current ?? defaultLayout);
+      setLayoutLoaded(true);
+    });
 
     // Also fetch initial presence state
     fetch('/api/presence')
       .then((res) => res.json())
       .then((data) => {
-        setIsPresent(data.present);
+        setIsPresent(data.present || Boolean(data.hold));
         setPresenceState(data.present ? 'present' : 'absent');
       })
       .catch(console.error);
-  }, [appMode]);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(configRetry);
+    };
+  }, [appMode, licenseBlocked]);
 
   // Handle WebSocket messages
   useEffect(() => {
@@ -188,6 +304,8 @@ function App() {
         present: boolean;
         state?: PresenceState;
         displayState?: string;
+        /** The phone app is holding the display on (layout editing). */
+        hold?: boolean;
         userId?: string | null;
         userName?: string | null;
         userLayout?: {
@@ -199,7 +317,7 @@ function App() {
         } | null;
       };
 
-      setIsPresent(data.present);
+      setIsPresent(data.present || Boolean(data.hold));
       if (data.state) {
         setPresenceState(data.state);
       } else {
@@ -232,21 +350,12 @@ function App() {
               updatedAt: new Date().toISOString(),
             };
             setLayout(userLayout);
-            setUseLayoutMode(true);
+            setLayoutLoaded(true);
             console.log(`Loaded layout for ${data.userName}:`, userLayout.name);
           }
         } else if (!newUserId && previousUserId) {
-          // User left - optionally load default layout
           console.log('User left, loading default layout');
-          // Fetch default layout
-          fetch('/api/layout')
-            .then(res => res.json())
-            .then(data => {
-              if (data.layout && data.layout.modules?.length > 0) {
-                setLayout(data.layout);
-              }
-            })
-            .catch(console.error);
+          fetchDefaultLayout().then(setLayout);
         }
       }
     }
@@ -261,9 +370,15 @@ function App() {
       const data = lastMessage.data as { layout: MirrorLayout };
       if (data.layout) {
         setLayout(data.layout);
-        setUseLayoutMode(true);
+        setLayoutLoaded(true);
         console.log('Layout updated via WebSocket');
       }
+    }
+
+    // Live preview from the phone's layout editor; null clears it
+    if (lastMessage.type === 'layout-preview') {
+      const data = lastMessage.data as { modules: MirrorLayout['modules'] | null };
+      setPreviewModules(data.modules);
     }
 
     // Handle user-specific layout updates
@@ -271,75 +386,22 @@ function App() {
       const data = lastMessage.data as { userId: string; modules: MirrorLayout['modules'] };
       // Only apply if it's for the current user
       if (data.userId === currentUserId) {
-        setLayout((prev) => prev ? { ...prev, modules: data.modules, updatedAt: new Date().toISOString() } : null);
-        setUseLayoutMode(true);
+        setLayout((prev) => ({
+          ...(prev ?? EMPTY_LAYOUT),
+          modules: data.modules,
+          updatedAt: new Date().toISOString(),
+        }));
         console.log('User layout updated via WebSocket');
       }
     }
 
-    // Handle license activation from mobile app
-    if (lastMessage.type === 'license') {
-      const data = lastMessage.data as { status: string; activatedAt?: string };
-      if (data.status === 'valid') {
-        console.log('License activated via mobile app');
-        // If we were showing setup, now we can check if setup is complete
-        if (appMode === 'setup') {
-          // Re-check setup status to see if we should move to ready
-          fetch('/api/setup/status')
-            .then((res) => res.json())
-            .then((setupData) => {
-              if (!setupData.needsSetup) {
-                setAppMode('ready');
-              }
-            })
-            .catch(console.error);
-        }
-      }
+    // Backend reloaded config/config.yaml (setup wrote a new airport or
+    // location): apply it live instead of waiting for a reload.
+    if (lastMessage.type === 'config') {
+      setConfig(lastMessage.data as Config);
     }
-  }, [lastMessage, currentUserId, appMode]);
 
-  // Apply fade duration from config
-  useEffect(() => {
-    if (config?.display?.fade_duration) {
-      document.documentElement.style.setProperty(
-        '--transition-fade',
-        `${config.display.fade_duration}ms ease-in-out`
-      );
-    }
-  }, [config]);
-
-  // Merge config with defaults and render widgets
-  const widgets = useMemo(() => {
-    const widgetConfigs = config?.widgets?.length ? config.widgets : defaultWidgets;
-
-    return widgetConfigs
-      .filter((w) => w.enabled !== false) // Filter out disabled widgets
-      .map((widgetConfig) => {
-        const Component = widgetRegistry[widgetConfig.type];
-        if (!Component) {
-          console.warn(`Unknown widget type: ${widgetConfig.type}`);
-          return null;
-        }
-
-        // Build props from config, adding global config values
-        const props = {
-          ...widgetConfig,
-          // Add global config values that widgets commonly need
-          airport: config?.airport,
-          timezone: config?.location?.timezone,
-          latitude: config?.location?.latitude,
-          longitude: config?.location?.longitude,
-        };
-
-        return (
-          <Component
-            key={`${widgetConfig.type}-${widgetConfig.position}`}
-            {...props}
-          />
-        );
-      })
-      .filter(Boolean);
-  }, [config]);
+  }, [lastMessage, currentUserId]);
 
   // Show loading while checking app mode
   if (appMode === 'loading') {
@@ -364,14 +426,29 @@ function App() {
   if (appMode === 'setup') {
     return (
       <SetupProgressScreen
-        onSetupComplete={() => setAppMode('ready')}
+        license={license}
+        onSetupComplete={handleSetupComplete}
       />
     );
   }
 
-  // Show license invalid screen
-  if (appMode === 'license_invalid') {
-    return <LicenseInvalidScreen supportEmail={supportEmail} />;
+  // Setup is done but the license isn't active: nothing else shows.
+  if (licenseBlocked && license) {
+    return <LicenseScreen status={license} />;
+  }
+
+  if (notOnMirror) {
+    return (
+      <div className="pairing-remote" role="alert">
+        <div className="pairing-remote__content">
+          <h1 className="pairing-remote__title">This display must run on the mirror itself</h1>
+          <p className="pairing-remote__body">
+            The mirror only answers its own screen and paired phones. Open this page on the
+            mirror (http://localhost:3001), or use the SkyGlass app.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (!config) {
@@ -387,25 +464,28 @@ function App() {
     return <RegistrationOverlay />;
   }
 
-  // Render content based on mode (layout vs legacy widgets)
   const renderContent = () => {
-    if (useLayoutMode && layout) {
-      return (
-        <ModuleRenderer
-          layout={layout}
-          airport={config?.airport}
-          timezone={config?.location?.timezone}
-          latitude={config?.location?.latitude}
-          longitude={config?.location?.longitude}
-        />
-      );
-    }
-
-    // Legacy widget mode
+    const previewLayout: MirrorLayout | null = previewModules
+      ? {
+          id: 'preview',
+          name: 'Preview',
+          createdAt: '',
+          updatedAt: '',
+          ...layout,
+          modules: previewModules,
+        }
+      : null;
+    const activeLayout = previewLayout ?? layout ?? (layoutLoaded ? EMPTY_LAYOUT : null);
+    if (!activeLayout) return null;
     return (
-      <WidgetContainer>
-        {widgets}
-      </WidgetContainer>
+      <ModuleRenderer
+        layout={activeLayout}
+        preview={previewModules !== null}
+        airport={config?.airport}
+        timezone={config?.location?.timezone}
+        latitude={config?.location?.latitude}
+        longitude={config?.location?.longitude}
+      />
     );
   };
 
@@ -429,7 +509,7 @@ function App() {
         {currentUserName && <span className="current-user"> | {currentUserName}</span>}
       </div>
 
-      <div className="connection-status">
+      <div className={`connection-status${isConnected ? '' : ' offline'}`}>
         {isConnected ? '●' : '○'}
       </div>
 

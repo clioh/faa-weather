@@ -1,0 +1,81 @@
+.dclock .mf-body {
+  justify-content: center;
+  gap: var(--mf-gap);
+}
+
+/* Width-bound as well as height-bound: in portrait the tile's width is the
+   shorter side and a hero-sized "12:45:30 PM" would not fit. The cqw caps
+   are the time string's width in em, inverted. */
+.dclock {
+  --dclock-fit: 32cqw;
+  --dclock-scale: 1;
+}
+.dclock.h12,
+.dclock.with-seconds { --dclock-fit: 27cqw; }
+.dclock.h12.with-seconds { --dclock-fit: 23cqw; }
+
+.dclock-time {
+  display: flex;
+  align-items: baseline;
+  font-size: min(var(--mf-hero), calc(var(--dclock-fit) * var(--dclock-scale)));
+  font-weight: 200;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+/* Inter's colon sits low against lining figures; nudge it to the middle. */
+.dclock-colon {
+  position: relative;
+  top: -0.06em;
+  margin: 0 0.02em;
+}
+
+.dclock-seconds {
+  font-size: 0.4em;
+  color: var(--color-text-dim);
+  margin-left: 0.08em;
+}
+
+.dclock-period {
+  font-size: 0.26em;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--color-text-dim);
+  margin-left: 0.35em;
+}
+
+.dclock-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  min-width: 0;
+}
+
+.dclock-date {
+  font-size: var(--mf-body);
+  font-weight: 300;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dclock-zulu {
+  font-size: var(--mf-body);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+}
+
+/* Wide: time on the left, date and Zulu stacked on the right. */
+.dclock-wide .mf-body {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--mf-gap) * 3);
+}
+.dclock-wide { --dclock-scale: 0.6; }
+.dclock-wide .dclock-meta { align-items: flex-end; text-align: right; }

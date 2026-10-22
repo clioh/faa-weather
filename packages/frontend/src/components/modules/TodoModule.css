@@ -1,0 +1,57 @@
+.todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--mf-gap) * 0.9);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  font-size: var(--mf-body);
+  font-weight: 300;
+  min-width: 0;
+}
+
+.todo-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.todo-item.done .todo-text {
+  color: var(--color-text-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-faint);
+}
+
+.todo-glyph {
+  width: 0.95em;
+  height: 0.95em;
+  flex-shrink: 0;
+}
+
+.todo-glyph-ring {
+  fill: none;
+  stroke: var(--color-text-dim);
+  stroke-width: 1.2;
+}
+
+.todo-glyph-fill {
+  fill: var(--color-text-faint);
+}
+
+.todo-glyph-check {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

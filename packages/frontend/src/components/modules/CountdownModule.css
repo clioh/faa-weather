@@ -1,0 +1,71 @@
+.cd .mf-body {
+  justify-content: center;
+  gap: calc(var(--mf-gap) * 0.6);
+}
+
+.cd-label {
+  font-size: var(--mf-label);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cd-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  min-width: 0;
+}
+
+.cd-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 0.12em;
+  white-space: nowrap;
+  /* Width cap fits "365 days" (≈4.2em) in narrow portrait tiles. */
+  font-size: min(var(--mf-hero), 24cqw);
+  line-height: 0.95;
+}
+
+.cd-number {
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.cd-unit {
+  font-size: 0.28em;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--color-text-dim);
+  margin-right: 0.4em;
+}
+
+.cd-word {
+  font-size: 0.5em;
+  font-weight: 300;
+  color: var(--color-text-dim);
+}
+
+.cd-sub {
+  font-size: var(--mf-body);
+  font-family: var(--font-mono);
+  color: var(--color-text-dim);
+}
+
+/* Wide: number on the left, label and remainder on the right. */
+.cd-wide .mf-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'main label';
+  align-items: center;
+  column-gap: calc(var(--mf-gap) * 3);
+}
+
+.cd-wide .cd-label { grid-area: label; white-space: normal; }
+.cd-wide .cd-main { grid-area: main; }
+.cd-wide .cd-hero { font-size: min(var(--mf-hero), 14cqw); }

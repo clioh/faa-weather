@@ -1,117 +1,126 @@
 /**
- * World Clocks Module
- * Multiple timezone clocks
+ * World clocks — one column per zone with its offset from the mirror's own
+ * time and a sun/moon hint for whether it is day there.
  */
 
-import { useState, useEffect } from 'react';
-import { ModuleProps } from './index';
+import { CSSProperties } from 'react';
+import { ModuleProps, resolveList } from './index';
+import { ModuleEmpty, ModuleFrame } from './ModuleFrame';
+import {
+  cityFromZone,
+  dayKey,
+  pickTimeZone,
+  useNow,
+  validTimeZone,
+  zonedParts,
+  zoneOffsetMinutes,
+} from './time';
+import './WorldClocksModule.css';
 
-interface WorldClocksConfig {
-  timezones?: string;
-}
+const DEFAULT_ZONES = ['America/New_York', 'Europe/London', 'Asia/Tokyo'];
 
-interface ClockZone {
-  timezone: string;
-  label: string;
-  time: string;
-}
-
-const TIMEZONE_LABELS: Record<string, string> = {
-  'America/New_York': 'New York',
-  'America/Chicago': 'Chicago',
-  'America/Denver': 'Denver',
-  'America/Los_Angeles': 'Los Angeles',
-  'Europe/London': 'London',
-  'Europe/Paris': 'Paris',
-  'Europe/Berlin': 'Berlin',
-  'Asia/Tokyo': 'Tokyo',
-  'Asia/Shanghai': 'Shanghai',
-  'Asia/Dubai': 'Dubai',
-  'Australia/Sydney': 'Sydney',
-  'UTC': 'UTC',
+const MAX_ZONES: Record<string, number> = {
+  small: 2,
+  wide: 4,
+  tall: 5,
+  large: 6,
 };
 
-export function WorldClocksModule({ config, size }: ModuleProps) {
-  const [clocks, setClocks] = useState<ClockZone[]>([]);
-  const clocksConfig = config as WorldClocksConfig;
+const pad = (n: number) => String(n).padStart(2, '0');
 
-  const timezones = (clocksConfig.timezones || 'America/New_York,Europe/London,Asia/Tokyo')
-    .split(',')
-    .map(tz => tz.trim());
+function formatOffset(minutes: number): string {
+  if (minutes === 0) return 'local';
+  const sign = minutes > 0 ? '+' : '−';
+  const abs = Math.abs(minutes);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return m ? `${sign}${h}:${pad(m)}` : `${sign}${h}h`;
+}
 
-  useEffect(() => {
-    const updateClocks = () => {
-      const now = new Date();
-      const newClocks = timezones.map(tz => ({
-        timezone: tz,
-        label: TIMEZONE_LABELS[tz] || tz.split('/').pop() || tz,
-        time: now.toLocaleTimeString('en-US', {
-          timeZone: tz,
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        }),
-      }));
-      setClocks(newClocks);
-    };
+function SunGlyph() {
+  const rays = [0, 45, 90, 135, 180, 225, 270, 315].map((a) => {
+    const r = (a * Math.PI) / 180;
+    return (
+      <line
+        key={a}
+        x1={8 + Math.cos(r) * 5}
+        y1={8 + Math.sin(r) * 5}
+        x2={8 + Math.cos(r) * 7}
+        y2={8 + Math.sin(r) * 7}
+      />
+    );
+  });
+  return (
+    <svg className="wclock-glyph" viewBox="0 0 16 16" aria-label="day">
+      <circle cx="8" cy="8" r="3" />
+      {rays}
+    </svg>
+  );
+}
 
-    updateClocks();
-    const interval = setInterval(updateClocks, 1000);
-    return () => clearInterval(interval);
-  }, [timezones.join(',')]);
+function MoonGlyph() {
+  return (
+    <svg className="wclock-glyph" viewBox="0 0 16 16" aria-label="night">
+      <path d="M10.5 2.5a6 6 0 1 0 3 9.6A5 5 0 0 1 10.5 2.5z" />
+    </svg>
+  );
+}
 
-  const isHorizontal = size === 'wide' || size === 'full';
+export function WorldClocksModule({ config, size, timezone }: ModuleProps) {
+  const format24h = config.format24h !== false;
+  const zones = resolveList(config.timezones, DEFAULT_ZONES)
+    .map(validTimeZone)
+    .filter((z): z is string => Boolean(z))
+    .slice(0, MAX_ZONES[size] ?? 4);
+
+  const now = useNow(60_000);
+
+  if (zones.length === 0) {
+    return (
+      <ModuleFrame title="World clocks">
+        <ModuleEmpty title="No time zones" hint="Add time zones such as Europe/Paris in the app" />
+      </ModuleFrame>
+    );
+  }
+
+  const localZone = pickTimeZone(timezone);
+  const localOffset = zoneOffsetMinutes(now, localZone);
+  const localDay = dayKey(now, localZone);
+  const stacked = size === 'tall';
+  const cols = size === 'large' ? Math.min(zones.length, 3) : zones.length;
+  const rows = stacked ? zones.length : Math.ceil(zones.length / cols);
+  const style = { '--wc-cols': cols, '--wc-rows': rows } as CSSProperties;
 
   return (
-    <div className={`world-clocks-module ${isHorizontal ? 'horizontal' : 'vertical'}`}>
-      {clocks.map(clock => (
-        <div key={clock.timezone} className="world-clock">
-          <span className="clock-label">{clock.label}</span>
-          <span className="clock-time">{clock.time}</span>
-        </div>
-      ))}
+    <ModuleFrame className={`wclock ${stacked ? 'wclock-stack' : 'wclock-grid'}`}>
+      <div className="wclock-zones" style={style}>
+        {zones.map((zone) => {
+          const p = zonedParts(now, zone);
+          const isDay = p.hour >= 6 && p.hour < 18;
+          const hour = format24h ? pad(p.hour) : String(p.hour % 12 || 12);
+          const offset = formatOffset(zoneOffsetMinutes(now, zone) - localOffset);
+          const zoneDay = dayKey(now, zone);
+          const weekday =
+            zoneDay !== localDay
+              ? new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short' }).format(now)
+              : null;
 
-      <style>{`
-        .world-clocks-module {
-          display: flex;
-          height: 100%;
-          gap: 1rem;
-        }
-
-        .world-clocks-module.horizontal {
-          flex-direction: row;
-          justify-content: space-around;
-          align-items: center;
-        }
-
-        .world-clocks-module.vertical {
-          flex-direction: column;
-          justify-content: space-around;
-        }
-
-        .world-clock {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 0.5rem 1rem;
-          background: rgba(255, 255, 255, 0.03);
-          border-radius: 8px;
-        }
-
-        .clock-label {
-          font-size: 0.75rem;
-          color: var(--color-text-dim);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          margin-bottom: 0.25rem;
-        }
-
-        .clock-time {
-          font-size: 1.25rem;
-          font-family: var(--font-mono);
-          font-weight: 500;
-        }
-      `}</style>
-    </div>
+          return (
+            <div key={zone} className="wclock-zone">
+              <div className="wclock-city">{cityFromZone(zone)}</div>
+              <div className="wclock-time">
+                {hour}:{pad(p.minute)}
+                {!format24h && <span className="wclock-period">{p.hour < 12 ? 'AM' : 'PM'}</span>}
+              </div>
+              <div className="wclock-meta">
+                {isDay ? <SunGlyph /> : <MoonGlyph />}
+                <span>{offset}</span>
+                {weekday && <span>{weekday}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </ModuleFrame>
   );
 }

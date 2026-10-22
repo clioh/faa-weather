@@ -1,25 +1,65 @@
+/*
+ * SkyGlass mirror theme
+ *
+ * The display sits behind two-way mirror glass: black is invisible, every lit
+ * pixel shows. The look is a glass cockpit — pure black ground, thin light
+ * numerals, mono for data, and colour reserved for meaning (flight rules,
+ * trends, alerts). Tiles have no fills or borders of their own.
+ */
+
 :root {
+  /* Ground and ink */
   --color-background: #000000;
   --color-text: #ffffff;
-  --color-text-dim: #888888;
-  --color-accent: #00aaff;
+  --color-text-dim: rgba(255, 255, 255, 0.58);
+  --color-text-faint: rgba(255, 255, 255, 0.32);
+  --color-hairline: rgba(255, 255, 255, 0.14);
+  --color-surface: rgba(255, 255, 255, 0.04);
+  --color-surface-strong: rgba(255, 255, 255, 0.09);
 
-  /* Flight rules colors */
-  --color-vfr: #00ff00;
-  --color-mvfr: #0088ff;
-  --color-ifr: #ff0000;
-  --color-lifr: #ff00ff;
+  /* Accent: sky blue, deliberately not green so it never reads as VFR */
+  --color-accent: #7ad7ff;
+  --color-accent-dim: rgba(122, 215, 255, 0.55);
 
-  --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', Monaco, 'Courier New', monospace;
+  /* Semantic */
+  --color-positive: #00e676;
+  --color-negative: #ff5252;
+  --color-warning: #ffb74d;
+  --color-info: #7ad7ff;
+
+  /* Flight rules (FAA colours, tuned for black) */
+  --color-vfr: #00e676;
+  --color-mvfr: #2979ff;
+  --color-ifr: #ff1744;
+  --color-lifr: #d500f9;
+
+  --font-primary: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
   --transition-fade: 1s ease-in-out;
+
+  /* Grid */
+  --grid-gap: 1.25rem;
+  --grid-padding: 2rem;
+}
+
+html {
+  font-size: 16px;
 }
 
 body {
   font-family: var(--font-primary);
   background: var(--color-background);
   color: var(--color-text);
+  font-feature-settings: 'tnum' 1, 'cv11' 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Scale the whole UI with the display: 1rem ≈ 0.9% of viewport width,
+   bounded so a 1080p landscape panel and a portrait 4K both read well. */
+@media (min-width: 1200px) {
+  html { font-size: clamp(16px, 0.9vw, 26px); }
 }
 
 .loading {
@@ -27,8 +67,11 @@ body {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  font-size: 1.5rem;
-  color: var(--color-text-dim);
+  font-size: 1.25rem;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
 }
 
 .mirror-container {
@@ -48,63 +91,49 @@ body {
   opacity: 1;
 }
 
-/* Presence transition states */
-.mirror-container.fade-out {
-  animation: fadeOut var(--transition-fade) forwards;
-}
+/* ---------------------------------------------------------------- Chrome */
 
-.mirror-container.fade-in {
-  animation: fadeIn var(--transition-fade) forwards;
-}
-
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* Presence status indicator */
+/* Presence status: a single dot, nearly invisible unless something is off */
 .presence-indicator {
   position: fixed;
-  top: 1rem;
-  left: 1rem;
+  top: 0.75rem;
+  left: 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--color-text-dim);
-  opacity: 0.5;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: var(--color-text-faint);
+  opacity: 0.6;
   transition: opacity 0.3s;
-}
-
-.presence-indicator:hover {
-  opacity: 1;
+  z-index: 50;
 }
 
 .presence-indicator .dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--color-text-dim);
+  background: var(--color-text-faint);
 }
 
 .presence-indicator .dot.present {
-  background: var(--color-vfr);
-  box-shadow: 0 0 8px var(--color-vfr);
+  background: var(--color-positive);
+  box-shadow: 0 0 8px var(--color-positive);
 }
 
 .presence-indicator .dot.detecting {
-  background: var(--color-mvfr);
+  background: var(--color-info);
   animation: pulse 1s infinite;
 }
 
 .presence-indicator .dot.leaving {
-  background: var(--color-ifr);
+  background: var(--color-warning);
   animation: pulse 0.5s infinite;
+}
+
+.presence-indicator .current-user {
+  color: var(--color-accent);
+  font-weight: 500;
 }
 
 @keyframes pulse {
@@ -112,254 +141,25 @@ body {
   50% { opacity: 0.4; }
 }
 
-/* Legacy 3x3 Widget grid layout (kept for backward compatibility) */
-.widget-container.legacy-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: auto 1fr auto;
-  grid-template-areas:
-    "top-left top-center top-right"
-    "center-left center-center center-right"
-    "bottom-left bottom-center bottom-right";
-  height: 100%;
-  padding: 2rem;
-  gap: 2rem;
-}
-
-/* New 12-column module grid layout */
-.module-grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: repeat(8, 1fr);
-  height: 100vh;
-  width: 100vw;
-  padding: 1.5rem;
-  gap: 0.75rem;
-  box-sizing: border-box;
-}
-
-/* Module positioning and sizing */
-.module {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 1rem;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: background 0.3s ease, border-color 0.3s ease;
-}
-
-.module:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-/* Module size classes */
-.module.size-small {
-  /* 3 cols x 2 rows */
-}
-
-.module.size-medium {
-  /* 4 cols x 3 rows */
-}
-
-.module.size-large {
-  /* 6 cols x 4 rows */
-}
-
-.module.size-wide {
-  /* 6 cols x 2 rows */
-}
-
-.module.size-tall {
-  /* 3 cols x 4 rows */
-}
-
-.module.size-full {
-  /* 12 cols x 4 rows */
-}
-
-/* Module content areas */
-.module-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-  flex-shrink: 0;
-}
-
-.module-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-dim);
-}
-
-.module-content {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Module loading and error states */
-.module-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--color-text-dim);
-}
-
-.module-error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--color-ifr);
-  font-size: 0.875rem;
-  text-align: center;
-}
-
-/* Empty module grid state */
-.module-grid.empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.module-grid .empty-state {
-  text-align: center;
-  color: var(--color-text-dim);
-}
-
-.module-grid .empty-state p {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.module-grid .empty-state .hint {
-  font-size: 1rem;
-  opacity: 0.7;
-}
-
-/* Backward compatible widget-container (defaults to module grid now) */
-.widget-container {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: repeat(8, 1fr);
-  height: 100vh;
-  width: 100vw;
-  padding: 1.5rem;
-  gap: 0.75rem;
-  box-sizing: border-box;
-}
-
-.widget {
-  padding: 1rem;
-}
-
-.widget[data-position="top-left"] { grid-area: top-left; }
-.widget[data-position="top-center"] { grid-area: top-center; text-align: center; }
-.widget[data-position="top-right"] { grid-area: top-right; text-align: right; }
-.widget[data-position="center-left"] { grid-area: center-left; align-self: center; }
-.widget[data-position="center-center"] { grid-area: center-center; align-self: center; text-align: center; }
-.widget[data-position="center-right"] { grid-area: center-right; align-self: center; text-align: right; }
-.widget[data-position="bottom-left"] { grid-area: bottom-left; align-self: end; }
-.widget[data-position="bottom-center"] { grid-area: bottom-center; align-self: end; text-align: center; }
-.widget[data-position="bottom-right"] { grid-area: bottom-right; align-self: end; text-align: right; }
-
-.widget-content h2 {
-  font-size: 2rem;
-  font-weight: 300;
-  margin-bottom: 0.5rem;
-}
-
-.widget-content h3 {
-  font-size: 1.25rem;
-  font-weight: 400;
-  color: var(--color-text-dim);
-  margin-bottom: 0.5rem;
-}
-
-.widget-content p {
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
-.widget-content .placeholder {
-  color: var(--color-text-dim);
-  font-style: italic;
-}
-
-/* Clock widget */
-.clock-widget .time {
-  font-size: 4rem;
-  font-weight: 200;
-  letter-spacing: -0.02em;
-}
-
-.clock-widget .date {
-  font-size: 1.25rem;
-  color: var(--color-text-dim);
-  margin-top: 0.25rem;
-}
-
-.clock-widget .zulu {
-  font-size: 1.5rem;
-  color: var(--color-accent);
-  font-family: var(--font-mono);
-  margin-top: 0.5rem;
-}
-
-/* Flight rules badge */
-.flight-rules {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 1rem;
-  text-transform: uppercase;
-}
-
-.flight-rules.vfr { background: var(--color-vfr); color: #000; }
-.flight-rules.mvfr { background: var(--color-mvfr); color: #fff; }
-.flight-rules.ifr { background: var(--color-ifr); color: #fff; }
-.flight-rules.lifr { background: var(--color-lifr); color: #fff; }
-
-/* METAR display */
-.metar-raw {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  color: var(--color-text-dim);
-  word-break: break-all;
-  margin-top: 0.5rem;
-}
-
-/* Connection status indicator */
 .connection-status {
   position: fixed;
-  bottom: 1rem;
-  left: 1rem;
-  font-size: 0.75rem;
-  color: var(--color-vfr);
-  opacity: 0.5;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  font-size: 0.65rem;
+  color: var(--color-text-faint);
+  opacity: 0.6;
+  z-index: 50;
 }
 
-/* Scrollbar styling */
+.connection-status.offline {
+  color: var(--color-negative);
+  opacity: 1;
+}
+
+/* Scrollbars never show on the mirror */
 ::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-text-dim);
-  border-radius: 2px;
+  width: 0;
+  height: 0;
 }
 
 /* User greeting overlay */
@@ -375,11 +175,11 @@ body {
 }
 
 .user-greeting .greeting-text {
-  font-size: 3rem;
+  font-size: 3.5rem;
   font-weight: 200;
+  letter-spacing: 0.02em;
   color: var(--color-text);
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
-  letter-spacing: 0.02em;
 }
 
 @keyframes greetingFadeInOut {
@@ -387,10 +187,4 @@ body {
   15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1.02); }
-}
-
-/* Current user indicator in presence bar */
-.presence-indicator .current-user {
-  color: var(--color-accent);
-  font-weight: 500;
 }

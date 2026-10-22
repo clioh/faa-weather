@@ -1,0 +1,32 @@
+.textlabel .mf-body {
+  justify-content: center;
+}
+
+.textlabel-text {
+  margin: 0;
+  font-weight: 300;
+  line-height: 1.2;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.textlabel-small .textlabel-text { font-size: var(--mf-title); }
+.textlabel-medium .textlabel-text { font-size: var(--mf-display); letter-spacing: -0.01em; }
+.textlabel-large .textlabel-text {
+  font-size: var(--mf-hero);
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.textlabel-left .textlabel-text { text-align: left; }
+.textlabel-center .textlabel-text { text-align: center; }
+.textlabel-right .textlabel-text { text-align: right; }

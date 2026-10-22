@@ -1,0 +1,65 @@
+.aclock .mf-body {
+  align-items: center;
+  justify-content: center;
+  gap: var(--mf-gap);
+}
+
+/* The SVG's default "meet" aspect fit sizes it to the shorter side. */
+.aclock-face {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.aclock-face svg {
+  height: 100%;
+  width: 100%;
+  overflow: visible;
+}
+
+.aclock-tick {
+  stroke: var(--color-text-faint);
+  stroke-width: 0.6;
+  stroke-linecap: round;
+}
+
+.aclock-tick.hour {
+  stroke: var(--color-text-dim);
+  stroke-width: 1.1;
+}
+
+.aclock-numeral {
+  fill: var(--color-text-dim);
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 300;
+  text-anchor: middle;
+}
+
+.aclock-hand {
+  stroke: var(--color-text);
+  stroke-linecap: round;
+}
+
+.aclock-hand.hour { stroke-width: 2.4; }
+.aclock-hand.minute { stroke-width: 1.4; }
+.aclock-hand.second {
+  stroke: var(--color-accent);
+  stroke-width: 0.6;
+}
+
+.aclock-hub { fill: var(--color-text); }
+
+.aclock-caption {
+  flex-shrink: 0;
+  font-size: var(--mf-caption);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}

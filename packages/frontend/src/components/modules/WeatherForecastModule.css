@@ -1,0 +1,68 @@
+.fc-grid {
+  flex: 1;
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: var(--mf-gap) calc(var(--mf-gap) * 1.5);
+  min-height: 0;
+}
+
+.fc-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--mf-gap) * 0.6);
+  min-width: 0;
+  min-height: 0;
+}
+
+.fc-name {
+  font-size: var(--mf-label);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+
+.fc-day.today .fc-name {
+  color: var(--color-text);
+}
+
+.fc-icon {
+  font-size: var(--mf-title);
+  color: var(--color-text);
+}
+
+.fc-temps {
+  display: flex;
+  gap: 0.5em;
+  font-size: var(--mf-body);
+  white-space: nowrap;
+}
+
+.fc-low {
+  color: var(--color-text-faint);
+}
+
+.fc-precip {
+  font-size: var(--mf-label);
+  color: var(--color-info);
+  min-height: 1.2em;
+}
+
+/* Larger tiles get bigger icons; wide is too short for them. */
+.fc-large .fc-icon,
+.fc-full .fc-icon {
+  font-size: var(--mf-display);
+}
+
+.fc-large.fc-two-rows .fc-icon {
+  font-size: var(--mf-title);
+}
+
+.fc-large .fc-temps,
+.fc-full .fc-temps {
+  font-size: var(--mf-title);
+  font-weight: 300;
+}
