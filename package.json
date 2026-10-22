@@ -7,10 +7,15 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo dev",
-    "dev:mirror": "turbo dev --filter=@magic-mirror/backend --filter=@magic-mirror/frontend",
+    "dev": "SKYGLASS_LICENSE=${SKYGLASS_LICENSE:-off} turbo dev",
+    "dev:mirror": "SKYGLASS_LICENSE=${SKYGLASS_LICENSE:-off} turbo dev --filter=@skyglass/backend --filter=@skyglass/frontend",
     "dev:all": "./scripts/dev.sh",
     "dev:simulate": "./scripts/dev.sh --simulate",
+    "dev:e2e": "node scripts/dev-e2e.mjs",
+    "data:airports": "node scripts/build-airports.mjs",
+    "dev:admin": "cd packages/presence && venv/bin/python web_server.py",
+    "dev:detector": "cd packages/presence && venv/bin/python detector.py --preview",
+    "setup:dev": "node scripts/dev-setup.mjs",
     "build": "turbo build",
     "start": "pm2 start config/pm2.config.cjs",
     "stop": "pm2 stop all",
@@ -21,13 +26,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,yaml,yml,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,yaml,yml,md}\"",
     "clean": "turbo clean && rm -rf node_modules",
-    "enroll": "cd packages/presence && python3 detector.py --enroll",
-    "enroll:web": "cd packages/presence && python3 web_enroll.py",
-    "kiosk": "./scripts/kiosk.sh",
     "setup:pi": "./scripts/setup-pi.sh",
     "update": "./scripts/update.sh",
-    "update:check": "./scripts/update.sh --check",
-    "update:auto": "./scripts/update.sh --auto"
+    "update:check": "./scripts/update.sh --check"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

@@ -3,13 +3,14 @@
  * Manages all SkyGlass processes
  *
  * Usage:
- *   pm2 start config/pm2.config.cjs   (or: pm2 start ecosystem.config.js)
+ *   pm2 start config/pm2.config.cjs   (or: npm start)
  *   pm2 stop all
  *   pm2 restart all
  *   pm2 logs
  *
- * This is the single source of truth for PM2 apps; the root
- * ecosystem.config.js re-exports it.
+ * This is the single source of truth for PM2 apps. PM2 is the only process
+ * manager (systemd only runs the boot-mode, provisioning and watchdog units).
+ * mDNS (_skyglass._tcp) is advertised by skyglass-backend itself.
  *
  * The display UI (packages/frontend/dist) is served by skyglass-backend on port
  * 3001 together with /api and /ws, so there is no separate frontend app.
@@ -80,25 +81,6 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
       error_file: path.join(INSTALL_DIR, 'logs/admin-error.log'),
       out_file: path.join(INSTALL_DIR, 'logs/admin-out.log'),
-      merge_logs: true,
-      watch: false,
-    },
-
-    {
-      name: 'skyglass-mdns',
-      script: 'mdns_service.py',
-      cwd: path.join(INSTALL_DIR, 'packages/presence'),
-      interpreter: path.join(INSTALL_DIR, 'packages/presence/venv/bin/python'),
-      args: '--http-port 80 --admin-port 5000',
-      env: {
-        PYTHONUNBUFFERED: '1',
-      },
-      autorestart: true,
-      max_restarts: 5,
-      restart_delay: 5000,
-      log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      error_file: path.join(INSTALL_DIR, 'logs/mdns-error.log'),
-      out_file: path.join(INSTALL_DIR, 'logs/mdns-out.log'),
       merge_logs: true,
       watch: false,
     },

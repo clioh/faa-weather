@@ -15,7 +15,7 @@ ExecStart=/home/pi/SkyGlass/scripts/boot-mode.sh
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=sg-boot
+SyslogIdentifier=skyglass-boot
 
 [Install]
 WantedBy=multi-user.target

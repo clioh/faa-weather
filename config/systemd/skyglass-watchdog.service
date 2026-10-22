@@ -1,7 +1,6 @@
 [Unit]
 Description=SkyGlass Hardware Watchdog
-After=network.target skyglass-admin.service
-Wants=skyglass-admin.service
+After=network.target
 
 [Service]
 Type=simple
@@ -13,9 +12,11 @@ WorkingDirectory=/home/pi/SkyGlass/packages/presence
 Environment="PATH=/home/pi/SkyGlass/packages/presence/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
 
-# Run watchdog service (needs root for /dev/watchdog)
-# The UI is served by the backend on 3001 (no separate frontend on 5173)
-ExecStart=/home/pi/SkyGlass/packages/presence/venv/bin/python watchdog_service.py --interval 15 --frontend-url http://localhost:3001
+# Run watchdog service (needs root for /dev/watchdog). It restarts the
+# SkyGlass PM2 apps as the install user (--pm2-user; setup-pi.sh replaces
+# "pi" and /home/pi with the installing user). The UI is served by the
+# backend on 3001.
+ExecStart=/home/pi/SkyGlass/packages/presence/venv/bin/python watchdog_service.py --interval 15 --pm2-user pi
 
 # Restart on failure
 Restart=always
@@ -24,7 +25,7 @@ RestartSec=5
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=sg-watchdog
+SyslogIdentifier=skyglass-watchdog
 
 [Install]
 WantedBy=multi-user.target

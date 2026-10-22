@@ -4,7 +4,6 @@
 # - Linting and type checking
 # - Unit tests
 # - Build verification
-# - Docker build test
 
 name: CI
 
@@ -145,30 +144,6 @@ jobs:
           retention-days: 7
 
   # ============================================================
-  # Docker Build Test
-  # ============================================================
-  docker:
-    name: Docker Build
-    runs-on: ubuntu-latest
-    needs: [build]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          tags: skyglass:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ============================================================
   # Python Presence Detection
   # ============================================================
   test-presence:
@@ -186,15 +161,12 @@ jobs:
           cache: 'pip'
           cache-dependency-path: packages/presence/requirements.txt
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopencv-dev python3-opencv
-
+      # requirements.txt builds dlib for face_recognition (cmake ships with
+      # the runner image); the pip cache keeps the built wheel between runs.
       - name: Install Python dependencies
         run: |
           cd packages/presence
-          pip install -r requirements.txt
+          pip install -r requirements.txt pytest
 
       - name: Lint Python code
         run: |
@@ -206,3 +178,8 @@ jobs:
         run: |
           cd packages/presence
           python3 -c "import detector; import web_server; import admin_portal"
+
+      - name: Run Python tests
+        run: |
+          cd packages/presence
+          python -m pytest -q

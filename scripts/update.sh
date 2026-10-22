@@ -1,21 +1,21 @@
 #!/bin/bash
 #
 # SkyGlass Update Script
-# Checks for updates and optionally applies them via GitHub Releases
+# Checks for updates and optionally applies them via GitHub Releases.
+# The backend's in-app updater (packages/backend/src/services/updater.ts)
+# downloads the release itself and calls --apply-tarball.
 #
 # Usage:
 #   ./scripts/update.sh              # Check and prompt
 #   ./scripts/update.sh --check      # Check only, exit with status
 #   ./scripts/update.sh --apply      # Apply updates without prompting
-#   ./scripts/update.sh --auto       # Check and auto-apply if available
-#   ./scripts/update.sh --git        # Use git instead of releases (dev mode)
 #   ./scripts/update.sh --apply-tarball <file> [--version X] [--delay N]
 #                                     # Install an already-downloaded release
 #                                     # tarball (used by the backend updater)
 #
 # Release updates never touch runtime state: node_modules, Python venvs,
 # packages/presence/face_data (enrolled faces, .wifi_configured), data/
-# (SQLite), logs/, config/config.yaml, config/certs and .env files are
+# (SQLite), logs/, config/config.yaml and .env files are
 # excluded from both the copy and the backup/restore (see UPDATE_EXCLUDES).
 # Files from the tarball are copied over the install (rsync, no --delete);
 # on any failure the previous install is restored from .backup and the
@@ -42,7 +42,6 @@ UPDATE_EXCLUDES=(
     --exclude=/data/
     --exclude=/logs/
     --exclude=/config/config.yaml
-    --exclude=/config/certs/
     --exclude=/.update-temp/
     --exclude=/.update-stage/
     --exclude=/.update-lock/
@@ -81,9 +80,7 @@ cd "$PROJECT_DIR"
 
 # Parse arguments
 CHECK_ONLY=false
-AUTO_APPLY=false
 FORCE_APPLY=false
-USE_GIT=false
 APPLY_TARBALL=""
 TARBALL_VERSION=""
 START_DELAY=0
@@ -106,14 +103,8 @@ while [ $# -gt 0 ]; do
         --check)
             CHECK_ONLY=true
             ;;
-        --auto)
-            AUTO_APPLY=true
-            ;;
         --apply)
             FORCE_APPLY=true
-            ;;
-        --git)
-            USE_GIT=true
             ;;
         --help|-h)
             echo "SkyGlass Update Script"
@@ -123,8 +114,6 @@ while [ $# -gt 0 ]; do
             echo "Options:"
             echo "  --check    Check for updates only (exit 0 if available, 1 if not)"
             echo "  --apply    Apply updates without prompting"
-            echo "  --auto     Check and auto-apply if updates available"
-            echo "  --git      Use git pull instead of GitHub Releases (dev mode)"
             echo "  --apply-tarball FILE  Install a downloaded release tarball"
             echo "  --version X           Version to record with --apply-tarball"
             echo "  --delay N             Wait N seconds before stopping services"
@@ -170,116 +159,7 @@ version_lt() {
 }
 
 #
-# Git-based updates (for development)
-#
-update_via_git() {
-    # Check if we're in a git repository
-    if [ ! -d ".git" ]; then
-        log_error "Not a git repository. Cannot check for updates."
-        exit 1
-    fi
-
-    # Fetch latest changes from remote
-    log_info "Checking for updates via git..."
-    git fetch origin main --quiet 2>/dev/null || git fetch origin master --quiet 2>/dev/null || {
-        log_error "Failed to fetch from remote"
-        exit 1
-    }
-
-    # Determine the main branch
-    if git show-ref --verify --quiet refs/remotes/origin/main; then
-        MAIN_BRANCH="main"
-    else
-        MAIN_BRANCH="master"
-    fi
-
-    # Get current and remote commit hashes
-    LOCAL_HASH=$(git rev-parse HEAD)
-    REMOTE_HASH=$(git rev-parse origin/$MAIN_BRANCH)
-
-    # Check if we're behind
-    COMMITS_BEHIND=$(git rev-list HEAD..origin/$MAIN_BRANCH --count)
-
-    if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
-        log_info "Already up to date!"
-
-        if [ "$CHECK_ONLY" = true ]; then
-            exit 1  # No updates available
-        fi
-        exit 0
-    fi
-
-    # Updates are available
-    log_info "Updates available! ($COMMITS_BEHIND commits behind)"
-    echo ""
-
-    # Show what's new
-    echo -e "${BLUE}Recent changes:${NC}"
-    git log --oneline HEAD..origin/$MAIN_BRANCH | head -10
-    echo ""
-
-    # If check only, just exit with success (updates available)
-    if [ "$CHECK_ONLY" = true ]; then
-        echo "$COMMITS_BEHIND commits available"
-        exit 0
-    fi
-
-    # If not auto/force, prompt user
-    if [ "$AUTO_APPLY" = false ] && [ "$FORCE_APPLY" = false ]; then
-        read -p "Apply updates now? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Update cancelled"
-            exit 0
-        fi
-    fi
-
-    # Apply updates
-    log_info "Applying updates..."
-
-    # Check for local changes
-    if [ -n "$(git status --porcelain)" ]; then
-        log_warn "Local changes detected. Stashing..."
-        git stash push -m "Auto-stash before update $(date '+%Y%m%d_%H%M%S')"
-        STASHED=true
-    else
-        STASHED=false
-    fi
-
-    # Pull changes
-    log_info "Pulling latest changes..."
-    git pull origin $MAIN_BRANCH
-
-    # Restore stashed changes if any
-    if [ "$STASHED" = true ]; then
-        log_info "Restoring local changes..."
-        git stash pop || log_warn "Could not restore stashed changes. Run 'git stash pop' manually."
-    fi
-
-    # Install dependencies and rebuild
-    log_info "Installing dependencies..."
-    pnpm install 2>/dev/null || npm install
-
-    log_info "Building project..."
-    pnpm build 2>/dev/null || npm run build
-
-    # Restart services if PM2 is running
-    if command -v pm2 &> /dev/null && pm2 list 2>/dev/null | grep -qE "skyglass-backend|mm-backend"; then
-        log_info "Restarting services..."
-        pm2 restart all
-    fi
-
-    log_info "Update complete!"
-
-    # Show current version
-    CURRENT_HASH=$(git rev-parse --short HEAD)
-    log_info "Now running: $CURRENT_HASH"
-
-    exit 0
-}
-
-#
-# Shared release-install logic (used by --apply, --auto and --apply-tarball)
+# Shared release-install logic (used by --apply and --apply-tarball)
 #
 
 acquire_lock() {
@@ -309,11 +189,6 @@ stop_services() {
 start_services() {
     if pm2_available; then
         local pm2_config="$PROJECT_DIR/config/pm2.config.cjs"
-        # Drop apps the installed config no longer defines (the frontend is
-        # now served by skyglass-backend; legacy mm-* apps are retired)
-        for legacy in mm-frontend mm-backend mm-detector mm-admin mm-mdns mm-presence; do
-            pm2 delete "$legacy" > /dev/null 2>&1 || true
-        done
         # startOrRestart picks up apps/env added by the new config
         pm2 startOrRestart "$pm2_config" --update-env > /dev/null 2>&1 \
             || pm2 restart all --update-env > /dev/null 2>&1 \
@@ -457,7 +332,7 @@ apply_release_tarball() {
 }
 
 #
-# GitHub Releases-based updates (for production)
+# GitHub Releases-based updates
 #
 update_via_releases() {
     log_info "Checking for updates via GitHub Releases..."
@@ -509,8 +384,8 @@ update_via_releases() {
         exit 0
     fi
 
-    # If not auto/force, prompt user
-    if [ "$AUTO_APPLY" = false ] && [ "$FORCE_APPLY" = false ]; then
+    # Unless --apply was given, prompt user
+    if [ "$FORCE_APPLY" = false ]; then
         read -p "Apply update to v$LATEST_VERSION? (y/N) " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -556,8 +431,6 @@ update_via_releases() {
 if [ -n "$APPLY_TARBALL" ]; then
     apply_release_tarball "$APPLY_TARBALL" "$TARBALL_VERSION"
     exit 0
-elif [ "$USE_GIT" = true ]; then
-    update_via_git
 else
     update_via_releases
 fi

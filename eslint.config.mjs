@@ -60,8 +60,8 @@ export default [
     files: [
       'packages/backend/**',
       'packages/cloud-api/**',
-      'packages/license-server/**',
       'packages/website/api/**',
+      'packages/website/scripts/**',
       'scripts/**',
     ],
     languageOptions: {

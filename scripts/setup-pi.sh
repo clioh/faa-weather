@@ -202,20 +202,26 @@ install_wifi_provisioning() {
 enable_watchdog() {
     log_info "Configuring hardware watchdog..."
 
-    # Check if we're on a Raspberry Pi
-    if [ ! -f /boot/config.txt ]; then
+    # Bookworm moved the boot config to /boot/firmware (/boot/config.txt is
+    # then only a pointer stub)
+    local boot_config=""
+    if [ -f /boot/firmware/config.txt ]; then
+        boot_config=/boot/firmware/config.txt
+    elif [ -f /boot/config.txt ]; then
+        boot_config=/boot/config.txt
+    else
         log_warn "Not a Raspberry Pi - skipping hardware watchdog"
         return
     fi
 
     # Enable watchdog in boot config
-    if grep -q "dtparam=watchdog=on" /boot/config.txt; then
+    if grep -q "dtparam=watchdog=on" "$boot_config"; then
         log_info "Hardware watchdog already enabled"
     else
-        log_info "Enabling hardware watchdog in /boot/config.txt..."
-        echo "" | sudo tee -a /boot/config.txt
-        echo "# Enable hardware watchdog for reliability" | sudo tee -a /boot/config.txt
-        echo "dtparam=watchdog=on" | sudo tee -a /boot/config.txt
+        log_info "Enabling hardware watchdog in $boot_config..."
+        echo "" | sudo tee -a "$boot_config"
+        echo "# Enable hardware watchdog for reliability" | sudo tee -a "$boot_config"
+        echo "dtparam=watchdog=on" | sudo tee -a "$boot_config"
         WATCHDOG_ENABLED=true
     fi
 
@@ -299,6 +305,9 @@ setup_skyglass() {
     # Create logs/data directories
     log_info "Creating logs directory..."
     mkdir -p logs data
+    # data/ holds secrets (internal-token, admin-password, session key; see
+    # docs/SECURITY.md): owner-only.
+    chmod 700 data
 
     # Install npm dependencies
     log_info "Installing npm dependencies..."
@@ -341,12 +350,12 @@ setup_config() {
     cp "$INSTALL_DIR/config/default.yaml" "$CONFIG_FILE"
 
     log_info "Created config at $CONFIG_FILE"
-    log_warn "Please edit this file to set your airport and location!"
+    log_info "Airport, location and face are set from the SkyGlass phone app"
 }
 
-# Set up boot mode detection (provisioning vs normal)
+# Set up boot mode detection (provisioning vs normal) and the watchdog
 setup_boot_mode() {
-    log_info "Setting up boot mode detection..."
+    log_info "Setting up boot mode detection and watchdog..."
 
     INSTALL_DIR="${HOME}/SkyGlass"
 
@@ -356,18 +365,22 @@ setup_boot_mode() {
     # Install systemd services
     sudo cp "$INSTALL_DIR/config/systemd/skyglass-boot.service" /etc/systemd/system/
     sudo cp "$INSTALL_DIR/config/systemd/skyglass-provision.service" /etc/systemd/system/
+    sudo cp "$INSTALL_DIR/config/systemd/skyglass-watchdog.service" /etc/systemd/system/
 
-    # Update paths in service files
+    # Update paths (and the watchdog's PM2 user) in service files
     sudo sed -i "s|/home/pi|$HOME|g" /etc/systemd/system/skyglass-boot.service
     sudo sed -i "s|/home/pi|$HOME|g" /etc/systemd/system/skyglass-provision.service
+    sudo sed -i -e "s|/home/pi|$HOME|g" -e "s|--pm2-user pi|--pm2-user $USER|" \
+        /etc/systemd/system/skyglass-watchdog.service
 
     # Reload systemd
     sudo systemctl daemon-reload
 
-    # Enable boot mode detection
+    # Enable boot mode detection and the watchdog (both start on next boot)
     sudo systemctl enable skyglass-boot.service
+    sudo systemctl enable skyglass-watchdog.service
 
-    log_info "Boot mode detection configured"
+    log_info "Boot mode detection and watchdog configured"
     log_info "On first boot without WiFi, device will create setup hotspot"
 }
 
@@ -379,11 +392,7 @@ setup_autostart() {
 
     cd "$INSTALL_DIR"
 
-    # Start services with PM2 (the frontend is served by skyglass-backend on 3001).
-    # Drop legacy mm-* apps (including the old standalone frontend) if present.
-    for legacy in mm-frontend mm-backend mm-detector mm-admin mm-mdns mm-presence; do
-        pm2 delete "$legacy" > /dev/null 2>&1 || true
-    done
+    # Start services with PM2 (the frontend is served by skyglass-backend on 3001)
     pm2 startOrRestart config/pm2.config.cjs
 
     # Save PM2 process list
@@ -450,7 +459,7 @@ print_instructions() {
     echo "4. Select your home WiFi and enter the password"
     echo ""
     echo "5. Mirror connects and is accessible at:"
-    echo "   http://skyglass.local"
+    echo "   http://skyglass.local:3001"
     echo ""
     echo "========================================"
     echo "  MANUAL SETUP (if already on WiFi)"
@@ -462,19 +471,9 @@ print_instructions() {
     echo "2. Open the mirror display:"
     echo "   http://localhost:3001"
     echo ""
-    echo "3. Access the admin portal:"
-    echo "   http://$(hostname).local:5000/admin"
-    echo "   or http://$(hostname -I | awk '{print $1}'):5000/admin"
-    echo ""
-    echo "========================================"
-    echo "  OPTIONAL ENHANCEMENTS"
-    echo "========================================"
-    echo ""
-    echo "Install nginx (serves everything on port 80):"
-    echo "   sudo ./scripts/install-nginx.sh"
-    echo ""
-    echo "Enable HTTPS (secure local access):"
-    echo "   sudo ./scripts/install-nginx.sh --ssl"
+    echo "3. Optional browser admin portal (off until you set a password here):"
+    echo "   cd $INSTALL_DIR/packages/presence && venv/bin/python set_admin_password.py"
+    echo "   then open http://$(hostname).local:5000/admin"
     echo ""
     echo "========================================"
 }

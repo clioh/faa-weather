@@ -11,7 +11,26 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "SKYGLASS_*",
+        "VITE_*",
+        "EXPO_*",
+        "NODE_ENV",
+        "PORT",
+        "TMPDIR",
+        "CORS_*",
+        "CLOUD_RELAY_URL",
+        "GITHUB_REPO",
+        "CAMERA_INDEX",
+        "DEBUG",
+        "DATABASE_URL",
+        "STRIPE_*",
+        "CLERK_*",
+        "RESEND_*",
+        "ADMIN_PASSWORD",
+        "LICENSE_*"
+      ]
     },
     "test": {
       "cache": false

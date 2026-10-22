@@ -456,20 +456,6 @@ FIRSTRUN_SCRIPT
     chmod +x "$boot_mount/firstrun.sh"
     log_info "First-run script created"
 
-    # 4. Create skyglass.conf with repo settings
-    cat > "$boot_mount/skyglass.conf" << 'CONFIG_EOF'
-# SkyGlass Configuration
-# Edit this file BEFORE first boot to customize
-
-# GitHub repository URL (change to your fork if needed)
-REPO_URL=https://github.com/YOUR_USERNAME/SkyGlass.git
-
-# Branch to use
-BRANCH=main
-CONFIG_EOF
-
-    log_info "Created skyglass.conf (edit to customize repo URL)"
-
     # 5. For Raspberry Pi OS Bookworm, also add to cmdline.txt
     if [ -f "$boot_mount/cmdline.txt" ]; then
         # Check if systemd.run is supported

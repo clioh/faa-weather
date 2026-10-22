@@ -4,8 +4,11 @@
 # Primary airport ICAO code for METAR/TAF
 airport: KJFK
 
-# FAA NOTAM API key (get from https://api.faa.gov)
-notam_api_key: ${FAA_NOTAM_API_KEY}
+# SkyGlass cloud service: calendar sign-in (Google/Outlook), NOTAMs and stock
+# quotes. It holds every third-party API key and OAuth secret, so the mirror
+# needs none. Self-hosters: point at your own deployment (docs/CLOUD_SERVICE.md).
+# Must be https (http only for localhost/127.0.0.1).
+skyglass_service: https://skyglass.dev
 
 # Your location (for sun/moon calculations)
 location:
@@ -18,13 +21,13 @@ display:
   presence_timeout: 120        # Seconds before display sleeps after you leave
   fade_duration: 1000          # Fade animation in milliseconds
   brightness: 80               # Default brightness percentage
+  orientation: landscape       # landscape | portrait (mirror panel mounted vertically)
 
-# Google Calendar integration
+# Calendars are connected from the phone app (Settings > Calendars) and stored
+# in data/calendar-accounts.json. The mirror needs no OAuth app credentials.
+# Setup details: docs/CALENDAR.md
 calendar:
-  google:
-    enabled: false
-    calendar_ids:
-      - primary
+  refresh_minutes: 10                      # Background sync interval
 
 # Flight schedule from email
 schedule:
@@ -38,59 +41,26 @@ schedule:
     poll_interval: 300         # Seconds between email checks
     sender_filter: ""          # Filter emails by sender address
 
-# Widget layout configuration
-widgets:
-  - type: clock
-    position: top-left
-    show_zulu: true
-
-  - type: aviation
-    position: top-right
-    show_metar: true
-    show_taf: true
-    show_flight_rules: true
-
-  - type: schedule
-    position: center-right
-    days_ahead: 7
-
-  - type: radar
-    position: center-left
-    zoom: 6
-    animation_speed: 500
-    show_timestamp: true
-
-  - type: tfr
-    position: bottom-left
-    radius_nm: 100             # Show TFRs within this radius
-
-  - type: notam
-    position: bottom-center
-    categories:
-      - runway
-      - obstacle
-      - airspace
-
-  - type: astro
-    position: bottom-right
-    show_sunrise: true
-    show_sunset: true
-    show_civil_twilight: true
+# Stock quotes come from skyglass_service; when it is unreachable the mirror
+# falls back to the keyless Yahoo chart endpoint. NOTAMs come from
+# skyglass_service too (no key needed on the mirror).
 
 # Presence detection settings
+# Read by packages/presence/detector.py at startup (restart skyglass-detector
+# after editing); its CLI flags override these values.
 presence:
   camera_index: 0              # Camera device index (0 = default)
   # face_recognition = dlib face encodings, recognizes enrolled users (most accurate, heaviest)
-  # haar             = OpenCV Haar cascade, detects any face (lightest)
-  # mediapipe        = MediaPipe face detection, detects any face (lighter than face_recognition)
-  # auto             = best installed: face_recognition > mediapipe > haar
-  detection_method: auto       # face_recognition | haar | mediapipe | auto
-  tolerance: 0.6               # Face match tolerance (lower = stricter)
-  min_detection_frames: 3      # Frames needed to confirm presence
-  timeout: 5                   # Seconds before marking absent
+  # opencv           = OpenCV's bundled YuNet face detector, detects any face (lightest, no extra install)
+  # auto             = face_recognition if installed, else opencv
+  detection_method: auto       # face_recognition | opencv | auto
+  tolerance: 0.6               # Face match tolerance, 0-1 (lower = stricter; face_recognition only)
+  min_detection_frames: 3      # Consecutive detections needed to confirm presence
+  timeout: 5                   # Seconds without a face before marking absent
 
-# License settings
+# Licensing (docs/LICENSING.md). The key is entered from the phone app or
+# picked up from /boot/firmware/skyglass-license.txt on pre-flashed kits.
+# SKYGLASS_LICENSE=off disables licensing (the npm run dev* scripts set it).
 license:
-  enabled: false                              # Set to true to enable license validation
-  key: ${LICENSE_KEY}                         # Pre-installed license key (XXXX-XXXX-XXXX-XXXX)
-  serverUrl: https://license.skyglass.dev  # License server URL
+  enabled: true
+  server: https://skyglass.dev     # Cloud license API (POST /api/license/activate|refresh)

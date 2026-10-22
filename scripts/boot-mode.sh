@@ -6,7 +6,10 @@
 # 1. WiFi Provisioning mode (if no WiFi configured)
 # 2. Normal operation mode (if WiFi is working)
 #
-# Usage: Called by systemd at boot
+# Usage: Called by systemd (skyglass-boot.service, as root) at boot.
+# The SkyGlass apps run under the install user's PM2 daemon
+# (config/pm2.config.cjs); SKYGLASS_USER overrides the user, which otherwise
+# defaults to the owner of the install directory.
 #
 
 set -e
@@ -15,6 +18,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 PROVISIONING_FLAG="$PROJECT_DIR/packages/presence/face_data/.wifi_configured"
 LOG_FILE="$PROJECT_DIR/logs/boot-mode.log"
+INSTALL_USER="${SKYGLASS_USER:-$(stat -c %U "$PROJECT_DIR")}"
+
+# Run pm2 as the install user (root's PM2 daemon would be a different one)
+pm2_as_user() {
+    sudo -u "$INSTALL_USER" -H pm2 "$@"
+}
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -55,11 +64,8 @@ check_wifi() {
 start_provisioning() {
     log "Starting WiFi provisioning mode..."
 
-    # Stop normal services if they're running
-    systemctl stop skyglass-backend.service 2>/dev/null || true
-    systemctl stop skyglass-admin.service 2>/dev/null || true
-    systemctl stop skyglass-detector.service 2>/dev/null || true
-    pm2 stop all 2>/dev/null || true
+    # Stop the PM2 apps while the provisioning hotspot is up
+    pm2_as_user stop all > /dev/null 2>&1 || true
 
     # Start provisioning service
     systemctl start skyglass-provision.service
@@ -75,13 +81,9 @@ start_normal() {
     # Make sure provisioning is stopped
     systemctl stop skyglass-provision.service 2>/dev/null || true
 
-    # Start PM2 services
+    # Start (or restart) the PM2 apps as the install user
     cd "$PROJECT_DIR"
-    sudo -u pi pm2 start config/pm2.config.cjs 2>/dev/null || true
-
-    # Or start systemd services if configured
-    # systemctl start skyglass-backend.service 2>/dev/null || true
-    # systemctl start skyglass-admin.service 2>/dev/null || true
+    pm2_as_user startOrRestart "$PROJECT_DIR/config/pm2.config.cjs" > /dev/null 2>&1 || true
 
     log "Normal mode active"
 }

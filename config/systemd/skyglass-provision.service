@@ -24,7 +24,7 @@ RestartSec=10
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=sg-provision
+SyslogIdentifier=skyglass-provision
 
 [Install]
 WantedBy=multi-user.target
