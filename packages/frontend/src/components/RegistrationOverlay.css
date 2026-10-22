@@ -1,0 +1,80 @@
+/*
+ * Registration complete (mockups M-Welcome-L/P). The capture screen itself
+ * is FaceCapture (FaceCapture.css).
+ */
+
+.registration-welcome {
+  z-index: 9999;
+}
+
+.registration-welcome__content {
+  position: relative;
+  z-index: 1;
+  animation: registration-welcome-in 0.6s ease-out both;
+}
+
+@keyframes registration-welcome-in {
+  from { transform: translateY(calc(30 * var(--setup-px))); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.registration-welcome__mark {
+  width: calc(66 * var(--setup-px));
+  height: calc(96 * var(--setup-px));
+}
+
+.registration-welcome__headline {
+  font-size: calc(108 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .registration-welcome__headline {
+  font-size: calc(96 * var(--setup-px));
+}
+
+.registration-welcome .sg-center .sg-body {
+  max-width: calc(930 * var(--setup-px));
+}
+
+.registration-welcome__lead {
+  color: var(--color-text);
+}
+
+/* Portrait: the mockup sits a little higher than the default .sg-center. */
+html[data-orientation='portrait'] .registration-welcome .sg-center {
+  padding-top: calc(300 * var(--setup-px));
+}
+
+/* ------------------------------------------------------------ Confetti */
+
+.registration-welcome__confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.registration-welcome__piece {
+  position: absolute;
+  top: calc(-30 * var(--setup-px));
+  width: calc(15 * var(--setup-px));
+  height: calc(15 * var(--setup-px));
+  border-radius: calc(3 * var(--setup-px));
+  animation: registration-confetti 4s ease-out forwards;
+}
+
+@keyframes registration-confetti {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--app-h)) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .registration-welcome__content {
+    animation: none;
+  }
+}

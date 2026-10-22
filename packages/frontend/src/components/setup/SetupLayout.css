@@ -1,0 +1,429 @@
+/*
+ * Mirror setup screens: provisioning, pairing, license, face registration.
+ * From docs/design/mockups/mirror.css; mockup px × 1.5 = 1080p px, written as
+ * calc(N * var(--setup-px)) so it scales with the panel (theme.css).
+ *
+ * One layout, two orientations. Portrait rules hang off
+ * html[data-orientation='portrait'] (set by OrientationFrame), not
+ * @media (orientation), because a portrait panel on a landscape output is
+ * turned in CSS and the media query sees the output.
+ *
+ * Black is invisible behind the glass: nothing has a fill except the QR codes
+ * (white quiet zone) and the camera feed. Accent marks the active state only.
+ */
+
+.sg-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: calc(72 * var(--setup-px)) calc(108 * var(--setup-px)) calc(60 * var(--setup-px));
+  overflow: hidden;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-primary);
+  font-size: var(--setup-body);
+}
+
+html[data-orientation='portrait'] .sg-screen {
+  padding: calc(108 * var(--setup-px)) calc(84 * var(--setup-px)) calc(84 * var(--setup-px));
+}
+
+.sg-screen * {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------ Top / foot */
+
+.sg-top,
+.sg-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(24 * var(--setup-px));
+}
+
+.sg-brand {
+  display: flex;
+  align-items: center;
+  gap: calc(21 * var(--setup-px));
+  font-size: var(--setup-small);
+  font-weight: 500;
+  letter-spacing: 0.34em;
+}
+
+.sg-brand__mark {
+  width: calc(27 * var(--setup-px));
+  height: calc(39 * var(--setup-px));
+  flex: none;
+}
+
+.sg-meta,
+.sg-foot {
+  font-family: var(--font-mono);
+  font-size: var(--setup-small);
+  color: var(--setup-ink-faint);
+}
+
+.sg-meta {
+  text-align: right;
+}
+
+/* ------------------------------------------------------------ Content */
+
+/* Two columns in landscape; stacked, centred vertically, in portrait. */
+.sg-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(120 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .sg-main {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: calc(96 * var(--setup-px));
+}
+
+/* Portrait: start from the top instead (the thing to look at sits at eye level). */
+html[data-orientation='portrait'] .sg-main.sg-main--top {
+  justify-content: flex-start;
+  padding-top: calc(72 * var(--setup-px));
+}
+
+.sg-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(33 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .sg-col {
+  flex: none;
+}
+
+/* What you scan or look at: right in landscape, first (top) in portrait. */
+.sg-panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(33 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .sg-panel {
+  align-self: center;
+}
+
+html[data-orientation='portrait'] .sg-first {
+  order: -1;
+}
+
+/* Single centred column (pairing code, orientation check, welcome). */
+.sg-center {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(42 * var(--setup-px));
+  text-align: center;
+}
+
+/* Portrait: content in the upper third, at eye level. */
+html[data-orientation='portrait'] .sg-center {
+  justify-content: flex-start;
+  padding-top: calc(240 * var(--setup-px));
+}
+
+/* ------------------------------------------------------------ Type */
+
+.sg-kicker {
+  font-family: var(--font-mono);
+  font-size: var(--setup-kicker);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.sg-headline {
+  margin: 0;
+  font-size: var(--setup-headline);
+  font-weight: 200;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  overflow-wrap: anywhere;
+}
+
+html[data-orientation='portrait'] .sg-headline {
+  font-size: calc(81 * var(--setup-px));
+}
+
+.sg-body {
+  margin: 0;
+  max-width: calc(840 * var(--setup-px));
+  font-size: var(--setup-body);
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--setup-ink-body);
+}
+
+.sg-center .sg-body {
+  max-width: calc(960 * var(--setup-px));
+}
+
+/* Something wrong that the user can fix (license problems). */
+.sg-note {
+  margin: 0;
+  max-width: calc(840 * var(--setup-px));
+  font-size: var(--setup-body);
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--color-warning);
+}
+
+.sg-caption {
+  margin: 0;
+  max-width: calc(450 * var(--setup-px));
+  font-size: calc(27 * var(--setup-px));
+  font-weight: 300;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--setup-ink-dim);
+}
+
+.sg-mono {
+  font-family: var(--font-mono);
+}
+
+.sg-dim {
+  color: var(--setup-ink-dim);
+}
+
+.sg-faint {
+  color: var(--setup-ink-faint);
+}
+
+.sg-accent {
+  color: var(--color-accent);
+}
+
+/* ------------------------------------------------------------ Step list */
+
+.sg-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  max-width: calc(840 * var(--setup-px));
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.sg-step {
+  display: flex;
+  align-items: center;
+  gap: calc(30 * var(--setup-px));
+  min-height: calc(87 * var(--setup-px));
+  border-top: 1px solid var(--color-hairline);
+  font-size: calc(31.5 * var(--setup-px));
+  font-weight: 300;
+}
+
+.sg-step__n {
+  flex: none;
+  width: calc(42 * var(--setup-px));
+  font-family: var(--font-mono);
+  font-size: var(--setup-kicker);
+  color: var(--setup-ink-faint);
+}
+
+.sg-step__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.sg-step__note {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--setup-kicker);
+  color: var(--setup-ink-faint);
+}
+
+.sg-step.is-done .sg-step__n,
+.sg-step.is-done .sg-step__note {
+  color: var(--color-accent);
+}
+
+.sg-step.is-now {
+  font-weight: 400;
+}
+
+.sg-step.is-now .sg-step__n {
+  color: var(--color-text);
+}
+
+.sg-step.is-todo {
+  color: var(--setup-ink-faint);
+}
+
+/* Sentences rather than labels (license steps). */
+.sg-steps--long .sg-step {
+  align-items: flex-start;
+  padding: calc(24 * var(--setup-px)) 0;
+  font-size: calc(28.5 * var(--setup-px));
+  line-height: 1.45;
+}
+
+.sg-steps--long .sg-step__n {
+  padding-top: calc(5 * var(--setup-px));
+}
+
+/* ------------------------------------------------------------ Blocks */
+
+/* QR code on its white quiet zone: the only white fill on the glass. */
+.sg-qr {
+  display: inline-flex;
+  padding: calc(27 * var(--setup-px));
+  background: #ffffff;
+  border-radius: calc(27 * var(--setup-px));
+  line-height: 0;
+}
+
+.sg-qr svg {
+  display: block;
+  width: calc(336 * var(--setup-px));
+  height: calc(336 * var(--setup-px));
+}
+
+.sg-qr--small {
+  padding: calc(21 * var(--setup-px));
+  border-radius: calc(24 * var(--setup-px));
+}
+
+.sg-qr--small svg {
+  width: calc(243 * var(--setup-px));
+  height: calc(243 * var(--setup-px));
+}
+
+/* Camera feed panel: the other filled block. */
+.sg-feed {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0d1014;
+  border: 1px solid var(--color-hairline);
+  border-radius: calc(27 * var(--setup-px));
+}
+
+/* Dashed face outline over the feed. */
+.sg-oval {
+  border: calc(3 * var(--setup-px)) dashed var(--color-accent-dim);
+  border-radius: 50%;
+}
+
+/* Mono definition pairs ("Last verified", "License key"). */
+.sg-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(36 * var(--setup-px)) calc(72 * var(--setup-px));
+  margin: 0;
+}
+
+.sg-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--setup-px));
+}
+
+.sg-facts dt {
+  font-size: var(--setup-small);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--setup-ink-faint);
+}
+
+.sg-facts dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: calc(30 * var(--setup-px));
+}
+
+/* Thin progress bar (pairing code expiry, photos captured). */
+.sg-bar {
+  height: calc(4 * var(--setup-px));
+  min-height: 2px;
+  border-radius: 2px;
+  background: var(--color-hairline);
+  overflow: hidden;
+}
+
+.sg-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+  transition: width 1s linear;
+}
+
+.sg-spin {
+  flex: none;
+  width: calc(39 * var(--setup-px));
+  height: calc(39 * var(--setup-px));
+  border-radius: 50%;
+  border: calc(3 * var(--setup-px)) solid var(--color-hairline);
+  border-top-color: var(--color-accent);
+  animation: sg-spin 1s linear infinite;
+}
+
+.sg-spin--large {
+  width: calc(96 * var(--setup-px));
+  height: calc(96 * var(--setup-px));
+}
+
+@keyframes sg-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Photo progress dots: done = accent, current = white, to do = dim. */
+.sg-dots {
+  display: flex;
+  gap: calc(15 * var(--setup-px));
+}
+
+.sg-dots > i {
+  display: block;
+  width: calc(15 * var(--setup-px));
+  height: calc(15 * var(--setup-px));
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sg-dots > i.is-done {
+  background: var(--color-accent);
+}
+
+.sg-dots > i.is-now {
+  background: var(--color-text);
+}
+
+/* ------------------------------------------------------------ Pairing QR */
+
+.sg-pairing-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(24 * var(--setup-px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-spin { animation-duration: 3s; }
+  .sg-bar > i { transition: none; }
+}

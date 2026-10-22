@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useWsEvent } from './modules/useWsEvent';
 import { groupCode, toEpochMs, type PairingEvent } from '../pairing';
+import { SetupFrame } from './setup/SetupFrame';
 import './Pairing.css';
 
 type Result = 'paired' | 'failed' | 'expired';
@@ -143,8 +144,12 @@ export function PairingCodeOverlay() {
   if (view.kind === 'result') {
     const copy = RESULT_COPY[view.result];
     return (
-      <div className={className} role="status" aria-live="polite">
-        <div className={`pairing-overlay__content pairing-overlay__result tone-${copy.tone}`}>
+      <SetupFrame className={className}>
+        <div
+          className={`sg-center pairing-overlay__result tone-${copy.tone}`}
+          role="status"
+          aria-live="polite"
+        >
           <div className="pairing-overlay__result-mark" aria-hidden="true">
             {view.result === 'paired' ? (
               <svg viewBox="0 0 48 48" width="100%" height="100%">
@@ -158,12 +163,12 @@ export function PairingCodeOverlay() {
               </svg>
             )}
           </div>
-          <h1 className="pairing-overlay__result-title">{copy.title}</h1>
+          <h1 className="sg-headline pairing-overlay__title">{copy.title}</h1>
           {view.result === 'paired' && (
-            <p className="pairing-overlay__hint">{view.deviceName} can now control this mirror.</p>
+            <p className="sg-body">{view.deviceName} can now control this mirror.</p>
           )}
         </div>
-      </div>
+      </SetupFrame>
     );
   }
 
@@ -172,14 +177,23 @@ export function PairingCodeOverlay() {
   const groups = groupCode(view.code);
 
   return (
-    <div className={className} role="alertdialog" aria-live="assertive" aria-labelledby="pairing-title">
-      <div className="pairing-overlay__content">
-        <div className="pairing-overlay__eyebrow">
+    <SetupFrame
+      className={className}
+      topLeft={
+        <div className="sg-kicker pairing-overlay__kicker">
           <span className="pairing-overlay__dot" aria-hidden="true" />
           Pairing request
         </div>
-
-        <h1 id="pairing-title" className="pairing-overlay__title">
+      }
+      footLeft="Only someone at the mirror can see this code"
+    >
+      <div
+        className="sg-center pairing-overlay__center"
+        role="alertdialog"
+        aria-live="assertive"
+        aria-labelledby="pairing-title"
+      >
+        <h1 id="pairing-title" className="sg-headline pairing-overlay__title">
           Pair <span className="pairing-overlay__device">{view.deviceName}</span>?
         </h1>
 
@@ -191,15 +205,17 @@ export function PairingCodeOverlay() {
           ))}
         </div>
 
-        <p className="pairing-overlay__hint">Enter this code in the SkyGlass app</p>
+        <p className="sg-body">Enter this code in the SkyGlass app</p>
 
         <div className="pairing-overlay__timer">
-          <div className="pairing-overlay__track" aria-hidden="true">
-            <div className="pairing-overlay__bar" style={{ transform: `scaleX(${fraction})` }} />
+          <div className="sg-bar pairing-overlay__bar" aria-hidden="true">
+            <i style={{ width: `${fraction * 100}%` }} />
           </div>
-          <span className="pairing-overlay__remaining">Expires in {formatRemaining(remaining)}</span>
+          <span className="sg-mono sg-faint pairing-overlay__remaining">
+            Expires in {formatRemaining(remaining)}
+          </span>
         </div>
       </div>
-    </div>
+    </SetupFrame>
   );
 }

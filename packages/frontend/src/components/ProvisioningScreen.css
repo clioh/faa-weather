@@ -1,0 +1,86 @@
+/*
+ * Provisioning (hotspot) screen: docs/design/mockups/M-Hotspot-L/P.
+ * Landscape: text left, the two QR codes side by side on the right.
+ * Portrait: QR codes stacked on top, each with its label beside it.
+ */
+
+.sg-hotspot__codes {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: calc(60 * var(--setup-px));
+}
+
+.sg-hotspot__code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(21 * var(--setup-px));
+  text-align: center;
+}
+
+.sg-hotspot__text {
+  display: contents;
+}
+
+.sg-hotspot__step {
+  font-family: var(--font-mono);
+  font-size: var(--setup-kicker);
+  color: var(--color-accent);
+  /* Landscape: the text box dissolves so the step label can sit above the QR code. */
+  order: -1;
+}
+
+.sg-hotspot__value {
+  font-family: var(--font-mono);
+  font-size: var(--setup-body);
+}
+
+.sg-hotspot__hint {
+  font-size: calc(22.5 * var(--setup-px));
+  font-weight: 300;
+  color: var(--setup-ink-faint);
+}
+
+.sg-hotspot__then {
+  font-family: var(--font-mono);
+  font-size: var(--setup-kicker);
+  color: var(--setup-ink-faint);
+  padding-top: calc(180 * var(--setup-px));
+}
+
+.sg-hotspot__waiting {
+  font-family: var(--font-mono);
+  font-size: var(--setup-kicker);
+  color: var(--setup-ink-faint);
+}
+
+html[data-orientation='portrait'] .sg-hotspot__codes {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(42 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .sg-hotspot__code {
+  flex-direction: row;
+  gap: calc(42 * var(--setup-px));
+  text-align: left;
+}
+
+html[data-orientation='portrait'] .sg-hotspot__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(15 * var(--setup-px));
+  width: calc(390 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .sg-hotspot__step {
+  order: 0;
+}
+
+/* Centred under the QR codes (.sg-qr--small: 243 + 2 × 21 quiet zone). */
+html[data-orientation='portrait'] .sg-hotspot__then {
+  padding-top: 0;
+  width: calc(285 * var(--setup-px));
+  text-align: center;
+}

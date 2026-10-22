@@ -1,0 +1,149 @@
+/*
+ * Face registration layout (mockups M-Face-L/P), used by SetupProgressScreen
+ * and RegistrationOverlay. Shared chrome comes from setup/SetupLayout.css.
+ */
+
+.face-capture {
+  z-index: 9999;
+  animation: face-capture-in 0.5s ease;
+}
+
+@keyframes face-capture-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.face-capture__main {
+  gap: calc(108 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .face-capture__main {
+  gap: calc(66 * var(--setup-px));
+}
+
+/* ------------------------------------------------------------ Feed */
+
+.face-capture__feed {
+  flex: none;
+  width: calc(660 * var(--setup-px));
+  height: calc(780 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .face-capture__feed {
+  width: 100%;
+  height: calc(900 * var(--setup-px));
+}
+
+.face-capture__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.face-capture__oval {
+  position: relative;
+  width: calc(345 * var(--setup-px));
+  height: calc(465 * var(--setup-px));
+  transition: border-color 0.3s ease;
+}
+
+html[data-orientation='portrait'] .face-capture__oval {
+  width: calc(420 * var(--setup-px));
+  height: calc(570 * var(--setup-px));
+}
+
+/* A photo was just taken. */
+.face-capture__oval.is-pulse {
+  border-color: var(--color-accent);
+  animation: face-capture-pulse 0.5s ease;
+}
+
+@keyframes face-capture-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+.face-capture__countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.face-capture__countdown span {
+  font-size: calc(225 * var(--setup-px));
+  font-weight: 200;
+  line-height: 1;
+  color: var(--color-text);
+  animation: face-capture-count 1s ease;
+}
+
+html[data-orientation='portrait'] .face-capture__countdown span {
+  font-size: calc(255 * var(--setup-px));
+}
+
+@keyframes face-capture-count {
+  from { transform: scale(1.15); opacity: 0.6; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ------------------------------------------------------------ Text */
+
+html[data-orientation='portrait'] .face-capture__text {
+  align-items: center;
+  text-align: center;
+}
+
+.face-capture__name {
+  font-size: calc(30 * var(--setup-px));
+  font-weight: 300;
+  color: var(--setup-ink-dim);
+}
+
+.face-capture__headline {
+  font-size: calc(78 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .face-capture__headline {
+  font-size: calc(69 * var(--setup-px));
+}
+
+.face-capture__count {
+  font-size: calc(24 * var(--setup-px));
+}
+
+.face-capture__body {
+  padding-top: calc(18 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .face-capture__body {
+  padding-top: 0;
+}
+
+/* ------------------------------------------------------------ Flash */
+
+.face-capture__flash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #ffffff;
+  pointer-events: none;
+  animation: face-capture-flash 0.3s ease-out forwards;
+}
+
+@keyframes face-capture-flash {
+  from { opacity: 0.8; }
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .face-capture,
+  .face-capture__oval.is-pulse,
+  .face-capture__countdown span {
+    animation: none;
+  }
+}

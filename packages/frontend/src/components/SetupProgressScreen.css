@@ -1,0 +1,12 @@
+/* Setup progress (mockups M-Pair-L/P). Layout from setup/SetupLayout.css. */
+
+/* Animated "..." after the step description; fixed width so the line doesn't shift. */
+.setup-progress__dots {
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+}
+
+.setup-progress__steps {
+  padding-top: calc(18 * var(--setup-px));
+}

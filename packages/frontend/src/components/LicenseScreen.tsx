@@ -13,6 +13,9 @@ import {
   DEFAULT_SUPPORT_EMAIL,
   type LicenseStatus,
 } from '../license';
+import { SetupFrame } from './setup/SetupFrame';
+import { StepList } from './setup/StepList';
+import { useMirrorInfo } from './setup/useMirrorInfo';
 import './LicenseScreen.css';
 
 type Tone = 'neutral' | 'warning' | 'alert';
@@ -25,6 +28,8 @@ interface StateCopy {
   /** Ordered next steps. */
   steps: string[];
   showSupport?: boolean;
+  /** Working on it: a spinner sits next to the body. */
+  busy?: boolean;
 }
 
 function copyFor(status: LicenseStatus, manageHost: string): StateCopy {
@@ -85,6 +90,7 @@ function copyFor(status: LicenseStatus, manageHost: string): StateCopy {
           eyebrow: 'Pre-installed license',
           title: 'Activating SkyGlass',
           body: status.message ?? 'Activating the pre-installed license…',
+          busy: true,
           steps: [
             'This happens on its own as soon as the mirror is online.',
             'To change networks, open the SkyGlass app on your phone and go to Settings › WiFi Network.',
@@ -124,66 +130,75 @@ interface LicenseScreenProps {
 }
 
 export function LicenseScreen({ status }: LicenseScreenProps) {
+  const { version } = useMirrorInfo();
   const supportEmail = status.supportEmail || DEFAULT_SUPPORT_EMAIL;
   const manageUrl = status.manageUrl || DEFAULT_MANAGE_URL;
   const manageHost = manageUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const copy = copyFor(status, manageHost);
   const lastChecked = status.state === 'expired' ? formatLastChecked(status.lastCheckedAt) : null;
+  const problem = copy.tone !== 'neutral';
+  const body = <p className={problem ? 'sg-note' : 'sg-body'}>{copy.body}</p>;
 
   return (
-    <div className={`license-screen tone-${copy.tone}`} role="alert">
-      <div className="license-screen__content">
-        <div className="license-screen__eyebrow">
-          <span className="license-screen__dot" aria-hidden="true" />
-          {copy.eyebrow}
+    <SetupFrame
+      className={`license-screen tone-${copy.tone}`}
+      role="alert"
+      footLeft={manageHost}
+      footRight={version ? `v${version}` : null}
+    >
+      <div className="sg-main sg-main--top license-screen__main">
+        <div className="sg-col">
+          <div className="sg-kicker license-screen__kicker">{copy.eyebrow}</div>
+          <h1 className="sg-headline">{copy.title}</h1>
+
+          {copy.busy ? (
+            <div className="license-screen__busy">
+              <span className="sg-spin" aria-hidden="true" />
+              {body}
+            </div>
+          ) : (
+            body
+          )}
+
+          {(lastChecked || status.keyLast4 || copy.showSupport) && (
+            <dl className="sg-facts license-screen__facts">
+              {lastChecked && (
+                <div>
+                  <dt>Last verified</dt>
+                  <dd>{lastChecked}</dd>
+                </div>
+              )}
+              {status.keyLast4 && (
+                <div>
+                  <dt>License key</dt>
+                  <dd>····-{status.keyLast4}</dd>
+                </div>
+              )}
+              {copy.showSupport && (
+                <div>
+                  <dt>Support</dt>
+                  <dd>{supportEmail}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+
+          <p className="license-screen__waiting">
+            This screen clears on its own once the license is active.
+          </p>
         </div>
 
-        <h1 className="license-screen__title">{copy.title}</h1>
-        <p className="license-screen__body">{copy.body}</p>
-
-        {(lastChecked || status.keyLast4) && (
-          <dl className="license-screen__facts">
-            {lastChecked && (
-              <div>
-                <dt>Last verified</dt>
-                <dd>{lastChecked}</dd>
-              </div>
-            )}
-            {status.keyLast4 && (
-              <div>
-                <dt>License key</dt>
-                <dd className="mono">····-{status.keyLast4}</dd>
-              </div>
-            )}
-          </dl>
-        )}
-
-        <div className="license-screen__next">
-          <ol className="license-screen__steps">
-            {copy.steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+        <div className="sg-col license-screen__side">
+          <StepList long items={copy.steps.map((step) => ({ key: step, label: step }))} />
 
           <div className="license-screen__qr">
-            <div className="license-screen__qr-code">
-              <QRCodeSVG value={manageUrl} size={132} level="M" />
+            <div className="sg-qr sg-qr--small">
+              <QRCodeSVG value={manageUrl} size={243} level="M" />
             </div>
-            <span className="mono">{manageHost}</span>
+            <span className="sg-mono sg-faint">{manageHost}</span>
           </div>
         </div>
-
-        {copy.showSupport && (
-          <p className="license-screen__support">
-            Support: <span className="mono">{supportEmail}</span>
-          </p>
-        )}
-
-        <div className="license-screen__waiting">
-          <span className="license-screen__pulse" aria-hidden="true" />
-          This screen clears on its own once the license is active.
-        </div>
       </div>
-    </div>
+    </SetupFrame>
   );
 }

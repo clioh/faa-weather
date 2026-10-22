@@ -62,6 +62,10 @@
   --setup-body: calc(33 * var(--setup-px));
   --setup-kicker: calc(21 * var(--setup-px));
   --setup-small: calc(20 * var(--setup-px));
+  /* Setup screen ink: brighter than the widget dims, for reading at a distance. */
+  --setup-ink-dim: rgba(255, 255, 255, 0.62);
+  --setup-ink-body: rgba(255, 255, 255, 0.68);
+  --setup-ink-faint: rgba(255, 255, 255, 0.45);
 }
 
 /* Portrait panel on a landscape output: swap the frame's sides and turn it. */

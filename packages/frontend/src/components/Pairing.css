@@ -1,24 +1,16 @@
 /*
- * Phone pairing: the full-screen code overlay, the connect QR, and the note
- * shown when the UI is opened somewhere other than the mirror. Mirror tokens
- * from styles/theme.css: black ground, thin light type, mono for the code,
- * accent only for the "waiting on you" cue, green only for success.
+ * Phone pairing: the full-screen code overlay (docs/design/mockups/M-Code-L/P)
+ * and the note shown when the UI is opened somewhere other than the mirror.
+ * The overlay is a SetupFrame (setup/SetupLayout.css); mockup px x 1.5 =
+ * 1080p px, written as calc(N * var(--setup-px)). Black ground, no fills,
+ * accent only for the "waiting on you" dot and bar.
  */
 
 /* ------------------------------------------------------------ Overlay */
 
+/* Above everything, including the orientation check (9000). */
 .pairing-overlay {
-  position: fixed;
-  inset: 0;
   z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 16px;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-family: var(--font-primary);
-  text-align: center;
   animation: pairing-in 0.5s ease-out both;
 }
 
@@ -36,32 +28,18 @@
   to { opacity: 0; }
 }
 
-.pairing-overlay__content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 60rem;
-}
-
-.pairing-overlay__eyebrow {
+.pairing-overlay__kicker {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-  font-size: max(0.95rem, 1.6vmin);
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--color-text-dim);
+  gap: calc(15 * var(--setup-px));
 }
 
 .pairing-overlay__dot {
-  width: 0.6rem;
-  height: 0.6rem;
+  flex: none;
+  width: calc(12 * var(--setup-px));
+  height: calc(12 * var(--setup-px));
   border-radius: 50%;
   background: var(--color-accent);
-  box-shadow: 0 0 0.75rem var(--color-accent);
   animation: pairing-breathe 2.4s ease-in-out infinite;
 }
 
@@ -70,104 +48,85 @@
   50% { opacity: 0.35; }
 }
 
+html[data-orientation='portrait'] .pairing-overlay__center {
+  gap: calc(48 * var(--setup-px));
+}
+
 .pairing-overlay__title {
-  margin: 0;
   max-width: 100%;
-  font-size: max(2rem, 5.2vmin);
-  font-weight: 300;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  overflow-wrap: anywhere;
+  font-size: calc(78 * var(--setup-px));
   /* The body's tabular figures widen hyphens in device names. */
   font-feature-settings: 'cv11' 1;
 }
 
+html[data-orientation='portrait'] .pairing-overlay__title {
+  font-size: calc(72 * var(--setup-px));
+}
+
 .pairing-overlay__device {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .pairing-overlay__code {
   display: flex;
   justify-content: center;
-  gap: 0.45em;
-  margin: 3.5rem 0 3rem;
+  gap: 0.4em;
   font-family: var(--font-mono);
-  /* Sized on the short edge so landscape and portrait panels match;
-     capped by width so six digits always fit. */
-  font-size: min(16vmin, calc(var(--app-w) * 0.13));
+  /* Capped by width so an eight-digit code still fits. */
+  font-size: min(calc(180 * var(--setup-px)), calc(var(--app-w) * 0.11));
   font-weight: 300;
   line-height: 1;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.18em;
   font-variant-numeric: tabular-nums slashed-zero;
   color: var(--color-text);
 }
 
-/* Letter-spacing adds trailing space after the last digit; pull it back so
-   the groups stay optically centred. */
-.pairing-overlay__group {
-  margin-right: -0.06em;
+html[data-orientation='portrait'] .pairing-overlay__code {
+  font-size: min(calc(144 * var(--setup-px)), calc(var(--app-w) * 0.13));
 }
 
-.pairing-overlay__hint {
-  margin: 0;
-  font-size: max(1.25rem, 2.7vmin);
-  font-weight: 300;
-  color: var(--color-text-dim);
+/* Letter-spacing adds trailing space after each group's last digit; pull it
+   back so the groups stay optically centred. */
+.pairing-overlay__group {
+  margin-right: -0.18em;
 }
 
 .pairing-overlay__timer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  margin-top: 3.5rem;
-  width: min(36vmin, calc(var(--app-w) * 0.7));
-}
-
-.pairing-overlay__track {
-  width: 100%;
-  height: 2px;
-  background: var(--color-hairline);
-  overflow: hidden;
+  gap: calc(15 * var(--setup-px));
+  width: min(calc(630 * var(--setup-px)), calc(var(--app-w) * 0.7));
 }
 
 .pairing-overlay__bar {
   width: 100%;
-  height: 100%;
-  background: var(--color-accent-dim);
-  transform-origin: left center;
-  transition: transform 0.25s linear;
+}
+
+/* Ticks every 250 ms; a short ease keeps it smooth without lagging. */
+.pairing-overlay__bar > i {
+  transition: width 0.25s linear;
 }
 
 .pairing-overlay__remaining {
-  font-family: var(--font-mono);
-  font-size: max(1rem, 1.7vmin);
+  font-size: var(--setup-kicker);
   letter-spacing: 0.04em;
-  color: var(--color-text-faint);
 }
 
-/* Result */
+/* Result: same centred layout, a line mark instead of the code. */
 
 .pairing-overlay__result.tone-positive {
-  --pairing-tone: var(--color-positive);
+  --pairing-tone: var(--color-text);
 }
 
 .pairing-overlay__result.tone-neutral {
-  --pairing-tone: var(--color-text-dim);
+  --pairing-tone: var(--setup-ink-dim);
 }
 
 .pairing-overlay__result-mark {
-  width: max(4rem, 9vmin);
-  height: max(4rem, 9vmin);
-  margin-bottom: 2rem;
+  width: calc(108 * var(--setup-px));
+  height: calc(108 * var(--setup-px));
   color: var(--pairing-tone);
-}
-
-.pairing-overlay__result-title {
-  margin: 0 0 1rem;
-  font-size: max(2.5rem, 7vmin);
-  font-weight: 300;
-  letter-spacing: -0.01em;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -176,43 +135,12 @@
   .pairing-overlay__dot {
     animation: none;
   }
-  .pairing-overlay__bar {
+  .pairing-overlay__bar > i {
     transition: none;
   }
 }
 
-/* ----------------------------------------------------------- Connect QR */
-
-.pairing-qr {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* White quiet zone: phone cameras need it on a black screen. */
-.pairing-qr__code {
-  padding: 14px;
-  background: #fff;
-  border-radius: 10px;
-  line-height: 0;
-}
-
-.pairing-qr__hint {
-  margin: 0.25rem 0 0;
-  font-size: 0.95rem;
-  color: var(--color-text-dim);
-}
-
-.pairing-qr__dev {
-  margin: 0;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-text-faint);
-}
-
-/* -------------------------------------------------- Not on the mirror */
+/* ----------------------------------------------------- Not on the mirror */
 
 .pairing-remote {
   min-height: var(--app-h);

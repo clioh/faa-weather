@@ -4,18 +4,19 @@
  * straight away; usePairingQr keeps it fresh across rotations.
  */
 
+import type { ReactNode } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { usePairingQr } from '../pairing';
-import './Pairing.css';
+import './setup/SetupLayout.css';
 
 interface PairingQrProps {
-  /** QR edge length in px. */
-  size?: number;
+  /** Caption under the code. */
+  caption?: ReactNode;
   /** Rendered instead of the QR while no link is available. */
-  fallback?: React.ReactNode;
+  fallback?: ReactNode;
 }
 
-export function PairingQr({ size = 168, fallback = null }: PairingQrProps) {
+export function PairingQr({ caption = 'Scan with your phone camera to pair', fallback = null }: PairingQrProps) {
   const qr = usePairingQr();
   if (!qr) return <>{fallback}</>;
 
@@ -23,12 +24,13 @@ export function PairingQr({ size = 168, fallback = null }: PairingQrProps) {
   const devBuild = qr.url.startsWith('exp://') || qr.url.startsWith('exps://');
 
   return (
-    <div className="pairing-qr">
-      <div className="pairing-qr__code">
-        <QRCodeSVG value={qr.url} size={size} level="M" marginSize={0} />
+    <div className="sg-pairing-qr">
+      {/* Drawn at 1080p size; .sg-qr scales it with the panel. */}
+      <div className="sg-qr" role="img" aria-label="QR code that opens the SkyGlass app on this mirror">
+        <QRCodeSVG value={qr.url} size={336} level="M" marginSize={0} />
       </div>
-      <p className="pairing-qr__hint">Scan with your phone camera to pair</p>
-      {devBuild && <p className="pairing-qr__dev">Development build · opens in Expo Go</p>}
+      {caption && <p className="sg-caption">{caption}</p>}
+      {devBuild && <p className="sg-caption sg-faint sg-mono">Development build · opens in Expo Go</p>}
     </div>
   );
 }
