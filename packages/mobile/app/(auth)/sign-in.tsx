@@ -9,17 +9,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
 import { useRouter, Link } from 'expo-router';
 import { useSSO } from '@clerk/expo';
 import { useSignIn } from '@clerk/expo/legacy';
-import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingScreen, HEADER_HIT_SLOP } from '@/components';
+import { Button, Field, Text } from '@/components/ui';
 import { goToDashboard } from '@/lib/navigation';
-import { colors } from '@/lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -28,7 +27,6 @@ export default function SignInScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
 
@@ -84,62 +82,35 @@ export default function SignInScreen() {
 
   return (
     <KeyboardAvoidingScreen style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to sync your mirrors across devices</Text>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.heading}>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Sign in to sync your mirrors across devices</Text>
+        </View>
 
         {/* Email/Password Form */}
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoComplete="password"
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeButton}
-              hitSlop={HEADER_HIT_SLOP}
-            >
-              <Ionicons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={20}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={handleEmailSignIn}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={colors.background} />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
-          </TouchableOpacity>
+          <Field
+            label="Email"
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
+          <Field
+            label="Password"
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            revealable
+            autoComplete="password"
+          />
         </View>
+
+        <Button label="Sign In" onPress={handleEmailSignIn} loading={isLoading} />
 
         {/* Divider */}
         <View style={styles.divider}>
@@ -150,49 +121,41 @@ export default function SignInScreen() {
 
         {/* OAuth Buttons */}
         <View style={styles.oauthContainer}>
-          <TouchableOpacity
-            style={[styles.oauthButton]}
+          <Button
+            label="Google"
+            variant="secondary"
+            icon="logo-google"
+            style={styles.oauthButton}
             onPress={() => handleOAuthSignIn('google')}
-            disabled={oauthLoading !== null}
-          >
-            {oauthLoading === 'google' ? (
-              <ActivityIndicator color={colors.text} />
-            ) : (
-              <>
-                <Ionicons name="logo-google" size={20} color={colors.text} />
-                <Text style={styles.oauthButtonText}>Google</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            disabled={oauthLoading !== null && oauthLoading !== 'google'}
+            loading={oauthLoading === 'google'}
+          />
 
           {Platform.OS === 'ios' && (
-            <TouchableOpacity
-              style={[styles.oauthButton]}
+            <Button
+              label="Apple"
+              variant="secondary"
+              icon="logo-apple"
+              style={styles.oauthButton}
               onPress={() => handleOAuthSignIn('apple')}
-              disabled={oauthLoading !== null}
-            >
-              {oauthLoading === 'apple' ? (
-                <ActivityIndicator color={colors.text} />
-              ) : (
-                <>
-                  <Ionicons name="logo-apple" size={20} color={colors.text} />
-                  <Text style={styles.oauthButtonText}>Apple</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              disabled={oauthLoading !== null && oauthLoading !== 'apple'}
+              loading={oauthLoading === 'apple'}
+            />
           )}
         </View>
+
+        <View style={styles.spacer} />
 
         {/* Sign Up Link */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
           <Link href="/(auth)/sign-up" asChild>
-            <TouchableOpacity hitSlop={HEADER_HIT_SLOP}>
+            <TouchableOpacity hitSlop={HEADER_HIT_SLOP} style={styles.footerLinkButton}>
               <Text style={styles.footerLink}>Sign Up</Text>
             </TouchableOpacity>
           </Link>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingScreen>
   );
 }
@@ -203,111 +166,65 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 28,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
+  },
+  heading: {
+    gap: 10,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    ...typography.h1,
     color: colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    ...typography.body,
     color: colors.textSecondary,
-    marginBottom: 32,
-    textAlign: 'center',
   },
   form: {
-    gap: 16,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    height: 50,
-    color: colors.text,
-    fontSize: 16,
-  },
-  eyeButton: {
-    padding: 8,
-  },
-  button: {
-    height: 50,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
-  },
-  buttonText: {
-    color: colors.background,
-    fontSize: 16,
-    fontWeight: '600',
+    gap: 12,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    gap: 12,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.hairline,
   },
   dividerText: {
-    color: colors.textSecondary,
-    marginHorizontal: 16,
-    fontSize: 14,
+    ...typography.caption,
+    color: colors.textMuted,
   },
   oauthContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
+    gap: 10,
   },
   oauthButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  oauthButtonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '500',
+  spacer: {
+    flex: 1,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    alignItems: 'center',
   },
   footerText: {
-    color: colors.textSecondary,
     fontSize: 14,
+    color: colors.textSecondary,
+  },
+  footerLinkButton: {
+    minHeight: 44,
+    justifyContent: 'center',
   },
   footerLink: {
-    color: colors.primary,
     fontSize: 14,
-    fontWeight: '600',
+    color: colors.primary,
   },
 });

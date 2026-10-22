@@ -34,6 +34,8 @@ export function SectionLabel({ children, style }: { children: ReactNode; style?:
 export interface RowProps {
   title: string;
   caption?: string;
+  /** Caption is data (address, version): set it in mono. */
+  captionMono?: boolean;
   icon?: IconName;
   /** Custom leading content instead of an icon (e.g. a mono ICAO column). */
   leading?: ReactNode;
@@ -64,6 +66,7 @@ const TONE_COLOR = {
 export function Row({
   title,
   caption,
+  captionMono,
   icon,
   leading,
   value,
@@ -87,7 +90,7 @@ export function Row({
       {leading ?? (icon ? <Ionicons name={icon} size={22} color={tone === 'default' ? colors.text : tint} /> : null)}
       <View style={styles.text}>
         <Text style={[styles.title, { color: tint }]}>{title}</Text>
-        {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+        {caption ? <Text style={[styles.caption, captionMono && styles.mono]}>{caption}</Text> : null}
       </View>
       {value ? (
         <Text style={[styles.value, valueMono && styles.mono]} numberOfLines={1}>

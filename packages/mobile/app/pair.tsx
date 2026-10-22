@@ -12,15 +12,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api, ApiError, INVALID_PAIRING_CODE, type PairingRequest } from '@/lib/api';
 import { commonPairingError, expiryMs, getDeviceName, settlePairing } from '@/lib/pairing';
 import { goBack } from '@/lib/navigation';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { colors, fonts, spacing, typography } from '@/lib/theme';
+import { Footer, Spinner, Text } from '@/components/ui';
 import { KeyboardAvoidingScreen, ScreenHeader } from '@/components';
 import { Notice, SecondaryButton } from '@/components/calendar/ui';
 import { CodeInput, CODE_LENGTH, type CodeInputHandle } from '@/components/pairing/CodeInput';
@@ -147,16 +146,15 @@ export default function PairScreen() {
     <KeyboardAvoidingScreen style={styles.container}>
       <ScreenHeader title="Pair this phone" leftIcon="close" onLeftPress={() => goBack('/')} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.iconWrap}>
-          <Ionicons name="phone-portrait-outline" size={36} color={colors.primary} />
+        <View style={styles.heading}>
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
+          <Text style={styles.body}>
+            Your mirror will show a 6-digit code. Enter it here so this phone can set up and control the
+            mirror. Only someone standing at the mirror can see the code.
+          </Text>
         </View>
-        <Text style={styles.title} accessibilityRole="header">
-          {title}
-        </Text>
-        <Text style={styles.body}>
-          Your mirror will show a 6-digit code. Enter it here so this phone can set up and control the
-          mirror. Only someone standing at the mirror can see the code.
-        </Text>
 
         {expiredPairing ? (
           <Notice tone="info" message="This mirror no longer recognizes this phone, so it needs to be paired again." />
@@ -164,39 +162,41 @@ export default function PairScreen() {
 
         {requesting ? (
           <View style={styles.waiting}>
-            <ActivityIndicator color={colors.primary} />
+            <Spinner />
             <Text style={styles.waitingText}>Asking the mirror for a code…</Text>
           </View>
         ) : requestError ? (
-          <>
-            <Notice tone="error" message={requestError} />
-            <SecondaryButton label="Try again" icon="refresh" onPress={requestCode} />
-          </>
+          <Notice tone="error" message={requestError} />
         ) : (
           <>
-            <CodeInput
-              ref={inputRef}
-              value={code}
-              onChange={(digits) => {
-                setCode(digits);
-                if (codeError) setCodeError(null);
-              }}
-              onComplete={submit}
-              disabled={!codeUsable || completing}
-              error={codeError !== null}
-            />
+            <View style={styles.codeBlock}>
+              <Text style={styles.codeLabel} importantForAccessibility="no" accessibilityElementsHidden>
+                6-digit pairing code
+              </Text>
+              <CodeInput
+                ref={inputRef}
+                value={code}
+                onChange={(digits) => {
+                  setCode(digits);
+                  if (codeError) setCodeError(null);
+                }}
+                onComplete={submit}
+                disabled={!codeUsable || completing}
+                error={codeError !== null}
+              />
 
-            <View style={styles.statusRow} accessibilityLiveRegion="polite">
-              {completing ? (
-                <>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.statusText}>Checking the code…</Text>
-                </>
-              ) : codeUsable ? (
-                <Text style={styles.statusText}>
-                  Code expires in {formatCountdown(expiresAt - now)}
-                </Text>
-              ) : null}
+              <View style={styles.statusRow} accessibilityLiveRegion="polite">
+                {completing ? (
+                  <>
+                    <Spinner />
+                    <Text style={styles.statusText}>Checking the code…</Text>
+                  </>
+                ) : codeUsable ? (
+                  <Text style={[styles.statusText, styles.mono]}>
+                    Code expires in {formatCountdown(expiresAt - now)}
+                  </Text>
+                ) : null}
+              </View>
             </View>
 
             {codeError ? <Notice tone="error" message={codeError} /> : null}
@@ -204,7 +204,23 @@ export default function PairScreen() {
             {expired && !voided ? (
               <Notice tone="warning" message="That code has expired. Show a new one on the mirror." />
             ) : null}
+          </>
+        )}
 
+        <View style={styles.spacer} />
+        {!requesting && !requestError ? (
+          <Text style={styles.hint}>
+            Don’t see a code? Stand in front of the mirror to wake its display, and make sure this phone is
+            on the same WiFi network.
+          </Text>
+        ) : null}
+      </ScrollView>
+
+      {requesting ? null : (
+        <Footer>
+          {requestError ? (
+            <SecondaryButton label="Try again" icon="refresh" onPress={requestCode} />
+          ) : (
             <SecondaryButton
               label="Show a new code"
               icon="refresh"
@@ -212,35 +228,26 @@ export default function PairScreen() {
               disabled={completing}
               accessibilityLabel="Show a new code on the mirror"
             />
-            <Text style={styles.hint}>
-              Don’t see a code? Stand in front of the mirror to wake its display, and make sure this phone is
-              on the same WiFi network.
-            </Text>
-          </>
-        )}
-      </ScrollView>
+          )}
+        </Footer>
+      )}
     </KeyboardAvoidingScreen>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  iconWrap: {
-    alignSelf: 'center',
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.md,
-  },
-  title: { ...typography.h2, color: colors.text, textAlign: 'center' },
-  body: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.sm },
-  waiting: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg },
+  content: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.lg, gap: 26 },
+  heading: { gap: 10 },
+  title: { ...typography.h1, color: colors.text },
+  body: { ...typography.body, color: colors.textSecondary },
+  waiting: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   waitingText: { ...typography.bodySmall, color: colors.textSecondary },
-  statusRow: { minHeight: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  statusText: { ...typography.bodySmall, color: colors.textMuted, fontVariant: ['tabular-nums'] },
-  hint: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
+  codeBlock: { gap: 12 },
+  codeLabel: { fontSize: 12, color: colors.textSecondary },
+  statusRow: { minHeight: 20, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  statusText: { ...typography.caption, color: colors.textMuted },
+  mono: { fontFamily: fonts.mono },
+  spacer: { flex: 1 },
+  hint: { ...typography.caption, color: colors.textMuted },
 });

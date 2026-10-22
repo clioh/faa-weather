@@ -84,6 +84,8 @@ export const colors = {
   progressLabel: 'rgba(255, 255, 255, 0.50)',
   badgeBorder: 'rgba(122, 215, 255, 0.5)',
   badgeWarningBorder: 'rgba(255, 183, 77, 0.6)',
+  thumbTile: 'rgba(255, 255, 255, 0.14)', // layout thumbnail tiles
+  thumbTileBorder: 'rgba(255, 255, 255, 0.18)',
 };
 
 /** Notice tones: tinted fill, stronger border, light text in the tone's hue. */

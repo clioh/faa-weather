@@ -13,9 +13,10 @@ import { colors, tones, type Tone } from '@/lib/theme';
 
 export interface NoticeProps {
   tone: Tone;
-  message?: string;
+  /** Text, or Text-nestable content (e.g. a bold span). */
+  message?: ReactNode;
   title?: string;
-  /** Rich body instead of `message`. */
+  /** Extra content under the message (not wrapped in Text). */
   children?: ReactNode;
   icon?: IconName;
   action?: { label: string; onPress: () => void };

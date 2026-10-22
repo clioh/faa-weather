@@ -20,18 +20,18 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Footer, IconCircle, Spinner, Text, TextButton } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@/context/UserContext';
 import { api, ApiError, INVALID_PAIRING_CODE } from '@/lib/api';
 import { commonPairingError, getDeviceName } from '@/lib/pairing';
 import { storage } from '@/lib/storage';
 import { claimResetNonce } from '@/lib/devReset';
 import { goBack } from '@/lib/navigation';
-import { Notice, PrimaryButton, SecondaryButton } from '@/components/calendar/ui';
-import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { Notice, PrimaryButton } from '@/components/calendar/ui';
+import { colors, spacing, typography } from '@/lib/theme';
 
 const HOST_PATTERN = /^[a-zA-Z0-9.-]+$/;
 
@@ -57,6 +57,7 @@ function claimErrorMessage(err: unknown, host: string): string {
 }
 
 export default function ConnectScreen() {
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ host?: string; port?: string; pair?: string; reset?: string }>();
   const { isLoading, isOnboarded, resetAppData } = useUser();
   const [claimError, setClaimError] = useState<string | null>(null);
@@ -113,26 +114,26 @@ export default function ConnectScreen() {
 
   if (claimError) {
     return (
-      <View style={styles.container}>
-        <View style={styles.errorIcon}>
-          <Ionicons name="qr-code-outline" size={36} color={colors.warning} />
-        </View>
-        <Text style={styles.title} accessibilityRole="header">
-          Couldn’t pair with the QR code
-        </Text>
-        <View style={styles.actions}>
+      <View style={styles.errorScreen}>
+        <View style={[styles.errorBody, { paddingTop: insets.top + 72 }]}>
+          <IconCircle icon="qr-code-outline" />
+          <Text style={styles.title} accessibilityRole="header">
+            Couldn’t pair with the QR code
+          </Text>
           <Notice tone="warning" message={claimError} />
+        </View>
+        <Footer>
           {/* The address is saved; discovery connects to it and opens the code flow. */}
           <PrimaryButton label="Pair with a code instead" icon="keypad-outline" onPress={continueOnboarding} />
-          <SecondaryButton label="Cancel" onPress={() => goBack('/')} />
-        </View>
+          <TextButton label="Cancel" onPress={() => goBack('/')} />
+        </Footer>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={colors.primary} />
+      <Spinner size="large" />
       <Text style={styles.text}>Connecting to your mirror…</Text>
     </View>
   );
@@ -150,22 +151,17 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-  errorIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(255, 170, 0, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  errorScreen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  errorBody: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.lg,
   },
   title: {
-    ...typography.h3,
+    ...typography.h1,
     color: colors.text,
-    textAlign: 'center',
-  },
-  actions: {
-    alignSelf: 'stretch',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
   },
 });

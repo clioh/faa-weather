@@ -4,14 +4,8 @@
  */
 
 import { useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { Chip, Footer, Spinner, Text, TextButton } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +14,7 @@ import { useDisplayHold } from '@/hooks/useDisplayHold';
 import { api } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import { OnboardingProgress } from '@/components/OnboardingProgress';
-import { HEADER_HIT_SLOP, HeaderBackButton, LayoutThumbnail } from '@/components';
+import { HeaderBackButton, LayoutThumbnail } from '@/components';
 import { goBack, goToDashboard } from '@/lib/navigation';
 import { InlineError } from '@/components/ErrorToast';
 import { logError } from '@/lib/errors';
@@ -31,7 +25,7 @@ import {
   LayoutTemplate,
 } from '@/lib/templates';
 import { ModuleInstance } from '@/lib/modules';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { colors, fonts, spacing, typography } from '@/lib/theme';
 
 type FilterCategory = TemplateCategory | 'all';
 
@@ -118,7 +112,7 @@ export default function TemplateScreen() {
   return (
     <View style={styles.container}>
       {/* Back + Progress Indicator */}
-      <View style={{ paddingTop: insets.top + spacing.md }}>
+      <View style={{ paddingTop: insets.top + spacing.xs }}>
         <View style={styles.topBar}>
           <HeaderBackButton onPress={() => goBack('/setup')} />
         </View>
@@ -144,119 +138,68 @@ export default function TemplateScreen() {
       )}
 
       {/* Category Filter */}
-      <View style={styles.filterContainer}>
+      <View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScroll}
         >
           {categoryFilters.map((filter) => (
-            <TouchableOpacity
+            <Chip
               key={filter.key}
-              hitSlop={HEADER_HIT_SLOP}
-              style={[
-                styles.filterChip,
-                selectedCategory === filter.key && styles.filterChipActive,
-              ]}
+              label={filter.label}
+              selected={selectedCategory === filter.key}
               onPress={() => {
                 Haptics.selectionAsync();
                 setSelectedCategory(filter.key);
               }}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selectedCategory === filter.key && styles.filterChipTextActive,
-                ]}
-              >
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
+            />
           ))}
         </ScrollView>
       </View>
 
       {/* Templates List */}
       <ScrollView contentContainerStyle={styles.content}>
-        {filteredTemplates.map((template) => (
-          <TouchableOpacity
-            key={template.id}
-            style={styles.templateCard}
-            onPress={() => handleApplyTemplate(template)}
-            activeOpacity={0.7}
-            disabled={applying !== null}
-          >
-            <LayoutThumbnail
-              modules={template.modules}
-              style={styles.thumbnail}
-              accessibilityLabel={`${template.name} layout preview`}
-            />
-            <View style={styles.templateHeader}>
+        <View style={filteredTemplates.length > 0 ? styles.list : null}>
+          {filteredTemplates.map((template) => (
+            <Pressable
+              key={template.id}
+              style={({ pressed }) => [styles.templateRow, pressed && styles.pressed]}
+              onPress={() => handleApplyTemplate(template)}
+              disabled={applying !== null}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: applying !== null, busy: applying === template.id }}
+            >
+              <LayoutThumbnail
+                modules={template.modules}
+                style={styles.thumbnail}
+                accessibilityLabel={`${template.name} layout preview`}
+              />
               <View style={styles.templateInfo}>
                 <Text style={styles.templateName}>{template.name}</Text>
                 <Text style={styles.templateDescription}>{template.description}</Text>
+                <Text style={styles.templateMeta}>
+                  {template.modules.length} modules ·{' '}
+                  {TEMPLATE_CATEGORIES[template.category]?.label || template.category}
+                </Text>
               </View>
-            </View>
-
-            <View style={styles.templateFooter}>
-              <View style={styles.templateMeta}>
-                <View style={styles.moduleBadge}>
-                  <Ionicons name="grid-outline" size={14} color={colors.textMuted} />
-                  <Text style={styles.moduleCount}>
-                    {template.modules.length} modules
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.categoryBadge,
-                    {
-                      backgroundColor:
-                        TEMPLATE_CATEGORIES[template.category]?.color + '20' ||
-                        colors.primaryMuted,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.categoryBadgeText,
-                      {
-                        color:
-                          TEMPLATE_CATEGORIES[template.category]?.color ||
-                          colors.primary,
-                      },
-                    ]}
-                  >
-                    {TEMPLATE_CATEGORIES[template.category]?.label || template.category}
-                  </Text>
-                </View>
-              </View>
-
-              {applying === template.id ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <View style={styles.selectButton}>
-                  <Text style={styles.selectButtonText}>Select</Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
+              {applying === template.id ? <Spinner /> : null}
+            </Pressable>
+          ))}
+        </View>
 
         {filteredTemplates.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={48} color={colors.textMuted} />
+            <Ionicons name="search-outline" size={32} color={colors.textMuted} />
             <Text style={styles.emptyText}>No templates in this category</Text>
           </View>
         )}
       </ScrollView>
 
       {/* Footer */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Text style={styles.skipButtonText}>Skip for now</Text>
-        </TouchableOpacity>
-      </View>
+      <Footer style={styles.footer}>
+        <TextButton label="Skip for now" onPress={handleSkip} />
+      </Footer>
     </View>
   );
 }
@@ -269,16 +212,16 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     paddingHorizontal: spacing.sm,
-    marginBottom: spacing.sm,
   },
   header: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
     paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
   title: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.text,
-    marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.body,
@@ -288,131 +231,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
-  filterContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
   filterScroll: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.xs,
     gap: spacing.sm,
     flexDirection: 'row',
   },
-  filterChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-  },
-  filterChipText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: colors.primary,
-  },
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
-  templateCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+  list: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairline,
   },
-  templateHeader: {
+  templateRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.md,
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  pressed: {
+    backgroundColor: colors.surfaceHighlight,
   },
   thumbnail: {
-    marginBottom: spacing.md,
+    width: 112,
   },
   templateInfo: {
     flex: 1,
+    gap: 2,
   },
   templateName: {
-    ...typography.h3,
+    fontSize: 15,
     color: colors.text,
-    marginBottom: spacing.xs,
   },
   templateDescription: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  templateFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  templateMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  moduleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  moduleCount: {
     ...typography.caption,
     color: colors.textMuted,
   },
-  categoryBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  categoryBadgeText: {
+  templateMeta: {
     ...typography.caption,
-    fontWeight: '600',
-  },
-  selectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  selectButtonText: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
+    fontFamily: fonts.mono,
+    color: colors.textMuted,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxl,
+    gap: spacing.md,
   },
   emptyText: {
     ...typography.body,
     color: colors.textMuted,
-    marginTop: spacing.md,
   },
   footer: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  skipButton: {
-    alignItems: 'center',
-    padding: spacing.md,
-  },
-  skipButtonText: {
-    ...typography.body,
-    color: colors.textMuted,
+    paddingTop: spacing.xs,
   },
 });

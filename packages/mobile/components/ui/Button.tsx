@@ -25,6 +25,8 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: 'large' | 'small';
   icon?: IconName;
+  /** Icon after the label, e.g. an arrow on "Get started". */
+  trailingIcon?: IconName;
   loading?: boolean;
   disabled?: boolean;
   /** Read out instead of the label. */
@@ -45,6 +47,7 @@ export function Button({
   variant = 'primary',
   size = 'large',
   icon,
+  trailingIcon,
   loading,
   disabled,
   accessibilityLabel,
@@ -88,6 +91,7 @@ export function Button({
       >
         {label}
       </Text>
+      {trailingIcon && !loading ? <Ionicons name={trailingIcon} size={18} color={tint} /> : null}
     </Pressable>
   );
 }

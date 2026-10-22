@@ -9,18 +9,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  ActivityIndicator,
   Alert,
   ScrollView,
 } from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
 import { useRouter, Link } from 'expo-router';
 import { useSSO } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
-import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingScreen, HEADER_HIT_SLOP } from '@/components';
+import { Button, Field, IconCircle, Text } from '@/components/ui';
 import { goToDashboard } from '@/lib/navigation';
-import { colors } from '@/lib/theme';
+import { colors, fonts, spacing, typography } from '@/lib/theme';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -30,7 +28,6 @@ export default function SignUpScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
   const [pendingVerification, setPendingVerification] = useState(false);
@@ -118,48 +115,39 @@ export default function SignUpScreen() {
   if (pendingVerification) {
     return (
       <KeyboardAvoidingScreen style={styles.container}>
-        <View style={styles.content}>
-          <Ionicons name="mail-outline" size={64} color={colors.primary} style={styles.verifyIcon} />
-          <Text style={styles.title}>Verify Your Email</Text>
-          <Text style={styles.subtitle}>
-            We sent a verification code to {email}
-          </Text>
-
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Ionicons name="key-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter verification code"
-                placeholderTextColor={colors.textSecondary}
-                value={verificationCode}
-                onChangeText={setVerificationCode}
-                keyboardType="number-pad"
-                autoComplete="one-time-code"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
-              onPress={handleVerification}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.background} />
-              ) : (
-                <Text style={styles.buttonText}>Verify Email</Text>
-              )}
-            </TouchableOpacity>
+        <ScrollView contentContainerStyle={[styles.content, styles.verifyContent]} keyboardShouldPersistTaps="handled">
+          <IconCircle icon="mail-outline" />
+          <View style={styles.heading}>
+            <Text style={styles.title}>Verify Your Email</Text>
+            <Text style={styles.subtitle}>
+              We sent a verification code to <Text style={styles.emphasis}>{email}</Text>
+            </Text>
           </View>
+
+          <Field
+            label="Verification code"
+            placeholder="Enter verification code"
+            value={verificationCode}
+            onChangeText={setVerificationCode}
+            keyboardType="number-pad"
+            autoComplete="one-time-code"
+            mono
+            inputTextStyle={styles.codeInput}
+          />
+
+          <Button label="Verify Email" onPress={handleVerification} loading={isLoading} />
 
           <TouchableOpacity
             style={styles.resendButton}
             hitSlop={HEADER_HIT_SLOP}
             onPress={() => signUp?.prepareEmailAddressVerification({ strategy: 'email_code' })}
+            accessibilityRole="button"
           >
-            <Text style={styles.resendText}>Didn't receive the code? Resend</Text>
+            <Text style={styles.resendText}>
+              <Text style={styles.resendPrompt}>Didn't receive the code?</Text> Resend
+            </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingScreen>
     );
   }
@@ -168,131 +156,89 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingScreen style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <View style={styles.content}>
+        <View style={styles.heading}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Sign up to sync your mirrors across devices</Text>
+        </View>
 
-          {/* Sign Up Form */}
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Full Name"
-                placeholderTextColor={colors.textSecondary}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                autoComplete="name"
-              />
-            </View>
+        {/* Sign Up Form */}
+        <View style={styles.form}>
+          <Field
+            label="Full name"
+            placeholder="Full Name"
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            autoComplete="name"
+          />
+          <Field
+            label="Email"
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
+          <Field
+            label="Password"
+            placeholder="Password (min 8 characters)"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            revealable
+            autoComplete="new-password"
+          />
+        </View>
 
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor={colors.textSecondary}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-              />
-            </View>
+        <Button label="Create Account" onPress={handleSignUp} loading={isLoading} />
 
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password (min 8 characters)"
-                placeholderTextColor={colors.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoComplete="new-password"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
-                hitSlop={HEADER_HIT_SLOP}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
+        {/* Divider */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or continue with</Text>
+          <View style={styles.dividerLine} />
+        </View>
 
-            <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
-              onPress={handleSignUp}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.background} />
-              ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
-              )}
+        {/* OAuth Buttons */}
+        <View style={styles.oauthContainer}>
+          <Button
+            label="Google"
+            variant="secondary"
+            icon="logo-google"
+            style={styles.oauthButton}
+            onPress={() => handleOAuthSignUp('google')}
+            disabled={oauthLoading !== null && oauthLoading !== 'google'}
+            loading={oauthLoading === 'google'}
+          />
+
+          {Platform.OS === 'ios' && (
+            <Button
+              label="Apple"
+              variant="secondary"
+              icon="logo-apple"
+              style={styles.oauthButton}
+              onPress={() => handleOAuthSignUp('apple')}
+              disabled={oauthLoading !== null && oauthLoading !== 'apple'}
+              loading={oauthLoading === 'apple'}
+            />
+          )}
+        </View>
+
+        <View style={styles.spacer} />
+
+        {/* Sign In Link */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <Link href="/(auth)/sign-in" asChild>
+            <TouchableOpacity hitSlop={HEADER_HIT_SLOP} style={styles.footerLinkButton}>
+              <Text style={styles.footerLink}>Sign In</Text>
             </TouchableOpacity>
-          </View>
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* OAuth Buttons */}
-          <View style={styles.oauthContainer}>
-            <TouchableOpacity
-              style={[styles.oauthButton]}
-              onPress={() => handleOAuthSignUp('google')}
-              disabled={oauthLoading !== null}
-            >
-              {oauthLoading === 'google' ? (
-                <ActivityIndicator color={colors.text} />
-              ) : (
-                <>
-                  <Ionicons name="logo-google" size={20} color={colors.text} />
-                  <Text style={styles.oauthButtonText}>Google</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            {Platform.OS === 'ios' && (
-              <TouchableOpacity
-                style={[styles.oauthButton]}
-                onPress={() => handleOAuthSignUp('apple')}
-                disabled={oauthLoading !== null}
-              >
-                {oauthLoading === 'apple' ? (
-                  <ActivityIndicator color={colors.text} />
-                ) : (
-                  <>
-                    <Ionicons name="logo-apple" size={20} color={colors.text} />
-                    <Text style={styles.oauthButtonText}>Apple</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Sign In Link */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <Link href="/(auth)/sign-in" asChild>
-              <TouchableOpacity hitSlop={HEADER_HIT_SLOP}>
-                <Text style={styles.footerLink}>Sign In</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
+          </Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingScreen>
@@ -304,127 +250,90 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
   content: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 28,
+    paddingBottom: spacing.lg,
+    gap: 22,
+  },
+  verifyContent: {
+    paddingTop: 40,
+    gap: spacing.lg,
+  },
+  heading: {
+    gap: 10,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    ...typography.h1,
     color: colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    ...typography.body,
     color: colors.textSecondary,
-    marginBottom: 32,
-    textAlign: 'center',
+  },
+  emphasis: {
+    color: colors.text,
   },
   form: {
-    gap: 16,
+    gap: 12,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
+  codeInput: {
+    fontFamily: fonts.mono,
+    fontSize: 20,
+    letterSpacing: 4,
   },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    height: 50,
-    color: colors.text,
-    fontSize: 16,
-  },
-  eyeButton: {
-    padding: 8,
-  },
-  button: {
-    height: 50,
-    borderRadius: 12,
+  resendButton: {
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
   },
-  primaryButton: {
-    backgroundColor: colors.primary,
+  resendText: {
+    fontSize: 14,
+    color: colors.primary,
   },
-  buttonText: {
-    color: colors.background,
-    fontSize: 16,
-    fontWeight: '600',
+  resendPrompt: {
+    color: colors.textSecondary,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    gap: 12,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.hairline,
   },
   dividerText: {
-    color: colors.textSecondary,
-    marginHorizontal: 16,
-    fontSize: 14,
+    ...typography.caption,
+    color: colors.textMuted,
   },
   oauthContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
+    gap: 10,
   },
   oauthButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  oauthButtonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '500',
+  spacer: {
+    flex: 1,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
-  },
-  footerText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  footerLink: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  verifyIcon: {
-    alignSelf: 'center',
-    marginBottom: 24,
-  },
-  resendButton: {
-    marginTop: 24,
     alignItems: 'center',
   },
-  resendText: {
-    color: colors.primary,
+  footerText: {
     fontSize: 14,
+    color: colors.textSecondary,
+  },
+  footerLinkButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  footerLink: {
+    fontSize: 14,
+    color: colors.primary,
   },
 });

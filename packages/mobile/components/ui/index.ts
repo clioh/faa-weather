@@ -16,3 +16,6 @@ export { PageSheetHeader } from './PageSheetHeader';
 export { StepProgress } from './StepProgress';
 export { TabBar, type TabBarItem } from './TabBar';
 export { Spinner } from './Spinner';
+export { LogoMark } from './LogoMark';
+export { Footer } from './Footer';
+export { IconCircle } from './IconCircle';

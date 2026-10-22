@@ -8,7 +8,7 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '@/components/ui/Text';
-import { colors, borderRadius, spacing } from '@/lib/theme';
+import { colors, fonts, spacing } from '@/lib/theme';
 
 export const CODE_LENGTH = 6;
 
@@ -94,20 +94,18 @@ const styles = StyleSheet.create({
   boxes: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
   box: {
     flex: 1,
-    maxWidth: 52,
-    aspectRatio: 0.82,
-    borderRadius: borderRadius.md,
+    height: 60,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxFilled: { borderColor: colors.textMuted },
-  boxFocused: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
+  boxFilled: {},
+  boxFocused: { borderColor: colors.borderFocus },
   boxError: { borderColor: colors.error },
   boxDisabled: { opacity: 0.5 },
-  digit: { fontSize: 28, fontWeight: '600', color: colors.text, fontVariant: ['tabular-nums'] },
+  digit: { fontFamily: fonts.mono, fontSize: 26, color: colors.text },
   // Covers the boxes so taps, long-press paste and autofill land on the real input.
   hiddenInput: {
     ...StyleSheet.absoluteFill,

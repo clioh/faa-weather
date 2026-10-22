@@ -1,20 +1,20 @@
 /**
- * A miniature of a layout on the 12x8 mirror grid: one tinted tile per
- * widget in its category colour. Uses percentages so it scales to whatever
- * width the parent gives it without measuring.
+ * A miniature of a layout on the 12x8 mirror grid: one neutral glass tile
+ * per widget (the Flight Rules tile is outlined in VFR green, as on the
+ * mirror). Uses percentages so it scales to whatever width the parent gives
+ * it without measuring.
  */
 
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  CATEGORIES,
   GRID_COLS,
   GRID_ROWS,
   SIZE_DIMENSIONS,
   getModuleById,
   type ModuleInstance,
 } from '@/lib/modules';
-import { colors, borderRadius } from '@/lib/theme';
+import { colors } from '@/lib/theme';
 
 interface LayoutThumbnailProps {
   modules: Pick<ModuleInstance, 'moduleId' | 'position' | 'size'>[];
@@ -30,7 +30,7 @@ const pct = (n: number) => `${n}%` as const;
 export function LayoutThumbnail({
   modules,
   aspectRatio = 16 / 9,
-  showIcons = true,
+  showIcons = false,
   style,
   accessibilityLabel,
 }: LayoutThumbnailProps) {
@@ -45,7 +45,7 @@ export function LayoutThumbnail({
         const dims = SIZE_DIMENSIONS[mod.size];
         if (!dims) return null;
         const def = getModuleById(mod.moduleId);
-        const color = def ? CATEGORIES[def.category].color : colors.textMuted;
+        const flightRules = mod.moduleId === 'flight-rules';
         return (
           <View
             key={`${mod.moduleId}-${i}`}
@@ -59,9 +59,9 @@ export function LayoutThumbnail({
               },
             ]}
           >
-            <View style={[styles.tile, { backgroundColor: `${color}26`, borderColor: `${color}80` }]}>
+            <View style={[styles.tile, flightRules && styles.flightRules]}>
               {showIcons && def ? (
-                <Ionicons name={def.icon as keyof typeof Ionicons.glyphMap} size={12} color={color} />
+                <Ionicons name={def.icon as keyof typeof Ionicons.glyphMap} size={12} color={colors.textSecondary} />
               ) : null}
             </View>
           </View>
@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
   canvas: {
     width: '100%',
     backgroundColor: colors.background,
-    borderRadius: borderRadius.sm,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.chipBorder,
     overflow: 'hidden',
   },
   cell: {
@@ -86,9 +86,14 @@ const styles = StyleSheet.create({
   },
   tile: {
     flex: 1,
-    borderRadius: 3,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 2,
+    borderWidth: 1,
+    backgroundColor: colors.thumbTile,
+    borderColor: colors.thumbTileBorder,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  flightRules: {
+    borderColor: colors.vfr,
   },
 });
