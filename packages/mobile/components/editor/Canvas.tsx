@@ -18,7 +18,7 @@ import { ModuleTile, TILE_INSET, type GhostValues } from './ModuleTile';
 export type MirrorOrientation = 'landscape' | 'portrait';
 
 const FRAME = 1; // hairline frame around the glass
-const GUTTER = 16;
+const GUTTER = 24; // screen gutter
 
 interface CanvasProps {
   modules: ModuleInstance[];
@@ -165,10 +165,11 @@ export function Canvas({
 }
 
 const styles = StyleSheet.create({
+  // Canvas sits right under the status row, as in the mockup.
   area: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   frame: {
     borderRadius: 10,

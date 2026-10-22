@@ -74,11 +74,15 @@ export default function DashboardScreen() {
     return () => clearInterval(interval);
   }, [loadStatus]);
 
-  // Refresh the preview when coming back from the editor, updates, etc.
+  // Refresh when coming back from the editor, updates, etc. The status is
+  // re-checked too: goToDashboard() returns to this already-mounted screen
+  // after (re)connecting, which would otherwise show the old state until the
+  // next 30 s poll.
   useFocusEffect(
     useCallback(() => {
+      loadStatus();
       loadSummary();
-    }, [loadSummary])
+    }, [loadStatus, loadSummary])
   );
 
   const onRefresh = () => {
@@ -146,7 +150,8 @@ export default function DashboardScreen() {
           <Text style={styles.mirrorName}>{currentMirror?.mirrorName ?? 'SkyGlass'}</Text>
           <Text style={[styles.caption, online && styles.mono]}>
             {online
-              ? [`v${status?.version}`, address].filter(Boolean).join(' · ')
+              ? // /api/health may not report a version; show only what we have.
+                [status?.version ? `v${status.version}` : null, address].filter(Boolean).join(' · ')
               : 'Unable to reach mirror'}
           </Text>
         </View>
