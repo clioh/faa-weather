@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Software updates — downloading</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <button class="back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</button>
+    <div class="t">Software updates</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 28px; padding-top: 56px; align-items: center">
+    <div style="position: relative; width: 200px; height: 200px">
+      <svg width="200" height="200" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4"></circle><circle cx="100" cy="100" r="92" fill="none" stroke="#7ad7ff" stroke-width="4" stroke-linecap="round" stroke-dasharray="358 578" transform="rotate(-90 100 100)"></circle></svg>
+      <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px"><div style="font-size: 52px; font-weight: 200; letter-spacing: -0.03em">62%</div></div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center">
+      <h1 class="h2">Downloading update</h1>
+      <div class="cap m">30.1 MB / 48.3 MB</div>
+      <div class="cap m">2.4 MB/s · 8s remaining</div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%">
+      <div style="display: flex; flex-direction: column; gap: 6px" class="cap"><div style="height: 3px; border-radius: 2px; background: #7ad7ff"></div><span style="color: #ffffff">Download</span></div>
+      <div style="display: flex; flex-direction: column; gap: 6px" class="cap"><div style="height: 3px; border-radius: 2px; background: rgba(255,255,255,0.18)"></div>Extract</div>
+      <div style="display: flex; flex-direction: column; gap: 6px" class="cap"><div style="height: 3px; border-radius: 2px; background: rgba(255,255,255,0.18)"></div>Install</div>
+    </div>
+    <div style="flex: 1"></div>
+    <div class="rows" style="width: 100%">
+      <div class="row" style="cursor: default"><div class="x dim">Current version</div><div class="m">v1.4.2</div></div>
+    </div>
+  </div>
+  <div class="foot">
+    <button class="btn btnx" disabled="">Check for updates</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

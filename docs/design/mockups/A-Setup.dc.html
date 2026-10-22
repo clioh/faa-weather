@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home airport</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="S-Location.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">Home airport</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 20px; padding-top: 16px">
+    <p class="p">Pick an airport near you, or search by ICAO code, city or name</p>
+    <div class="inpw">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg>
+      <input aria-label="Search airports" class="m" placeholder="Search airports..." style="font-family: 'JetBrains Mono', monospace">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div class="lbl">Near your location</div>
+      <div class="rows">
+        <button class="row" aria-pressed="true" style="background: rgba(122,215,255,0.06); margin: 0 -12px; padding: 8px 12px; width: auto; border-radius: 12px; border-top-color: transparent">
+          <div class="m" style="width: 56px; font-size: 16px; font-weight: 500">KAPA</div>
+          <div class="x"><div style="font-size: 14px">Centennial Airport</div><div class="cap">Denver · <span class="m">12 NM</span></div></div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+        </button>
+        <button class="row"><div class="m" style="width: 56px; font-size: 16px">KBJC</div><div class="x"><div style="font-size: 14px">Rocky Mountain Metropolitan</div><div class="cap">Broomfield · <span class="m">[NM]</span></div></div></button>
+        <button class="row"><div class="m" style="width: 56px; font-size: 16px">KDEN</div><div class="x"><div style="font-size: 14px">Denver International</div><div class="cap">Denver · <span class="m">[NM]</span></div></div></button>
+        <button class="row"><div class="m" style="width: 56px; font-size: 16px">KFNL</div><div class="x"><div style="font-size: 14px">Northern Colorado Regional</div><div class="cap">Loveland · <span class="m">[NM]</span></div></div></button>
+      </div>
+    </div>
+  </div>
+  <div class="foot">
+    <a href="S-FaceName.dc.html" class="btn">Save airport</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

@@ -196,8 +196,17 @@ function getCellValue(cell: ExcelJS.Cell | undefined): string | undefined {
   return String(value);
 }
 
+/** The upload is not a readable XLSX schedule (corrupt, wrong format, no worksheet). */
+export class ScheduleParseError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'ScheduleParseError';
+  }
+}
+
 /**
- * Parse an XLSX file buffer into flight events
+ * Parse an XLSX file buffer into flight events. Throws ScheduleParseError when
+ * the file can't be read, so a bad upload never replaces a good schedule.
  */
 export async function parseFlightSchedule(
   buffer: Buffer | Uint8Array,
@@ -213,8 +222,7 @@ export async function parseFlightSchedule(
     // Get the first sheet
     const sheet = workbook.worksheets[0];
     if (!sheet) {
-      console.error('No worksheet found in workbook');
-      return [];
+      throw new ScheduleParseError('No worksheet found in the file');
     }
 
     // Get header row to map column names to indices
@@ -329,8 +337,8 @@ export async function parseFlightSchedule(
     console.log(`Parsed ${events.length} events from schedule`);
     return events;
   } catch (error) {
-    console.error('Failed to parse XLSX schedule:', error);
-    return [];
+    if (error instanceof ScheduleParseError) throw error;
+    throw new ScheduleParseError('Could not read the file as an XLSX schedule', { cause: error });
   }
 }
 

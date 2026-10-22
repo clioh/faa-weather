@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add widget sheet</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.wc{border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);padding:12px;display:flex;flex-direction:column;gap:6px;color:#fff;font-family:inherit;text-align:left;cursor:pointer}
+.wc .n{font-size:14px}
+.sz{display:flex;flex-wrap:wrap;gap:4px;padding-top:2px}
+.sz span{font-size:10px;padding:2px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.65)}
+.sz .d{border-color:rgba(122,215,255,.5);color:#7ad7ff}
+</style>
+</helmet>
+<div class="s">
+  <div class="page">
+    <div class="phdr"><div class="sp"></div><div class="t">Add widget</div><a href="A-Editor.dc.html" class="tb" style="text-decoration: none; display: flex; align-items: center; justify-content: flex-end">Done</a></div>
+    <div style="display: flex; flex-direction: column; gap: 14px; padding: 4px 20px 0; flex: 1; min-height: 0">
+      <div class="inpw" style="height: 44px; border-radius: 22px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg><input aria-label="Search widgets" placeholder="Search widgets" style="font-size: 15px"></div>
+      <div class="chips">
+        <button class="chip">All</button><button class="chip on" aria-pressed="true">Aviation</button><button class="chip">Weather</button><button class="chip">Time</button><button class="chip">Calendar</button><button class="chip">News</button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <button class="wc"><div class="n">METAR</div><div class="cap">Current conditions with flight rules, wind, visibility and ceiling</div><div class="sz"><span>Small</span><span class="d">Medium</span><span>Wide</span><span>Large</span></div></button>
+        <button class="wc"><div class="n">TAF</div><div class="cap">Terminal forecast as a timeline of flight-rule periods</div><div class="sz"><span>Medium</span><span class="d">Wide</span><span>Large</span><span>Full</span></div></button>
+        <button class="wc"><div class="n">Flight Rules</div><div class="cap">Big VFR / MVFR / IFR / LIFR indicator</div><div class="sz"><span class="d">Small</span><span>Medium</span></div></button>
+        <button class="wc"><div class="n">NOTAMs</div><div class="cap">Active notices for an airport, grouped by category</div><div class="sz"><span>Medium</span><span class="d">Tall</span><span>Large</span><span>Full</span></div></button>
+        <button class="wc"><div class="n">TFRs</div><div class="cap">Temporary flight restrictions near the mirror’s location</div><div class="sz"><span>Small</span><span class="d">Medium</span><span>Tall</span><span>Wide</span></div></button>
+        <button class="wc" style="opacity: 0.45"><div class="n">Winds Aloft</div><div class="cap">Forecast winds and temperatures by altitude</div><div class="sz"><span style="border-color: rgba(255,183,77,0.6); color: #ffb74d">No room</span></div></button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

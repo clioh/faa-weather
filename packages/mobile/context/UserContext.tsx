@@ -195,6 +195,10 @@ export function UserProvider({ children }: UserProviderProps) {
   const removeMirror = useCallback(
     async (mirrorId: string) => {
       try {
+        // Revoke this phone's pairing token on the mirror (best effort) and
+        // forget it locally before dropping the mirror from the list.
+        const mirror = (await storage.getLinkedMirrors()).find((m) => m.mirrorId === mirrorId);
+        if (mirror) await api.unpairMirror(mirror);
         await storage.removeLinkedMirror(mirrorId);
         const mirrors = await storage.getLinkedMirrors();
         setLinkedMirrors(mirrors);

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Profile</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="Main.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">Profile</div>
+    <button class="tb">Edit</button>
+  </div>
+  <div class="body" style="gap: 26px; padding-top: 20px">
+    <div style="display: flex; align-items: center; gap: 16px">
+      <span style="width: 64px; height: 64px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 300">C</span>
+      <div class="x"><div style="font-size: 22px; font-weight: 300">Clio Harper</div><div class="cap m">ID: 3f9a2c1b...</div></div>
+    </div>
+    <div class="rows">
+      <div class="row" style="cursor: default"><div class="x dim">Name</div><div>Clio Harper</div></div>
+      <div class="row" style="cursor: default"><div class="x dim">Member since</div><div>March 14, 2026</div></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="display: flex; justify-content: space-between; align-items: center"><div class="lbl">Linked mirrors</div><a href="H-Mirrors.dc.html" class="link" style="font-size: 14px">Manage</a></div>
+      <div class="rows">
+        <div class="row" style="cursor: default"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect></svg><div class="x"><div>Hangar Mirror</div><div class="cap">Face enrolled</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
+        <div class="row" style="cursor: default"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect></svg><div class="x"><div>Hallway</div><div class="cap">Face not enrolled</div></div></div>
+      </div>
+    </div>
+    <div style="flex: 1"></div>
+    <div class="note ni">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg>
+      <div>Your face data is stored locally on each mirror and never leaves the device. Your profile info syncs between your phone and linked mirrors.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

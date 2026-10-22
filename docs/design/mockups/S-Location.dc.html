@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Location</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="S-Checklist.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">Location</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 24px; padding-top: 16px">
+    <p class="p">Your location is used to calculate accurate sunrise, sunset, and twilight times for pilot currency tracking</p>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; gap: 8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg><span class="lbl ac">Location set</span></div>
+      <div class="rows">
+        <div class="row" style="cursor: default"><div class="x dim">Latitude</div><div class="m">39.7392° N</div></div>
+        <div class="row" style="cursor: default"><div class="x dim">Longitude</div><div class="m">104.9903° W</div></div>
+        <div class="row" style="cursor: default"><div class="x dim">Timezone</div><div class="m" style="font-size: 14px">America/Denver</div></div>
+      </div>
+      <button class="btn btn2 sm" style="align-self: flex-start; margin-top: 6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg>Update location</button>
+    </div>
+    <div style="flex: 1"></div>
+    <div class="note ni">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg>
+      <div>Your location is stored locally on your mirror and never shared with third parties</div>
+    </div>
+  </div>
+  <div class="foot">
+    <a href="A-Setup.dc.html" class="btn">Save location</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

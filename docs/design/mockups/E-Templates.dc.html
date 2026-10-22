@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choose a template</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.thumb{width:100%;aspect-ratio:16/9;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#000;position:relative;overflow:hidden}
+.thumb i{position:absolute;display:block;border-radius:3px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);box-sizing:border-box}
+</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="A-Editor.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">Choose a template</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 18px; padding-top: 12px">
+    <div class="chips"><button class="chip on" aria-pressed="true">All</button><button class="chip">Aviation</button><button class="chip">Weather</button><button class="chip">Lifestyle</button><button class="chip">Minimal</button></div>
+    <div style="display: flex; flex-direction: column; gap: 10px; border-radius: 16px; border: 1px solid #7ad7ff; padding: 14px; background: rgba(122,215,255,0.05)">
+      <div class="thumb"><i style="left: 1%; top: 2%; width: 49%; height: 23%"></i><i style="left: 51%; top: 2%; width: 24%; height: 23%; border-color: #00e676"></i><i style="left: 76%; top: 2%; width: 23%; height: 23%"></i><i style="left: 1%; top: 27%; width: 49%; height: 48%"></i><i style="left: 51%; top: 27%; width: 24%; height: 48%"></i><i style="left: 76%; top: 27%; width: 23%; height: 48%"></i><i style="left: 1%; top: 77%; width: 49%; height: 21%"></i><i style="left: 51%; top: 77%; width: 48%; height: 21%"></i></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between"><div style="font-size: 17px">Pilot Briefing</div><span class="badge">AVIATION</span></div>
+      <div class="cap">8 widgets · Clock, Flight Rules, Sun &amp; Moon, METAR, NOTAMs, TFRs, TAF, Winds Aloft</div>
+      <div style="font-size: 14px; color: rgba(255,255,255,0.8)">Replace your current layout? You can still edit before saving.</div>
+      <div style="display: flex; gap: 8px"><button class="btn btn2 sm" style="flex: 1">Cancel</button><a href="A-Editor.dc.html" class="btn sm" style="flex: 1">Replace</a></div>
+    </div>
+    <button style="display: flex; flex-direction: column; gap: 10px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.12); padding: 14px; background: transparent; color: #ffffff; font-family: inherit; text-align: left; cursor: pointer">
+      <div class="thumb"><i style="left: 1%; top: 2%; width: 49%; height: 23%"></i><i style="left: 51%; top: 2%; width: 48%; height: 23%"></i><i style="left: 1%; top: 27%; width: 24%; height: 71%"></i><i style="left: 26%; top: 27%; width: 49%; height: 48%"></i><i style="left: 76%; top: 27%; width: 23%; height: 71%"></i></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; width: 100%"><div style="font-size: 17px">Crew Day</div><span class="badge">AVIATION</span></div>
+      <div class="cap">Your trips, Zulu and home-base time, and the weather where you are</div>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

@@ -346,6 +346,8 @@ export class ApiError extends Error {
 /** After a search comes back empty, further failures don't re-run it for this long. */
 const RELOCATE_COOLDOWN_MS = 20000;
 const RELOCATE_TIMEOUT_MS = 8000;
+/** Unlinking a mirror tries to revoke this phone's token for at most this long. */
+const UNPAIR_TIMEOUT_MS = 3000;
 
 class MirrorAPI {
   private baseUrl: string = '';
@@ -488,6 +490,43 @@ class MirrorAPI {
     const entry: MirrorAuth = { mirrorId, token: null };
     this.auth.set(this.authKey(), entry);
     if (mirrorId) this.auth.set(`id:${mirrorId}`, entry);
+  }
+
+  /**
+   * Unlink a mirror (My Mirrors): revoke this phone's token on that mirror
+   * (DELETE /api/pairing/devices/self, best effort with a short timeout since
+   * the mirror may be offline), then drop the stored token whatever happened.
+   * Works for any linked mirror, not just the current one, and never throws.
+   */
+  async unpairMirror(mirror: { mirrorId: string | null; host: string; port: number }): Promise<void> {
+    const { host, port } = mirror;
+    const mirrorId = usableMirrorId(mirror.mirrorId);
+    const token = await pairingStore.getToken(mirrorId, host, port).catch(() => null);
+    if (token) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), UNPAIR_TIMEOUT_MS);
+      try {
+        await fetch(`http://${host}:${port}/api/pairing/devices/self`, {
+          method: 'DELETE',
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        // Offline or moved: the token is forgotten anyway (the mirror owner can revoke it).
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+    await pairingStore.clearToken(mirrorId, host, port).catch(() => undefined);
+    const cleared: MirrorAuth = { mirrorId, token: null };
+    this.auth.set(`addr:${host}:${port}`, cleared);
+    if (mirrorId) this.auth.set(`id:${mirrorId}`, cleared);
+    // Unlinked the mirror the client points at: detach, so a stray request
+    // fails as "not connected" instead of opening the Pair screen.
+    const isCurrent =
+      (mirrorId !== null && mirrorId === this.mirrorId) ||
+      (this.host.toLowerCase() === host.toLowerCase() && this.port === port);
+    if (isCurrent) this.resetClient();
   }
 
   /** Back to a fresh install: no mirror, no cached tokens (lib/devReset). */

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create your profile</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="O-Welcome.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+  </div>
+  <div class="body" style="gap: 28px">
+    <div class="prog">
+      <div class="c"><i></i>Profile</div><div><i></i>Mirror</div><div><i></i>Setup</div><div><i></i>Template</div><div><i></i>Ready</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <h1 class="h1">Create your profile</h1>
+      <p class="p">Your profile lets the mirror recognize you and show your personalized layout.</p>
+    </div>
+    <div class="fld">
+      <label class="fl" for="nm">What should we call you?</label>
+      <input id="nm" class="inp foc" value="Clio" placeholder="Enter your name">
+      <div class="cap er" style="display: flex; gap: 6px; align-items: center">Name must be at least 2 characters</div>
+    </div>
+    <div style="flex: 1"></div>
+    <div class="note ni">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg>
+      <div>Your profile stays on your device. Face data is stored locally on each mirror for privacy.</div>
+    </div>
+  </div>
+  <div class="foot">
+    <a href="O-Discover.dc.html" class="btn">Continue
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

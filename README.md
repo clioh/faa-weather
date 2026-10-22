@@ -123,15 +123,6 @@ presence:
 # (see docs/CALENDAR.md)
 calendar:
   refresh_minutes: 10
-
-# Optional: Auto-import XLSX schedules from email
-schedule:
-  email:
-    enabled: false
-    imap_host: imap.gmail.com
-    imap_port: 993
-    username: ${EMAIL_USER}
-    password: ${EMAIL_PASS}
 ```
 
 ## API Endpoints

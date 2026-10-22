@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add a calendar</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.pi{width:36px;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex:none;color:#fff}
+</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="C-Calendars.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">Add a calendar</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 22px; padding-top: 16px">
+    <h1 class="h2">Where is the calendar you want on your mirror?</h1>
+    <div class="rows">
+      <button class="row"><div class="pi">G</div><div class="x"><div>Google Calendar</div><div class="cap">Sign in with your Google account</div></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <a href="C-Microsoft.dc.html" class="row"><div class="pi">M</div><div class="x"><div>Outlook / Microsoft 365</div><div class="cap">Outlook.com, Hotmail and work or school accounts</div></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+      <a href="C-iCloud.dc.html" class="row"><div class="pi"></div><div class="x"><div>iCloud</div><div class="cap">Uses an app-specific password from Apple</div></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+      <a href="C-Link.dc.html" class="row"><div class="pi"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg></div><div class="x"><div>Calendar link</div><div class="cap">Subscribe with a webcal or .ics link, including crew scheduling apps</div></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div class="lbl">Other</div>
+      <div class="rows">
+        <button class="row" disabled="" style="opacity: 0.45; cursor: default"><div class="pi"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"></rect><rect x="4" y="13" width="16" height="7" rx="1.5"></rect></svg></div><div class="x"><div>Other CalDAV</div><div class="cap">Not available on this mirror.</div></div></button>
+      </div>
+    </div>
+    <div style="flex: 1"></div>
+    <p class="cap" style="margin: 0">Sign-ins are stored on your mirror and used only to read your calendars. SkyGlass never changes your events.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

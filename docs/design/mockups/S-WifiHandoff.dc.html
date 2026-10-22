@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connecting mirror to WiFi</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <button class="back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</button>
+    <div class="t">WiFi setup</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 26px; padding-top: 48px">
+    <div style="width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.14); border-top-color: #7ad7ff; box-sizing: border-box"></div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <h1 class="h1">Connecting your mirror to HarperHome…</h1>
+      <p class="p">This usually takes a minute or two <span class="m dim">(42s)</span>.</p>
+    </div>
+    <div style="display: flex; flex-direction: column; border-bottom: 1px solid rgba(255,255,255,0.14)">
+      <div class="row" style="cursor: default; align-items: flex-start; padding: 14px 0"><div class="m ac" style="width: 20px; font-size: 13px">01</div><div class="x" style="font-size: 14px; line-height: 1.5">Your mirror is leaving the <span class="m">SkyGlass-Setup</span> network and joining HarperHome.</div></div>
+      <div class="row" style="cursor: default; align-items: flex-start; padding: 14px 0"><div class="m ac" style="width: 20px; font-size: 13px">02</div><div class="x" style="font-size: 14px; line-height: 1.5">Your phone should switch back to HarperHome on its own. If it doesn't, open Settings › Wi-Fi, join HarperHome, and come back here.</div></div>
+      <div class="row" style="cursor: default; align-items: flex-start; padding: 14px 0"><div class="m ac" style="width: 20px; font-size: 13px">03</div><div class="x" style="font-size: 14px; line-height: 1.5">We'll find the mirror on HarperHome and continue setup automatically.</div></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

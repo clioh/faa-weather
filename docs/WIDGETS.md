@@ -43,7 +43,8 @@ Presets (`services/news.ts`, `NEWS_PRESETS`):
 - `custom` requires `url`. SSRF guard (`services/ssrf.ts`): http/https only; the host must
   resolve only to public addresses (loopback, link-local, RFC1918, CGNAT, ULA, multicast and
   reserved ranges are rejected, including IPv4-mapped IPv6); every redirect hop is
-  re-checked; 5 s timeout; 2 MB response cap. A rejected URL returns 400.
+  re-checked, and the address checked is the one connected to (no DNS-rebinding window); 5 s
+  timeout; 2 MB response cap. A rejected URL returns 400.
 
 ## Finance
 

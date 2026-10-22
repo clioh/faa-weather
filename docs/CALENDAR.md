@@ -1,8 +1,8 @@
 # Calendars
 
 The mirror's Schedule widget shows events from calendar accounts the user connects in the
-phone app (**Calendars** screen), merged with airline XLSX schedules (manual upload or
-IMAP email import, `schedule.email` in config).
+phone app (**Calendars** screen), merged with airline XLSX schedules uploaded through
+`POST /api/schedule/upload`. Crew-scheduling feeds connect as calendar links (ICS).
 
 The mirror is a LAN-only device with no public URL, so it stores the credentials and does
 all syncing itself. The phone only drives the sign-in.

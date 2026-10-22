@@ -1,12 +1,10 @@
 /**
- * Flight schedule service: airline XLSX schedules (manual upload or IMAP
- * email polling). Calendar accounts live in src/calendar/; GET /api/schedule
+ * Flight schedule service: airline XLSX schedules (uploaded through
+ * POST /api/schedule/upload). Calendar accounts live in src/calendar/; GET /api/schedule
  * merges both into the ScheduleEvent shape.
  */
 
-import { FlightEvent, parseFlightSchedule, ColumnMapping } from './schedule-parser.js';
-import { EmailPoller, createEmailPoller } from './email-poller.js';
-import { loadConfig } from '../config/index.js';
+import { FlightEvent, parseFlightSchedule, ColumnMapping, ScheduleParseError } from './schedule-parser.js';
 import type { ScheduleEvent, TimeWindow } from '../calendar/types.js';
 import { compareScheduleEvents } from '../calendar/service.js';
 import { startOfToday } from '../calendar/time.js';
@@ -55,98 +53,26 @@ export function mergeScheduleEvents(...lists: ScheduleEvent[][]): ScheduleEvent[
 }
 
 export interface ScheduleConfig {
-  emailPolling: {
-    enabled: boolean;
-    host: string;
-    port: number;
-    username: string;
-    password: string;
-    folder: string;
-    senderFilter?: string;
-    pollInterval: number;
-  };
   columnMapping: Partial<ColumnMapping>;
 }
 
 export class ScheduleService {
-  private emailPoller: EmailPoller | null = null;
   private flightEvents: FlightEvent[] = [];
   private config: ScheduleConfig;
-  private pollInterval: NodeJS.Timeout | null = null;
-  /** Called whenever the flight schedule is replaced (upload or email). */
+  /** Called whenever the flight schedule is replaced (XLSX upload). */
   onChange: (() => void) | null = null;
 
   constructor(config: ScheduleConfig) {
     this.config = config;
-
-    // Initialize email poller if enabled
-    if (config.emailPolling.enabled && config.emailPolling.username) {
-      this.emailPoller = createEmailPoller(
-        {
-          imap_host: config.emailPolling.host,
-          imap_port: config.emailPolling.port,
-          username: config.emailPolling.username,
-          password: config.emailPolling.password,
-          folder: config.emailPolling.folder,
-          sender_filter: config.emailPolling.senderFilter,
-        },
-        config.columnMapping
-      );
-    }
   }
 
   /**
-   * Start periodic email polling
-   */
-  startEmailPolling(): void {
-    if (!this.emailPoller || this.pollInterval) return;
-
-    const pollIntervalMs = this.config.emailPolling.pollInterval * 1000;
-
-    console.log(`Starting email polling every ${this.config.emailPolling.pollInterval}s`);
-
-    // Initial poll
-    this.pollEmails();
-
-    // Set up periodic polling
-    this.pollInterval = setInterval(() => {
-      this.pollEmails();
-    }, pollIntervalMs);
-  }
-
-  /**
-   * Stop email polling
-   */
-  stopEmailPolling(): void {
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
-    }
-  }
-
-  /**
-   * Poll for new schedule emails
-   */
-  async pollEmails(): Promise<void> {
-    if (!this.emailPoller) return;
-
-    console.log('Polling for schedule emails...');
-    const result = await this.emailPoller.poll();
-
-    if (result.success && result.newSchedule) {
-      this.flightEvents = result.events;
-      console.log(`Updated flight schedule: ${result.events.length} events`);
-      this.onChange?.();
-    } else if (!result.success) {
-      console.error('Email polling failed:', result.error);
-    }
-  }
-
-  /**
-   * Manually load a schedule from XLSX buffer
+   * Replace the schedule with one from an XLSX buffer. Throws ScheduleParseError
+   * (and keeps the current schedule) if the file is unreadable or has no flights.
    */
   async loadScheduleFromBuffer(buffer: Buffer, mapping?: Partial<ColumnMapping>): Promise<FlightEvent[]> {
     const events = await parseFlightSchedule(buffer, mapping || this.config.columnMapping);
+    if (events.length === 0) throw new ScheduleParseError('No flights found in the file');
     this.flightEvents = events;
     this.onChange?.();
     return events;
@@ -188,29 +114,7 @@ export class ScheduleService {
 let scheduleService: ScheduleService | null = null;
 
 export function initScheduleService(): ScheduleService {
-  const config = loadConfig();
-
-  const scheduleConfig: ScheduleConfig = {
-    emailPolling: {
-      enabled: config.schedule?.email?.enabled || false,
-      host: config.schedule?.email?.imap_host || 'imap.gmail.com',
-      port: config.schedule?.email?.imap_port || 993,
-      username: config.schedule?.email?.username || '',
-      password: config.schedule?.email?.password || '',
-      folder: config.schedule?.email?.folder || 'INBOX',
-      senderFilter: config.schedule?.email?.sender_filter,
-      pollInterval: config.schedule?.email?.poll_interval || 300,
-    },
-    columnMapping: {},
-  };
-
-  scheduleService = new ScheduleService(scheduleConfig);
-
-  // Start email polling if configured
-  if (scheduleConfig.emailPolling.enabled) {
-    scheduleService.startEmailPolling();
-  }
-
+  scheduleService = new ScheduleService({ columnMapping: {} });
   return scheduleService;
 }
 

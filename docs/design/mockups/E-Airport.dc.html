@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Select airport sheet</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="page">
+    <div class="phdr"><a href="E-Configure.dc.html" class="ib" aria-label="Close" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></a><div class="t">Select airport</div><div style="width: 44px"></div></div>
+    <div style="display: flex; flex-direction: column; gap: 16px; padding: 4px 20px 0; flex: 1">
+      <div class="inpw" style="height: 48px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg><input aria-label="Search airports" placeholder="Search by ICAO, name, or city..." style="font-size: 15px"></div>
+      <div class="cap">Current: <span class="m" style="color: #ffffff">KAPA</span></div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div class="lbl">Popular airports</div>
+        <div class="rows">
+          <button class="row"><div class="m" style="width: 56px; font-size: 15px">KJFK</div><div class="x"><div style="font-size: 14px">John F Kennedy Intl</div><div class="cap">New York, USA</div></div></button>
+          <button class="row"><div class="m" style="width: 56px; font-size: 15px">KLAX</div><div class="x"><div style="font-size: 14px">Los Angeles Intl</div><div class="cap">Los Angeles, USA</div></div></button>
+          <button class="row"><div class="m" style="width: 56px; font-size: 15px">KORD</div><div class="x"><div style="font-size: 14px">O'Hare Intl</div><div class="cap">Chicago, USA</div></div></button>
+          <button class="row"><div class="m" style="width: 56px; font-size: 15px">EGLL</div><div class="x"><div style="font-size: 14px">Heathrow</div><div class="cap">London, UK</div></div></button>
+          <button class="row"><div class="m" style="width: 56px; font-size: 15px">LFPG</div><div class="x"><div style="font-size: 14px">Charles de Gaulle</div><div class="cap">Paris, France</div></div></button>
+        </div>
+      </div>
+      <div style="flex: 1"></div>
+      <div class="cap" style="padding-bottom: 34px">Enter the 4-letter ICAO airport code (e.g., KJFK for JFK)</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

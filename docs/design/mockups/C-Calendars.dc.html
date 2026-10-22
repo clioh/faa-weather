@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calendars</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.swc{width:22px;height:22px;border-radius:11px;border:none;flex:none;cursor:pointer;padding:0}
+.ab{flex:1;height:40px;border:none;background:transparent;color:#fff;font-family:inherit;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+</style>
+</helmet>
+<div class="s" style="height: 1000px">
+  <div class="hdr">
+    <a href="A-Settings.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">Calendars</div>
+    <a href="C-Picker.dc.html" class="tb" style="text-decoration: none; display: flex; align-items: center; justify-content: flex-end">Add</a>
+  </div>
+  <div class="body" style="gap: 22px; padding-top: 16px">
+    <p class="p" style="font-size: 14px">Turn calendars on to show their events in the Schedule widget. Tap a color to change it.</p>
+
+    <div class="card" style="padding: 0; gap: 0">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px">
+        <div style="width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600">G</div>
+        <div class="x"><div>Work</div><div class="cap">clio@squadron.mil</div></div>
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(255,255,255,0.7)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Synced 3 h ago</div>
+      </div>
+      <div style="padding: 0 16px; display: flex; flex-direction: column">
+        <div class="lbl" style="padding-bottom: 6px">Showing 2 of 3 calendars</div>
+        <div class="row" style="cursor: default"><button class="swc" aria-label="Change color for Flight Schedule" style="background: #7ad7ff"></button><div class="x" style="font-size: 14px">Flight Schedule</div><button class="sw" role="switch" aria-checked="true" aria-label="Show Flight Schedule"><i></i></button></div>
+        <div class="row" style="cursor: default"><button class="swc" aria-label="Change color for Family" style="background: #ffb74d"></button><div class="x" style="font-size: 14px">Family</div><button class="sw" role="switch" aria-checked="true" aria-label="Show Family"><i></i></button></div>
+        <div class="row" style="cursor: default"><button class="swc" aria-label="Change color for US Holidays" style="background: #c3a6ff; opacity: 0.35"></button><div class="x dim" style="font-size: 14px">US Holidays</div><button class="sw swoff" role="switch" aria-checked="false" aria-label="Show US Holidays"><i></i></button></div>
+      </div>
+      <div style="display: flex; border-top: 1px solid rgba(255,255,255,0.12)">
+        <button class="ab">Sync now</button><button class="ab" style="border-left: 1px solid rgba(255,255,255,0.12); border-right: 1px solid rgba(255,255,255,0.12)">Rename</button><button class="ab" style="color: #ff6b7a">Remove</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 0; gap: 0">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px">
+        <div style="width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600"></div>
+        <div class="x"><div>iCloud</div><div class="cap">clio@icloud.com</div></div>
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 11px" class="wn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3"></path></svg>Reconnect</div>
+      </div>
+      <div style="padding: 0 16px 14px; display: flex; flex-direction: column; gap: 10px">
+        <div class="note nw">The mirror can no longer sign in to this account. Reconnect it to keep events showing.</div>
+        <a href="C-iCloud.dc.html" class="btn sm" style="align-self: flex-start">Reconnect</a>
+      </div>
+    </div>
+
+    <a href="C-Picker.dc.html" class="btn btn2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add another calendar</a>
+  </div>
+  <div class="toast" style="top: 104px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Work is up to date</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

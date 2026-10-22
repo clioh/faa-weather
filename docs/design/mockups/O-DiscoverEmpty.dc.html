@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Find your mirror — none found</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="O-Profile.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+  </div>
+  <div class="body" style="gap: 24px">
+    <div class="prog">
+      <div class="d"><i></i>Profile</div><div class="c"><i></i>Mirror</div><div><i></i>Setup</div><div><i></i>Template</div><div><i></i>Ready</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <h1 class="h1">No mirrors found</h1>
+      <p class="p">Make sure your SkyGlass is powered on and connected to the same network.</p>
+    </div>
+    <div class="rows">
+      <div class="row" style="cursor: default; align-items: flex-start; padding: 14px 0">
+        <div class="m ac" style="width: 20px; font-size: 13px; padding-top: 1px">01</div>
+        <div class="x" style="font-size: 14px; line-height: 1.5">For new mirrors, connect to the <span class="m">SkyGlass-Setup</span> WiFi network</div>
+      </div>
+      <div class="row" style="cursor: default; align-items: flex-start; padding: 14px 0">
+        <div class="m ac" style="width: 20px; font-size: 13px; padding-top: 1px">02</div>
+        <div class="x" style="font-size: 14px; line-height: 1.5">For configured mirrors, make sure you're on the same network</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <button class="row" style="border-top: none; min-height: 32px; padding: 0">
+        <div class="x">Enter IP manually</div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg>
+      </button>
+      <div style="display: flex; gap: 8px">
+        <label for="ip" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">IP address</label>
+        <input id="ip" class="inp m foc" placeholder="IP address (e.g., 192.168.1.100)" value="192.168.1.4" style="flex: 1; font-size: 15px">
+        <button class="btn sm" style="height: 52px; border-radius: 14px">Connect</button>
+      </div>
+    </div>
+    <div class="note nw">Could not connect to 192.168.1.4. Check the IP address and try again.</div>
+  </div>
+  <div class="foot">
+    <button class="btn btn2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg>Scan again</button>
+    <button class="link">Set up later</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

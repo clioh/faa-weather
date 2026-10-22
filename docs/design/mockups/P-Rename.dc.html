@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rename / remove sheets</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr" style="opacity: 0.5">
+    <div class="back">Back</div><div class="t">Paired phones</div><div class="sp"></div>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <h2 class="h2" style="padding-top: 6px">Rename this phone</h2>
+    <p class="p" style="font-size: 14px">The name the mirror shows for this phone in its paired phones list.</p>
+    <div class="fld"><label class="fl" for="nm">Name</label><input id="nm" class="inp foc" placeholder="Clio’s iPhone" value="Clio’s iPhone 16"></div>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px">
+      <button class="btn">Save</button>
+      <a href="P-Phones.dc.html" class="btn btn2">Cancel</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

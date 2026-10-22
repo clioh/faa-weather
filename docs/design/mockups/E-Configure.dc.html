@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Configure widget sheet</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.step{display:flex;align-items:center;gap:0;border:1px solid rgba(255,255,255,.22);border-radius:22px;height:44px;overflow:hidden}
+.step button{width:44px;height:44px;border:none;background:transparent;color:#fff;font-size:20px;cursor:pointer;font-family:inherit}
+</style>
+</helmet>
+<div class="s">
+  <div class="page">
+    <div class="phdr"><div class="sp"></div><div class="t" style="display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15a4 4 0 0 0 4 4h9a5 5 0 1 0-.1-10A5 5 0 0 0 6.1 11.1 4 4 0 0 0 3 15z"></path></svg>METAR</div><a href="A-Editor.dc.html" class="tb" style="text-decoration: none; display: flex; align-items: center; justify-content: flex-end">Done</a></div>
+    <div style="display: flex; flex-direction: column; gap: 22px; padding: 10px 20px 0">
+      <div class="fld">
+        <div class="fl">Airport</div>
+        <a href="E-Airport.dc.html" class="row" style="border: 1px solid rgba(255,255,255,0.22); border-radius: 14px; padding: 0 14px; min-height: 52px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 21l1.5-1 1.5 1v-2l-1-1v-4.5l8 3v-2l-8-5V4.5a1 1 0 0 0-2 0v5l-8 5v2l8-3V18l-1 1z"></path></svg>
+          <div class="x m dim">Mirror default</div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+        </a>
+        <div class="cap">Leave empty to use the mirror’s home airport.</div>
+      </div>
+      <div class="row" style="border: none; cursor: default; padding: 0">
+        <div class="x">Show raw METAR</div>
+        <button class="sw" role="switch" aria-checked="true" aria-label="Show raw METAR"><i></i></button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(255,255,255,0.14); padding-top: 18px">
+        <div class="lbl">Size</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <button class="chip">Small <span class="m" style="opacity: 0.7">3×2</span></button>
+          <button class="chip" style="opacity: 0.4">Medium <span class="m">4×3</span></button>
+          <button class="chip">Wide <span class="m" style="opacity: 0.7">6×2</span></button>
+          <button class="chip on" aria-pressed="true">Large <span class="m">6×4</span></button>
+        </div>
+        <div class="cap">No room for Medium where this widget sits. Move it or shrink a neighbour.</div>
+      </div>
+      <button class="btn btnd" style="height: 48px; margin-top: 6px">Remove widget</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

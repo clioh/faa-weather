@@ -1,0 +1,76 @@
+# Screen map: route → mockup
+
+Every mockup is in `docs/design/mockups/` and shares `app.css`, which holds the class-level styles referenced in the markup. Copy in the mockups comes from the current code. Where a state isn't drawn, keep the existing strings and render them with the matching component from `DESIGN_SYSTEM.md`.
+
+**Do not change behaviour, navigation logic, API calls or copy wording** (apart from sentence case) unless a row below says so.
+
+## 1. Onboarding, pairing and account
+
+| Route / component | Mockup | Notes |
+|---|---|---|
+| `/onboarding` | `O-Welcome` | Logo mark (mirror outline with accent chevron) replaces the sparkles circle. Feature list is a row group. The key note is an info `Notice`. |
+| `/onboarding/profile` | `O-Profile` | `StepProgress` with labels (Profile · Mirror · Setup · Template · Ready). Inline field error under the input. The privacy box is an info `Notice`. |
+| `/onboarding/discover` | `O-Discover`, `O-DiscoverEmpty` | Scanning indicator moves into the "Found mirrors" label row. Connection errors use an error `Notice` with retry and dismiss. Empty state shows numbered steps; the manual IP form is inline. |
+| `/pair` | `O-Pair` | Six 60pt digit cells. The focused cell has an accent border; on error all cells get a danger border. "Code expires in m:ss" is mono. |
+| `/connect` | `O-ConnectError` | Default state: centred spinner + "Connecting to your mirror…". |
+| `/onboarding/template` | `O-Template` | Template rows with a 16:9 thumbnail (neutral tiles; the Flight Rules tile outlined in VFR green). Meta line "8 modules · Aviation" is mono. |
+| `/setup/complete` | `O-Complete` | Checklist rows with accent ticks. The button reads "Choose layout", or "Go to dashboard" outside onboarding. |
+| `/(auth)/sign-in` | `O-SignIn` | The Apple button shows on iOS only. |
+| `/(auth)/sign-up` | `O-SignUp`, `O-Verify` | Verify step: code field in mono, "Didn't receive the code? Resend". |
+
+## 2. Mirror setup (`/setup` stack keeps the native Back + title header)
+
+| Route | Mockup | Notes |
+|---|---|---|
+| `/setup` | `S-Checklist` | Step rows with a 32pt numbered circle. Done = accent fill with tick; current = white ring + "NEXT" badge + tinted row; pending = muted; locked = lock icon + "Activate your license first". Progress bar + "2 of 5 complete" in mono. |
+| `/setup/wifi` | `S-Wifi`, `S-WifiHandoff`, `S-WifiFailed` | Selected network uses the selected-row style. The MirrorHandoff searching and failed states are full screens (the failed state's title is "We couldn't find your mirror on {ssid}" on timeout). |
+| `/setup/license` | `S-License`, `S-LicenseActive` | Key field in mono 18pt. All mirror-state warnings and activation errors use `Notice` (title + body + optional "skyglass.dev/license" link or "Check again"). "Activate" stays disabled until the key is valid. |
+| `/setup/location` | `S-Location` | Set state shown. Not-set state: "Detect your location" + "Detect location" button. Coordinates in mono. |
+| `/setup/airport` | `A-Setup` | Nearby list with mono ICAO + "{city} · 12 NM". Selected row = selected-row style + accent tick. |
+| `/setup/face` | `S-FaceName`, `S-FaceCapture`, `S-FaceDone` | Capture: live preview card with a dashed accent face oval, "Look at the mirror" pill, 3-2-1 countdown, five dots, a 76pt shutter button (accent inner disc). |
+
+## 3. Home, dashboard and account
+
+| Route | Mockup | Notes |
+|---|---|---|
+| `/` (index) | `H-Home` | "Hello, {name}" row → /profile. My mirrors and Discovered on network are row groups. Footer: Scan again + Manage mirrors. |
+| `/mirrors` | `H-Mirrors` | Stats become a two-column hairline strip. Rows expand to Connect / Unlink buttons. The face status is a badge (accent, or warning "NO FACE DATA"). |
+| `/dashboard` | `Main` | **Restructured.** Header: "‹ Mirrors", title "SkyGlass", avatar → /profile. Status block (dot + Connected, mirror name, mono version and address). A layout thumbnail of the saved layout (reuse the template thumbnail renderer) opens /editor, with "Edit layout". Rows: Home airport, Add a face, Software updates (badge when an update is available), Setup wizard. **The tab bar becomes Mirror · Layout · Settings** (Layout → /editor). Remove the 2×2 quick-action grid and the About card (About lives in Settings). |
+| `/dashboard` offline | `H-Offline` | Danger dot + "Disconnected", MirrorNotFound card (searching / not found states). |
+| `/profile` | `H-Profile` | Edit mode: the Name row becomes an input, the header right becomes "Cancel", and "Save changes" appears. |
+| `/updates` | `H-Updates`, `H-Updating` | Progress ring (accent on a white 12% track) with the big % in hero type; phase bar Download / Extract / Install. The up-to-date state is an accent tick + "You're up to date". |
+
+## 4. Layout editor
+
+| Route / component | Mockup | Notes |
+|---|---|---|
+| `/editor` | `A-Editor` | Header: close X, "Layout" + subtitle, "Save" pill (primary when dirty, secondary when clean). Status row: live pill left, "Unsaved changes" (warning) or "8 widgets · Saved" right. **Tiles are neutral glass** (white 6% fill, white 16% border); selected = accent border + tint + accent corner resize handle. The drop ghost is an accent outline when valid and danger when not. The selection bar has size chips (blocked sizes at 40% opacity) and Configure / Duplicate / Remove pills. Toolbar: Add widget (accent), Templates, Tidy, Undo, Redo. |
+| `/editor` empty / unreachable | `E-Empty` | Overlay on the glass: "Your mirror is empty" + two buttons. MirrorNotFound card below. |
+| `LibrarySheet` | `E-Library` | Page sheet. Search pill, category chips (no colour dots), 2-column cards with size badges (default size in accent) or a warning "No room" badge. |
+| `ConfigSheet` | `E-Configure`, `E-Todo` | Picker rows sit in a bordered field ("Mirror default" in mono when empty). Switch rows. Size section. "Remove widget" danger button with a two-tap confirm. Number stepper: a pill with − / value + unit (mono) / +. |
+| `DiscardSheet` | `E-Discard` | Bottom sheet: Discard (danger), Keep editing (secondary). |
+| `/templates` | `E-Templates` | Cards with a 16:9 thumbnail. The replace-confirm state highlights the card with an accent border and shows Cancel / Replace. |
+| `AirportPicker` | `E-Airport` | Page sheet, mono ICAO column. |
+| `LocationPicker` | `E-Location` | Detect row, manual coordinates (two fields side by side), result block. |
+| `TimezonePickerModal` | `E-Timezone` | Rows: city, IANA id (mono caption), offset (mono, right), accent tick. |
+| `ColorPicker`, `PhotoManager` | — | Not drawn. Use the swatch grid from the calendar colour sheet; photos = 3-column thumbnail grid + "Add photos" secondary button. |
+
+## 5. Settings, phones and calendars
+
+| Route | Mockup | Notes |
+|---|---|---|
+| `/settings` | `A-Settings` | **Regrouped:** Mirror (home airport, location, WiFi, calendars) · Registered faces · Software updates · Access & license (paired phones, license, manage license) · About · "Disconnect mirror" danger button. Keep the dev-only reset below it. It is reached from the tab bar, so it has a large title instead of a native header. |
+| `/paired-phones` | `P-Phones`, `P-Rename` | Remove and unpair sheets reuse the `BottomSheet` with a danger button + "Keep it". |
+| `/calendars` | `C-Calendars`, `C-Empty` | AccountCard: provider tile, label + email, status pill (accent tick "Synced…", warning "Reconnect" / "Sync problem"). Calendar rows: 22pt colour swatch button + name + Switch. Action bar: Sync now · Rename · Remove (danger). |
+| `/add-calendar` picker | `C-Picker` | Provider row group; unavailable providers at 45% opacity with the reason as the caption. |
+| Microsoft connect | `C-Microsoft` | Numbered steps 01/02, code in mono 34pt, waiting strip with a countdown. |
+| iCloud / CalDAV | `C-iCloud` | Explainer card + fields. The CalDAV variant uses the same layout with its own fields. |
+| Calendar link | `C-Link` | Expandable help as a definition list. The error state is shown. |
+| Choose calendars | `C-Choose` | "Connected" header with accent tick, Name field, calendar rows, "Done". |
+| Google connect | — | Centred spinner states "Continue in your browser" / "Finishing sign-in…". |
+
+## Website (`packages/website`)
+
+| Page | Mockup |
+|---|---|
+| Home | `A-Site` (hero, how it works, features, layout showcase, privacy, pricing, FAQ, waitlist, footer) |

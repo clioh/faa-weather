@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Time zone sheet</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="page">
+    <div class="phdr"><button class="ib" aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button><div class="t">Time zone</div><div style="width: 44px"></div></div>
+    <div style="display: flex; flex-direction: column; gap: 14px; padding: 4px 20px 0">
+      <div class="inpw" style="height: 48px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg><input aria-label="Search time zones" placeholder="City, region or IANA name" style="font-size: 15px"></div>
+      <div class="rows">
+        <button class="row"><div class="x"><div>UTC</div><div class="cap">Zulu</div></div><div class="m v">GMT+0</div></button>
+        <button class="row"><div class="x"><div>Denver</div><div class="cap m">America/Denver</div></div><div class="m v">GMT-6</div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></button>
+        <button class="row"><div class="x"><div>Chicago</div><div class="cap m">America/Chicago</div></div><div class="m v">GMT-5</div></button>
+        <button class="row"><div class="x"><div>New York</div><div class="cap m">America/New_York</div></div><div class="m v">GMT-4</div></button>
+        <button class="row"><div class="x"><div>London</div><div class="cap m">Europe/London</div></div><div class="m v">GMT+1</div></button>
+        <button class="row"><div class="x"><div>Tokyo</div><div class="cap m">Asia/Tokyo</div></div><div class="m v">GMT+9</div></button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

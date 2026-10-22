@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Foundations — tokens and components</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#7ad7ff}a:hover{color:#b3e8ff}
+.m{font-family:'JetBrains Mono',Menlo,monospace}
+.lbl{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.58)}
+.cap{font-size:12px;line-height:1.45;color:rgba(255,255,255,.58)}
+.sw{display:flex;flex-direction:column;gap:8px}
+.chipc{height:64px;border-radius:12px;border:1px solid rgba(255,255,255,.14)}
+.btn{height:52px;border-radius:26px;border:none;background:#7ad7ff;color:#00141f;font-family:inherit;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;padding:0 24px}
+.btn2{background:transparent;border:1px solid rgba(255,255,255,.24);color:#fff;font-weight:500}
+.btnd{background:transparent;border:1px solid rgba(255,107,122,.5);color:#ff6b7a;font-weight:500}
+.btnx{background:rgba(255,255,255,.1);color:rgba(255,255,255,.42)}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid rgba(0,20,31,.25);border-top-color:#00141f;box-sizing:border-box}
+.row{display:flex;align-items:center;gap:14px;min-height:52px;border-top:1px solid rgba(255,255,255,.14);font-size:15px}
+.note{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45}
+.ni{background:rgba(122,215,255,.08);border:1px solid rgba(122,215,255,.25);color:#d6f2ff}
+.nw{background:rgba(255,183,77,.08);border:1px solid rgba(255,183,77,.35);color:#ffe2b8}
+.ne{background:rgba(255,107,122,.08);border:1px solid rgba(255,107,122,.4);color:#ffd0d6}
+.inp{height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.22);background:transparent;color:#fff;font-family:inherit;font-size:16px;padding:0 16px;box-sizing:border-box;width:100%;outline:none}
+.chip{height:34px;padding:0 14px;border-radius:17px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.75);font-family:inherit;font-size:13px}
+.chipon{background:#fff;color:#000;border-color:#fff;font-weight:500}
+.swt{width:48px;height:28px;border-radius:14px;border:none;background:#7ad7ff;padding:3px;display:flex;justify-content:flex-end;box-sizing:border-box}
+.swt i{width:22px;height:22px;border-radius:11px;background:#00141f;display:block}
+.swoff{background:transparent;border:1px solid rgba(255,255,255,.3);justify-content:flex-start}
+.swoff i{width:20px;height:20px;background:rgba(255,255,255,.7)}
+.sec{display:flex;flex-direction:column;gap:18px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1320px; box-sizing: border-box; background: #000000; color: #ffffff; font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; padding: 64px 72px; display: flex; flex-direction: column; gap: 56px">
+
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 48px">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div class="lbl">SkyGlass · Glass Cockpit</div>
+      <h1 style="margin: 0; font-size: 56px; font-weight: 200; letter-spacing: -0.035em">Foundations</h1>
+    </div>
+    <p style="margin: 0; max-width: 620px; font-size: 15px; line-height: 1.6; color: rgba(255,255,255,0.68)">One language for mirror, app and site. Pure black ground, thin light numerals, mono for aviation data. Sky blue means "you can act here". Colour otherwise only carries meaning: flight rules, warnings, errors. Green is reserved for VFR and never used for success or buttons.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px">
+
+    <div class="sec">
+      <div class="lbl">Colour tokens</div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px">
+        <div class="sw"><div class="chipc" style="background: #000000"></div><div class="cap">background<br><span class="m">#000000</span></div></div>
+        <div class="sw"><div class="chipc" style="background: rgba(255,255,255,0.05)"></div><div class="cap">surface<br><span class="m">#FFF 5%</span></div></div>
+        <div class="sw"><div class="chipc" style="background: #101317"></div><div class="cap">sheet<br><span class="m">#101317</span></div></div>
+        <div class="sw"><div class="chipc" style="background: #000000; border-color: rgba(255,255,255,0.4)"></div><div class="cap">hairline<br><span class="m">#FFF 14%</span></div></div>
+        <div class="sw"><div class="chipc" style="background: #ffffff"></div><div class="cap">text<br><span class="m">#FFFFFF</span></div></div>
+        <div class="sw"><div class="chipc" style="background: rgba(255,255,255,0.68)"></div><div class="cap">text-2<br><span class="m">#FFF 68%</span></div></div>
+        <div class="sw"><div class="chipc" style="background: rgba(255,255,255,0.58)"></div><div class="cap">text-3 / label<br><span class="m">#FFF 58%</span></div></div>
+        <div class="sw"><div class="chipc" style="background: #7ad7ff"></div><div class="cap">accent<br><span class="m">#7AD7FF</span></div></div>
+        <div class="sw"><div class="chipc" style="background: #00141f"></div><div class="cap">on-accent<br><span class="m">#00141F</span></div></div>
+        <div class="sw"><div class="chipc" style="background: #ffb74d"></div><div class="cap">warning<br><span class="m">#FFB74D</span></div></div>
+        <div class="sw"><div class="chipc" style="background: #ff6b7a"></div><div class="cap">danger<br><span class="m">#FF6B7A</span></div></div>
+        <div class="sw"><div class="chipc" style="background: #0b0d10"></div><div class="cap">page sheet<br><span class="m">#0B0D10</span></div></div>
+      </div>
+      <div class="lbl" style="padding-top: 8px">Flight rules (same as mirror)</div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px">
+        <div class="m" style="height: 40px; border-radius: 8px; border: 1px solid #00e676; color: #00e676; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500">VFR</div>
+        <div class="m" style="height: 40px; border-radius: 8px; border: 1px solid #2979ff; color: #2979ff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500">MVFR</div>
+        <div class="m" style="height: 40px; border-radius: 8px; border: 1px solid #ff1744; color: #ff1744; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500">IFR</div>
+        <div class="m" style="height: 40px; border-radius: 8px; border: 1px solid #d500f9; color: #d500f9; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500">LIFR</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="lbl">Type</div>
+      <div style="display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; align-items: baseline; gap: 16px"><div class="m cap" style="width: 96px">display 30/300</div><div style="font-size: 30px; font-weight: 300; letter-spacing: -0.02em">Find your mirror</div></div>
+        <div style="display: flex; align-items: baseline; gap: 16px"><div class="m cap" style="width: 96px">hero 56/200</div><div style="font-size: 56px; font-weight: 200; letter-spacing: -0.04em; line-height: 1">08:42</div></div>
+        <div style="display: flex; align-items: baseline; gap: 16px"><div class="m cap" style="width: 96px">title 20/400</div><div style="font-size: 20px">Add a widget</div></div>
+        <div style="display: flex; align-items: baseline; gap: 16px"><div class="m cap" style="width: 96px">body 15/400</div><div style="font-size: 15px; color: rgba(255,255,255,0.68)">Make sure the mirror is powered on.</div></div>
+        <div style="display: flex; align-items: baseline; gap: 16px"><div class="m cap" style="width: 96px">caption 12</div><div class="cap">Paired Oct 3, 2026</div></div>
+        <div style="display: flex; align-items: baseline; gap: 16px"><div class="m cap" style="width: 96px">label 11 caps</div><div class="lbl">Other phones</div></div>
+        <div style="display: flex; align-items: baseline; gap: 16px"><div class="m cap" style="width: 96px">data mono</div><div class="m" style="font-size: 15px">KJFK 31012KT 10SM</div></div>
+      </div>
+      <div class="cap" style="line-height: 1.7">Inter for UI, JetBrains Mono for ICAO codes, times, versions, keys and addresses.<br>Spacing 4 · 8 · 12 · 16 · 24 · 32, screen gutter 24.<br>Radius: buttons pill (26), cards 16, inputs 14, sheets 22. Touch targets ≥ 44.</div>
+    </div>
+
+    <div class="sec">
+      <div class="lbl">Buttons</div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <button class="btn">Continue</button>
+        <button class="btn btn2">Scan again</button>
+        <button class="btn btnd">Disconnect</button>
+        <button class="btn btnx" disabled="">Save airport</button>
+        <button class="btn"><span class="spin"></span>Saving</button>
+        <button style="height: 44px; border: none; background: transparent; color: #7ad7ff; font-family: inherit; font-size: 15px">Text button</button>
+      </div>
+      <div class="lbl" style="padding-top: 8px">Chips, switches</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+        <button class="chip chipon">All</button><button class="chip">Aviation</button><button class="chip">Weather</button>
+        <button class="swt" role="switch" aria-checked="true" aria-label="On"><i></i></button>
+        <button class="swt swoff" role="switch" aria-checked="false" aria-label="Off"><i></i></button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px">
+    <div class="sec">
+      <div class="lbl">Rows (no cards — hairlines)</div>
+      <div style="display: flex; flex-direction: column; border-bottom: 1px solid rgba(255,255,255,0.14)">
+        <div class="row"><div style="flex: 1">Home airport</div><div class="m" style="font-size: 13px; color: rgba(255,255,255,0.62)">KJFK</div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></div>
+        <div class="row"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><div>Auto-download updates</div><div class="cap">Download updates in the background</div></div><button class="swt" role="switch" aria-checked="true" aria-label="Auto-download updates"><i></i></button></div>
+        <div class="row" style="color: #7ad7ff"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add a person</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="lbl">Fields</div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><div class="cap">Default</div><input class="inp" placeholder="Enter your name" aria-label="Default field"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><div class="cap">Focused</div><input class="inp" value="Clio" aria-label="Focused field" style="border-color: #7ad7ff"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><div class="cap">Error</div><input class="inp m" value="XXXX-O1" aria-label="Error field" style="border-color: #ff6b7a"><div style="font-size: 12px; color: #ff6b7a">License keys never contain 0, O, 1 or I.</div></div>
+    </div>
+    <div class="sec">
+      <div class="lbl">Notices, toast, progress</div>
+      <div class="note ni">Your kit came with a license. The mirror activates it once it is online.</div>
+      <div class="note nw">Mirror not responding</div>
+      <div class="note ne">Couldn’t reach the mirror. Make sure your phone is on the same WiFi network.</div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px; border-radius: 22px; background: #1a1f26; border: 1px solid rgba(255,255,255,0.12); font-size: 14px; align-self: flex-start"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Saved to mirror</div>
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px"><div style="height: 3px; border-radius: 2px; background: #7ad7ff"></div><div style="height: 3px; border-radius: 2px; background: #7ad7ff"></div><div style="height: 3px; border-radius: 2px; background: #ffffff"></div><div style="height: 3px; border-radius: 2px; background: rgba(255,255,255,0.18)"></div><div style="height: 3px; border-radius: 2px; background: rgba(255,255,255,0.18)"></div></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1320}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

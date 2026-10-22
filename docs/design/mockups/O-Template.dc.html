@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choose your layout</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.thumb{width:112px;height:63px;flex:none;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#000;position:relative;overflow:hidden}
+.thumb i{position:absolute;display:block;border-radius:2px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);box-sizing:border-box}
+.tc{display:flex;gap:14px;align-items:center;padding:14px 0;border-top:1px solid rgba(255,255,255,.14);background:transparent;border-left:none;border-right:none;border-bottom:none;color:#fff;font-family:inherit;text-align:left;width:100%;cursor:pointer}
+</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <button class="back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</button>
+  </div>
+  <div class="body" style="gap: 20px">
+    <div class="prog">
+      <div class="d"><i></i>Profile</div><div class="d"><i></i>Mirror</div><div class="d"><i></i>Setup</div><div class="c"><i></i>Template</div><div><i></i>Ready</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <h1 class="h1">Choose your layout</h1>
+      <p class="p">Pick a template to get started. You can customize it later.</p>
+    </div>
+    <div class="chips">
+      <button class="chip on" aria-pressed="true">All</button><button class="chip">Aviation</button><button class="chip">Weather</button><button class="chip">Lifestyle</button><button class="chip">Minimal</button>
+    </div>
+    <div style="display: flex; flex-direction: column; border-bottom: 1px solid rgba(255,255,255,0.14)">
+      <button class="tc">
+        <div class="thumb"><i style="left: 3px; top: 3px; width: 52px; height: 13px"></i><i style="left: 84px; top: 3px; width: 25px; height: 13px; border-color: #00e676"></i><i style="left: 58px; top: 19px; width: 51px; height: 26px"></i><i style="left: 3px; top: 19px; width: 25px; height: 41px"></i><i style="left: 30px; top: 19px; width: 25px; height: 41px"></i><i style="left: 58px; top: 47px; width: 51px; height: 13px"></i></div>
+        <div class="x"><div style="font-size: 15px">Pilot Briefing</div><div class="cap">METAR, TAF, NOTAMs, TFRs and winds aloft for flight planning</div><div class="cap m">8 modules · Aviation</div></div>
+      </button>
+      <button class="tc">
+        <div class="thumb"><i style="left: 3px; top: 3px; width: 52px; height: 13px"></i><i style="left: 58px; top: 3px; width: 51px; height: 13px"></i><i style="left: 3px; top: 19px; width: 25px; height: 41px"></i><i style="left: 30px; top: 19px; width: 51px; height: 26px"></i><i style="left: 84px; top: 19px; width: 25px; height: 41px"></i></div>
+        <div class="x"><div style="font-size: 15px">Crew Day</div><div class="cap">Your trips, Zulu and home-base time, and the weather where you are</div><div class="cap m">8 modules · Aviation</div></div>
+      </button>
+      <button class="tc">
+        <div class="thumb"><i style="left: 3px; top: 3px; width: 34px; height: 20px"></i><i style="left: 40px; top: 3px; width: 34px; height: 20px"></i><i style="left: 3px; top: 26px; width: 52px; height: 34px"></i><i style="left: 58px; top: 26px; width: 51px; height: 34px"></i></div>
+        <div class="x"><div style="font-size: 15px">Weather Dashboard</div><div class="cap">Current conditions, the week ahead and live radar</div><div class="cap m">5 modules · Weather</div></div>
+      </button>
+      <button class="tc">
+        <div class="thumb"><i style="left: 3px; top: 3px; width: 52px; height: 41px"></i><i style="left: 3px; top: 47px; width: 52px; height: 13px"></i></div>
+        <div class="x"><div style="font-size: 15px">Minimal</div><div class="cap">A large clock and the weather, nothing else</div><div class="cap m">2 modules · Minimal</div></div>
+      </button>
+      <button class="tc">
+        <div class="thumb"><i style="left: 3px; top: 3px; width: 34px; height: 20px"></i><i style="left: 40px; top: 3px; width: 25px; height: 13px"></i><i style="left: 3px; top: 26px; width: 25px; height: 34px"></i><i style="left: 30px; top: 26px; width: 25px; height: 34px"></i><i style="left: 58px; top: 47px; width: 51px; height: 13px"></i></div>
+        <div class="x"><div style="font-size: 15px">Morning Routine</div><div class="cap">Time, weather, your day and the headlines</div><div class="cap m">6 modules · Lifestyle</div></div>
+      </button>
+    </div>
+  </div>
+  <div class="foot" style="padding-top: 4px">
+    <button class="link">Skip for now</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

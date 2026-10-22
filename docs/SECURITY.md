@@ -114,6 +114,12 @@ thing that grants access.
 - Revoking a phone (`DELETE /api/pairing/devices/:id`, from any trusted
   caller, including that phone for "Unpair this phone") invalidates the token
   at once and closes that phone's open WebSockets (close code 4401).
+- A phone can also revoke itself without knowing its id:
+  `DELETE /api/pairing/devices/self` (device callers only; the mirror itself
+  gets 400 `not_a_paired_phone`). Removing a mirror in the phone's My Mirrors
+  list calls it (best effort, 3 s timeout), then deletes the stored token
+  whether or not the mirror answered, then forgets the mirror. If the mirror
+  was offline its record stays until someone removes it in Paired phones.
 
 ## Port 3001
 
@@ -213,7 +219,8 @@ are exempt), on top of the general 600 / 15 min `/api` limiter.
 Other pairing routes (any trusted caller): `GET /api/pairing/whoami` →
 `{ kind, deviceId }`; `GET /api/pairing/devices` → `{ devices: [{ id, name,
 createdAt, lastSeenAt, current }] }`; `PATCH /api/pairing/devices/:id
-{ name }` → `{ device }`; `DELETE /api/pairing/devices/:id` → 204.
+{ name }` → `{ device }`; `DELETE /api/pairing/devices/:id` → 204;
+`DELETE /api/pairing/devices/self` → 204 (paired phones only, else 400).
 
 ### WebSocket
 

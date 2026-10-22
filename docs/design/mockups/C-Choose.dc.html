@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choose calendars</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.swc{width:22px;height:22px;border-radius:11px;border:none;flex:none;cursor:pointer;padding:0}
+</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="C-Calendars.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Calendars</a>
+    <div class="t">Choose calendars</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 22px; padding-top: 16px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <div style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); flex: none"></div>
+      <div class="x"><div style="display: flex; align-items: center; gap: 6px" class="ac"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Connected</div><div class="cap">clio@icloud.com</div></div>
+    </div>
+    <div class="fld"><label class="fl" for="nm">Name</label><input id="nm" class="inp" placeholder="iCloud" value="iCloud"><div class="cap">Shown in the app to tell accounts apart.</div></div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div class="lbl">Show on the mirror</div>
+      <div class="rows">
+        <div class="row" style="cursor: default"><button class="swc" aria-label="Change color for Home" style="background: #7ad7ff"></button><div class="x" style="font-size: 14px">Home</div><button class="sw" role="switch" aria-checked="true" aria-label="Show Home"><i></i></button></div>
+        <div class="row" style="cursor: default"><button class="swc" aria-label="Change color for Family" style="background: #ffb74d"></button><div class="x" style="font-size: 14px">Family</div><button class="sw" role="switch" aria-checked="true" aria-label="Show Family"><i></i></button></div>
+        <div class="row" style="cursor: default"><button class="swc" aria-label="Change color for Reminders" style="background: #c3a6ff; opacity: 0.35"></button><div class="x dim" style="font-size: 14px">Reminders</div><button class="sw swoff" role="switch" aria-checked="false" aria-label="Show Reminders"><i></i></button></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">
+    <a href="C-Calendars.dc.html" class="btn">Done</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

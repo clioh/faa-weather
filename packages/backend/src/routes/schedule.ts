@@ -13,7 +13,7 @@
 import { Router, type Request } from 'express';
 import multer from 'multer';
 import { getScheduleService, flightToScheduleEvent, mergeScheduleEvents, scheduleWindow } from '../services/schedule.js';
-import { getXlsxHeaders } from '../services/schedule-parser.js';
+import { getXlsxHeaders, ScheduleParseError } from '../services/schedule-parser.js';
 import { uploadLimiter } from '../middleware/rateLimiter.js';
 import { calendarService } from '../calendar/instance.js';
 import type { TimeWindow } from '../calendar/types.js';
@@ -83,6 +83,9 @@ router.post('/upload', uploadLimiter, upload.single('schedule'), async (req, res
       events: events.slice(0, 10).map(flightToScheduleEvent),
     });
   } catch (error) {
+    if (error instanceof ScheduleParseError) {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('Upload route error:', error);
     res.status(500).json({ error: 'Failed to process schedule file' });
   }

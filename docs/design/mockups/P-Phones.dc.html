@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Paired phones</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="A-Settings.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">Paired phones</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 26px; padding-top: 16px">
+    <p class="p">These phones can set up and control this mirror. A new phone pairs with a code shown on the mirror, so only someone at the mirror can add one.</p>
+    <div class="sec" style="display: flex; flex-direction: column; gap: 6px">
+      <div class="lbl">This phone</div>
+      <div class="rows">
+        <div class="row" style="cursor: default"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"></rect><path d="M11 18.5h2"></path></svg><div class="x"><div>Clio’s iPhone</div><div class="cap">Paired Oct 3, 2026</div></div><span class="badge">THIS PHONE</span></div>
+        <a href="P-Rename.dc.html" class="row ac"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16z"></path></svg>Rename this phone</a>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div class="lbl">Other phones</div>
+      <div class="rows">
+        <div class="row" style="cursor: default"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"></rect><path d="M11 18.5h2"></path></svg><div class="x"><div>Sam’s Pixel</div><div class="cap">Last used 3 days ago · paired Sep 2, 2026</div></div><button class="ib" aria-label="Remove Sam’s Pixel" style="color: rgba(255,255,255,0.6)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button></div>
+      </div>
+    </div>
+    <div style="flex: 1"></div>
+  </div>
+  <div class="foot">
+    <button class="btn btnd">Unpair this phone</button>
+  </div>
+  <div class="toast" style="top: 100px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg><div style="flex: 1">Jordan’s iPad removed</div><button class="ib" aria-label="Dismiss" style="width: 32px; height: 32px; color: rgba(255,255,255,0.6)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

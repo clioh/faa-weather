@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mirror couldn't join WiFi</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+li{margin:0}
+</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <button class="back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</button>
+    <div class="t">WiFi setup</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 18px; padding-top: 12px">
+    <div style="display: flex; align-items: center; gap: 10px" class="wn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg><span class="lbl wn">Incorrect password</span></div>
+    <h1 class="h1" style="font-size: 26px">Your mirror couldn't join HarperHome</h1>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div class="lbl">Common causes</div>
+      <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; color: rgba(255,255,255,0.72)">
+        <li>The WiFi password was mistyped (passwords are case-sensitive).</li>
+        <li>The network is 5 GHz only. The mirror needs a 2.4 GHz network; many routers have a setting to turn 2.4 GHz on or split the bands.</li>
+        <li>It's a guest network or one with a sign-in page, which keeps devices from seeing each other.</li>
+        <li>The mirror is too far from the router.</li>
+        <li>Your phone isn't on HarperHome. Check Settings › Wi-Fi.</li>
+      </ul>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div class="lbl">To try again</div>
+      <p class="p" style="font-size: 13px">The mirror has reopened the <span class="m">SkyGlass-Setup</span> network. Join it in Settings › Wi-Fi, then choose your network again.</p>
+    </div>
+  </div>
+  <div class="foot">
+    <a href="S-Wifi.dc.html" class="btn">Choose network again</a>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <button class="btn btn2 sm" style="width: 100%; height: 44px">Search again</button>
+      <button class="btn btn2 sm" style="width: 100%; height: 44px">Enter address</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

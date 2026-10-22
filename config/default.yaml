@@ -29,18 +29,6 @@ display:
 calendar:
   refresh_minutes: 10                      # Background sync interval
 
-# Flight schedule from email
-schedule:
-  email:
-    enabled: false
-    imap_host: imap.gmail.com
-    imap_port: 993
-    username: ${EMAIL_USER}
-    password: ${EMAIL_PASS}
-    folder: INBOX
-    poll_interval: 300         # Seconds between email checks
-    sender_filter: ""          # Filter emails by sender address
-
 # Stock quotes come from skyglass_service; when it is unreachable the mirror
 # falls back to the keyless Yahoo chart endpoint. NOTAMs come from
 # skyglass_service too (no key needed on the mirror).

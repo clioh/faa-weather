@@ -141,6 +141,28 @@ describe('pairing routes', () => {
     expect((await call('GET', '/api/pairing/whoami', { headers: bearer(a.token) })).status).toBe(401);
   });
 
+  it('DELETE /devices/self: a phone revokes only its own token; others are untouched', async () => {
+    const a = service.claim(service.getQrSecret().secret, 'Phone A');
+    const b = service.claim(service.getQrSecret().secret, 'Phone B');
+    const revoked: string[] = [];
+    service.on('revoked', (id: string) => revoked.push(id));
+
+    expect((await call('DELETE', '/api/pairing/devices/self', { headers: bearer(a.token) })).status).toBe(204);
+    expect(revoked).toEqual([a.deviceId]);
+    expect((await call('GET', '/api/pairing/whoami', { headers: bearer(a.token) })).status).toBe(401);
+    // The revoked token can't call it again.
+    expect((await call('DELETE', '/api/pairing/devices/self', { headers: bearer(a.token) })).status).toBe(401);
+    expect((await call('GET', '/api/config', { headers: bearer(b.token) })).status).toBe(200);
+    expect(service.listDevices().map((d) => d.id)).toEqual([b.deviceId]);
+
+    // The mirror itself has no device record to revoke; strangers are refused by the gate.
+    const local = await call('DELETE', '/api/pairing/devices/self');
+    expect(local.status).toBe(400);
+    expect(local.body.error).toBe('not_a_paired_phone');
+    expect((await call('DELETE', '/api/pairing/devices/self', { headers: LAN })).status).toBe(401);
+    expect(service.listDevices()).toHaveLength(1);
+  });
+
   it('device management needs a trusted caller', async () => {
     expect((await call('GET', '/api/pairing/devices', { headers: LAN })).status).toBe(401);
     expect((await call('GET', '/api/pairing/whoami', { headers: LAN })).status).toBe(401);

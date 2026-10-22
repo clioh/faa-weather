@@ -36,18 +36,6 @@ export interface Config {
   calendar?: {
     refresh_minutes?: number;
   };
-  schedule: {
-    email: {
-      enabled: boolean;
-      imap_host: string;
-      imap_port: number;
-      username: string;
-      password: string;
-      folder: string;
-      poll_interval: number;
-      sender_filter: string;
-    };
-  };
   /** Read by packages/presence/detector.py (keep in sync with its PRESENCE_SETTINGS). */
   presence: {
     camera_index: number;

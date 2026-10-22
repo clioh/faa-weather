@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Configure — To-do</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.cb{width:22px;height:22px;border-radius:6px;border:1.5px solid rgba(255,255,255,.4);background:transparent;flex:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.mini{width:32px;height:32px;border:none;background:transparent;color:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+</style>
+</helmet>
+<div class="s">
+  <div class="page">
+    <div class="phdr"><div class="sp"></div><div class="t">To-do</div><a href="A-Editor.dc.html" class="tb" style="text-decoration: none; display: flex; align-items: center; justify-content: flex-end">Done</a></div>
+    <div style="display: flex; flex-direction: column; gap: 20px; padding: 10px 20px 0">
+      <div class="fld"><label class="fl" for="tt">Title</label><input id="tt" class="inp" placeholder="To-do" value="To-do"></div>
+      <div class="row" style="border: none; cursor: default; padding: 0"><div class="x">Show completed items</div><button class="sw swoff" role="switch" aria-checked="false" aria-label="Show completed items"><i></i></button></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255,255,255,0.14); padding-top: 16px">
+        <div style="display: flex; justify-content: space-between"><div class="lbl">Items</div><div class="cap m">3 open · 1 done</div></div>
+        <div class="rows">
+          <div class="row" style="cursor: default; gap: 10px"><button class="cb" aria-label="Mark done"></button><div class="x" style="font-size: 14px">Renew medical</div><button class="mini" aria-label="Move up" disabled="" style="opacity: 0.3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button><button class="mini" aria-label="Move down"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button><button class="mini" aria-label="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+          <div class="row" style="cursor: default; gap: 10px"><button class="cb" aria-label="Mark done"></button><div class="x" style="font-size: 14px">Pick up headset from avionics</div><button class="mini" aria-label="Move up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button><button class="mini" aria-label="Move down"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button><button class="mini" aria-label="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+          <div class="row" style="cursor: default; gap: 10px"><button class="cb" aria-label="Mark done"></button><div class="x" style="font-size: 14px">[ITEM]</div><button class="mini" aria-label="Move up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button><button class="mini" aria-label="Move down"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button><button class="mini" aria-label="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+          <div class="row" style="cursor: default; gap: 10px"><button class="cb" aria-label="Mark not done" style="background: #7ad7ff; border-color: #7ad7ff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00141f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></button><div class="x" style="font-size: 14px; color: rgba(255,255,255,0.45); text-decoration: line-through">[DONE ITEM]</div><button class="mini" aria-label="Move up"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button><button class="mini" aria-label="Move down" disabled="" style="opacity: 0.3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button><button class="mini" aria-label="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+        </div>
+        <div style="display: flex; gap: 8px; padding-top: 6px"><label for="add" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Add an item</label><input id="add" class="inp" placeholder="Add an item" style="flex: 1; height: 48px"><button class="btn sm" style="height: 48px; border-radius: 14px">Add</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

@@ -11,6 +11,7 @@
  *   GET    /api/pairing/whoami                          → { kind, deviceId }
  *   GET    /api/pairing/devices                         → { devices: [...] }
  *   PATCH  /api/pairing/devices/:id  { name }           → { device }
+ *   DELETE /api/pairing/devices/self                    → 204 (a paired phone unpairs itself)
  *   DELETE /api/pairing/devices/:id                     → 204
  *
  * expiresAt values are milliseconds since the epoch.
@@ -171,6 +172,22 @@ export function createPairingRouter({ service, limiters, connectUrl = defaultCon
     try {
       const device = service.renameDevice(id, (req.body as z.infer<typeof pairingRenameSchema>).name);
       res.json({ device: { ...device, current: device.id === getAuth(res).deviceId } });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // A phone revokes its own token (unlinking the mirror in My Mirrors). Only
+  // device callers have a token to revoke; the mirror itself gets 400.
+  router.delete('/devices/self', (_req, res) => {
+    const { kind, deviceId } = getAuth(res);
+    if (kind !== 'device' || !deviceId) {
+      res.status(400).json({ error: 'not_a_paired_phone', message: 'Only a paired phone can unpair itself.' });
+      return;
+    }
+    try {
+      service.revokeDevice(deviceId);
+      res.status(204).end();
     } catch (error) {
       sendError(res, error);
     }

@@ -121,6 +121,10 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       out at once; set up a mirror through the `SkyGlass-Setup` hotspot and confirm the phone pairs
       when the mirror joins home WiFi. Check that photos load on Android, because they need an
       auth header.
+- [ ] Unlink a mirror in My Mirrors with the mirror online: the phone disappears from Paired
+      phones on another phone (or the mirror's `data/paired-devices.json`) at once. Then unlink one
+      while the mirror is off or unreachable: removal finishes within about 3 seconds with no
+      error, and the phone's record is still listed on the mirror until removed there.
 - [ ] Security on the device: run `set_admin_password.py` and log in to `/admin` from another
       machine; confirm `/video_feed` and the device routes refuse requests without a token; enroll a
       face from the phone and confirm the preview stops when the session ends; join WiFi with an
@@ -138,22 +142,33 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       license-server are now `@skyglass/*` (turbo filters in the root `package.json` updated).
 - [ ] **Rename the git remote.** It is still `clioh/faa-weather`. The README uses a `<your-fork>`
       placeholder until there is a public repository URL.
-- [ ] **Regenerate `packages/website/package-lock.json`.** It is stale (no `stripe` entry), which
-      matters if Vercel builds from `packages/website`.
+- [x] **Regenerate `packages/website/package-lock.json`.** Done 2026-10-21. Vercel installs
+      `packages/website` on its own (`.npmrc` has `workspaces=false`), and a clean `npm ci && npm run build`
+      there failed three ways, all fixed: `react-helmet-async` 2 rejected React 19 (now 3.0.0),
+      `@types/node` came only from the monorepo root (now a website devDependency), and `stripe` floated
+      to a release whose pinned API version no longer matched `api/_lib/stripe.ts` (now pinned to 20.2.0).
 - [ ] **Check the Stripe webhook version.** The payload shape follows the API version set on the
-      Dashboard webhook endpoint, not the SDK pin. Make them match.
-- [ ] **Add HTTP-level tests for the newer routes.** News, finance, weather, to-dos, photos and
-      calendar have service tests, but nothing exercises the Express routes end to end.
-- [ ] **Close the SSRF guard's timing gap.** `packages/backend/src/services/ssrf.ts` checks DNS and
-      then connects separately, so a fast DNS rebind could slip through. The gap is small and
-      documented in the code.
+      Dashboard webhook endpoint, not the SDK pin. The SDK is pinned to `stripe@20.2.0` with
+      `apiVersion: '2025-12-15.clover'`; set the webhook endpoint to the same version.
+- [x] **Add HTTP-level tests for the newer routes.** Done 2026-10-21: `routes/widgets.http.test.ts`
+      and `routes/calendar.http.test.ts` run news, finance, weather, to-dos, photos, calendar and
+      schedule through the real route stack. They found that a corrupt XLSX upload replaced the loaded
+      schedule with nothing; that now returns 400 and keeps the schedule.
+- [x] **Close the SSRF guard's timing gap.** Done: `safeFetchText` now connects through an undici
+      Agent whose `lookup` checks every resolved address and dials only those, on every redirect hop.
 - [ ] **Remove leftover keys from existing installs.** `widgets:`, `notam_api_key`, `finance:`,
-      `calendar.google` and `calendar.auth_service` in older `config/config.yaml` files are now ignored.
+      `calendar.google`, `calendar.auth_service` and `schedule.email` in older `config/config.yaml`
+      files are now ignored.
 
 ## 5. Product follow-ups (not blocking)
 
-- [ ] Flight-schedule email import still uses an IMAP username and password in `config/config.yaml`.
-      Consider Gmail/Outlook sign-in through the same cloud service.
+- [x] Flight-schedule email import (IMAP) was removed on 2026-10-21: it kept a mail password in
+      `config/config.yaml`, skipped TLS certificate checks and had no phone UI. Schedules arrive by
+      XLSX upload (`POST /api/schedule/upload`) and crew feeds by calendar link. It could come back
+      later as a cloud mail import through skyglass.dev: Outlook `Mail.Read` is easy; Gmail
+      `gmail.readonly` is a restricted scope that needs a yearly security assessment.
+- [ ] The phone app has no screen for the XLSX schedule upload (`POST /api/schedule/upload`); today
+      only scripts can use it. Add one, or drop the route if calendar links cover airline rosters.
 - [ ] Add a calendar step to the phone onboarding flow.
 - [ ] Google-only calendar sign-in through the cloud means SkyGlass's Google project quota and
       verification status affect every customer. Monitor the quota once verified.

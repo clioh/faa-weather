@@ -6,12 +6,18 @@
  * unspecified, multicast and reserved ranges are rejected. Redirects are
  * followed manually so each hop is re-validated.
  *
- * Note: there is a small DNS-rebinding window between validation and the
- * actual connection; acceptable for a LAN appliance fetching RSS.
+ * DNS rebinding: safeFetchText connects through an undici Agent whose socket
+ * `lookup` resolves the host, rejects the connection if any resolved address
+ * is blocked, and hands the checked addresses straight to the socket. The
+ * address that was checked is the address that is dialled, so a resolver that
+ * answers "public" to the pre-check and "private" at connect time is refused.
+ * Literal-IP hosts skip DNS and are checked as-is. TLS SNI and certificate
+ * verification still use the URL's hostname.
  */
 
 import { lookup } from 'dns/promises';
-import { isIP } from 'net';
+import { isIP, type LookupFunction } from 'net';
+import { Agent } from 'undici';
 import { UpstreamError, USER_AGENT, readBodyCapped } from './upstream.js';
 
 export class UnsafeUrlError extends Error {
@@ -96,6 +102,7 @@ export function isBlockedAddress(ip: string): boolean {
 }
 
 type Resolver = (host: string) => Promise<string[]>;
+type BlockCheck = (ip: string) => boolean;
 
 const defaultResolver: Resolver = async (host) => {
   const results = await lookup(host, { all: true, verbatim: true });
@@ -105,7 +112,11 @@ const defaultResolver: Resolver = async (host) => {
 /**
  * Validate a user-supplied URL. Returns the parsed URL or throws UnsafeUrlError.
  */
-export async function assertPublicUrl(raw: string, resolve: Resolver = defaultResolver): Promise<URL> {
+export async function assertPublicUrl(
+  raw: string,
+  resolve: Resolver = defaultResolver,
+  isBlocked: BlockCheck = isBlockedAddress,
+): Promise<URL> {
   let url: URL;
   try {
     url = new URL(raw);
@@ -132,10 +143,54 @@ export async function assertPublicUrl(raw: string, resolve: Resolver = defaultRe
       throw new UnsafeUrlError('Could not resolve host');
     }
   }
-  if (addresses.length === 0 || addresses.some(isBlockedAddress)) {
+  if (addresses.length === 0 || addresses.some((a) => isBlocked(a))) {
     throw new UnsafeUrlError('Private or local addresses are not allowed');
   }
   return url;
+}
+
+/**
+ * A net/tls `lookup` that resolves with `resolve`, fails closed if the answer
+ * is empty, unparseable or contains any blocked address, and otherwise returns
+ * exactly the checked addresses for the socket to dial.
+ */
+export function createGuardedLookup(
+  resolve: Resolver = defaultResolver,
+  isBlocked: BlockCheck = isBlockedAddress,
+): LookupFunction {
+  return (hostname, options, callback) => {
+    const host = hostname.replace(/^\[|\]$/g, '');
+    const literal = isIP(host);
+    const pending = literal ? Promise.resolve([host]) : resolve(host);
+    pending.then(
+      (addresses) => {
+        if (addresses.length === 0 || addresses.some((a) => isIP(a) === 0 || isBlocked(a))) {
+          callback(new UnsafeUrlError('Private or local addresses are not allowed'), '');
+          return;
+        }
+        let entries = addresses.map((address) => ({ address, family: isIP(address) }));
+        if (options.family === 4 || options.family === 6) {
+          entries = entries.filter((e) => e.family === options.family);
+        }
+        if (entries.length === 0) {
+          callback(Object.assign(new Error(`No address for ${host}`), { code: 'ENOTFOUND' }), '');
+          return;
+        }
+        if (options.all) callback(null, entries);
+        else callback(null, entries[0].address, entries[0].family);
+      },
+      () => callback(new UnsafeUrlError('Could not resolve host'), ''),
+    );
+  };
+}
+
+function findUnsafeCause(error: unknown): UnsafeUrlError | null {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current; depth++) {
+    if (current instanceof UnsafeUrlError) return current;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return null;
 }
 
 export interface SafeFetchOptions {
@@ -144,6 +199,8 @@ export interface SafeFetchOptions {
   maxRedirects?: number;
   headers?: Record<string, string>;
   resolve?: Resolver;
+  /** Test hook: replaces isBlockedAddress (e.g. to allow a loopback test server). */
+  isBlocked?: BlockCheck;
 }
 
 /**
@@ -151,34 +208,54 @@ export interface SafeFetchOptions {
  * redirect hop) with assertPublicUrl. Defaults: 5 s total timeout, 2 MB cap.
  */
 export async function safeFetchText(raw: string, opts: SafeFetchOptions = {}): Promise<string> {
-  const { timeoutMs = 5000, maxBytes = 2 * 1024 * 1024, maxRedirects = 3, headers = {}, resolve } = opts;
+  const {
+    timeoutMs = 5000,
+    maxBytes = 2 * 1024 * 1024,
+    maxRedirects = 3,
+    headers = {},
+    resolve = defaultResolver,
+    isBlocked = isBlockedAddress,
+  } = opts;
   const signal = AbortSignal.timeout(timeoutMs);
-  let current = raw;
-  for (let hop = 0; hop <= maxRedirects; hop++) {
-    const url = await assertPublicUrl(current, resolve);
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        headers: { 'User-Agent': USER_AGENT, ...headers },
-        redirect: 'manual',
-        signal,
-      });
-    } catch (error) {
-      const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-      throw new UpstreamError(timedOut ? 'Upstream timed out' : 'Upstream unreachable', timedOut ? 504 : 502);
+  // One Agent per call: every connection it opens (every redirect hop) goes
+  // through the guarded lookup, and it is torn down afterwards.
+  const dispatcher = new Agent({ connect: { lookup: createGuardedLookup(resolve, isBlocked) } });
+  try {
+    let current = raw;
+    for (let hop = 0; hop <= maxRedirects; hop++) {
+      const url = await assertPublicUrl(current, resolve, isBlocked);
+      let res: Response;
+      try {
+        // The undici package's Agent and Node's bundled undici-types describe the
+        // same Dispatcher interface but are distinct TS types, hence the cast.
+        const init: Omit<RequestInit, 'dispatcher'> & { dispatcher: unknown } = {
+          headers: { 'User-Agent': USER_AGENT, ...headers },
+          redirect: 'manual',
+          signal,
+          dispatcher,
+        };
+        res = await fetch(url, init as RequestInit);
+      } catch (error) {
+        const unsafe = findUnsafeCause(error);
+        if (unsafe) throw unsafe;
+        const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+        throw new UpstreamError(timedOut ? 'Upstream timed out' : 'Upstream unreachable', timedOut ? 504 : 502);
+      }
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('location');
+        await res.body?.cancel().catch(() => undefined);
+        if (!location) throw new UpstreamError('Upstream redirect without location');
+        current = new URL(location, url).toString();
+        continue;
+      }
+      if (!res.ok) {
+        await res.body?.cancel().catch(() => undefined);
+        throw new UpstreamError(`Upstream returned ${res.status}`);
+      }
+      return await readBodyCapped(res, maxBytes);
     }
-    if (res.status >= 300 && res.status < 400) {
-      const location = res.headers.get('location');
-      await res.body?.cancel().catch(() => undefined);
-      if (!location) throw new UpstreamError('Upstream redirect without location');
-      current = new URL(location, url).toString();
-      continue;
-    }
-    if (!res.ok) {
-      await res.body?.cancel().catch(() => undefined);
-      throw new UpstreamError(`Upstream returned ${res.status}`);
-    }
-    return readBodyCapped(res, maxBytes);
+    throw new UpstreamError('Too many redirects');
+  } finally {
+    dispatcher.destroy().catch(() => undefined);
   }
-  throw new UpstreamError('Too many redirects');
 }

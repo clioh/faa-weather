@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Set location sheet</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="page">
+    <div class="phdr"><button class="ib" aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button><div class="t">Set location</div><div style="width: 44px"></div></div>
+    <div style="display: flex; flex-direction: column; gap: 18px; padding: 4px 20px 0; flex: 1">
+      <div class="rows">
+        <button class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><circle cx="12" cy="12" r="8"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg><div class="x"><div>Detect my location</div><div class="cap">Use GPS to find your location</div></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+        <button class="row" aria-expanded="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16z"></path></svg><div class="x">Enter coordinates manually</div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <div class="fld"><label class="fl" for="la">Latitude</label><input id="la" class="inp m" placeholder="40.7128" value="37.9375"></div>
+        <div class="fld"><label class="fl" for="lo">Longitude</label><input id="lo" class="inp m" placeholder="-74.0060" value="-107.8123"></div>
+      </div>
+      <button class="btn btn2" style="height: 44px">Apply coordinates</button>
+      <div style="display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.14); padding-top: 16px">
+        <div style="display: flex; align-items: center; gap: 8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg><div style="font-size: 16px">Telluride</div></div>
+        <div class="cap m">37.94°N 107.81°W</div>
+      </div>
+      <div style="flex: 1"></div>
+    </div>
+    <div class="foot"><button class="btn">Use this location</button></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

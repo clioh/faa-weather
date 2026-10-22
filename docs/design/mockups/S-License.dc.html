@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>License</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="S-Checklist.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">License</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 20px; padding-top: 16px">
+    <div class="card">
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 15px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ad7ff" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Where's my key?</div>
+      <p class="p" style="font-size: 13px">It's in your SkyGlass order confirmation email, in the form <span class="m">XXXX-XXXX-XXXX-XXXX</span>. Bought a kit? The key comes pre-installed and activates on its own once the mirror is online, so you shouldn't need to type anything.</p>
+    </div>
+    <div class="note ne" style="flex-direction: column; gap: 4px">
+      <div style="font-weight: 600">Key not recognized</div>
+      <div>No SkyGlass license matches this key. Check it against your order confirmation email, or have the key re-sent from your license page.</div>
+      <a href="#" style="color: #7ad7ff; text-decoration: none; min-height: 28px; display: flex; align-items: center">skyglass.dev/license</a>
+    </div>
+    <div class="fld">
+      <label class="lbl" for="key">License key</label>
+      <input id="key" class="inp m foc" placeholder="XXXX-XXXX-XXXX-XXXX" value="7KQM-4RT8-W2ZP-HC" style="font-size: 18px; letter-spacing: 0.06em">
+      <div class="cap">Dashes are added for you. Keys never contain 0, O, 1 or I.</div>
+    </div>
+    <div class="rows">
+      <a href="#" class="row" style="min-height: 56px"><div class="x"><div class="ac" style="font-size: 14px">Lost your key or moving it from another mirror?</div><div class="cap">Have it re-sent or release it at skyglass.dev/license</div></div></a>
+      <a href="#" class="row" style="min-height: 56px"><div class="x"><div class="ac" style="font-size: 14px">Don't have a license?</div><div class="cap">Buy one at skyglass.dev</div></div></a>
+    </div>
+  </div>
+  <div class="foot">
+    <button class="btn btnx" disabled="">Activate</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

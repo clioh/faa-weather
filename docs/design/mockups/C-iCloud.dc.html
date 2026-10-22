@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connect iCloud</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="s" style="height: 960px">
+  <div class="hdr">
+    <a href="C-Picker.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">iCloud</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 20px; padding-top: 16px">
+    <div class="card">
+      <div style="font-size: 15px">You’ll need an app-specific password</div>
+      <p class="p" style="font-size: 13px">This is not your Apple ID password. It’s a separate password Apple creates just for SkyGlass, and you can revoke it at any time.</p>
+      <ol style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.45; color: rgba(255,255,255,0.75)">
+        <li>Sign in at account.apple.com</li>
+        <li>Open Sign-In and Security, then App-Specific Passwords</li>
+        <li>Create one named “SkyGlass” and paste it below</li>
+      </ol>
+      <a href="#" class="btn btn2 sm" style="align-self: flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"></path></svg>Open account.apple.com</a>
+    </div>
+    <div class="fld"><label class="fl" for="aid">Apple ID</label><input id="aid" class="inp" type="email" placeholder="name@icloud.com" value="clio@icloud.com"></div>
+    <div class="fld"><label class="fl" for="asp">App-specific password</label><div class="inpw foc"><input id="asp" class="m" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" value="abcd-efgh-ijkl-mnop"><button class="ib" aria-label="Show password" style="width: 36px; height: 36px; color: rgba(255,255,255,0.6)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 12C4 7.9 7.7 5 12 5s8 2.9 9.5 7c-1.5 4.1-5.2 7-9.5 7s-8-2.9-9.5-7z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div></div>
+    <div class="fld"><label class="fl" for="nm">Name (optional)</label><input id="nm" class="inp" placeholder="iCloud"><div class="cap">Shown in the app to tell accounts apart.</div></div>
+  </div>
+  <div class="foot">
+    <a href="C-Choose.dc.html" class="btn">Connect iCloud</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":960}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>
