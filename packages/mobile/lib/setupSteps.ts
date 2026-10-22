@@ -1,7 +1,7 @@
 /**
  * Setup step order and hand-off between steps.
  *
- * The mirror's order is WiFi → License → Location → Airport → Face
+ * The mirror's order is WiFi → Orientation → License → Location → Airport → Face
  * (GET /api/setup/status, docs/LICENSING.md). The checklist in
  * app/setup/index.tsx is the hub; a step that finishes inside the setup flow
  * hands straight over to the next incomplete one instead of making the user
@@ -13,7 +13,13 @@ import { api, type SetupStatus } from './api';
 import { logError } from './errors';
 import { goBack } from './navigation';
 
-export type SetupStepId = 'wifi' | 'license' | 'location' | 'airport' | 'face';
+export type SetupStepId = 'wifi' | 'orientation' | 'license' | 'location' | 'airport' | 'face';
+
+/** Orientation is also opened from Settings › Mirror; in the setup flow it continues to License. */
+export const ORIENTATION_SETUP_ROUTE: Href = {
+  pathname: '/setup/orientation',
+  params: { flow: 'setup' },
+};
 
 /**
  * The license screen is also opened from Settings. In the setup flow it skips
@@ -26,6 +32,7 @@ export const LICENSE_SETUP_ROUTE: Href = {
 
 const ORDER: { id: SetupStepId; route: Href; isComplete: (s: SetupStatus) => boolean }[] = [
   { id: 'wifi', route: '/setup/wifi', isComplete: (s) => s.wifiConfigured },
+  { id: 'orientation', route: ORIENTATION_SETUP_ROUTE, isComplete: (s) => s.orientationConfigured },
   { id: 'license', route: LICENSE_SETUP_ROUTE, isComplete: (s) => s.licenseActivated },
   { id: 'location', route: '/setup/location', isComplete: (s) => s.locationConfigured },
   { id: 'airport', route: '/setup/airport', isComplete: (s) => s.airportConfigured },

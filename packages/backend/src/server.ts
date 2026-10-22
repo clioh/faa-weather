@@ -5,7 +5,7 @@ import { existsSync } from 'fs';
 import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
 import cron from 'node-cron';
-import { loadConfig, configEvents } from './config/index.js';
+import { loadConfig, configEvents, type MirrorOrientation } from './config/index.js';
 import aviationRoutes from './routes/aviation.js';
 import scheduleRoutes from './routes/schedule.js';
 import calendarRoutes from './routes/calendar.js';
@@ -29,6 +29,7 @@ import { updateService } from './services/updater.js';
 import { initScheduleService } from './services/schedule.js';
 import { calendarService } from './calendar/instance.js';
 import { displayManager } from './services/display.js';
+import { orientationPreview } from './services/orientation.js';
 import { mdnsService } from './services/mdns.js';
 import { licenseManager, usingPlaceholderPublicKey } from './license/index.js';
 import { initDatabase, updateUserLastSeen, getUserActiveLayout, getMirrorId, getMirrorName } from './db/index.js';
@@ -85,12 +86,14 @@ pairingService.on('pairing', (event: PairingEvent) => {
 pairingService.on('revoked', (deviceId: string) => wsHub.closeDevice(deviceId));
 // License events are only broadcast on change, so a kiosk that reconnects
 // after a restart would miss a flip (e.g. active → released). Every new
-// socket gets the current status first.
+// socket gets the current status first (and the orientation, for the same
+// reason: a preview that started or ended while it was away).
 wsHub.wss.on('connection', (ws: WebSocket) => {
   try {
     ws.send(JSON.stringify({ type: 'license', data: licenseManager.getStatus(), timestamp: Date.now() }));
+    ws.send(JSON.stringify({ type: 'orientation', data: orientationState(), timestamp: Date.now() }));
   } catch (error) {
-    console.error('[License] Could not send the status to a new WebSocket client:', error);
+    console.error('[WS] Could not send the status snapshot to a new client:', error);
   }
 });
 
@@ -112,13 +115,14 @@ let config = loadConfig();
 
 /** Display settings the mirror UI needs (non-sensitive). */
 function publicDisplayConfig(): {
-  orientation: 'landscape' | 'portrait';
+  orientation: MirrorOrientation;
   fade_duration: number;
   presence_timeout: number;
 } {
   const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
   return {
-    orientation: config.display?.orientation === 'portrait' ? 'portrait' : 'landscape',
+    // Normalized by loadConfig (legacy `portrait` reads as portrait-cw).
+    orientation: config.display?.orientation ?? 'landscape',
     fade_duration: num(config.display?.fade_duration, 1000),
     presence_timeout: num(config.display?.presence_timeout, 120),
   };
@@ -135,11 +139,26 @@ configEvents.on('changed', () => {
       location: config.location,
       display: publicDisplayConfig(),
     });
+    broadcastOrientation();
     void refreshAviationData();
   } catch (error) {
     console.error('[Config] Reload failed:', error);
   }
 });
+
+/**
+ * WS `orientation`: the saved orientation and the one the app is previewing
+ * (null when none). The display turns to `preview ?? orientation` and shows
+ * its orientation check while a preview is on. Same shape as GET
+ * /api/setup/orientation.
+ */
+function orientationState(): { orientation: MirrorOrientation; preview: MirrorOrientation | null } {
+  return { orientation: config.display?.orientation ?? 'landscape', preview: orientationPreview.current() };
+}
+function broadcastOrientation(): void {
+  broadcast('orientation', orientationState());
+}
+orientationPreview.on('change', broadcastOrientation);
 
 // Initialize services
 const scheduleService = initScheduleService();

@@ -67,6 +67,8 @@ Individual steps:
 ```bash
 npm run setup:dev -- wifi                          # or: wifi --clear
 npm run setup:dev -- airport KPAO
+npm run setup:dev -- orientation portrait-cw --preview   # mirror turns and shows "This way up?"
+npm run setup:dev -- orientation landscape         # save (portrait-cw | portrait-ccw | landscape)
 npm run setup:dev -- location 37.4611 -122.1150 America/Los_Angeles
 npm run setup:dev -- face --name "Dev Pilot"       # simulated enrollment, no camera
 npm run setup:dev -- face --camera --name "Dev Pilot"   # real capture via the presence server
@@ -76,8 +78,10 @@ npm run setup:dev -- presence on | off | toggle    # wake / sleep the display
 ### Watching it happen
 
 Open http://localhost:5173 next to your terminal and run the walkthrough. The
-screen moves from "Location Setup" to "Airport Setup" to "Face Registration" to
-"Setup Complete", then switches to the live mirror with the chosen airport.
+screen first turns to portrait and shows the "This way up?" orientation check,
+turns back once the orientation is saved, then moves from "Location Setup" to
+"Airport Setup" to "Face Registration" to "Setup Complete", then switches to
+the live mirror with the chosen airport.
 `presence on` wakes the display and shows the greeting for the enrolled user.
 `presence off` reports absence; the display sleeps after
 `display.presence_timeout` from `config/config.yaml` (120 s by default).

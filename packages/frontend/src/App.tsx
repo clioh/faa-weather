@@ -7,6 +7,7 @@ import { ProvisioningScreen } from './components/ProvisioningScreen';
 import { SetupProgressScreen } from './components/SetupProgressScreen';
 import { LicenseScreen } from './components/LicenseScreen';
 import { licenseBlocksMirror, type LicenseStatus } from './license';
+import type { MirrorOrientation } from './orientation';
 import { ModuleRenderer, MirrorLayout } from './components/modules/ModuleRenderer';
 
 interface Config {
@@ -17,7 +18,8 @@ interface Config {
     timezone: string;
   };
   display?: {
-    orientation?: 'landscape' | 'portrait';
+    /** Applied by OrientationFrame (GET /api/setup/orientation), not here. */
+    orientation?: MirrorOrientation;
     /** Presence fade in milliseconds (config.yaml display.fade_duration). */
     fade_duration?: number;
     presence_timeout?: number;

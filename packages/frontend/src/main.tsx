@@ -2,15 +2,25 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { PairingCodeOverlay } from './components/PairingCodeOverlay';
+import { OrientationFrame } from './components/OrientationFrame';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/jetbrains-mono';
 import './styles/theme.css';
 import './styles/modules.css';
 
+// The Raspberry Pi kiosk (scripts/kiosk.sh) opens the mirror with ?kiosk=1:
+// hide the mouse pointer there. Wayland has no unclutter.
+if (new URLSearchParams(window.location.search).has('kiosk')) {
+  document.documentElement.classList.add('kiosk');
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
-    {/* Beside App so the pairing code covers every screen App can show. */}
-    <PairingCodeOverlay />
+    {/* Turns the whole UI to match how the panel is mounted. */}
+    <OrientationFrame>
+      <App />
+      {/* Beside App so the pairing code covers every screen App can show. */}
+      <PairingCodeOverlay />
+    </OrientationFrame>
   </React.StrictMode>
 );

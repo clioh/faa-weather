@@ -523,7 +523,7 @@ const celebrationStyles = `
       opacity: 1;
     }
     100% {
-      transform: translateY(100vh) rotate(720deg);
+      transform: translateY(var(--app-h)) rotate(720deg);
       opacity: 0;
     }
   }

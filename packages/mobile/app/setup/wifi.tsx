@@ -147,8 +147,8 @@ export default function WifiSetupScreen() {
       }
     }
     await refresh();
-    // In setup, License comes next. That screen skips itself when licensing
-    // is off and moves on to Location.
+    // In setup, Orientation comes next (then License, which skips itself
+    // when licensing is off).
     if (flow === 'setup') await continueSetup('wifi');
     else goBack('/dashboard');
   };

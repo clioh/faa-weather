@@ -3,7 +3,7 @@
  * SkyGlass local setup tool
  *
  * Drives the first-run setup pipeline on a development machine so the whole
- * flow (setup screen -> location -> airport -> face -> live mirror -> presence
+ * flow (setup screen -> orientation -> location -> airport -> face -> live mirror -> presence
  * wake/sleep) can be exercised without a Raspberry Pi, a phone, or a camera.
  *
  * Every step goes through the same backend endpoints the mobile app uses when
@@ -228,6 +228,15 @@ function enrolledUsers() {
   }
 }
 
+const ORIENTATIONS = ['landscape', 'portrait-cw', 'portrait-ccw'];
+
+/** Same reading as the backend's normalizeOrientation (legacy "portrait" = portrait-cw). */
+function normalizeOrientation(value) {
+  const v = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (v === 'portrait') return 'portrait-cw';
+  return ORIENTATIONS.includes(v) ? v : 'landscape';
+}
+
 /** Same marker the backend's setup routes write (see routes/setup.ts). */
 function markCompleted(doc, step) {
   const completed = Array.isArray(doc.setup?.completed) ? doc.setup.completed : [];
@@ -244,11 +253,16 @@ function localState() {
   const wifi = fs.existsSync(WIFI_FLAG);
   // Mirrors the backend: a step counts only once setup.completed records it.
   const completed = Array.isArray(doc.setup?.completed) ? doc.setup.completed : [];
+  // Orientation also counts whenever config.yaml exists (mirrors set up before the step).
+  const orientationConfigured = configExists || completed.includes('orientation');
+  const orientation = normalizeOrientation(doc.display?.orientation);
   const airportConfigured = completed.includes('airport');
   const locationConfigured = completed.includes('location');
   const faceEnrolled = users.length > 0;
   return {
     configExists,
+    orientation,
+    orientationConfigured,
     airport,
     airportConfigured,
     location: loc,
@@ -341,6 +355,13 @@ async function cmdStatus() {
   console.log(
     `  1 wifi      ${s.wifi ? OK + ' flag present' : NO + ' no flag       → setup:dev wifi'}`
   );
+  console.log(
+    `  2 orient.   ${
+      s.orientationConfigured
+        ? `${OK} ${s.orientation}`
+        : `${NO} not chosen        → setup:dev orientation [landscape|portrait-cw|portrait-ccw]`
+    }`
+  );
   let licenseLine;
   if (!license) licenseLine = c.dim('unknown (backend down)');
   else if (license.state === 'disabled') licenseLine = `${OK} licensing disabled (SKYGLASS_LICENSE=off)`;
@@ -348,16 +369,16 @@ async function cmdStatus() {
     licenseLine = `${license.state === 'active' ? OK : NO} ${license.state} …${license.keyLast4 || ''}`;
   else
     licenseLine = `${NO} ${license.state}   → enter a key in the app, or restart with SKYGLASS_LICENSE=off`;
-  console.log(`  2 license   ${licenseLine}`);
+  console.log(`  3 license   ${licenseLine}`);
   console.log(
-    `  3 location  ${
+    `  4 location  ${
       s.locationConfigured
         ? `${OK} ${s.location.latitude}, ${s.location.longitude} ${s.location.timezone || ''}`
         : `${NO} default coords   → setup:dev location LAT LON`
     }`
   );
   console.log(
-    `  4 airport   ${
+    `  5 airport   ${
       s.airportConfigured
         ? `${OK} ${s.airport}`
         : `${NO} ${s.airport || 'unset'} (not chosen)  → setup:dev airport KXXX`
@@ -369,10 +390,10 @@ async function cmdStatus() {
       `users: ${s.users.map((u) => u.name + (u.simulated ? ' (simulated)' : '')).join(', ')}`
     );
   console.log(
-    `  5 face      ${s.faceEnrolled ? OK + ' ' + faceBits.join('; ') : NO + ' not enrolled   → setup:dev face'}`
+    `  6 face      ${s.faceEnrolled ? OK + ' ' + faceBits.join('; ') : NO + ' not enrolled   → setup:dev face'}`
   );
   console.log(
-    `    config    ${s.configExists ? OK + ' config/config.yaml' : NO + ' config/config.yaml missing (written by airport/location)'}`
+    `    config    ${s.configExists ? OK + ' config/config.yaml' : NO + ' config/config.yaml missing (written by orientation/location/airport)'}`
   );
   console.log(
     `\n  Mirror shows: ${setupComplete ? c.green('LIVE MIRROR') : c.yellow('SETUP SCREEN')}` +
@@ -462,6 +483,39 @@ async function cmdAirport({ positional, flags }) {
     done(
       `Airport set to ${icao} in config/config.yaml (backend not running; it will load this on start)`
     );
+  }
+}
+
+async function cmdOrientation({ positional, flags }) {
+  if (flags.cancel) {
+    requireBackend(await backendUp(), 'Cancelling a preview');
+    const r = await del(`${BACKEND_URL}/api/setup/orientation/preview`);
+    if (!r.ok) throw new Error(`DELETE /api/setup/orientation/preview failed: ${r.status}`);
+    done('Orientation preview cleared (mirror back to the saved orientation)');
+    return;
+  }
+  const orientation = normalizeOrientation(positional[0] ?? flags.orientation ?? 'landscape');
+  if (positional[0] && !ORIENTATIONS.includes(String(positional[0])) && positional[0] !== 'portrait') {
+    throw new UsageError(`"${positional[0]}" is not one of ${ORIENTATIONS.join(', ')}`);
+  }
+  const preview = Boolean(flags.preview);
+  if (await backendUp()) {
+    const r = await postJson(`${BACKEND_URL}/api/setup/orientation`, { orientation, preview });
+    if (!r.ok)
+      throw new Error(`POST /api/setup/orientation failed: ${r.status} ${JSON.stringify(r.data)}`);
+    done(
+      preview
+        ? `Previewing ${orientation}: the mirror shows "This way up?" (clear with --cancel)`
+        : `Orientation set to ${orientation} via backend`
+    );
+  } else if (preview) {
+    requireBackend(false, 'A preview');
+  } else {
+    const doc = readConfigDoc();
+    doc.display = { ...(doc.display || {}), orientation };
+    markCompleted(doc, 'orientation');
+    writeConfigDoc(doc);
+    done(`Orientation set to ${orientation} in config/config.yaml (backend not running)`);
   }
 }
 
@@ -610,6 +664,7 @@ async function cmdFace({ flags }) {
 async function cmdComplete(ctx) {
   const { flags } = ctx;
   cmdWifi({ flags: {} });
+  await cmdOrientation({ positional: [], flags: { orientation: flags.orientation } });
   await cmdLocation({ positional: [], flags: { lat: flags.lat, lon: flags.lon, tz: flags.tz } });
   await cmdAirport({ positional: [], flags: { airport: flags.airport || DEFAULTS.airport } });
   await cmdFace({ flags });
@@ -796,6 +851,14 @@ async function cmdWalkthrough(ctx) {
     );
   }
 
+  await cmdOrientation({
+    positional: [],
+    flags: { orientation: flags.orientation || 'portrait-cw', preview: true },
+  });
+  await pause('Mirror turns its screen and shows the "This way up?" check (what the app\'s Orientation step does).', flags);
+  await cmdOrientation({ positional: [], flags: { orientation: flags.orientation } });
+  await pause('Mirror turns back to landscape (or --orientation) and leaves the check.', flags);
+
   await cmdLocation({ positional: [], flags: { lat: flags.lat, lon: flags.lon, tz: flags.tz } });
   await pause('Mirror advances to "Airport Setup".', flags);
 
@@ -889,6 +952,8 @@ Usage: npm run setup:dev -- <command> [options]
                                  Back to the setup screen (deletes dev config, enrollments, DB users, paired phones)
 
   wifi [--clear]                 Mark WiFi configured (satisfies the phone app's first step)
+  orientation [landscape|portrait-cw|portrait-ccw] [--preview | --cancel]
+                                 Save how the panel is mounted, or preview it ("This way up?" check)
   airport <ICAO>                 Set the home airport (default ${DEFAULTS.airport})
   location <LAT> <LON> [TZ]      Set coordinates/timezone (default ${DEFAULTS.latitude} ${DEFAULTS.longitude} ${DEFAULTS.timezone})
   face [--name N] [--id ID]      Simulated enrollment (no camera needed)
@@ -896,7 +961,7 @@ Usage: npm run setup:dev -- <command> [options]
   presence on|off|toggle         Report presence to the backend (wake/sleep the display)
   deps                           Create packages/presence/venv and install Python requirements
 
-Options shared by complete/walkthrough: --airport KXXX --lat N --lon N --tz Zone --name "Name" --id id --camera
+Options shared by complete/walkthrough: --orientation O --airport KXXX --lat N --lon N --tz Zone --name "Name" --id id --camera
 Environment: SKYGLASS_BACKEND_URL (${BACKEND_URL}), SKYGLASS_ADMIN_URL (${ADMIN_URL}), SKYGLASS_FRONTEND_URL (${FRONTEND_URL})
 
 Typical session:
@@ -910,6 +975,7 @@ Typical session:
 const COMMANDS = {
   status: cmdStatus,
   wifi: cmdWifi,
+  orientation: cmdOrientation,
   airport: cmdAirport,
   location: cmdLocation,
   face: cmdFace,

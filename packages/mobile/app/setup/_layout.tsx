@@ -46,6 +46,12 @@ export default function SetupLayout() {
         }}
       />
       <Stack.Screen
+        name="orientation"
+        options={{
+          title: 'Orientation',
+        }}
+      />
+      <Stack.Screen
         name="license"
         options={{
           title: 'License',

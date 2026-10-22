@@ -7,7 +7,7 @@
 .license-screen {
   --license-tone: var(--color-accent);
 
-  min-height: 100vh;
+  min-height: var(--app-h);
   display: flex;
   align-items: center;
   justify-content: center;

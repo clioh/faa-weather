@@ -292,7 +292,7 @@ export function SetupProgressScreen({ license, onSetupComplete }: SetupProgressS
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    minHeight: '100vh',
+    minHeight: 'var(--app-h)',
     background: '#000',
     color: '#fff',
     display: 'flex',

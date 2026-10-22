@@ -9,7 +9,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
-import { api, type LicenseStatus, type LicenseState, type UpdateConfig } from '@/lib/api';
+import { api, type LicenseStatus, type LicenseState, type MirrorOrientation, type UpdateConfig } from '@/lib/api';
 import { LICENSE_MANAGE_URL } from '@/lib/license';
 import { logError } from '@/lib/errors';
 import {
@@ -25,6 +25,12 @@ import { colors, spacing, typography, fonts } from '@/lib/theme';
 import { goHome } from '@/lib/navigation';
 import { useUser } from '@/context/UserContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const ORIENTATION_LABELS: Record<MirrorOrientation, string> = {
+  landscape: 'Landscape',
+  'portrait-cw': 'Portrait, right',
+  'portrait-ccw': 'Portrait, left',
+};
 
 const LICENSE_STATE_LABELS: Record<LicenseState, string> = {
   active: 'Active',
@@ -55,6 +61,7 @@ export default function SettingsScreen() {
   const [faces, setFaces] = useState<RegisteredFace[]>([]);
   const [license, setLicense] = useState<LicenseStatus | null>(null);
   const [airport, setAirport] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<MirrorOrientation | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,8 +73,14 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       api.getLicenseStatus().then(setLicense).catch(() => {});
-      // Shown next to Home airport, which can be changed from here.
-      api.getConfig().then((config) => setAirport(config.airport || null)).catch(() => {});
+      // Shown next to Home airport and Orientation, which can be changed from here.
+      api
+        .getConfig()
+        .then((config) => {
+          setAirport(config.airport || null);
+          setOrientation(config.display?.orientation ?? null);
+        })
+        .catch(() => {});
     }, [])
   );
 
@@ -205,6 +218,12 @@ export default function SettingsScreen() {
             value={airport ?? undefined}
             valueMono
             onPress={() => router.push('/setup/airport')}
+          />
+          <Row
+            title="Orientation"
+            caption="How the mirror is mounted"
+            value={orientation ? ORIENTATION_LABELS[orientation] : undefined}
+            onPress={() => router.push('/setup/orientation')}
           />
           <Row
             title="Location"

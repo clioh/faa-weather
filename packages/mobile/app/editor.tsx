@@ -29,13 +29,13 @@ import {
   type ModuleInstance,
   type ModuleSize,
 } from '@/lib/modules';
-import { api } from '@/lib/api';
+import { api, isPortrait } from '@/lib/api';
 import { useUser } from '@/context/UserContext';
 import { useDisplayHold } from '@/hooks/useDisplayHold';
 import { goBack } from '@/lib/navigation';
 import { colors, spacing, typography } from '@/lib/theme';
 import { getTemplateById } from '@/lib/templates';
-import { Canvas, type MirrorOrientation } from '@/components/editor/Canvas';
+import { Canvas, type CanvasOrientation } from '@/components/editor/Canvas';
 import { ConfigSheet } from '@/components/editor/ConfigSheet';
 import { DiscardSheet } from '@/components/editor/DiscardSheet';
 import { LibrarySheet } from '@/components/editor/LibrarySheet';
@@ -125,7 +125,7 @@ export default function EditorScreen() {
   // The mirror's global layout as loaded, so a fallback save keeps its id/name.
   const mirrorLayout = useRef<MirrorLayout | null>(null);
   const [live, setLive] = useState<LiveState>('pending');
-  const [orientation, setOrientation] = useState<MirrorOrientation>('landscape');
+  const [orientation, setOrientation] = useState<CanvasOrientation>('landscape');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pulse, setPulse] = useState<{ id: string; key: number } | null>(null);
   const [revision, setRevision] = useState(0);
@@ -212,8 +212,8 @@ export default function EditorScreen() {
     api
       .getConfig()
       .then((config) => {
-        const display = config?.display as { orientation?: string } | undefined;
-        if (!cancelled) setOrientation(display?.orientation === 'portrait' ? 'portrait' : 'landscape');
+        // portrait-cw and portrait-ccw (and the legacy `portrait`) all draw the portrait canvas.
+        if (!cancelled) setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
       })
       .catch(() => {
         // Unreachable mirror: keep the landscape default.
@@ -532,7 +532,12 @@ export default function EditorScreen() {
     return new Set(MODULES.filter((def) => !findPlacement(modules, def)).map((def) => def.id));
   }, [showLibrary, modules]);
 
-  const subtitle = [user ? `${user.name}’s layout` : 'Mirror layout', currentMirror?.mirrorName]
+  const subtitle = [
+    user ? `${user.name}’s layout` : 'Mirror layout',
+    currentMirror?.mirrorName,
+    // E-Portrait: say so when the canvas is the portrait one.
+    orientation === 'portrait' ? 'portrait' : null,
+  ]
     .filter(Boolean)
     .join(' · ');
 

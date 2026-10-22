@@ -1,0 +1,82 @@
+/* Orientation check (M-Orient-L/P). Mockup px × 1.5 = 1080p px. */
+
+.orientation-check {
+  position: fixed;
+  inset: 0;
+  /* Under the pairing code (Pairing.css), over every other screen. */
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: calc(72 * var(--setup-px)) calc(108 * var(--setup-px)) calc(60 * var(--setup-px));
+  background: var(--color-background);
+  border: calc(3 * var(--setup-px)) solid var(--color-accent-dim);
+  color: var(--color-text);
+  font-family: var(--font-primary);
+}
+
+.orientation-check__top,
+.orientation-check__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--setup-small);
+  color: var(--color-text-faint);
+}
+
+.orientation-check__kicker {
+  font-size: var(--setup-kicker);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.orientation-check__center {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(42 * var(--setup-px));
+  text-align: center;
+}
+
+.orientation-check__arrow {
+  width: calc(135 * var(--setup-px));
+  height: calc(180 * var(--setup-px));
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.orientation-check__title {
+  margin: 0;
+  font-size: var(--setup-headline);
+  font-weight: 200;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+
+.orientation-check__body {
+  margin: 0;
+  max-width: calc(960 * var(--setup-px));
+  font-size: var(--setup-body);
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--color-text-dim);
+}
+
+/* Portrait: arrow and question in the upper third, at eye level. */
+html[data-orientation='portrait'] .orientation-check {
+  padding: calc(108 * var(--setup-px)) calc(84 * var(--setup-px)) calc(84 * var(--setup-px));
+}
+
+html[data-orientation='portrait'] .orientation-check__center {
+  justify-content: flex-start;
+  padding-top: calc(240 * var(--setup-px));
+}

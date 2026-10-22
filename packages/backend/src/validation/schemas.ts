@@ -129,6 +129,17 @@ export const setupLocationSchema = z.object({
 });
 
 /**
+ * POST /api/setup/orientation body. The legacy value `portrait` is accepted
+ * as portrait-cw.
+ */
+export const setupOrientationSchema = z.object({
+  orientation: z
+    .enum(['landscape', 'portrait-cw', 'portrait-ccw', 'portrait'])
+    .transform((v) => (v === 'portrait' ? 'portrait-cw' : v)),
+  preview: z.boolean().optional(),
+});
+
+/**
  * POST /api/wifi/connect body.
  */
 export const wifiConnectSchema = z.object({

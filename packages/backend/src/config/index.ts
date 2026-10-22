@@ -7,6 +7,26 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+/**
+ * Panel mounting: landscape, or portrait with the panel turned clockwise
+ * ("turned right", portrait-cw) or counter-clockwise ("turned left",
+ * portrait-ccw), seen from the front.
+ */
+export const MIRROR_ORIENTATIONS = ['landscape', 'portrait-cw', 'portrait-ccw'] as const;
+export type MirrorOrientation = (typeof MIRROR_ORIENTATIONS)[number];
+
+/**
+ * display.orientation as written in YAML. `portrait` (before the rotation
+ * direction existed) reads as portrait-cw; anything unknown or missing is
+ * landscape.
+ */
+export function normalizeOrientation(value: unknown): MirrorOrientation {
+  if (typeof value !== 'string') return 'landscape';
+  const v = value.trim().toLowerCase();
+  if (v === 'portrait') return 'portrait-cw';
+  return (MIRROR_ORIENTATIONS as readonly string[]).includes(v) ? (v as MirrorOrientation) : 'landscape';
+}
+
 export interface Config {
   airport: string;
   /**
@@ -25,8 +45,12 @@ export interface Config {
     presence_timeout: number;
     fade_duration: number;
     brightness: number;
-    /** Mirror screen orientation; widgets reflow for portrait panels. */
-    orientation: 'landscape' | 'portrait';
+    /**
+     * How the panel is mounted; the mirror rotates its own UI to match and
+     * widgets reflow for portrait. Read through normalizeOrientation, so the
+     * legacy value `portrait` arrives as `portrait-cw`.
+     */
+    orientation: MirrorOrientation;
   };
   /**
    * Calendar accounts are connected from the phone app (data/calendar-accounts.json).
@@ -89,19 +113,25 @@ export function loadConfig(): Config {
     throw new Error(`Default config not found at ${defaultPath}`);
   }
 
-  // Load default config
-  const defaultYaml = readFileSync(defaultPath, 'utf-8');
+  return parseConfig(
+    readFileSync(defaultPath, 'utf-8'),
+    existsSync(userPath) ? readFileSync(userPath, 'utf-8') : null
+  );
+}
+
+/** default.yaml with config.yaml (if any) merged over it, env vars applied. */
+export function parseConfig(defaultYaml: string, userYaml: string | null): Config {
   let config = parse(defaultYaml) as Config;
 
   // Merge user config if exists
-  if (existsSync(userPath)) {
-    const userYaml = readFileSync(userPath, 'utf-8');
-    const userConfig = parse(userYaml) as Record<string, unknown>;
-    config = deepMerge(config, userConfig);
+  if (userYaml !== null) {
+    const userConfig = parse(userYaml) as Record<string, unknown> | null;
+    if (userConfig) config = deepMerge(config, userConfig);
   }
 
   // Substitute environment variables
   config = processConfig(config) as Config;
+  config.display = { ...config.display, orientation: normalizeOrientation(config.display?.orientation) };
 
   return applyEnvOverrides(config);
 }

@@ -51,11 +51,13 @@ export interface DiscoveryInfo {
   pairingRequired?: boolean;
 }
 
-/** GET /api/setup/status. Steps run WiFi → License → Location → Airport → Face. */
+/** GET /api/setup/status. Steps run WiFi → Orientation → License → Location → Airport → Face. */
 export interface SetupStatus {
   /** First incomplete step. */
-  step: 'wifi' | 'license' | 'location' | 'airport' | 'face' | 'complete';
+  step: 'wifi' | 'orientation' | 'license' | 'location' | 'airport' | 'face' | 'complete';
   wifiConfigured: boolean;
+  /** Also true on mirrors set up before the step existed (they count as landscape). */
+  orientationConfigured: boolean;
   /** Always true when licensing is disabled on the mirror. */
   licenseActivated: boolean;
   locationConfigured: boolean;
@@ -142,10 +144,29 @@ export interface LocationConfig {
   timezone: string;
 }
 
+/**
+ * How the mirror panel is mounted (config display.orientation): portrait-cw
+ * is "turned right", portrait-ccw "turned left", seen from the front.
+ */
+export type MirrorOrientation = 'landscape' | 'portrait-cw' | 'portrait-ccw';
+
+/** GET /api/setup/orientation */
+export interface OrientationState {
+  /** Saved on the mirror. */
+  orientation: MirrorOrientation;
+  /** Being previewed on the mirror, or null. */
+  preview: MirrorOrientation | null;
+}
+
 export interface MirrorConfig {
   airport: string;
   location: LocationConfig;
-  display: { orientation: 'landscape' | 'portrait' };
+  display: { orientation: MirrorOrientation };
+}
+
+/** True for both portrait mounts (and the legacy value `portrait`). */
+export function isPortrait(orientation: unknown): boolean {
+  return typeof orientation === 'string' && orientation.startsWith('portrait');
 }
 
 export interface TodoItem {
@@ -932,6 +953,26 @@ class MirrorAPI {
 
   async getLocation(): Promise<LocationConfig | null> {
     return this.request('/api/setup/location');
+  }
+
+  async getOrientation(): Promise<OrientationState> {
+    return this.request('/api/setup/orientation');
+  }
+
+  /**
+   * preview: true turns the mirror to `orientation` and shows its "This way
+   * up?" check without saving; otherwise it is saved and the check ends.
+   */
+  async setOrientation(orientation: MirrorOrientation, preview = false): Promise<{ success: boolean }> {
+    return this.request('/api/setup/orientation', {
+      method: 'POST',
+      body: JSON.stringify({ orientation, preview }),
+    });
+  }
+
+  /** End a preview: the mirror goes back to its saved orientation. */
+  async clearOrientationPreview(): Promise<void> {
+    await this.request<unknown>('/api/setup/orientation/preview', { method: 'DELETE' });
   }
 
   // Registered faces (enrollment itself runs on the presence server; see setup/face)

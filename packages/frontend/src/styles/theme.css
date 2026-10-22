@@ -41,6 +41,50 @@
   /* Grid */
   --grid-gap: 1.25rem;
   --grid-padding: 2rem;
+
+  /*
+   * Size of the UI in its own (possibly rotated) frame. Use these instead of
+   * 100vw/100vh: when a portrait panel is driven by a landscape output the
+   * whole UI is turned in CSS (see .orientation-frame) and the viewport
+   * units point the wrong way.
+   */
+  --app-w: 100vw;
+  --app-h: 100vh;
+  --app-rotate: 0deg;
+
+  /*
+   * Setup screens (provisioning, pairing, license, face registration) are
+   * read from 1–2 m. Sizes are in 1080p pixels and scale with the panel's
+   * short side; vmin is the same whichever way the UI is turned.
+   */
+  --setup-px: calc(100vmin / 1080);
+  --setup-headline: calc(87 * var(--setup-px));
+  --setup-body: calc(33 * var(--setup-px));
+  --setup-kicker: calc(21 * var(--setup-px));
+  --setup-small: calc(20 * var(--setup-px));
+}
+
+/* Portrait panel on a landscape output: swap the frame's sides and turn it. */
+html[data-rotate] {
+  --app-w: 100vh;
+  --app-h: 100vw;
+}
+html[data-rotate='-90'] { --app-rotate: -90deg; }
+html[data-rotate='90'] { --app-rotate: 90deg; }
+
+.orientation-frame {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--app-w);
+  height: var(--app-h);
+  overflow: hidden;
+}
+
+html[data-rotate] .orientation-frame {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(var(--app-rotate));
 }
 
 html {
@@ -60,13 +104,15 @@ body {
    bounded so a 1080p landscape panel and a portrait 4K both read well. */
 @media (min-width: 1200px) {
   html { font-size: clamp(16px, 0.9vw, 26px); }
+  /* Turned UI: its width is the viewport's height. */
+  html[data-rotate] { font-size: clamp(16px, 0.9vh, 26px); }
 }
 
 .loading {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  height: var(--app-h);
   font-size: 1.25rem;
   font-weight: 300;
   letter-spacing: 0.08em;
@@ -75,8 +121,8 @@ body {
 }
 
 .mirror-container {
-  width: 100vw;
-  height: 100vh;
+  width: var(--app-w);
+  height: var(--app-h);
   position: relative;
   opacity: 1;
   transition: opacity var(--transition-fade);
@@ -187,4 +233,10 @@ body {
   15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1.02); }
+}
+
+/* Mirror kiosk on the Pi (see main.tsx): no mouse pointer over the glass. */
+html.kiosk,
+html.kiosk * {
+  cursor: none !important;
 }

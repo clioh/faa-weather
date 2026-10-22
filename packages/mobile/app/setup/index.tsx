@@ -8,8 +8,8 @@ import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, ApiError, SetupStatus } from '@/lib/api';
-import { LICENSE_SETUP_ROUTE } from '@/lib/setupSteps';
+import { api, ApiError, SetupStatus, type MirrorOrientation } from '@/lib/api';
+import { LICENSE_SETUP_ROUTE, ORIENTATION_SETUP_ROUTE } from '@/lib/setupSteps';
 import { storage } from '@/lib/storage';
 import { logError } from '@/lib/errors';
 import { HeaderBackButton, MirrorNotFound } from '@/components';
@@ -34,6 +34,14 @@ const SETUP_STEPS: SetupStep[] = [
     icon: 'wifi-outline',
     route: { pathname: '/setup/wifi', params: { flow: 'setup' } },
     isComplete: (status) => status.wifiConfigured,
+  },
+  {
+    id: 'orientation',
+    title: 'Orientation',
+    description: 'How the mirror is mounted',
+    icon: 'tablet-landscape-outline',
+    route: ORIENTATION_SETUP_ROUTE,
+    isComplete: (status) => status.orientationConfigured,
   },
   {
     id: 'license',
@@ -72,6 +80,8 @@ const SETUP_STEPS: SetupStep[] = [
 export default function SetupIndex() {
   const insets = useSafeAreaInsets();
   const [status, setStatus] = useState<SetupStatus | null>(null);
+  /** Saved orientation, shown on its row once done ("· Portrait"). */
+  const [orientation, setOrientation] = useState<MirrorOrientation | null>(null);
   /** Licensing switched off on the mirror (local development): no License row. */
   const [licensingOff, setLicensingOff] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -93,12 +103,15 @@ export default function SetupIndex() {
       // checklist visible while the status refreshes behind it.
       setLoading((current) => current && status === null);
       setError(null);
-      const [setupStatus, license] = await Promise.all([
+      const [setupStatus, license, orientationState] = await Promise.all([
         api.getSetupStatus(),
         // Only used to hide the License row; failing to read it just keeps the row.
         api.getLicenseStatus().catch(() => null),
+        // Only for the Orientation row's caption.
+        api.getOrientation().catch(() => null),
       ]);
       setStatus(setupStatus);
+      setOrientation(orientationState?.orientation ?? null);
       setLicensingOff(license?.state === 'disabled' || license?.enabled === false);
 
       // During onboarding, finishing the last step moves on to the celebration
@@ -140,6 +153,13 @@ export default function SetupIndex() {
     if (firstIncomplete?.id === step.id) return 'current';
 
     return 'pending';
+  };
+
+  const describe = (step: SetupStep, stepStatus: 'complete' | 'current' | 'pending'): string => {
+    if (step.id === 'orientation' && stepStatus === 'complete' && orientation) {
+      return `${step.description} · ${orientation === 'landscape' ? 'Landscape' : 'Portrait'}`;
+    }
+    return step.description;
   };
 
   const handleStepPress = (step: SetupStep) => {
@@ -270,7 +290,7 @@ export default function SetupIndex() {
                     {step.title}
                   </Text>
                   <Text style={styles.stepDescription}>
-                    {locked ? 'Activate your license first' : step.description}
+                    {locked ? 'Activate your license first' : describe(step, stepStatus)}
                   </Text>
                 </View>
 

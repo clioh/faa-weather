@@ -94,7 +94,7 @@
   font-family: var(--font-mono);
   /* Sized on the short edge so landscape and portrait panels match;
      capped by width so six digits always fit. */
-  font-size: min(16vmin, 13vw);
+  font-size: min(16vmin, calc(var(--app-w) * 0.13));
   font-weight: 300;
   line-height: 1;
   letter-spacing: 0.06em;
@@ -121,7 +121,7 @@
   align-items: center;
   gap: 1rem;
   margin-top: 3.5rem;
-  width: min(36vmin, 70vw);
+  width: min(36vmin, calc(var(--app-w) * 0.7));
 }
 
 .pairing-overlay__track {
@@ -215,7 +215,7 @@
 /* -------------------------------------------------- Not on the mirror */
 
 .pairing-remote {
-  min-height: 100vh;
+  min-height: var(--app-h);
   display: flex;
   align-items: center;
   justify-content: center;

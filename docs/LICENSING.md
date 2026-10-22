@@ -232,9 +232,9 @@ gets `already_keyed`; run it again with `--rekey` (pending licenses only) to rep
   `activate` with the stored key (never `refresh`): a released (`pending`) license binds here and
   becomes `active`; one still bound to the other Pi becomes `bound_elsewhere`. Network errors are
   retried like a key file.
-- Setup order: WiFi → **License** → Location → Airport → Face. `/api/setup/status` adds
+- Setup order: WiFi → Orientation → **License** → Location → Airport → Face. `/api/setup/status` adds
   `licenseActivated` / `license_activated`, which is always true when licensing is disabled.
-  `step: 'license'` comes after `wifi`, and `setupComplete` requires the license.
+  `step: 'license'` comes after `wifi` and `orientation`, and `setupComplete` requires the license.
 - Once setup is complete, any state other than `active` or `disabled` replaces the mirror UI with
   the license screen.
 

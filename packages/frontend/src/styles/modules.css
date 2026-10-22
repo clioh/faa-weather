@@ -12,8 +12,8 @@
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   grid-template-rows: repeat(8, minmax(0, 1fr));
-  height: 100vh;
-  width: 100vw;
+  height: var(--app-h);
+  width: var(--app-w);
   padding: var(--grid-padding);
   gap: var(--grid-gap);
   box-sizing: border-box;

@@ -21,7 +21,11 @@ display:
   presence_timeout: 120        # Seconds before display sleeps after you leave
   fade_duration: 1000          # Fade animation in milliseconds
   brightness: 80               # Default brightness percentage
-  orientation: landscape       # landscape | portrait (mirror panel mounted vertically)
+  # How the panel is mounted: landscape | portrait-cw (turned right) | portrait-ccw
+  # (turned left), seen from the front. The mirror rotates its own UI to match;
+  # set from the phone app (setup, or Settings > Mirror > Orientation).
+  # The older value "portrait" still works and means portrait-cw.
+  orientation: landscape
 
 # Calendars are connected from the phone app (Settings > Calendars) and stored
 # in data/calendar-accounts.json. The mirror needs no OAuth app credentials.

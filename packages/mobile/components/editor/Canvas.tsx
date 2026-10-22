@@ -15,14 +15,15 @@ import { colors } from '@/lib/theme';
 import { toRects, type GridRect } from './layoutUtils';
 import { ModuleTile, TILE_INSET, type GhostValues } from './ModuleTile';
 
-export type MirrorOrientation = 'landscape' | 'portrait';
+/** Canvas shape; both portrait mounts (portrait-cw / -ccw) draw the portrait canvas. */
+export type CanvasOrientation = 'landscape' | 'portrait';
 
 const FRAME = 1; // hairline frame around the glass
 const GUTTER = 24; // screen gutter
 
 interface CanvasProps {
   modules: ModuleInstance[];
-  orientation: MirrorOrientation;
+  orientation: CanvasOrientation;
   selectedId: string | null;
   pulse: { id: string; key: number } | null;
   revision: number;
@@ -34,7 +35,7 @@ interface CanvasProps {
   overlay?: ReactNode;
 }
 
-function fitCanvas(availW: number, availH: number, orientation: MirrorOrientation) {
+function fitCanvas(availW: number, availH: number, orientation: CanvasOrientation) {
   const aspect = orientation === 'portrait' ? 9 / 16 : 16 / 9;
   const maxW = Math.max(0, availW - GUTTER * 2 - FRAME * 2);
   const maxH = Math.max(0, availH - FRAME * 2);
