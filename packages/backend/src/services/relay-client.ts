@@ -29,7 +29,7 @@ class RelayClient {
   private isConnecting = false;
   private commandHandlers: Map<string, CommandHandler> = new Map();
 
-  constructor(relayUrl: string = 'wss://api.magicmirror.app/ws/relay') {
+  constructor(relayUrl: string = 'wss://api.skyglass.dev/ws/relay') {
     this.relayUrl = relayUrl;
     this.setupDefaultHandlers();
   }
@@ -298,5 +298,5 @@ class RelayClient {
 }
 
 // Create singleton instance
-const relayUrl = process.env.CLOUD_RELAY_URL || 'wss://api.magicmirror.app/ws/relay';
+const relayUrl = process.env.CLOUD_RELAY_URL || 'wss://api.skyglass.dev/ws/relay';
 export const relayClient = new RelayClient(relayUrl);

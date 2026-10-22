@@ -184,13 +184,16 @@ function parsePeriod(
  * Main TAF parser
  */
 export function parseTaf(raw: string): ParsedTaf {
-  // Normalize whitespace but preserve structure
-  const normalized = raw.trim().replace(/\s+/g, ' ');
+  // Normalize whitespace. aviationweather.gov's raw format prefixes the report
+  // type ("TAF KSFO ...", "TAF AMD KSFO ...", "TAF COR KSFO ..."); drop it so
+  // the header regex below sees the station ID first.
+  const normalized = raw
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^TAF\s+(?:(?:AMD|COR)\s+)?/, '');
 
   // Extract header: ICAO DDHHMM Z DDHH/DDHH
-  const headerMatch = normalized.match(
-    /^(\w{4})\s+(\d{6})Z\s+(\d{4})\/(\d{4})\s+(.+)$/
-  );
+  const headerMatch = normalized.match(/^(\w{4})\s+(\d{6})Z\s+(\d{4})\/(\d{4})\s+(.+)$/);
 
   if (!headerMatch) {
     // Try alternate format without space after Z
@@ -218,7 +221,8 @@ export function parseTaf(raw: string): ParsedTaf {
 
   // Split body into period sections
   // FM, TEMPO, BECMG, PROB are period markers
-  const periodPattern = /(FM\d{6}|TEMPO\s+\d{4}\/\d{4}|BECMG\s+\d{4}\/\d{4}|PROB\d{2}\s+(?:TEMPO\s+)?\d{4}\/\d{4})/g;
+  const periodPattern =
+    /(FM\d{6}|TEMPO\s+\d{4}\/\d{4}|BECMG\s+\d{4}\/\d{4}|PROB\d{2}\s+(?:TEMPO\s+)?\d{4}\/\d{4})/g;
 
   const periodStarts: Array<{ index: number; marker: string }> = [];
   let periodMatch;
@@ -259,17 +263,13 @@ export function parseTaf(raw: string): ParsedTaf {
       // TEMPO period: TEMPO 1520/1524
       const tempoMatch = periodText.match(/TEMPO\s+(\d{4})\/(\d{4})/);
       if (tempoMatch) {
-        periods.push(
-          parsePeriod(periodText, 'TEMPO', tempoMatch[1] + '00', tempoMatch[2] + '00')
-        );
+        periods.push(parsePeriod(periodText, 'TEMPO', tempoMatch[1] + '00', tempoMatch[2] + '00'));
       }
     } else if (start.marker.startsWith('BECMG')) {
       // BECMG period: BECMG 1520/1522
       const becmgMatch = periodText.match(/BECMG\s+(\d{4})\/(\d{4})/);
       if (becmgMatch) {
-        periods.push(
-          parsePeriod(periodText, 'BECMG', becmgMatch[1] + '00', becmgMatch[2] + '00')
-        );
+        periods.push(parsePeriod(periodText, 'BECMG', becmgMatch[1] + '00', becmgMatch[2] + '00'));
       }
     } else if (start.marker.startsWith('PROB')) {
       // PROB period: PROB30 1520/1524 or PROB40 TEMPO 1520/1524
@@ -277,13 +277,7 @@ export function parseTaf(raw: string): ParsedTaf {
       if (probMatch) {
         const probability = parseInt(probMatch[1], 10);
         periods.push(
-          parsePeriod(
-            periodText,
-            'PROB',
-            probMatch[2] + '00',
-            probMatch[3] + '00',
-            probability
-          )
+          parsePeriod(periodText, 'PROB', probMatch[2] + '00', probMatch[3] + '00', probability)
         );
       }
     }
@@ -436,191 +430,4 @@ export function getPeriodsForTimeRange(
   }
 
   return { base: basePeriod, tempo, prob };
-}
-
-/**
- * Convert a local time to UTC for TAF comparison
- * @param localTime - Date object representing local time
- * @param timezone - IANA timezone string (e.g., 'America/New_York')
- * @returns Date object in UTC
- */
-export function localToUtc(localTime: Date, _timezone: string): Date {
-  // The input Date is already correct - it just needs to be interpreted
-  // as UTC for TAF comparison
-  return localTime;
-}
-
-/**
- * Offset (ms) of `timeZone` from UTC at the given instant: wall-clock - UTC.
- * Independent of the host timezone.
- */
-function getTimeZoneOffsetMs(instant: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(instant);
-  const get = (type: string) => parseInt(parts.find((p) => p.type === type)!.value, 10);
-  const wallAsUtc = Date.UTC(
-    get('year'),
-    get('month') - 1,
-    get('day'),
-    get('hour'),
-    get('minute'),
-    get('second')
-  );
-  // Drop sub-second precision from the instant so it lines up with wallAsUtc
-  const instantSec = Math.floor(instant.getTime() / 1000) * 1000;
-  return wallAsUtc - instantSec;
-}
-
-/**
- * Calendar date (Y/M/D) that `flightDate` refers to.
- * - A date-only value such as `new Date('2024-01-15')` is parsed by JS as UTC
- *   midnight, so its UTC calendar fields are the intended date.
- * - Any other instant (e.g. `new Date()`) is interpreted as the calendar day
- *   it falls on in the target timezone.
- * The host timezone is never consulted.
- */
-function getFlightCalendarDate(
-  flightDate: Date,
-  timeZone: string
-): { year: number; month: number; day: number } {
-  const isUtcMidnight =
-    flightDate.getUTCHours() === 0 &&
-    flightDate.getUTCMinutes() === 0 &&
-    flightDate.getUTCSeconds() === 0 &&
-    flightDate.getUTCMilliseconds() === 0;
-
-  if (isUtcMidnight) {
-    return {
-      year: flightDate.getUTCFullYear(),
-      month: flightDate.getUTCMonth(),
-      day: flightDate.getUTCDate(),
-    };
-  }
-
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(flightDate);
-  const get = (type: string) => parseInt(parts.find((p) => p.type === type)!.value, 10);
-  return { year: get('year'), month: get('month') - 1, day: get('day') };
-}
-
-/**
- * Parse a local time string (HH:MM, HHMM, or h:mm AM/PM) on a flight date in
- * the given IANA timezone and return the corresponding UTC instant for TAF
- * comparison. The result does not depend on the server's timezone.
- */
-export function parseLocalFlightTime(
-  timeStr: string,
-  flightDate: Date,
-  timezone: string
-): Date {
-  const input = timeStr.trim();
-  let hours: number;
-  let minutes: number;
-
-  // Try HH:MM (optionally :SS) format
-  const colonMatch = input.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-  if (colonMatch) {
-    hours = parseInt(colonMatch[1], 10);
-    minutes = parseInt(colonMatch[2], 10);
-  } else {
-    // Try HHMM format
-    const hmMatch = input.match(/^(\d{2})(\d{2})$/);
-    if (hmMatch) {
-      hours = parseInt(hmMatch[1], 10);
-      minutes = parseInt(hmMatch[2], 10);
-    } else {
-      // Try 12-hour format
-      const ampmMatch = input.match(/^(\d{1,2}):?(\d{2})?\s*(AM|PM)$/i);
-      if (!ampmMatch) {
-        throw new Error(`Cannot parse time: ${timeStr}`);
-      }
-      hours = parseInt(ampmMatch[1], 10);
-      minutes = ampmMatch[2] ? parseInt(ampmMatch[2], 10) : 0;
-      if (hours < 1 || hours > 12) {
-        throw new Error(`Cannot parse time: ${timeStr}`);
-      }
-      if (ampmMatch[3].toUpperCase() === 'PM' && hours !== 12) hours += 12;
-      if (ampmMatch[3].toUpperCase() === 'AM' && hours === 12) hours = 0;
-    }
-  }
-
-  if (hours > 23 || minutes > 59) {
-    throw new Error(`Cannot parse time: ${timeStr}`);
-  }
-  if (isNaN(flightDate.getTime())) {
-    throw new Error('Invalid flight date');
-  }
-
-  const { year, month, day } = getFlightCalendarDate(flightDate, timezone);
-
-  // Treat the wall-clock time as if it were UTC, then shift by the zone's
-  // offset. Re-check the offset at the candidate instant to handle DST edges.
-  const wallAsUtc = Date.UTC(year, month, day, hours, minutes, 0, 0);
-  let utcMs = wallAsUtc - getTimeZoneOffsetMs(new Date(wallAsUtc), timezone);
-  const offsetAtResult = getTimeZoneOffsetMs(new Date(utcMs), timezone);
-  utcMs = wallAsUtc - offsetAtResult;
-
-  return new Date(utcMs);
-}
-
-/**
- * Get a summary of conditions for a flight time
- * @param taf - Parsed TAF data
- * @param departureTime - Departure time in UTC (use parseLocalFlightTime to convert)
- */
-export function getFlightTimeForecast(
-  taf: ParsedTaf,
-  departureTime: Date
-): {
-  period: TafPeriod | null;
-  warnings: string[];
-} {
-  const warnings: string[] = [];
-  const forecast = getPeriodsForTimeRange(
-    taf,
-    departureTime,
-    new Date(departureTime.getTime() + 2 * 60 * 60 * 1000) // 2 hour window
-  );
-
-  // Check for IFR/LIFR in any applicable period
-  if (forecast.base?.flightRules === 'IFR' || forecast.base?.flightRules === 'LIFR') {
-    warnings.push(`Base forecast: ${forecast.base.flightRules}`);
-  }
-
-  for (const tempo of forecast.tempo) {
-    if (tempo.flightRules === 'IFR' || tempo.flightRules === 'LIFR') {
-      warnings.push(`TEMPO: ${tempo.flightRules} possible`);
-    }
-  }
-
-  for (const prob of forecast.prob) {
-    if (prob.flightRules === 'IFR' || prob.flightRules === 'LIFR') {
-      warnings.push(`PROB${prob.probability}: ${prob.flightRules}`);
-    }
-  }
-
-  // Check for thunderstorms
-  const allPeriods = [forecast.base, ...forecast.tempo, ...forecast.prob].filter(Boolean) as TafPeriod[];
-  for (const period of allPeriods) {
-    if (period.weather.some((w) => w.includes('TS'))) {
-      warnings.push(`${period.type}: Thunderstorms forecast`);
-    }
-  }
-
-  return {
-    period: forecast.base,
-    warnings,
-  };
 }

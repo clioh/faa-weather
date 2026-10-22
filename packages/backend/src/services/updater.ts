@@ -17,6 +17,7 @@ const UPDATE_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'update.sh');
 
 // GitHub repository for releases
 const GITHUB_REPO = process.env.GITHUB_REPO || 'YOUR_USERNAME/SkyGlass';
+const REPO_PLACEHOLDER = /YOUR_USERNAME|^\s*$/;
 const GITHUB_API_BASE = 'https://api.github.com';
 
 export interface ReleaseInfo {
@@ -176,20 +177,16 @@ class UpdateService extends EventEmitter {
   private latestRelease: ReleaseInfo | null = null;
   private checkTimer: NodeJS.Timeout | null = null;
   private updateInProgress = false;
+  private warnedNoRepo = false;
   private downloadedTarball: string | null = null;
-  private onUpdateAvailable?: (status: UpdateStatus) => void;
 
   /**
    * Initialize the update service
    */
-  async init(
-    config?: Partial<UpdateConfig>,
-    onUpdateAvailable?: (status: UpdateStatus) => void
-  ): Promise<void> {
+  async init(config?: Partial<UpdateConfig>): Promise<void> {
     if (config) {
       this.config = { ...this.config, ...config };
     }
-    this.onUpdateAvailable = onUpdateAvailable;
     this.status.autoUpdateEnabled = this.config.autoUpdate;
     this.status.autoDownloadEnabled = this.config.autoDownload;
 
@@ -273,7 +270,9 @@ class UpdateService extends EventEmitter {
         size: tarball.size,
       };
     } catch (error) {
-      console.error('Failed to fetch latest release:', error);
+      console.warn(
+        `Failed to fetch latest release from ${this.config.githubRepo}: ${error instanceof Error ? error.message : String(error)}`
+      );
       return null;
     }
   }
@@ -379,6 +378,18 @@ class UpdateService extends EventEmitter {
       return this.status;
     }
 
+    if (REPO_PLACEHOLDER.test(this.config.githubRepo)) {
+      if (!this.warnedNoRepo) {
+        console.warn(
+          'Update checks skipped: set GITHUB_REPO (owner/repo) to enable GitHub Releases updates'
+        );
+        this.warnedNoRepo = true;
+      }
+      this.status.error = 'Update source not configured';
+      this.status.lastChecked = Date.now();
+      return this.status;
+    }
+
     console.log('Checking for updates via GitHub Releases...');
 
     try {
@@ -422,10 +433,6 @@ class UpdateService extends EventEmitter {
 
       if (updateAvailable) {
         console.log(`Update available: ${currentVersion} → ${latestVersion}`);
-
-        if (this.onUpdateAvailable) {
-          this.onUpdateAvailable(this.status);
-        }
 
         this.emit('updateAvailable', this.status);
 
@@ -561,12 +568,6 @@ class UpdateService extends EventEmitter {
     const version = this.latestRelease?.version || '';
     const tarballPath = this.downloadedTarball!;
 
-    if (fs.existsSync('/.dockerenv')) {
-      return {
-        success: false,
-        message: 'Running in Docker: pull the new image and recreate the container instead',
-      };
-    }
     if (!fs.existsSync(UPDATE_SCRIPT)) {
       return { success: false, message: `Update script not found at ${UPDATE_SCRIPT}` };
     }

@@ -262,6 +262,9 @@ export class DisplayManager {
   private presenceTimeout: NodeJS.Timeout | null = null;
   private isPresent = false;
   private initialized = false;
+  /** While set, presence loss does not turn the display off (layout editing). */
+  private holdUntil: number | null = null;
+  private holdTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     this.controller = new StubDisplayController();
@@ -309,14 +312,56 @@ export class DisplayManager {
       this.isPresent = true;
       await this.controller.turnOn();
     } else {
+      this.isPresent = false;
+      if (this.isHeld()) {
+        console.log('Presence lost - display held on by the app, not turning off');
+        return;
+      }
       // Start timeout before turning off
       this.presenceTimeout = setTimeout(async () => {
-        this.isPresent = false;
         await this.controller.turnOff();
       }, timeoutMs);
 
       console.log(`Presence lost - display will turn off in ${timeoutMs / 1000}s`);
     }
+  }
+
+  /**
+   * Keep the display on for `ttlMs` regardless of presence, e.g. while the
+   * phone app previews a layout. Calling again extends the hold. When it
+   * expires (or is released) the normal presence timeout takes over.
+   */
+  async hold(ttlMs: number): Promise<number> {
+    if (this.presenceTimeout) {
+      clearTimeout(this.presenceTimeout);
+      this.presenceTimeout = null;
+    }
+    if (this.holdTimer) {
+      clearTimeout(this.holdTimer);
+    }
+    this.holdUntil = Date.now() + ttlMs;
+    this.holdTimer = setTimeout(() => {
+      this.holdTimer = null;
+      this.holdUntil = null;
+      console.log('Display hold expired');
+      void this.handlePresence(this.isPresent, 0);
+    }, ttlMs);
+    await this.controller.turnOn();
+    return this.holdUntil;
+  }
+
+  async release(): Promise<void> {
+    if (!this.isHeld()) return;
+    if (this.holdTimer) {
+      clearTimeout(this.holdTimer);
+      this.holdTimer = null;
+    }
+    this.holdUntil = null;
+    await this.handlePresence(this.isPresent, 0);
+  }
+
+  isHeld(): boolean {
+    return this.holdUntil !== null && this.holdUntil > Date.now();
   }
 
   /**

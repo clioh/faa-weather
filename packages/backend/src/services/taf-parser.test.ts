@@ -4,13 +4,31 @@ import {
   formatPeriodTime,
   getPeriodForTime,
   getPeriodsForTimeRange,
-  parseLocalFlightTime,
-  getFlightTimeForecast,
   parseVisibility,
 } from './taf-parser.js';
 
 describe('TAF Parser', () => {
   describe('parseTaf', () => {
+    it('should drop the TAF / TAF AMD report-type prefix used by aviationweather.gov', () => {
+      const raw =
+        'TAF KSFO 150520Z 1506/1612 27005KT P6SM SKC \n  FM151500 06005KT P6SM SKC \n  FM152100 31010KT P6SM SKC';
+      const result = parseTaf(raw);
+
+      expect(result.icao).toBe('KSFO');
+      expect(result.issueTime).toBe('150520');
+      expect(result.validFrom).toBe('1506');
+      expect(result.validTo).toBe('1612');
+      expect(result.periods).toHaveLength(3);
+      expect(result.periods[0].type).toBe('BASE');
+      expect(result.periods[0].wind?.direction).toBe(270);
+      expect(result.periods[1].type).toBe('FM');
+      expect(result.periods[1].startTime).toBe('151500');
+
+      const amended = parseTaf('TAF AMD KSFO 150800Z 1508/1612 27005KT P6SM SKC');
+      expect(amended.icao).toBe('KSFO');
+      expect(amended.periods).toHaveLength(1);
+    });
+
     it('should parse a simple TAF', () => {
       const raw = 'KJFK 151730Z 1518/1624 31010KT P6SM FEW040 SCT250';
       const result = parseTaf(raw);
@@ -250,80 +268,6 @@ describe('TAF Parser', () => {
 
       expect(result.base).not.toBeNull();
       expect(result.base?.type).toBe('BASE');
-    });
-  });
-
-  describe('parseLocalFlightTime', () => {
-    const timezone = 'America/New_York';
-    const flightDate = new Date('2024-01-15');
-
-    it('should parse HH:MM format', () => {
-      const result = parseLocalFlightTime('14:30', flightDate, timezone);
-      expect(result).toBeInstanceOf(Date);
-    });
-
-    it('should parse HHMM format', () => {
-      const result = parseLocalFlightTime('1430', flightDate, timezone);
-      expect(result).toBeInstanceOf(Date);
-    });
-
-    it('should parse 12-hour AM format', () => {
-      const result = parseLocalFlightTime('6:30 AM', flightDate, timezone);
-      expect(result).toBeInstanceOf(Date);
-    });
-
-    it('should parse 12-hour PM format', () => {
-      const result = parseLocalFlightTime('2:30 PM', flightDate, timezone);
-      expect(result).toBeInstanceOf(Date);
-    });
-
-    it('should throw for invalid time', () => {
-      expect(() => parseLocalFlightTime('invalid', flightDate, timezone)).toThrow();
-    });
-  });
-
-  describe('getFlightTimeForecast', () => {
-    it('should return warnings for IFR conditions', () => {
-      const taf = parseTaf(
-        'KJFK 151730Z 1518/1624 31010KT 2SM BR BKN008 TEMPO 1520/1524 1SM FG OVC003'
-      );
-
-      const departureTime = new Date();
-      departureTime.setUTCDate(15);
-      departureTime.setUTCHours(21, 0, 0, 0);
-
-      const forecast = getFlightTimeForecast(taf, departureTime);
-
-      expect(forecast.warnings.length).toBeGreaterThan(0);
-      expect(forecast.warnings.some((w) => w.includes('IFR') || w.includes('LIFR'))).toBe(
-        true
-      );
-    });
-
-    it('should return warnings for thunderstorms', () => {
-      const taf = parseTaf(
-        'KJFK 151730Z 1518/1624 31010KT P6SM FEW040 TEMPO 1520/1524 2SM TSRA BKN025CB'
-      );
-
-      const departureTime = new Date();
-      departureTime.setUTCDate(15);
-      departureTime.setUTCHours(21, 0, 0, 0);
-
-      const forecast = getFlightTimeForecast(taf, departureTime);
-
-      expect(forecast.warnings.some((w) => w.includes('Thunderstorms'))).toBe(true);
-    });
-
-    it('should return empty warnings for VFR conditions', () => {
-      const taf = parseTaf('KJFK 151730Z 1518/1624 31010KT P6SM FEW040 SCT250');
-
-      const departureTime = new Date();
-      departureTime.setUTCDate(15);
-      departureTime.setUTCHours(19, 0, 0, 0);
-
-      const forecast = getFlightTimeForecast(taf, departureTime);
-
-      expect(forecast.warnings).toHaveLength(0);
     });
   });
 });

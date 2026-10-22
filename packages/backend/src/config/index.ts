@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import { readFileSync, existsSync } from 'fs';
 import { parse } from 'yaml';
 import { fileURLToPath } from 'url';
@@ -6,15 +7,15 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export interface WidgetConfig {
-  type: string;
-  position: string;
-  [key: string]: unknown;
-}
-
 export interface Config {
   airport: string;
-  notam_api_key: string;
+  /**
+   * SkyGlass cloud service base URL (default https://skyglass.dev): calendar
+   * sign-in, NOTAMs and stock quotes. The mirror holds no third-party API keys
+   * or OAuth secrets; they live on this service (docs/CLOUD_SERVICE.md).
+   * https only (http for localhost/127.0.0.1). Self-hosters point it at their own deployment.
+   */
+  skyglass_service?: string;
   location: {
     latitude: number;
     longitude: number;
@@ -24,12 +25,16 @@ export interface Config {
     presence_timeout: number;
     fade_duration: number;
     brightness: number;
+    /** Mirror screen orientation; widgets reflow for portrait panels. */
+    orientation: 'landscape' | 'portrait';
   };
-  calendar: {
-    google: {
-      enabled: boolean;
-      calendar_ids: string[];
-    };
+  /**
+   * Calendar accounts are connected from the phone app (data/calendar-accounts.json).
+   * The mirror holds no OAuth app credentials; Google/Outlook sign-in goes through
+   * the SkyGlass service at `skyglass_service` (see docs/CALENDAR.md).
+   */
+  calendar?: {
+    refresh_minutes?: number;
   };
   schedule: {
     email: {
@@ -43,17 +48,21 @@ export interface Config {
       sender_filter: string;
     };
   };
-  widgets: WidgetConfig[];
+  /** Read by packages/presence/detector.py (keep in sync with its PRESENCE_SETTINGS). */
   presence: {
     camera_index: number;
-    detection_method: 'face_recognition' | 'haar' | 'mediapipe' | 'auto';
-    sensitivity: number;
+    detection_method: 'face_recognition' | 'opencv' | 'auto';
+    /** Face match tolerance 0-1, lower = stricter (face_recognition only). */
+    tolerance: number;
     min_detection_frames: number;
+    /** Seconds without a face before reporting absent. */
+    timeout: number;
   };
-  license?: {
+  /** Licensing (docs/LICENSING.md). SKYGLASS_LICENSE=off forces enabled=false. */
+  license: {
     enabled: boolean;
-    key: string;
-    serverUrl: string;
+    /** Cloud license API base URL; the mirror POSTs to `${server}/api/license/*`. */
+    server: string;
   };
 }
 
@@ -106,6 +115,20 @@ export function loadConfig(): Config {
   // Substitute environment variables
   config = processConfig(config) as Config;
 
+  return applyEnvOverrides(config);
+}
+
+const DEFAULT_LICENSE_SERVER = 'https://skyglass.dev';
+
+/** Environment switches that take precedence over the YAML files. */
+function applyEnvOverrides(config: Config): Config {
+  const license = config.license ?? { enabled: true, server: DEFAULT_LICENSE_SERVER };
+  const licenseEnv = process.env.SKYGLASS_LICENSE?.trim().toLowerCase();
+  config.license = {
+    // Anything but an explicit false keeps licensing on.
+    enabled: licenseEnv === 'off' ? false : license.enabled !== false,
+    server: (license.server || DEFAULT_LICENSE_SERVER).replace(/\/+$/, ''),
+  };
   return config;
 }
 
@@ -129,4 +152,15 @@ function deepMerge(target: any, source: Record<string, unknown>): Config {
     }
   }
   return result as Config;
+}
+
+/**
+ * Emits 'changed' after config/config.yaml is rewritten (setup routes).
+ * Long-lived consumers that cached loadConfig() at startup subscribe so a
+ * new airport/location takes effect without a restart.
+ */
+export const configEvents = new EventEmitter();
+
+export function notifyConfigChanged(): void {
+  configEvents.emit('changed');
 }

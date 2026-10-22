@@ -10,13 +10,21 @@
  *   DELETE /api/presence/faces/:id   -> DELETE {ADMIN}/api/users/:id/face
  *
  * Admin portal base URL: env SKYGLASS_ADMIN_URL, default http://127.0.0.1:5000.
+ *
+ * Every call carries the internal service token (X-SkyGlass-Internal, see
+ * services/internal-token.ts); the presence server refuses these routes
+ * without it or an admin session. Only what the phone app uses is proxied:
+ * settings, restart, reboot, clear-cache, logs, updates and the admin
+ * password are deliberately NOT reachable through port 3001. See
+ * docs/SECURITY.md.
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { validateBody } from '../middleware/validate.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 import { wifiConnectSchema } from '../validation/schemas.js';
 import { isSafeId } from '../validation/safe-id.js';
+import { internalHeaders } from '../services/internal-token.js';
 
 export const ADMIN_PORTAL_URL = (process.env.SKYGLASS_ADMIN_URL || 'http://127.0.0.1:5000').replace(
   /\/+$/,
@@ -29,12 +37,10 @@ interface ProxyResult {
 }
 
 /**
- * Call the admin portal. Forwards the caller's Cookie header so an existing
- * admin session is honoured when an admin password is set (the portal's
- * @login_required otherwise returns 401 JSON).
+ * Call the admin portal with the internal service token. The caller's
+ * cookies are never forwarded.
  */
 async function callAdmin(
-  req: Request,
   method: string,
   pathname: string,
   body?: unknown,
@@ -43,8 +49,8 @@ async function callAdmin(
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'Content-Type': 'application/json',
+    ...internalHeaders(),
   };
-  if (req.headers.cookie) headers.Cookie = req.headers.cookie;
 
   const response = await fetch(`${ADMIN_PORTAL_URL}${pathname}`, {
     method,
@@ -55,8 +61,13 @@ async function callAdmin(
   });
 
   if (response.status >= 300 && response.status < 400) {
-    // login_required redirects non-JSON requests to the login page
-    return { status: 401, body: { error: 'Authentication required', message: 'Admin login required' } };
+    return { status: 502, body: { error: 'Unexpected redirect from admin portal' } };
+  }
+  if (response.status === 401 || response.status === 403) {
+    // The token was refused: data/internal-token differs between the two
+    // processes (e.g. SKYGLASS_INTERNAL_TOKEN_FILE set for only one of them).
+    console.error(`[Device] Admin portal refused the internal token for ${method} ${pathname}`);
+    return { status: 502, body: { error: 'Admin portal refused the backend', message: 'Internal token mismatch' } };
   }
 
   const parsed = await response.json().catch(() => null);
@@ -77,9 +88,9 @@ function sendUnavailable(res: Response, error: unknown): void {
 
 export const wifiRoutes = Router();
 
-wifiRoutes.get('/scan', async (req, res) => {
+wifiRoutes.get('/scan', async (_req, res) => {
   try {
-    const result = await callAdmin(req, 'GET', '/api/admin/wifi/scan', undefined, 40000);
+    const result = await callAdmin('GET', '/api/admin/wifi/scan', undefined, 40000);
     const data = (result.body ?? {}) as {
       networks?: { ssid: string; signal: number; secure?: boolean }[];
       error?: string;
@@ -102,9 +113,9 @@ wifiRoutes.get('/scan', async (req, res) => {
   }
 });
 
-wifiRoutes.get('/status', async (req, res) => {
+wifiRoutes.get('/status', async (_req, res) => {
   try {
-    const result = await callAdmin(req, 'GET', '/api/admin/wifi/status');
+    const result = await callAdmin('GET', '/api/admin/wifi/status');
     res.status(result.status).json(result.body ?? { connected: false });
   } catch (error) {
     sendUnavailable(res, error);
@@ -114,7 +125,7 @@ wifiRoutes.get('/status', async (req, res) => {
 wifiRoutes.post('/connect', authLimiter, validateBody(wifiConnectSchema), async (req, res) => {
   try {
     const { ssid, password } = req.body as { ssid: string; password: string };
-    const result = await callAdmin(req, 'POST', '/api/admin/wifi/connect', { ssid, password }, 60000);
+    const result = await callAdmin('POST', '/api/admin/wifi/connect', { ssid, password }, 60000);
     const data = (result.body ?? {}) as { success?: boolean; error?: string };
     if (result.status !== 200) {
       return res.status(result.status).json(result.body ?? { success: false });
@@ -131,9 +142,9 @@ wifiRoutes.post('/connect', authLimiter, validateBody(wifiConnectSchema), async 
 
 export const presenceFaceRoutes = Router();
 
-presenceFaceRoutes.get('/', async (req, res) => {
+presenceFaceRoutes.get('/', async (_req, res) => {
   try {
-    const result = await callAdmin(req, 'GET', '/api/users');
+    const result = await callAdmin('GET', '/api/users');
     if (result.status !== 200) {
       return res.status(result.status).json(result.body ?? { error: 'Failed to list faces' });
     }
@@ -159,7 +170,7 @@ presenceFaceRoutes.delete('/:id', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid face id', message: 'Invalid face id' });
   }
   try {
-    const result = await callAdmin(req, 'DELETE', `/api/users/${encodeURIComponent(id)}/face`);
+    const result = await callAdmin('DELETE', `/api/users/${encodeURIComponent(id)}/face`);
     res.status(result.status).json(result.body ?? { success: result.status === 200 });
   } catch (error) {
     sendUnavailable(res, error);

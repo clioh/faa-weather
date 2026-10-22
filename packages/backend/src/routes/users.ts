@@ -12,7 +12,6 @@ import {
   getUser,
   getAllUsers,
   deleteUser,
-  updateUserLastSeen,
   getUserActiveLayout,
   getUserLayouts,
   updateLayoutModules,
@@ -79,42 +78,10 @@ router.get('/', (_req, res) => {
 });
 
 /**
- * GET /api/users/:id
- * Get user details including layouts
- */
-router.get('/:id', (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const user = getUser(id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const layouts = getUserLayouts(id).map((layout) => ({
-      id: layout.id,
-      name: layout.name,
-      isActive: layout.is_active === 1,
-      updatedAt: layout.updated_at,
-    }));
-
-    res.json({
-      id: user.id,
-      name: user.name,
-      preferences: JSON.parse(user.preferences),
-      createdAt: user.created_at,
-      lastSeen: user.last_seen,
-      layouts,
-    });
-  } catch (error) {
-    console.error('[Users] Failed to get user:', error);
-    res.status(500).json({ error: 'Failed to get user' });
-  }
-});
-
-/**
  * DELETE /api/users/:id
- * Remove user from mirror (also removes face data via presence service)
+ * Remove the user and their layouts from this mirror's database. Face data
+ * lives on the presence server; the phone app deletes it there separately
+ * (DELETE :5000/api/users/<id>/face, or /api/presence/faces/:id here).
  */
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
@@ -129,9 +96,6 @@ router.delete('/:id', async (req, res) => {
     const deleted = deleteUser(id);
 
     if (deleted) {
-      // Notify frontend about user removal
-      broadcast('user-removed', { userId: id, userName: user.name });
-
       res.json({ success: true });
     } else {
       res.status(500).json({ error: 'Failed to delete user' });
@@ -328,22 +292,6 @@ router.delete('/:id/layouts/:layoutId', (req, res) => {
   } catch (error) {
     console.error('[Users] Failed to delete layout:', error);
     res.status(500).json({ error: 'Failed to delete layout' });
-  }
-});
-
-/**
- * POST /api/users/:id/seen
- * Update user's last seen timestamp (called when user is recognized)
- */
-router.post('/:id/seen', (req, res) => {
-  const { id } = req.params;
-
-  try {
-    updateUserLastSeen(id);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('[Users] Failed to update last seen:', error);
-    res.status(500).json({ error: 'Failed to update last seen' });
   }
 });
 

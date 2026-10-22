@@ -130,20 +130,46 @@ function parseWeather(parts: string[]): {
 } {
   const weatherCodes = [
     // Intensity
-    '\\+', '-', 'VC',
+    '\\+',
+    '-',
+    'VC',
     // Descriptor
-    'MI', 'PR', 'BC', 'DR', 'BL', 'SH', 'TS', 'FZ',
+    'MI',
+    'PR',
+    'BC',
+    'DR',
+    'BL',
+    'SH',
+    'TS',
+    'FZ',
     // Precipitation
-    'DZ', 'RA', 'SN', 'SG', 'IC', 'PL', 'GR', 'GS', 'UP',
+    'DZ',
+    'RA',
+    'SN',
+    'SG',
+    'IC',
+    'PL',
+    'GR',
+    'GS',
+    'UP',
     // Obscuration
-    'BR', 'FG', 'FU', 'VA', 'DU', 'SA', 'HZ', 'PY',
+    'BR',
+    'FG',
+    'FU',
+    'VA',
+    'DU',
+    'SA',
+    'HZ',
+    'PY',
     // Other
-    'PO', 'SQ', 'FC', 'SS', 'DS',
+    'PO',
+    'SQ',
+    'FC',
+    'SS',
+    'DS',
   ];
 
-  const weatherPattern = new RegExp(
-    `^([+-]|VC)?(${weatherCodes.slice(3).join('|')})+$`
-  );
+  const weatherPattern = new RegExp(`^([+-]|VC)?(${weatherCodes.slice(3).join('|')})+$`);
 
   const weather: string[] = [];
   let lastIdx = 0;
@@ -238,8 +264,13 @@ function parseAltimeter(parts: string[]): number | null {
  * Main METAR parser
  */
 export function parseMetar(raw: string): ParsedMetar {
-  // Normalize and split
-  const normalized = raw.trim().replace(/\s+/g, ' ');
+  // Normalize and split. aviationweather.gov's raw format prefixes the report
+  // type ("METAR KSFO ..." / "SPECI KSFO ..."); drop it so the station ID is
+  // the first token.
+  const normalized = raw
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^(?:METAR|SPECI)\s+(?:COR\s+)?/, '');
   const parts = normalized.split(' ');
 
   // Extract ICAO (first 4-letter group)

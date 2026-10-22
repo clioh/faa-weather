@@ -66,6 +66,19 @@ export const configWriteLimiter = rateLimit({
 });
 
 /**
+ * Calendar connect limiter (Google/Microsoft sign-in start + complete,
+ * CalDAV credentials, ICS links). 20 requests per 15 minutes.
+ */
+export const calendarConnectLimiter = rateLimit({
+  ...commonOptions,
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: {
+    error: 'Too many calendar sign-in attempts. Please wait a few minutes and try again.',
+  },
+});
+
+/**
  * Auth rate limiter for authentication/registration endpoints.
  * 5 requests per 15 minutes.
  */
@@ -106,11 +119,3 @@ export const criticalLimiter = rateLimit({
     message: 'This operation is rate-limited. Please try again later.',
   },
 });
-
-export default {
-  standardLimiter,
-  configWriteLimiter,
-  authLimiter,
-  uploadLimiter,
-  criticalLimiter,
-};

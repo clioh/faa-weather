@@ -1,19 +1,60 @@
 /**
- * Unified Schedule Service
- * Combines Google Calendar events and XLSX flight schedules
+ * Flight schedule service: airline XLSX schedules (manual upload or IMAP
+ * email polling). Calendar accounts live in src/calendar/; GET /api/schedule
+ * merges both into the ScheduleEvent shape.
  */
 
-import { googleCalendar, CalendarEvent } from './calendar.js';
 import { FlightEvent, parseFlightSchedule, ColumnMapping } from './schedule-parser.js';
 import { EmailPoller, createEmailPoller } from './email-poller.js';
 import { loadConfig } from '../config/index.js';
+import type { ScheduleEvent, TimeWindow } from '../calendar/types.js';
+import { compareScheduleEvents } from '../calendar/service.js';
+import { startOfToday } from '../calendar/time.js';
 
-export type ScheduleEvent = (CalendarEvent | FlightEvent) & {
-  isFlightDuty?: boolean;
-};
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** `days` query (1..30, default 7) → [start of today in the mirror timezone, now + days]. */
+export function scheduleWindow(daysParam: unknown, timezone: string, now = Date.now()): TimeWindow {
+  const raw = Array.isArray(daysParam) ? daysParam[0] : daysParam;
+  const n = Number.parseInt(String(raw ?? ''), 10);
+  const days = Number.isFinite(n) ? Math.min(30, Math.max(1, n)) : 7;
+  return { start: startOfToday(timezone, now), end: now + days * DAY_MS };
+}
+
+/** XLSX flight duty → the shared ScheduleEvent shape. */
+export function flightToScheduleEvent(f: FlightEvent): ScheduleEvent {
+  const event: ScheduleEvent = {
+    id: `xlsx:${f.id}`,
+    source: 'xlsx',
+    accountId: null,
+    calendarId: null,
+    calendarName: null,
+    color: null,
+    title: f.title,
+    location: null,
+    startTime: f.startTime.toISOString(),
+    endTime: f.endTime.toISOString(),
+    allDay: false,
+    startDate: null,
+    endDate: null,
+    isFlightDuty: true,
+  };
+  if (f.flightNumber) event.flightNumber = f.flightNumber;
+  if (f.departure) event.departure = f.departure;
+  if (f.arrival) event.arrival = f.arrival;
+  if (f.aircraftType) event.aircraftType = f.aircraftType;
+  if (f.dutyType) event.dutyType = f.dutyType;
+  if (f.reportTime) event.reportTime = f.reportTime.toISOString();
+  if (f.releaseTime) event.releaseTime = f.releaseTime.toISOString();
+  return event;
+}
+
+/** Merge calendar and flight events into one list sorted by start (all-day first on ties). */
+export function mergeScheduleEvents(...lists: ScheduleEvent[][]): ScheduleEvent[] {
+  return lists.flat().sort(compareScheduleEvents);
+}
 
 export interface ScheduleConfig {
-  googleCalendarIds: string[];
   emailPolling: {
     enabled: boolean;
     host: string;
@@ -32,6 +73,8 @@ export class ScheduleService {
   private flightEvents: FlightEvent[] = [];
   private config: ScheduleConfig;
   private pollInterval: NodeJS.Timeout | null = null;
+  /** Called whenever the flight schedule is replaced (upload or email). */
+  onChange: (() => void) | null = null;
 
   constructor(config: ScheduleConfig) {
     this.config = config;
@@ -93,6 +136,7 @@ export class ScheduleService {
     if (result.success && result.newSchedule) {
       this.flightEvents = result.events;
       console.log(`Updated flight schedule: ${result.events.length} events`);
+      this.onChange?.();
     } else if (!result.success) {
       console.error('Email polling failed:', result.error);
     }
@@ -104,62 +148,20 @@ export class ScheduleService {
   async loadScheduleFromBuffer(buffer: Buffer, mapping?: Partial<ColumnMapping>): Promise<FlightEvent[]> {
     const events = await parseFlightSchedule(buffer, mapping || this.config.columnMapping);
     this.flightEvents = events;
+    this.onChange?.();
     return events;
   }
 
-  /**
-   * Get all events from all sources
-   */
-  async getAllEvents(daysAhead: number = 7): Promise<ScheduleEvent[]> {
-    const allEvents: ScheduleEvent[] = [];
-
-    // Get Google Calendar events
-    if (googleCalendar.isAvailable() && this.config.googleCalendarIds.length > 0) {
-      try {
-        const calendarEvents = await googleCalendar.getUpcomingEvents(
-          this.config.googleCalendarIds,
-          daysAhead
-        );
-        allEvents.push(...calendarEvents);
-      } catch (error) {
-        console.error('Failed to fetch Google Calendar events:', error);
-      }
-    }
-
-    // Add flight events
-    const now = new Date();
-    const future = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
-
-    const relevantFlights = this.flightEvents.filter(
-      (event) => event.startTime >= now && event.startTime <= future
-    );
-
-    // Mark flight events
-    const markedFlights: ScheduleEvent[] = relevantFlights.map((event) => ({
-      ...event,
-      isFlightDuty: true,
-    }));
-
-    allEvents.push(...markedFlights);
-
-    // Sort by start time
-    allEvents.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-
-    return allEvents;
-  }
-
-  /**
-   * Get today's events
-   */
-  async getTodaysEvents(): Promise<ScheduleEvent[]> {
-    const allEvents = await this.getAllEvents(1);
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-
-    return allEvents.filter(
-      (event) => event.startTime >= startOfDay && event.startTime < endOfDay
-    );
+  /** Flight duties overlapping `window` (epoch ms), as ScheduleEvents. */
+  getFlightsInWindow(window: TimeWindow): ScheduleEvent[] {
+    return this.flightEvents
+      .filter((f) => {
+        const start = f.startTime.getTime();
+        const end = Math.max(start, f.endTime.getTime());
+        return end === start ? start >= window.start && start < window.end : start < window.end && end > window.start;
+      })
+      .map(flightToScheduleEvent)
+      .sort(compareScheduleEvents);
   }
 
   /**
@@ -167,18 +169,6 @@ export class ScheduleService {
    */
   getFlightEvents(): FlightEvent[] {
     return this.flightEvents;
-  }
-
-  /**
-   * Get upcoming flights (next 7 days)
-   */
-  getUpcomingFlights(daysAhead: number = 7): FlightEvent[] {
-    const now = new Date();
-    const future = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
-
-    return this.flightEvents.filter(
-      (event) => event.startTime >= now && event.startTime <= future
-    );
   }
 
   /**
@@ -192,13 +182,6 @@ export class ScheduleService {
 
     return upcoming[0] || null;
   }
-
-  /**
-   * Check if Google Calendar is connected
-   */
-  isGoogleCalendarConnected(): boolean {
-    return googleCalendar.isAvailable();
-  }
 }
 
 // Create and export singleton
@@ -208,9 +191,6 @@ export function initScheduleService(): ScheduleService {
   const config = loadConfig();
 
   const scheduleConfig: ScheduleConfig = {
-    googleCalendarIds: config.calendar?.google?.enabled
-      ? config.calendar.google.calendar_ids || ['primary']
-      : [],
     emailPolling: {
       enabled: config.schedule?.email?.enabled || false,
       host: config.schedule?.email?.imap_host || 'imap.gmail.com',

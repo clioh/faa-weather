@@ -6,9 +6,12 @@
 import { parseMetar, type ParsedMetar } from './metar-parser.js';
 import { parseTaf, type ParsedTaf } from './taf-parser.js';
 import type { FlightRules } from '../types/index.js';
+import { TFR_GEO_URL, parseTfrGeometry, distanceToTfr, type TfrGeometry } from './tfr-geo.js';
 
 const AVIATION_WEATHER_API = 'https://aviationweather.gov/api/data';
-const TFR_API = 'https://tfr.faa.gov/tfr2/list.json';
+// The FAA retired tfr2/list.json (it now redirects to the tfr3 web app).
+// This is the JSON feed that app reads.
+const TFR_API = 'https://tfr.faa.gov/tfrapi/getTfrList';
 
 // Fetch timeout in milliseconds
 const FETCH_TIMEOUT = 15000;
@@ -57,6 +60,9 @@ export interface TfrData {
   effectiveStart: string;
   effectiveEnd: string;
   lastModified: string;
+  /** Centre of the TFR's bounding box (from the FAA GeoServer layer), null when no shape is published. */
+  latitude: number | null;
+  longitude: number | null;
 }
 
 /**
@@ -159,38 +165,132 @@ export async function fetchTaf(icao: string): Promise<TafResponse | null> {
   }
 }
 
+/** One row of the FAA tfrapi/getTfrList feed (fields observed Oct 2026). */
+export interface FaaTfrListItem {
+  notam_id?: string;
+  facility?: string;
+  state?: string;
+  type?: string;
+  description?: string;
+  mod_date?: string; // "10/15/2026 03:47:00"
+  mod_abs_time?: string; // "202610150347" (UTC)
+  is_new?: string;
+  gid?: string;
+}
+
+const MONTHS: Record<string, string> = {
+  january: '01',
+  february: '02',
+  march: '03',
+  april: '04',
+  may: '05',
+  june: '06',
+  july: '07',
+  august: '08',
+  september: '09',
+  october: '10',
+  november: '11',
+  december: '12',
+};
+
+// "Thursday, October 15, 2026"
+const LONG_DATE =
+  /(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday),\s+([a-z]+)\s+(\d{1,2}),\s+(\d{4})/i;
+
+// Trailing date clause the FAA appends to the location:
+// ", Thursday, October 15, 2026 through Monday, October 19, 2026 UTC"
+// ", Saturday, October 17, 2026 UTC"
+const DATE_CLAUSE = new RegExp(
+  `,?\\s*(${LONG_DATE.source})(?:\\s+through\\s+(${LONG_DATE.source}))?\\s*(UTC|Local)?\\s*$`,
+  'i'
+);
+
+function toIsoDate(longDate: string): string {
+  const m = LONG_DATE.exec(longDate);
+  if (!m) return '';
+  const month = MONTHS[m[1].toLowerCase()];
+  if (!month) return '';
+  return `${m[3]}-${month}-${m[2].padStart(2, '0')}`;
+}
+
+/**
+ * Split an FAA TFR description into its location and the day range it names.
+ * The feed gives no structured effective times; the description ends with
+ * "<date>[ through <date>] (UTC|Local)" when the TFR has fixed dates, and with
+ * nothing when it is standing (e.g. "WASHINGTON, DC., USA").
+ * Dates come back as YYYY-MM-DD (day precision only).
+ */
+export function parseTfrDescription(description: string): {
+  location: string;
+  effectiveStart: string;
+  effectiveEnd: string;
+} {
+  const text = description.trim();
+  const m = DATE_CLAUSE.exec(text);
+  if (!m) {
+    return { location: text, effectiveStart: '', effectiveEnd: '' };
+  }
+  const effectiveStart = toIsoDate(m[1]);
+  const effectiveEnd = m[5] ? toIsoDate(m[5]) : effectiveStart;
+  const location = text.slice(0, m.index).replace(/,\s*$/, '').trim();
+  return { location, effectiveStart, effectiveEnd };
+}
+
+/** "202610150347" -> "2026-10-15T03:47:00Z" */
+function absTimeToIso(absTime: string | undefined): string {
+  const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(absTime || '');
+  if (!m) return '';
+  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00Z`;
+}
+
+/** Map one FAA feed row to our TfrData shape. */
+export function parseTfrListItem(tfr: FaaTfrListItem): TfrData {
+  const { location, effectiveStart, effectiveEnd } = parseTfrDescription(
+    String(tfr.description || '')
+  );
+  return {
+    id: String(tfr.notam_id || tfr.gid || ''),
+    type: String(tfr.type || 'Unknown'),
+    facility: String(tfr.facility || ''),
+    state: String(tfr.state || ''),
+    description: location,
+    effectiveStart,
+    effectiveEnd,
+    lastModified: absTimeToIso(tfr.mod_abs_time),
+    latitude: null,
+    longitude: null,
+  };
+}
+
 /**
  * Fetch TFRs (Temporary Flight Restrictions)
- * Note: The FAA TFR API returns a list of active TFRs
+ * Note: The FAA feed returns every currently listed TFR nationwide.
  */
 export async function fetchTfrs(): Promise<TfrData[]> {
   try {
-    // The FAA TFR list endpoint
-    const response = await fetchWithTimeout(TFR_API);
+    const response = await fetchWithTimeout(TFR_API, { headers: { Accept: 'application/json' } });
 
     if (!response.ok) {
       console.error(`TFR fetch failed: ${response.status}`);
       return [];
     }
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('json')) {
+      console.error(
+        `TFR fetch returned ${contentType || 'unknown content type'} instead of JSON (endpoint moved?)`
+      );
+      return [];
+    }
 
-    // The API returns an array of TFR objects
+    const data: unknown = await response.json();
+
     if (!Array.isArray(data)) {
       console.error('Unexpected TFR response format');
       return [];
     }
 
-    return data.map((tfr: Record<string, unknown>) => ({
-      id: String(tfr.NOTAM || tfr.notamNumber || ''),
-      type: String(tfr.type || tfr.TYPE || 'Unknown'),
-      facility: String(tfr.facility || tfr.FACILITY || ''),
-      state: String(tfr.state || tfr.STATE || ''),
-      description: String(tfr.description || tfr.DESCRIPTION || ''),
-      effectiveStart: String(tfr.effectiveStart || tfr.EFFECTIVE_START || ''),
-      effectiveEnd: String(tfr.effectiveEnd || tfr.EFFECTIVE_END || ''),
-      lastModified: String(tfr.lastModified || tfr.LAST_MODIFIED || ''),
-    }));
+    return data.map((tfr) => parseTfrListItem(tfr as FaaTfrListItem));
   } catch (error) {
     console.error('Error fetching TFRs:', error);
     return [];
@@ -198,18 +298,52 @@ export async function fetchTfrs(): Promise<TfrData[]> {
 }
 
 /**
- * Filter TFRs by distance from a point
+ * Fetch TFR shapes keyed by NOTAM id. Returns an empty map on failure so the
+ * list still works without coordinates.
+ */
+export async function fetchTfrGeometry(): Promise<Map<string, TfrGeometry>> {
+  try {
+    const response = await fetchWithTimeout(TFR_GEO_URL, { headers: { Accept: 'application/json' } });
+    if (!response.ok) {
+      console.error(`TFR geometry fetch failed: ${response.status}`);
+      return new Map();
+    }
+    return parseTfrGeometry(await response.json());
+  } catch (error) {
+    console.error('Error fetching TFR geometry:', error instanceof Error ? error.message : error);
+    return new Map();
+  }
+}
+
+/** Attach centre coordinates from the geometry map to list rows. */
+export function attachTfrCoordinates(tfrs: TfrData[], geo: Map<string, TfrGeometry>): TfrData[] {
+  return tfrs.map((t) => {
+    const g = geo.get(t.id);
+    return { ...t, latitude: g?.latitude ?? null, longitude: g?.longitude ?? null };
+  });
+}
+
+export type TfrWithDistance = TfrData & { distanceNm: number | null };
+
+/**
+ * Filter TFRs to those within `radiusNm` of a point (great-circle distance to
+ * the nearest edge; 0 when the point is inside). TFRs without a published
+ * shape are kept with `distanceNm: null`. Sorted nearest first.
  */
 export function filterTfrsByDistance(
   tfrs: TfrData[],
-  _lat: number,
-  _lon: number,
-  _radiusNm: number
-): TfrData[] {
-  // For now, return all TFRs since the basic API doesn't include coordinates
-  // In a full implementation, we'd parse the NOTAM text or use a different API
-  // that includes geographic data
-  return tfrs;
+  lat: number,
+  lon: number,
+  radiusNm: number,
+  geo: Map<string, TfrGeometry> = new Map(),
+): TfrWithDistance[] {
+  return tfrs
+    .map((t): TfrWithDistance => {
+      const g = geo.get(t.id);
+      return { ...t, distanceNm: g ? distanceToTfr(lat, lon, g) : null };
+    })
+    .filter((t) => t.distanceNm === null || t.distanceNm <= radiusNm)
+    .sort((a, b) => (a.distanceNm ?? Infinity) - (b.distanceNm ?? Infinity));
 }
 
 /**
@@ -219,6 +353,7 @@ export class AviationDataManager {
   private metarCache: Map<string, MetarResponse> = new Map();
   private tafCache: Map<string, TafResponse> = new Map();
   private tfrCache: TfrData[] = [];
+  private tfrGeometry: Map<string, TfrGeometry> = new Map();
   private lastTfrFetch: Date | null = null;
 
   private readonly METAR_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -271,16 +406,24 @@ export class AviationDataManager {
       }
     }
 
-    const tfrs = await fetchTfrs();
+    const [list, geo] = await Promise.all([fetchTfrs(), fetchTfrGeometry()]);
+    if (geo.size > 0) this.tfrGeometry = geo;
+    const tfrs = attachTfrCoordinates(list, this.tfrGeometry);
     this.tfrCache = tfrs;
     this.lastTfrFetch = new Date();
     return tfrs;
+  }
+
+  /** Shapes from the last TFR refresh (for distance filtering). */
+  getTfrGeometry(): Map<string, TfrGeometry> {
+    return this.tfrGeometry;
   }
 
   clearCache(): void {
     this.metarCache.clear();
     this.tafCache.clear();
     this.tfrCache = [];
+    this.tfrGeometry = new Map();
     this.lastTfrFetch = null;
   }
 }

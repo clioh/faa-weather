@@ -1,27 +1,36 @@
+import type { WebSocket } from 'ws';
 import express from 'express';
-import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { existsSync } from 'fs';
 import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
 import cron from 'node-cron';
-import { loadConfig } from './config/index.js';
+import { loadConfig, configEvents } from './config/index.js';
 import aviationRoutes from './routes/aviation.js';
-import scheduleRoutes, { scheduleAuthRoutes } from './routes/schedule.js';
-import setupRoutes from './routes/setup.js';
+import scheduleRoutes from './routes/schedule.js';
+import calendarRoutes from './routes/calendar.js';
+import setupRoutes, { getSetupStatus } from './routes/setup.js';
 import updateRoutes from './routes/update.js';
 import layoutRoutes from './routes/layout.js';
 import usersRoutes from './routes/users.js';
 import licenseRoutes from './routes/license.js';
 import cloudRoutes from './routes/cloud.js';
+import newsRoutes from './routes/news.js';
+import financeRoutes from './routes/finance.js';
+import weatherRoutes from './routes/weather.js';
+import windsAloftRoutes from './routes/winds-aloft.js';
+import todosRoutes from './routes/todos.js';
+import photosRoutes from './routes/photos.js';
 import { wifiRoutes, presenceFaceRoutes, ADMIN_PORTAL_URL } from './routes/device.js';
+import { internalHeaders, isValidInternalToken, INTERNAL_TOKEN_HEADER } from './services/internal-token.js';
 import { relayClient } from './services/relay-client.js';
 import { aviationData } from './services/aviation.js';
 import { updateService } from './services/updater.js';
 import { initScheduleService } from './services/schedule.js';
+import { calendarService } from './calendar/instance.js';
 import { displayManager } from './services/display.js';
 import { mdnsService } from './services/mdns.js';
-import { licenseService } from './services/license.js';
+import { licenseManager, usingPlaceholderPublicKey } from './license/index.js';
 import { initDatabase, updateUserLastSeen, getUserActiveLayout, getMirrorId, getMirrorName } from './db/index.js';
 
 // Security middleware
@@ -29,23 +38,61 @@ import { securityMiddleware } from './middleware/security.js';
 import { corsMiddleware } from './middleware/cors.js';
 import { standardLimiter, authLimiter } from './middleware/rateLimiter.js';
 import { validateBody } from './middleware/validate.js';
+// Phone pairing / caller trust (docs/SECURITY.md)
+import { apiAuthGate } from './pairing/middleware.js';
+import { pairingService, authenticateDevice, type PairingEvent } from './pairing/index.js';
+import { WsHub } from './pairing/ws.js';
+import { createPairingRouter } from './routes/pairing.js';
 import {
   presenceSchema,
   gestureSchema,
   registrationStartSchema,
   registrationProgressSchema,
+  displayHoldSchema,
+  userLayoutModulesSchema,
 } from './validation/schemas.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-// Trust X-Forwarded-For only from a local reverse proxy (nginx on the device),
-// so forwarded LAN clients get their real IP for rate limiting instead of
-// all sharing 127.0.0.1.
+// Trust X-Forwarded-For only from a loopback proxy (the Vite dev server, with
+// xfwd), so req.ip is the real client: a LAN client is never "local", and
+// forwarded clients get their own rate limits. See pairing/trust.ts.
 app.set('trust proxy', 'loopback');
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+// WebSocket: upgrades are authenticated (local, or a paired phone's token
+// subprotocol) before the handshake; see pairing/ws.ts.
+const wsHub = new WsHub(authenticateDevice);
+wsHub.attach(server);
+pairingService.on('pairing', (event: PairingEvent) => {
+  wsHub.broadcast('pairing', event);
+  // A code is only useful if someone can see it: wake the display for the
+  // code's lifetime, like POST /api/display/hold.
+  if (event.state === 'show') {
+    void displayManager
+      .hold(Math.max(0, event.expiresAt - Date.now()) + 5000)
+      .then(() =>
+        broadcast('presence', {
+          present: displayManager.isUserPresent(),
+          displayState: displayManager.getState(),
+          hold: true,
+        })
+      )
+      .catch((error) => console.error('[Pairing] Could not wake the display:', error));
+  }
+});
+pairingService.on('revoked', (deviceId: string) => wsHub.closeDevice(deviceId));
+// License events are only broadcast on change, so a kiosk that reconnects
+// after a restart would miss a flip (e.g. active → released). Every new
+// socket gets the current status first.
+wsHub.wss.on('connection', (ws: WebSocket) => {
+  try {
+    ws.send(JSON.stringify({ type: 'license', data: licenseManager.getStatus(), timestamp: Date.now() }));
+  } catch (error) {
+    console.error('[License] Could not send the status to a new WebSocket client:', error);
+  }
+});
 
 // Security middleware (must be first)
 app.use(securityMiddleware);
@@ -55,23 +102,55 @@ app.use(express.json({ limit: '1mb' }));
 // Apply standard rate limiter to all API routes
 app.use('/api', standardLimiter);
 
+// Deny by default: every /api route registered after this line needs a
+// trusted caller (local, internal token, or paired phone) unless it is in
+// PUBLIC_API_ROUTES (pairing/middleware.ts). Keep this before all routes.
+app.use('/api', apiAuthGate(authenticateDevice));
+
 // Load configuration
-const config = loadConfig();
+let config = loadConfig();
+
+/** Display settings the mirror UI needs (non-sensitive). */
+function publicDisplayConfig(): {
+  orientation: 'landscape' | 'portrait';
+  fade_duration: number;
+  presence_timeout: number;
+} {
+  const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+  return {
+    orientation: config.display?.orientation === 'portrait' ? 'portrait' : 'landscape',
+    fade_duration: num(config.display?.fade_duration, 1000),
+    presence_timeout: num(config.display?.presence_timeout, 120),
+  };
+}
+
+// Reload when the setup routes rewrite config/config.yaml so a new airport or
+// location takes effect (and reaches the display) without a restart.
+configEvents.on('changed', () => {
+  try {
+    config = loadConfig();
+    console.log(`[Config] Reloaded: airport=${config.airport}`);
+    broadcast('config', {
+      airport: config.airport,
+      location: config.location,
+      display: publicDisplayConfig(),
+    });
+    void refreshAviationData();
+  } catch (error) {
+    console.error('[Config] Reload failed:', error);
+  }
+});
 
 // Initialize services
-initScheduleService();
+const scheduleService = initScheduleService();
+scheduleService.onChange = () => calendarService.notifyChanged();
 
 // API Routes
+app.use('/api/aviation/winds-aloft', windsAloftRoutes); // FB winds/temps aloft
 app.use('/api/aviation', aviationRoutes);
-app.use('/api', aviationRoutes); // Also mount astro at /api/astro
-app.use('/api/schedule', scheduleRoutes);
-// Mount ONLY the Google OAuth + calendar-list routes at /api (/api/auth/google/*,
-// /api/calendar/list). Mounting the whole schedule router here would make its
-// /status shadow the comprehensive GET /api/status below.
-app.use('/api', scheduleAuthRoutes);
+app.use('/api/schedule', scheduleRoutes); // Merged calendar events + XLSX flight duties
+app.use('/api/calendar', calendarRoutes); // Calendar accounts (data/calendar-accounts.json)
 app.use('/api/setup', setupRoutes);
-app.use('/setup', setupRoutes); // Serve setup wizard at /setup
-app.use('/admin/setup', setupRoutes); // Also serve at /admin/setup for consistency
 app.use('/api/update', updateRoutes);
 app.use('/api/layout', layoutRoutes); // Widget layout management
 app.use('/api/users', usersRoutes); // User management
@@ -79,34 +158,17 @@ app.use('/api/license', licenseRoutes); // License management
 app.use('/api/cloud', cloudRoutes); // Cloud registration and relay
 app.use('/api/wifi', wifiRoutes); // WiFi provisioning (proxied to admin portal)
 app.use('/api/presence/faces', presenceFaceRoutes); // Enrolled faces (proxied to presence server)
+app.use('/api/news', newsRoutes); // RSS/Atom headlines
+app.use('/api/finance', financeRoutes); // Stocks (Stooq) + crypto (CoinGecko)
+app.use('/api/weather', weatherRoutes); // General weather (Open-Meteo)
+app.use('/api/todos', todosRoutes); // Todo list widget (data/todos.json)
+app.use('/api/photos', photosRoutes); // Photo frame widget (data/photos/)
+app.use('/api/pairing', createPairingRouter({ service: pairingService })); // Phone pairing (data/paired-devices.json)
 
-// Store connected clients
-const clients = new Set<WebSocket>();
-
-// WebSocket connection handling
-wss.on('connection', (ws) => {
-  clients.add(ws);
-  console.log('Client connected. Total clients:', clients.size);
-
-  ws.on('close', () => {
-    clients.delete(ws);
-    console.log('Client disconnected. Total clients:', clients.size);
-  });
-
-  ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
-    clients.delete(ws);
-  });
-});
-
-// Broadcast to all connected clients
+// Broadcast to all authenticated WebSocket clients (the `pairing` event
+// family goes to local sockets only, see pairing/ws.ts).
 export function broadcast(type: string, data: unknown): void {
-  const message = JSON.stringify({ type, data, timestamp: Date.now() });
-  clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  });
+  wsHub.broadcast(type, data);
 }
 
 // Health check endpoint
@@ -115,17 +177,17 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Discovery info endpoint (used by mobile app after finding via mDNS)
+// Public (pairing/middleware.ts): the app calls this before it is paired, so it
+// carries only what is needed to identify the mirror and pick the next step.
+// Anything about the owner (airport, location) or the network stays behind pairing.
 app.get('/api/discovery', (_req, res) => {
-  const mdnsInfo = mdnsService.getServiceInfo();
   res.json({
     mirrorId: getMirrorId(),
     name: getMirrorName(),
     version: process.env.npm_package_version || '0.1.0',
-    airport: config.airport,
-    addresses: mdnsInfo?.addresses || [],
-    port: Number(PORT),
-    capabilities: ['aviation', 'calendar', 'presence', 'layout', 'multi-user'],
-    setupComplete: existsSync(join(__dirname, '..', '..', '..', 'packages', 'presence', 'face_data', '.wifi_configured')),
+    // Same meaning as GET /api/setup/status; the app's mirror list shows it.
+    setupComplete: getSetupStatus().setupComplete,
+    pairingRequired: true,
   });
 });
 
@@ -147,67 +209,12 @@ app.get('/api/provisioning/status', (_req, res) => {
   });
 });
 
-// Comprehensive status endpoint
-app.get('/api/status', async (_req, res) => {
-  const startTime = process.uptime();
-
-  // Check service health
-  const services = {
-    backend: {
-      status: 'healthy',
-      uptime: Math.floor(startTime),
-      version: process.env.npm_package_version || '0.1.0',
-    },
-    websocket: {
-      status: 'healthy',
-      clients: clients.size,
-    },
-    display: {
-      status: 'healthy',
-      state: displayManager.getState(),
-    },
-    aviation: {
-      status: 'unknown',
-      lastUpdate: null as number | null,
-    },
-  };
-
-  // Check aviation data
-  try {
-    const metar = await aviationData.getMetar(config.airport);
-    services.aviation.status = metar ? 'healthy' : 'degraded';
-    services.aviation.lastUpdate = metar?.fetchedAt?.getTime() || null;
-  } catch {
-    services.aviation.status = 'unhealthy';
-  }
-
-  // Calculate overall status
-  const unhealthy = Object.values(services).some(
-    (s) => typeof s === 'object' && 'status' in s && s.status === 'unhealthy'
-  );
-  const degraded = Object.values(services).some(
-    (s) => typeof s === 'object' && 'status' in s && s.status === 'degraded'
-  );
-
-  res.json({
-    status: unhealthy ? 'unhealthy' : degraded ? 'degraded' : 'healthy',
-    timestamp: Date.now(),
-    uptime: Math.floor(startTime),
-    airport: config.airport,
-    services,
-    memory: {
-      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-    },
-  });
-});
-
 // Config endpoint (non-sensitive data only)
 app.get('/api/config', (_req, res) => {
   res.json({
     airport: config.airport,
     location: config.location,
-    widgets: config.widgets,
+    display: publicDisplayConfig(),
   });
 });
 
@@ -257,6 +264,7 @@ app.post('/api/presence', validateBody(presenceSchema), async (req, res) => {
     userName,
     userLayout,
     displayState: displayManager.getState(),
+    hold: displayManager.isHeld(),
   });
 
   res.json({ received: true, displayState: displayManager.getState(), userId });
@@ -267,31 +275,110 @@ app.get('/api/presence', (_req, res) => {
   res.json({
     present: displayManager.isUserPresent(),
     displayState: displayManager.getState(),
+    hold: displayManager.isHeld(),
   });
 });
 
-// Manual display control endpoints
-app.post('/api/display/on', async (_req, res) => {
-  await displayManager.forceOn();
-  broadcast('presence', { present: true, displayState: 'on', manual: true });
-  res.json({ displayState: 'on' });
+// Display hold: the phone app keeps the mirror awake while the user edits or
+// previews a layout. Time-limited and renewed by the app, so a backgrounded
+// app cannot leave the display stuck on. Release also clears any live preview.
+app.post('/api/display/hold', validateBody(displayHoldSchema), async (req, res) => {
+  const seconds = (req.body as { seconds?: number }).seconds ?? 60;
+  const holdUntil = await displayManager.hold(seconds * 1000);
+  broadcast('presence', {
+    present: displayManager.isUserPresent(),
+    displayState: displayManager.getState(),
+    hold: true,
+  });
+  res.json({ displayState: displayManager.getState(), holdUntil });
 });
 
-app.post('/api/display/off', async (_req, res) => {
-  await displayManager.forceOff();
-  broadcast('presence', { present: false, displayState: 'off', manual: true });
-  res.json({ displayState: 'off' });
+app.post('/api/display/release', async (_req, res) => {
+  await displayManager.release();
+  broadcast('layout-preview', { modules: null });
+  broadcast('presence', {
+    present: displayManager.isUserPresent(),
+    displayState: displayManager.getState(),
+    hold: false,
+  });
+  res.json({ displayState: displayManager.getState() });
 });
 
-// Registration mode state
-let registrationMode = {
-  active: false,
-  startedAt: null as Date | null,
-  presenceServerUrl: null as string | null,
-  samplesCollected: 0,
-  samplesNeeded: 5,
-  userName: null as string | null,
-};
+// Live layout preview: shown on the mirror immediately, never persisted.
+app.post('/api/display/preview', validateBody(userLayoutModulesSchema), (req, res) => {
+  const { modules } = req.body;
+  broadcast('layout-preview', { modules });
+  res.json({ success: true });
+});
+
+// Registration mode state.
+//
+// Only the backend opens camera sessions on the presence server (its
+// /api/start needs the internal token), and it always broadcasts the
+// 'registration' event that puts the full-screen overlay on the mirror, so
+// the camera can never be viewed without the mirror showing it. The
+// presence server returns a short-lived enrollment token; it is the only key
+// to /video_feed and is handed to the phone (start response) and the mirror
+// overlay (WebSocket event / GET /api/registration). See docs/SECURITY.md.
+const presenceServerUrl = ADMIN_PORTAL_URL;
+
+interface RegistrationMode {
+  active: boolean;
+  startedAt: Date | null;
+  presenceServerUrl: string;
+  samplesCollected: number;
+  samplesNeeded: number;
+  userName: string | null;
+  userId: string | null;
+  /** Token for /video_feed?token= (and X-SkyGlass-Enrollment); null when idle. */
+  enrollmentToken: string | null;
+  /** Session expiry, ms since epoch. */
+  expiresAt: number | null;
+}
+
+function idleRegistration(previous?: RegistrationMode): RegistrationMode {
+  return {
+    active: false,
+    startedAt: previous?.startedAt ?? null,
+    presenceServerUrl,
+    samplesCollected: previous?.samplesCollected ?? 0,
+    samplesNeeded: previous?.samplesNeeded ?? 5,
+    userName: previous?.userName ?? null,
+    userId: previous?.userId ?? null,
+    enrollmentToken: null,
+    expiresAt: null,
+  };
+}
+
+let registrationMode: RegistrationMode = idleRegistration();
+let registrationExpiryTimer: NodeJS.Timeout | null = null;
+
+function clearRegistrationTimer(): void {
+  if (registrationExpiryTimer) clearTimeout(registrationExpiryTimer);
+  registrationExpiryTimer = null;
+}
+
+/** End the session locally; the token is dropped from every later message. */
+function endRegistration(action: 'completed' | 'cancelled'): void {
+  clearRegistrationTimer();
+  registrationMode = idleRegistration(registrationMode);
+  broadcast('registration', { ...registrationMode, action });
+}
+
+/** Best-effort: tell the presence server to close its camera session. */
+function resetPresenceSession(): void {
+  fetch(`${presenceServerUrl}/api/reset`, {
+    method: 'POST',
+    headers: internalHeaders(),
+    signal: AbortSignal.timeout(3000),
+  }).catch(() => {});
+}
+
+/** Express guard for endpoints only the presence server may call. */
+function requireInternal(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (isValidInternalToken(req.headers[INTERNAL_TOKEN_HEADER.toLowerCase()])) return next();
+  res.status(401).json({ error: 'Internal endpoint' });
+}
 
 // Guided instructions for each capture step
 const CAPTURE_INSTRUCTIONS = [
@@ -310,29 +397,67 @@ app.get('/api/registration', (_req, res) => {
   });
 });
 
-app.post('/api/registration/start', authLimiter, validateBody(registrationStartSchema), (req, res) => {
-  const { userName } = req.body;
+app.post('/api/registration/start', authLimiter, validateBody(registrationStartSchema), async (req, res) => {
+  const { userName, userId } = req.body as { userName?: string; userId: string };
 
-  // The capture target is always the locally configured admin portal
-  // (SKYGLASS_ADMIN_URL). A client-supplied URL is ignored so this endpoint
-  // cannot be used to make the backend POST to arbitrary hosts.
-  const serverUrl = ADMIN_PORTAL_URL;
+  clearRegistrationTimer();
+  let session: { enrollmentToken: string; expiresAt: number };
+  try {
+    const response = await fetch(`${presenceServerUrl}/api/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...internalHeaders() },
+      body: JSON.stringify({ userId, name: userName ?? null }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const body = (await response.json()) as { enrollmentToken?: string; expiresAt?: number };
+    if (!body.enrollmentToken || typeof body.expiresAt !== 'number') {
+      throw new Error('presence server returned no enrollment token');
+    }
+    session = { enrollmentToken: body.enrollmentToken, expiresAt: body.expiresAt };
+  } catch (error) {
+    registrationMode = idleRegistration(registrationMode);
+    console.error(`Presence server unreachable at ${presenceServerUrl}:`, error);
+    return res.status(502).json({
+      ...registrationMode,
+      error:
+        `Presence server unreachable at ${presenceServerUrl}. ` +
+        'Start it with "npm run dev:admin" (packages/presence/web_server.py) and try again.',
+    });
+  }
 
   registrationMode = {
     active: true,
     startedAt: new Date(),
-    presenceServerUrl: serverUrl,
+    presenceServerUrl,
     samplesCollected: 0,
     samplesNeeded: 5,
     userName: userName || null,
+    userId,
+    enrollmentToken: session.enrollmentToken,
+    expiresAt: session.expiresAt,
   };
+  // The presence server expires the token on its own; mirror that here so the
+  // overlay closes even if its notification is lost.
+  const token = session.enrollmentToken;
+  registrationExpiryTimer = setTimeout(() => {
+    if (registrationMode.active && registrationMode.enrollmentToken === token) {
+      console.log('Registration session expired');
+      endRegistration('cancelled');
+      resetPresenceSession();
+    }
+  }, Math.max(0, session.expiresAt - Date.now()));
+  registrationExpiryTimer.unref?.();
 
+  // Shows the full-screen registration overlay (and camera preview) on the mirror.
   broadcast('registration', {
     ...registrationMode,
     action: 'started',
     currentInstruction: CAPTURE_INSTRUCTIONS[0],
   });
-  console.log(`Registration mode started for user: ${userName || 'Unknown'}`);
+  console.log(`Registration mode started for user: ${registrationMode.userName || 'Unknown'}`);
   res.json(registrationMode);
 });
 
@@ -347,14 +472,18 @@ app.post('/api/registration/capture', async (_req, res) => {
   // Wait for countdown (3 seconds)
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  // Try to trigger capture on presence server
+  // Trigger the capture on the presence server
   try {
-    const captureUrl = `${registrationMode.presenceServerUrl}/api/capture`;
-    const response = await fetch(captureUrl, { method: 'POST' });
-    const result = await response.json() as { success: boolean; samples_captured?: number; message?: string };
+    const response = await fetch(`${presenceServerUrl}/api/capture`, {
+      method: 'POST',
+      headers: internalHeaders(),
+      signal: AbortSignal.timeout(10000),
+    });
+    const result = await response.json() as { success: boolean; samples_captured?: number; message?: string; complete?: boolean };
 
     if (result.success) {
       registrationMode.samplesCollected = result.samples_captured || registrationMode.samplesCollected + 1;
+      const complete = registrationMode.samplesCollected >= registrationMode.samplesNeeded;
 
       // Broadcast captured event
       broadcast('registration', {
@@ -363,17 +492,15 @@ app.post('/api/registration/capture', async (_req, res) => {
         currentInstruction: CAPTURE_INSTRUCTIONS[Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)],
       });
 
-      // Check if complete
-      if (registrationMode.samplesCollected >= registrationMode.samplesNeeded) {
-        registrationMode.active = false;
-        broadcast('registration', { ...registrationMode, action: 'completed' });
+      if (complete) {
+        endRegistration('completed');
         console.log('Registration completed successfully');
       }
 
       res.json({
         success: true,
         samplesCollected: registrationMode.samplesCollected,
-        complete: registrationMode.samplesCollected >= registrationMode.samplesNeeded,
+        complete,
       });
     } else {
       res.json({ success: false, error: result.message || 'Capture failed' });
@@ -384,7 +511,8 @@ app.post('/api/registration/capture', async (_req, res) => {
   }
 });
 
-app.post('/api/registration/progress', validateBody(registrationProgressSchema), (req, res) => {
+// Progress / completion notifications come only from the presence server.
+app.post('/api/registration/progress', requireInternal, validateBody(registrationProgressSchema), (req, res) => {
   const { samplesCollected, samplesNeeded } = req.body;
   registrationMode.samplesCollected = samplesCollected ?? registrationMode.samplesCollected;
   registrationMode.samplesNeeded = samplesNeeded ?? registrationMode.samplesNeeded;
@@ -394,20 +522,24 @@ app.post('/api/registration/progress', validateBody(registrationProgressSchema),
     action: 'progress',
     currentInstruction: CAPTURE_INSTRUCTIONS[Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)],
   });
-  res.json(registrationMode);
+  res.json({ success: true });
 });
 
-app.post('/api/registration/complete', (_req, res) => {
-  registrationMode.active = false;
-  broadcast('registration', { ...registrationMode, action: 'completed' });
+app.post('/api/registration/complete', requireInternal, (_req, res) => {
+  if (registrationMode.active) endRegistration('completed');
   console.log('Registration mode completed');
-  res.json(registrationMode);
+  res.json({ success: true });
 });
 
-app.post('/api/registration/cancel', (_req, res) => {
-  registrationMode.active = false;
-  broadcast('registration', { ...registrationMode, action: 'cancelled' });
+// Called by the phone / CLI (cancel button) and by the presence server when
+// its session ends (source=presence-server, then we do not call it back).
+app.post('/api/registration/cancel', (req, res) => {
+  const source = (req.body as { source?: string } | undefined)?.source;
+  const fromPresence =
+    source === 'presence-server' && isValidInternalToken(req.headers[INTERNAL_TOKEN_HEADER.toLowerCase()]);
+  endRegistration('cancelled');
   console.log('Registration mode cancelled');
+  if (!fromPresence) resetPresenceSession();
   res.json(registrationMode);
 });
 
@@ -416,18 +548,9 @@ app.post('/api/gesture', validateBody(gestureSchema), async (req, res) => {
   const { gesture, confidence } = req.body;
   console.log(`Gesture detected: ${gesture} (confidence: ${confidence})`);
 
-  // Handle gestures
-  if (gesture === 'swipe_left' || gesture === 'swipe_right' || gesture === 'wave') {
-    // Dismiss/sleep gesture
-    await displayManager.forceOff();
-    broadcast('gesture', { gesture, confidence, action: 'sleep' });
-  } else if (gesture === 'palm') {
-    // Wake gesture
-    await displayManager.forceOn();
-    broadcast('gesture', { gesture, confidence, action: 'wake' });
-  }
+  // Every gesture the detector reports (swipe left/right, wave) dismisses the display
+  await displayManager.forceOff();
 
-  broadcast('gesture', { gesture, confidence });
   res.json({ received: true, gesture });
 });
 
@@ -438,7 +561,7 @@ app.post('/api/gesture', validateBody(gestureSchema), async (req, res) => {
 // SKYGLASS_SERVE_FRONTEND=1, and packages/frontend/dist exists.
 const REPO_ROOT = join(__dirname, '..', '..', '..'); // src/ or dist/ -> packages/backend -> packages -> repo
 const FRONTEND_DIST = join(REPO_ROOT, 'packages', 'frontend', 'dist');
-const SPA_EXCLUDED_PREFIXES = ['/api', '/ws', '/setup', '/admin'];
+const SPA_EXCLUDED_PREFIXES = ['/api', '/ws', '/admin'];
 
 const wantFrontend =
   process.env.NODE_ENV === 'production' || process.env.SKYGLASS_SERVE_FRONTEND === '1';
@@ -470,24 +593,14 @@ const PORT = process.env.PORT || 3001;
 async function refreshAviationData() {
   console.log('Refreshing aviation data...');
   try {
+    // Cache warmer: widgets fetch /api/aviation/metar|taf themselves.
     const metar = await aviationData.getMetar(config.airport, true);
     if (metar) {
-      broadcast('metar', {
-        icao: config.airport,
-        raw: metar.raw,
-        flightRules: metar.flightRules,
-        parsed: metar.parsed,
-      });
       console.log(`METAR updated: ${config.airport} - ${metar.flightRules}`);
     }
 
     const taf = await aviationData.getTaf(config.airport, true);
     if (taf) {
-      broadcast('taf', {
-        icao: config.airport,
-        raw: taf.raw,
-        parsed: taf.parsed,
-      });
       console.log(`TAF updated: ${config.airport}`);
     }
   } catch (error) {
@@ -524,29 +637,31 @@ async function start() {
   // Initialize display manager
   await displayManager.init();
 
-  // Validate/activate license on startup
-  if (config.license?.enabled) {
-    console.log('[License] Validating license...');
-    const licenseValid = await licenseService.validateLicense();
-    if (!licenseValid) {
-      console.log('[License] License validation failed - app will show invalid screen');
-    } else {
-      console.log('[License] License validated successfully');
+  // License (docs/LICENSING.md): load the stored state now and check with
+  // the server in the background; startup never waits on the network.
+  licenseManager.onChange((status) => broadcast('license', status));
+  if (config.license.enabled) {
+    if (usingPlaceholderPublicKey()) {
+      console.warn('[License] Using the placeholder public key: no activation token will verify');
     }
+    // A throw here (DB or config trouble) must not abort start() before
+    // listen(): the process would stay up without serving anything.
+    try {
+      licenseManager.start();
+      console.log(`[License] State: ${licenseManager.getStatus().state}`);
+    } catch (error) {
+      console.error('[License] Failed to start license checks:', error);
+    }
+  } else {
+    console.log('[License] Licensing disabled');
   }
 
   // Initialize update service (check every 24 hours, notify only by default)
-  await updateService.init(
-    {
-      autoUpdate: false,
-      checkInterval: 24,
-      notifyOnly: true,
-    },
-    (status) => {
-      // Broadcast update availability to all connected clients
-      broadcast('update', status);
-    }
-  );
+  await updateService.init({
+    autoUpdate: false,
+    checkInterval: 24,
+    notifyOnly: true,
+  });
 
   server.listen(PORT, async () => {
     console.log(`SkyGlass backend running on http://localhost:${PORT}`);
@@ -556,6 +671,7 @@ async function start() {
     // Start mDNS service advertising
     try {
       await mdnsService.start({
+        mirrorId: getMirrorId(),
         port: Number(PORT),
         version: process.env.npm_package_version || '0.1.0',
       });
@@ -565,6 +681,9 @@ async function start() {
 
     // Initial data fetch on startup
     setTimeout(refreshAviationData, 2000);
+
+    // Calendar accounts: background sync every calendar.refresh_minutes
+    calendarService.start();
 
     // Connect to cloud relay if token exists
     setTimeout(() => {
@@ -580,6 +699,8 @@ async function start() {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\nShutting down...');
+  calendarService.stop();
+  licenseManager.stop();
   relayClient.disconnect();
   await mdnsService.stop();
   process.exit(0);
@@ -587,9 +708,25 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
   console.log('\nShutting down...');
+  calendarService.stop();
+  licenseManager.stop();
   relayClient.disconnect();
   await mdnsService.stop();
   process.exit(0);
 });
 
-start().catch(console.error);
+// Tests import this module for the route stack (pairing/deny-by-default.test.ts)
+// and set SKYGLASS_NO_LISTEN=1 so nothing starts or listens.
+export { app };
+if (process.env.SKYGLASS_NO_LISTEN !== '1') {
+  // A stray rejection (a background job without a catch) is logged instead
+  // of terminating the mirror's backend (Node's default since v15).
+  process.on('unhandledRejection', (reason) => {
+    console.error('[Process] Unhandled promise rejection:', reason);
+  });
+  start().catch((error) => {
+    // Alive but not listening helps nobody: exit so PM2/systemd restarts us.
+    console.error('[Server] Startup failed:', error);
+    process.exit(1);
+  });
+}

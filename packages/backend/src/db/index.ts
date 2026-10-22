@@ -43,12 +43,14 @@ export interface DbMirrorSetting {
   value: string;
 }
 
-export interface DbLicenseCache {
-  id: number;
-  license_key: string;
-  status: 'valid' | 'invalid' | 'not_activated';
+/** Single-row license state (see src/license/manager.ts). */
+export interface DbLicenseState {
+  license_key: string | null;
+  token: string | null;
+  state: string;
   activated_at: string | null;
-  updated_at: string;
+  last_checked_at: string | null;
+  last_error: string | null;
 }
 
 /**
@@ -96,17 +98,6 @@ export function getDb(): Database.Database {
 }
 
 /**
- * Close the database connection
- */
-export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
-    console.log('[Database] Connection closed');
-  }
-}
-
-/**
  * Run database migrations
  */
 function runMigrations(db: Database.Database): void {
@@ -144,12 +135,18 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_user_layouts_user_id ON user_layouts(user_id);
     CREATE INDEX IF NOT EXISTS idx_user_layouts_active ON user_layouts(user_id, is_active);
 
-    -- License cache: stores local license validation status
-    CREATE TABLE IF NOT EXISTS license_cache (
+    -- License: the key entered from the app (or picked up from the SD card),
+    -- the last signed activation token and the derived state.
+    DROP TABLE IF EXISTS license_cache;
+    DELETE FROM mirror_settings WHERE key = 'licenseKey';
+    CREATE TABLE IF NOT EXISTS license_state (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       license_key TEXT,
-      status TEXT DEFAULT 'not_activated' CHECK (status IN ('valid', 'invalid', 'not_activated')),
+      token TEXT,
+      state TEXT NOT NULL DEFAULT 'unlicensed',
       activated_at TEXT,
+      last_checked_at TEXT,
+      last_error TEXT,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -188,13 +185,6 @@ export function getMirrorId(): string {
 export function getMirrorName(): string {
   const row = getDb().prepare('SELECT value FROM mirror_settings WHERE key = ?').get('mirrorName') as DbMirrorSetting;
   return row?.value || 'SkyGlass';
-}
-
-/**
- * Set mirror name
- */
-export function setMirrorName(name: string): void {
-  getDb().prepare('INSERT OR REPLACE INTO mirror_settings (key, value) VALUES (?, ?)').run('mirrorName', name);
 }
 
 // User operations
@@ -353,60 +343,28 @@ export function deleteLayout(layoutId: string): boolean {
 
 // License operations
 
-/**
- * Get stored license key (entered by user via mobile app)
- */
-export function getStoredLicenseKey(): string | null {
-  const row = getDb().prepare('SELECT value FROM mirror_settings WHERE key = ?').get('licenseKey') as DbMirrorSetting | undefined;
-  return row?.value || null;
+export function getLicenseState(): DbLicenseState | null {
+  const row = getDb()
+    .prepare(
+      'SELECT license_key, token, state, activated_at, last_checked_at, last_error FROM license_state WHERE id = 1'
+    )
+    .get() as DbLicenseState | undefined;
+  return row ?? null;
 }
 
-/**
- * Store license key (from mobile app)
- */
-export function setStoredLicenseKey(licenseKey: string): void {
-  getDb().prepare('INSERT OR REPLACE INTO mirror_settings (key, value) VALUES (?, ?)').run('licenseKey', licenseKey);
-}
-
-/**
- * Clear stored license key
- */
-export function clearStoredLicenseKey(): void {
-  getDb().prepare('DELETE FROM mirror_settings WHERE key = ?').run('licenseKey');
-}
-
-// License cache operations
-
-/**
- * Get cached license status
- */
-export function getLicenseCache(): DbLicenseCache | null {
-  return getDb().prepare('SELECT * FROM license_cache WHERE id = 1').get() as DbLicenseCache | null;
-}
-
-/**
- * Update cached license status
- */
-export function updateLicenseCache(
-  licenseKey: string,
-  status: 'valid' | 'invalid' | 'not_activated',
-  activatedAt?: string
-): void {
-  const now = new Date().toISOString();
-  getDb().prepare(`
-    INSERT INTO license_cache (id, license_key, status, activated_at, updated_at)
-    VALUES (1, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      license_key = excluded.license_key,
-      status = excluded.status,
-      activated_at = excluded.activated_at,
-      updated_at = excluded.updated_at
-  `).run(licenseKey, status, activatedAt || null, now);
-}
-
-/**
- * Clear license cache
- */
-export function clearLicenseCache(): void {
-  getDb().prepare('DELETE FROM license_cache WHERE id = 1').run();
+export function saveLicenseState(record: DbLicenseState): void {
+  getDb()
+    .prepare(
+      `INSERT INTO license_state (id, license_key, token, state, activated_at, last_checked_at, last_error, updated_at)
+       VALUES (1, @license_key, @token, @state, @activated_at, @last_checked_at, @last_error, @updated_at)
+       ON CONFLICT(id) DO UPDATE SET
+         license_key = excluded.license_key,
+         token = excluded.token,
+         state = excluded.state,
+         activated_at = excluded.activated_at,
+         last_checked_at = excluded.last_checked_at,
+         last_error = excluded.last_error,
+         updated_at = excluded.updated_at`
+    )
+    .run({ ...record, updated_at: new Date().toISOString() });
 }

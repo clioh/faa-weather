@@ -4,31 +4,12 @@
  */
 
 import express from 'express';
-import { updateService, DownloadProgress } from '../services/updater.js';
+import { updateService } from '../services/updater.js';
 import { criticalLimiter } from '../middleware/rateLimiter.js';
 import { validateBody } from '../middleware/validate.js';
 import { updateConfigSchema } from '../validation/schemas.js';
 
 const router = express.Router();
-
-// Store WebSocket broadcast function (set from server.ts)
-let broadcastProgress: ((progress: DownloadProgress) => void) | null = null;
-
-export function setProgressBroadcaster(fn: (progress: DownloadProgress) => void): void {
-  broadcastProgress = fn;
-
-  // Subscribe to update service events
-  updateService.on('downloadProgress', (progress: DownloadProgress) => {
-    if (broadcastProgress) {
-      broadcastProgress(progress);
-    }
-  });
-
-  updateService.on('updateAvailable', (status) => {
-    // Could broadcast update availability too
-    console.log('Update available broadcast:', status.latestVersion);
-  });
-}
 
 /**
  * GET /api/update/status

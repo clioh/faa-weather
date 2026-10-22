@@ -8,19 +8,30 @@ import helmet from 'helmet';
 import type { RequestHandler } from 'express';
 
 /**
- * Security middleware with helmet.js configuration.
- * Allows unsafe-inline for setup wizard which uses inline scripts/styles.
+ * Security middleware with helmet.js configuration. The CSP covers the built
+ * mirror UI (packages/frontend/dist) that this server serves in production.
  */
 export const securityMiddleware: RequestHandler = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for setup wizard
-      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for setup wizard
-      // http://*:5000 = presence server MJPEG video feed (RegistrationOverlay)
-      imgSrc: ["'self'", 'data:', 'blob:', 'http://*:5000', 'https://*:5000'],
+      scriptSrc: ["'self'"],
+      // frontend index.html carries an inline <style> reset
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      // http://*:5000 = presence server MJPEG video feed (RegistrationOverlay);
+      // radar widget draws Esri basemap + RainViewer tiles
+      imgSrc: [
+        "'self'",
+        'data:',
+        'blob:',
+        'http://*:5000',
+        'https://*:5000',
+        'https://server.arcgisonline.com',
+        'https://tilecache.rainviewer.com',
+      ],
       fontSrc: ["'self'"],
-      connectSrc: ["'self'", 'ws:', 'wss:'], // Allow WebSocket connections
+      // WebSocket + radar widget's RainViewer frame list
+      connectSrc: ["'self'", 'ws:', 'wss:', 'https://api.rainviewer.com'],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],

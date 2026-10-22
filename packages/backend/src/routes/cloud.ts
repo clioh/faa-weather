@@ -107,7 +107,7 @@ router.post('/reconnect', (_req: Request, res: Response) => {
  */
 router.get('/config', (_req: Request, res: Response) => {
   res.json({
-    relayUrl: process.env.CLOUD_RELAY_URL || 'wss://api.magicmirror.app/ws/relay',
+    relayUrl: process.env.CLOUD_RELAY_URL || 'wss://api.skyglass.dev/ws/relay',
     mirrorId: getMirrorId(),
   });
 });

@@ -64,38 +64,14 @@ export function validateQuery<T>(schema: ZodSchema<T>): RequestHandler {
       return;
     }
 
-    // Replace query with parsed/transformed data
-    (req as Request & { query: T }).query = result.data as T & typeof req.query;
+    // Express 5 exposes req.query as a getter, so plain assignment throws;
+    // shadow it with an own data property holding the parsed/transformed data.
+    Object.defineProperty(req, 'query', {
+      value: result.data,
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
     next();
   };
 }
-
-/**
- * Middleware factory that validates request params against a Zod schema.
- *
- * @param schema - Zod schema to validate against
- * @returns Express middleware that validates req.params
- */
-export function validateParams<T>(schema: ZodSchema<T>): RequestHandler {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const result = schema.safeParse(req.params);
-
-    if (!result.success) {
-      res.status(400).json({
-        error: 'Invalid path parameters',
-        details: formatZodErrors(result.error),
-      });
-      return;
-    }
-
-    // Replace params with parsed/transformed data
-    req.params = result.data as T & typeof req.params;
-    next();
-  };
-}
-
-export default {
-  validateBody,
-  validateQuery,
-  validateParams,
-};

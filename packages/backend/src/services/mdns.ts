@@ -11,14 +11,21 @@ import { networkInterfaces, hostname } from 'os';
 interface MdnsServiceOptions {
   name?: string;
   port: number;
-  mirrorId?: string;
+  /** Persistent id from the database (db getMirrorId), stable across boots. */
+  mirrorId: string;
   version?: string;
 }
+
+/** How often to check whether the mirror's LAN address changed. */
+const ADDRESS_CHECK_MS = 30_000;
 
 class MdnsService {
   private bonjour: Bonjour | null = null;
   private publishedService: Service | null = null;
   private isRunning = false;
+  private options: MdnsServiceOptions | null = null;
+  private publishedAddresses = '';
+  private addressTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Get the local IP addresses (non-localhost)
@@ -42,15 +49,6 @@ class MdnsService {
   }
 
   /**
-   * Generate a unique mirror ID based on hostname and MAC
-   */
-  private generateMirrorId(): string {
-    const host = hostname().toLowerCase().replace(/[^a-z0-9]/g, '');
-    const timestamp = Date.now().toString(36).slice(-4);
-    return `mirror-${host}-${timestamp}`;
-  }
-
-  /**
    * Start advertising the SkyGlass service
    */
   async start(options: MdnsServiceOptions): Promise<void> {
@@ -62,7 +60,7 @@ class MdnsService {
     const {
       name = `SkyGlass-${hostname()}`,
       port,
-      mirrorId = this.generateMirrorId(),
+      mirrorId,
       version = '0.1.0',
     } = options;
 
@@ -89,6 +87,9 @@ class MdnsService {
       });
 
       this.isRunning = true;
+      this.options = options;
+      this.publishedAddresses = ipAddresses.join(',');
+      this.watchAddresses();
 
       console.log('[mDNS] Service published:');
       console.log(`  Name: ${name}`);
@@ -103,9 +104,33 @@ class MdnsService {
   }
 
   /**
+   * Re-advertise when the LAN address changes (new DHCP lease, different
+   * network): the TXT record carries the address, and the responder's
+   * sockets belong to the old interface state. The phone app finds the mirror
+   * again by the `id` TXT entry, which never changes.
+   */
+  private watchAddresses(): void {
+    if (this.addressTimer) return;
+    this.addressTimer = setInterval(() => {
+      const current = this.getLocalIpAddresses().join(',');
+      if (!this.isRunning || !this.options || current === this.publishedAddresses) return;
+      console.log(`[mDNS] Addresses changed (${this.publishedAddresses || 'none'} -> ${current || 'none'}); re-advertising`);
+      const options = this.options;
+      void this.stop().then(() => this.start(options)).catch((error) => {
+        console.error('[mDNS] Failed to re-advertise:', error);
+      });
+    }, ADDRESS_CHECK_MS);
+    this.addressTimer.unref?.();
+  }
+
+  /**
    * Stop advertising the service
    */
   async stop(): Promise<void> {
+    if (this.addressTimer) {
+      clearInterval(this.addressTimer);
+      this.addressTimer = null;
+    }
     if (!this.isRunning) return;
 
     try {

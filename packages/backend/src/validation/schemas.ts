@@ -95,24 +95,6 @@ export const layoutSchema = z.object({
 export type LayoutInput = z.infer<typeof layoutSchema>;
 
 /**
- * Add module schema.
- */
-export const addModuleSchema = moduleInstanceSchema;
-
-export type AddModuleInput = z.infer<typeof addModuleSchema>;
-
-/**
- * Module update schema (PATCH).
- */
-export const moduleUpdateSchema = z.object({
-  position: modulePositionSchema.optional(),
-  size: moduleSizeSchema.optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
-});
-
-export type ModuleUpdateInput = z.infer<typeof moduleUpdateSchema>;
-
-/**
  * OAuth token storage schema.
  */
 export const oauthTokenSchema = z.object({
@@ -124,37 +106,7 @@ export const oauthTokenSchema = z.object({
 
 export type OAuthTokenInput = z.infer<typeof oauthTokenSchema>;
 
-/**
- * Save layout schema.
- */
-export const saveLayoutSchema = z.object({
-  name: z.string().min(1).max(100),
-});
-
-export type SaveLayoutInput = z.infer<typeof saveLayoutSchema>;
-
 // ============= Setup Schemas =============
-
-/**
- * Setup config schema.
- */
-export const setupConfigSchema = z.object({
-  airport: z
-    .string()
-    .length(4)
-    .regex(/^[A-Z]{4}$/i, 'Must be a valid 4-letter ICAO code')
-    .transform((v) => v.toUpperCase())
-    .optional(),
-  location: z
-    .object({
-      latitude: z.number().min(-90).max(90),
-      longitude: z.number().min(-180).max(180),
-      timezone: z.string().max(100).optional(),
-    })
-    .optional(),
-});
-
-export type SetupConfigInput = z.infer<typeof setupConfigSchema>;
 
 /**
  * POST /api/setup/airport body (mobile app sends `{ icao }`).
@@ -190,7 +142,7 @@ export const wifiConnectSchema = z.object({
  * Gesture event schema.
  */
 export const gestureSchema = z.object({
-  gesture: z.enum(['swipe_left', 'swipe_right', 'wave', 'palm', 'thumbs_up', 'thumbs_down']),
+  gesture: z.enum(['swipe_left', 'swipe_right', 'wave']),
   confidence: z.number().min(0).max(1).optional(),
 });
 
@@ -202,9 +154,10 @@ export type GestureInput = z.infer<typeof gestureSchema>;
  * Start registration schema.
  */
 export const registrationStartSchema = z.object({
-  // Deprecated and ignored: the backend always targets SKYGLASS_ADMIN_URL.
-  presenceServerUrl: z.string().url().optional(),
   userName: z.string().max(100).optional(),
+  // The app's user profile id. The presence server stores the captured face
+  // under face_data/users/<userId>/ so the app can list and delete it.
+  userId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
 });
 
 export type RegistrationStartInput = z.infer<typeof registrationStartSchema>;
@@ -234,24 +187,163 @@ export const updateConfigSchema = z.object({
 
 export type UpdateConfigInput = z.infer<typeof updateConfigSchema>;
 
-// ============= Export all schemas =============
+/**
+ * Display hold: keep the mirror awake while the app edits or previews a layout.
+ */
+export const displayHoldSchema = z.object({
+  seconds: z.number().int().min(5).max(600).optional(),
+});
 
-export default {
-  presenceSchema,
-  createUserSchema,
-  userLayoutModulesSchema,
-  createUserLayoutSchema,
-  layoutSchema,
-  addModuleSchema,
-  moduleUpdateSchema,
-  oauthTokenSchema,
-  saveLayoutSchema,
-  setupConfigSchema,
-  setupAirportSchema,
-  setupLocationSchema,
-  wifiConnectSchema,
-  gestureSchema,
-  registrationStartSchema,
-  registrationProgressSchema,
-  updateConfigSchema,
-};
+// ============= Widget data schemas (query + body) =============
+
+/** Express gives repeated query keys as arrays; take the first value. */
+const firstQueryValue = (v: unknown) => (Array.isArray(v) ? v[0] : v);
+const queryString = z.preprocess(firstQueryValue, z.string());
+const queryNumber = z.preprocess(firstQueryValue, z.coerce.number());
+
+const latitude = queryNumber.pipe(z.number().min(-90).max(90));
+const longitude = queryNumber.pipe(z.number().min(-180).max(180));
+const unitsQuery = z.preprocess(firstQueryValue, z.enum(['imperial', 'metric']).default('imperial'));
+
+/** Comma-separated list → uppercase, de-duplicated, non-empty tokens. */
+const symbolList = (max: number, pattern: RegExp) =>
+  queryString
+    .transform((s) => [...new Set(s.split(',').map((t) => t.trim().toUpperCase()).filter(Boolean))])
+    .pipe(
+      z
+        .array(z.string().regex(pattern, 'Invalid symbol'))
+        .min(1, 'At least one symbol is required')
+        .max(max, `At most ${max} symbols`),
+    );
+
+export const newsQuerySchema = z
+  .object({
+    source: z.preprocess(
+      firstQueryValue,
+      z.enum(['world', 'us', 'business', 'technology', 'sports', 'aviation', 'custom']).default('world'),
+    ),
+    url: queryString.pipe(z.string().trim().max(2048)).optional(),
+    limit: z.preprocess(firstQueryValue, z.coerce.number().int().min(1).max(30).default(10)),
+  })
+  .refine((q) => q.source !== 'custom' || !!q.url, { message: 'url is required for custom source', path: ['url'] });
+
+export const stocksQuerySchema = z.object({
+  symbols: symbolList(12, /^[A-Z0-9^][A-Z0-9.^-]{0,14}$/),
+});
+
+export const cryptoQuerySchema = z.object({
+  coins: symbolList(10, /^[A-Z0-9]{1,10}$/),
+  currency: z.preprocess(
+    (v) => (typeof firstQueryValue(v) === 'string' ? (firstQueryValue(v) as string).toUpperCase() : firstQueryValue(v)),
+    z.enum(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF']).default('USD'),
+  ),
+});
+
+export const weatherCurrentQuerySchema = z.object({
+  lat: latitude,
+  lon: longitude,
+  units: unitsQuery,
+});
+
+export const weatherForecastQuerySchema = weatherCurrentQuerySchema.extend({
+  days: z.preprocess(firstQueryValue, z.coerce.number().int().min(1).max(16).default(5)),
+});
+
+export const windsAloftQuerySchema = z.object({
+  lat: latitude,
+  lon: longitude,
+  maxAltitude: z.preprocess(firstQueryValue, z.coerce.number().int().min(3000).max(53000).default(12000)),
+});
+
+const todoText = z.string().trim().min(1, 'Text is required').max(500);
+
+export const createTodoSchema = z.object({ text: todoText });
+
+export const updateTodoSchema = z
+  .object({ text: todoText.optional(), done: z.boolean().optional() })
+  .refine((v) => v.text !== undefined || v.done !== undefined, { message: 'Nothing to update' });
+
+export const replaceTodosSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, 'Invalid id'),
+        text: todoText,
+        done: z.boolean(),
+      }),
+    )
+    .max(200),
+});
+
+export const tfrQuerySchema = z
+  .object({
+    refresh: z.preprocess(firstQueryValue, z.string().optional()),
+    lat: latitude.optional(),
+    lon: longitude.optional(),
+    radiusNm: queryNumber.pipe(z.number().positive().max(3000)).optional(),
+  })
+  .refine((q) => (q.lat === undefined) === (q.lon === undefined), {
+    message: 'lat and lon must be given together',
+    path: ['lat'],
+  })
+  .refine((q) => q.radiusNm === undefined || q.lat !== undefined, {
+    message: 'radiusNm requires lat and lon',
+    path: ['radiusNm'],
+  });
+
+// ============= Calendar Schemas =============
+// Messages are shown verbatim by the phone app.
+
+const calendarLabel = z.string().trim().min(1, 'Label is required').max(60, 'Label is too long (max 60 characters)');
+
+export const calendarPatchSchema = z.object({
+  label: calendarLabel.optional(),
+  calendars: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(1024),
+        enabled: z.boolean().optional(),
+        color: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/, 'Color must be #rrggbb')
+          .optional(),
+      }),
+    )
+    .max(200)
+    .optional(),
+});
+
+export const googleStartSchema = z.object({
+  returnUrl: z
+    .string({ error: 'returnUrl is required' })
+    .max(2048, 'Invalid return URL')
+    .regex(/^(skyglass|exp|exp\+skyglass):\/\//, 'Invalid return URL'),
+});
+
+export const googleCompleteSchema = z.object({
+  code: z.string({ error: 'Missing authorization code' }).min(1, 'Missing authorization code').max(4096),
+  state: z.string({ error: 'Missing state' }).min(1, 'Missing state').max(4096),
+});
+
+export const caldavAccountSchema = z
+  .object({
+    provider: z.enum(['icloud', 'caldav'], { error: "provider must be 'icloud' or 'caldav'" }),
+    serverUrl: z.string().trim().max(2048, 'Server address is too long').optional(),
+    username: z.string({ error: 'Username is required' }).trim().min(1, 'Username is required').max(320),
+    password: z.string({ error: 'Password is required' }).min(1, 'Password is required').max(1024),
+    label: calendarLabel.optional(),
+  })
+  .refine((v) => v.provider !== 'caldav' || !!v.serverUrl, {
+    message: 'Enter the CalDAV server address',
+    path: ['serverUrl'],
+  });
+
+export const icsAccountSchema = z.object({
+  url: z
+    .string({ error: 'Calendar link is required' })
+    .trim()
+    .min(1, 'Calendar link is required')
+    .max(4096, 'Calendar link is too long')
+    .regex(/^(https?|webcals?):\/\//i, 'Calendar link must start with https://, http:// or webcal://'),
+  label: calendarLabel.optional(),
+});

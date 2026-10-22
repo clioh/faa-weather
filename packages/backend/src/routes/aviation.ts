@@ -4,15 +4,18 @@
  */
 
 import { Router } from 'express';
-import { aviationData } from '../services/aviation.js';
+import { aviationData, filterTfrsByDistance } from '../services/aviation.js';
 import { formatWind, formatVisibility, formatClouds } from '../services/metar-parser.js';
-import {
-  getCurrentPeriod,
-  getFlightTimeForecast,
-  parseLocalFlightTime,
-} from '../services/taf-parser.js';
+import { getCurrentPeriod } from '../services/taf-parser.js';
 import { AstroDataManager, formatTime, formatZulu, getUpcomingEvent } from '../services/astro.js';
-import { notamData, filterNotamsByCategory, filterActiveNotams } from '../services/notam.js';
+import {
+  notamData,
+  filterNotamsByCategory,
+  filterActiveNotams,
+  classifyNotam,
+} from '../services/notam.js';
+import { validateQuery } from '../middleware/validate.js';
+import { tfrQuerySchema } from '../validation/schemas.js';
 import { loadConfig } from '../config/index.js';
 
 const router = Router();
@@ -102,61 +105,25 @@ router.get('/taf/:icao', async (req, res) => {
 });
 
 /**
- * GET /api/aviation/taf/:icao/forecast
- * Get TAF forecast for a specific flight time
- * Query params:
- *   - time: Local time string (e.g., "14:30", "1430")
- *   - date: ISO date string (e.g., "2024-01-15")
- *   - timezone: Optional timezone override
- */
-router.get('/taf/:icao/forecast', async (req, res) => {
-  try {
-    const { icao } = req.params;
-    const { time, date, timezone } = req.query;
-
-    if (!time) {
-      return res.status(400).json({ error: 'time parameter required' });
-    }
-
-    const taf = await aviationData.getTaf(icao);
-    if (!taf) {
-      return res.status(404).json({ error: `No TAF found for ${icao}` });
-    }
-
-    // Parse the flight date
-    const flightDate = date ? new Date(date as string) : new Date();
-    const tz = (timezone as string) || config.location.timezone;
-
-    // Convert local time to UTC for TAF comparison
-    const utcTime = parseLocalFlightTime(time as string, flightDate, tz);
-
-    // Get forecast for that time
-    const forecast = getFlightTimeForecast(taf.parsed, utcTime);
-
-    res.json({
-      icao: icao.toUpperCase(),
-      requestedTime: {
-        local: `${time} ${tz}`,
-        utc: formatZulu(utcTime),
-      },
-      forecast: forecast.period,
-      warnings: forecast.warnings,
-      raw: taf.raw,
-    });
-  } catch (error) {
-    console.error('TAF forecast route error:', error);
-    res.status(500).json({ error: 'Failed to get TAF forecast' });
-  }
-});
-
-/**
  * GET /api/aviation/tfrs
  * Fetch active TFRs
  */
-router.get('/tfrs', async (req, res) => {
+router.get('/tfrs', validateQuery(tfrQuerySchema), async (req, res) => {
   try {
-    const forceRefresh = req.query.refresh === 'true';
-    const tfrs = await aviationData.getTfrs(forceRefresh);
+    const { refresh, lat, lon, radiusNm } = req.query as unknown as {
+      refresh?: string;
+      lat?: number;
+      lon?: number;
+      radiusNm?: number;
+    };
+    const all = await aviationData.getTfrs(refresh === 'true');
+
+    // With lat/lon each TFR gets distanceNm (null when no shape is published);
+    // radiusNm additionally drops TFRs farther away (null-distance ones are kept).
+    const tfrs =
+      lat !== undefined && lon !== undefined
+        ? filterTfrsByDistance(all, lat, lon, radiusNm ?? Infinity, aviationData.getTfrGeometry())
+        : all;
 
     res.json({
       count: tfrs.length,
@@ -173,7 +140,8 @@ router.get('/tfrs', async (req, res) => {
  * Fetch NOTAMs for an airport
  * Query params:
  *   - active: Only return currently active NOTAMs (default: true)
- *   - categories: Comma-separated list of categories to filter
+ *   - categories: Comma-separated derived categories (runway, taxiway, obstacle,
+ *     airspace, navaid, approach, other); see classifyNotam
  */
 router.get('/notams/:icao', async (req, res) => {
   try {
@@ -202,6 +170,7 @@ router.get('/notams/:icao', async (req, res) => {
         id: n.id,
         type: n.type,
         classification: n.classification,
+        category: classifyNotam(n.description),
         description: n.description,
         effectiveStart: n.effectiveStart.toISOString(),
         effectiveEnd: n.effectiveEnd?.toISOString() || null,
@@ -223,7 +192,7 @@ router.get('/notams/:icao', async (req, res) => {
 });
 
 /**
- * GET /api/astro
+ * GET /api/aviation/astro
  * Get astronomical data for today
  */
 router.get('/astro', (_req, res) => {
@@ -273,58 +242,6 @@ router.get('/astro', (_req, res) => {
     });
   } catch (error) {
     console.error('Astro route error:', error);
-    res.status(500).json({ error: 'Failed to calculate astronomical data' });
-  }
-});
-
-/**
- * GET /api/astro/:date
- * Get astronomical data for a specific date
- */
-router.get('/astro/:date', (req, res) => {
-  try {
-    const { date } = req.params;
-    const targetDate = new Date(date);
-
-    if (isNaN(targetDate.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
-
-    const astro = astroManager.getForDate(targetDate);
-
-    res.json({
-      date: astro.date,
-      sun: {
-        sunrise: {
-          time: astro.sun.sunrise.toISOString(),
-          local: formatTime(astro.sun.sunrise, config.location.timezone),
-          zulu: formatZulu(astro.sun.sunrise),
-        },
-        sunset: {
-          time: astro.sun.sunset.toISOString(),
-          local: formatTime(astro.sun.sunset, config.location.timezone),
-          zulu: formatZulu(astro.sun.sunset),
-        },
-        civilDawn: {
-          time: astro.sun.civilDawn.toISOString(),
-          local: formatTime(astro.sun.civilDawn, config.location.timezone),
-          zulu: formatZulu(astro.sun.civilDawn),
-        },
-        civilDusk: {
-          time: astro.sun.civilDusk.toISOString(),
-          local: formatTime(astro.sun.civilDusk, config.location.timezone),
-          zulu: formatZulu(astro.sun.civilDusk),
-        },
-      },
-      moon: {
-        phase: astro.moon.phase,
-        phaseName: astro.moon.phaseName,
-        illumination: astro.moon.illumination,
-      },
-      location: astro.location,
-    });
-  } catch (error) {
-    console.error('Astro date route error:', error);
     res.status(500).json({ error: 'Failed to calculate astronomical data' });
   }
 });

@@ -19,25 +19,12 @@ const getAllowedOrigins = (): (string | RegExp)[] => {
   origins.push(/^https?:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/);
   origins.push(/^https?:\/\/172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}(:\d+)?$/);
 
-  // Allow localhost with any port
+  // Allow localhost with any port (covers the Vite, Metro and Expo dev servers)
   origins.push(/^https?:\/\/localhost(:\d+)?$/);
   origins.push(/^https?:\/\/127\.0\.0\.1(:\d+)?$/);
 
-  // Allow Capacitor (mobile app)
-  origins.push('capacitor://localhost');
-  origins.push('ionic://localhost');
-
   // Allow file:// protocol (for local development)
   origins.push('file://');
-
-  if (process.env.NODE_ENV === 'development') {
-    // Development-specific origins
-    origins.push('http://localhost:3000'); // React dev server
-    origins.push('http://localhost:5173'); // Vite dev server
-    origins.push('http://localhost:8081'); // Metro bundler (React Native)
-    origins.push('http://localhost:19000'); // Expo
-    origins.push('http://localhost:19006'); // Expo web
-  }
 
   if (process.env.NODE_ENV === 'production') {
     // Production-specific origins

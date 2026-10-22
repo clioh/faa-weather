@@ -8,6 +8,22 @@ import {
 
 describe('METAR Parser', () => {
   describe('parseMetar', () => {
+    it('should drop the METAR/SPECI report-type prefix used by aviationweather.gov', () => {
+      const raw = 'METAR KSFO 150656Z 00000KT 10SM CLR 17/07 A3012 RMK AO2 SLP198 T01720072 $';
+      const result = parseMetar(raw);
+
+      expect(result.icao).toBe('KSFO');
+      expect(result.observationTime).toBe('150656');
+      expect(result.wind?.speed).toBe(0);
+      expect(result.temperature).toBe(17);
+
+      const speci = parseMetar('SPECI KSFO 150712Z 27012G20KT 3SM BR OVC008 15/14 A3010');
+      expect(speci.icao).toBe('KSFO');
+      expect(speci.observationTime).toBe('150712');
+      expect(speci.wind?.gust).toBe(20);
+      expect(speci.ceiling).toBe(800);
+    });
+
     it('should parse a standard METAR', () => {
       const raw = 'KJFK 151951Z 31008KT 10SM FEW045 SCT250 17/01 A3012 RMK AO2 SLP203';
       const result = parseMetar(raw);
