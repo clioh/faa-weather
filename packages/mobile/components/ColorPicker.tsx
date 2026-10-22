@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { ScreenHeader } from './ScreenHeader';
 
 // Preset color palettes
 const COLOR_PRESETS = [
@@ -117,14 +118,19 @@ export function ColorPicker({
     >
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Choose Color</Text>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="Choose Color"
+          leftIcon="close"
+          onLeftPress={handleClose}
+          useTopInset={false}
+        />
 
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+        >
           {/* Preview */}
           <View style={styles.previewSection}>
             <View style={[styles.previewSwatch, { backgroundColor: selectedColor }]} />
@@ -227,25 +233,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    ...typography.h2,
-    color: colors.text,
-  },
-  closeButton: {
-    padding: spacing.sm,
-  },
   content: {
     padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   previewSection: {
     alignItems: 'center',

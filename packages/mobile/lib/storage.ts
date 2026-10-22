@@ -8,6 +8,7 @@
 import 'react-native-get-random-values';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
+import { isMirrorId } from './mirrorLocator';
 
 /**
  * Storage error for validation failures
@@ -69,10 +70,9 @@ const STORAGE_KEYS = {
   USER_PROFILE: '@skyglass:userProfile',
   LINKED_MIRRORS: '@skyglass:linkedMirrors',
   ONBOARDING_STATE: '@skyglass:onboardingState',
+  PENDING_MIRROR: '@skyglass:pendingMirror',
   // Cloud sync keys
   CLOUD_SYNC_ENABLED: '@skyglass:cloudSyncEnabled',
-  LAST_SYNC_TIMESTAMP: '@skyglass:lastSyncTimestamp',
-  PENDING_SYNC_CHANGES: '@skyglass:pendingSyncChanges',
 } as const;
 
 export interface UserProfile {
@@ -92,6 +92,12 @@ export interface LinkedMirror {
   faceEnrolled: boolean;
   enrolledAt?: string;
   lastConnected: string;
+}
+
+/** A mirror address handed to the app by a deep link (QR code on the mirror). */
+export interface PendingMirror {
+  host: string;
+  port: number;
 }
 
 export type OnboardingPhase = 'welcome' | 'profile' | 'discover' | 'setup' | 'template' | 'complete';
@@ -177,11 +183,6 @@ export const storage = {
     return updated;
   },
 
-  async deleteUserProfile(): Promise<void> {
-    await AsyncStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
-    console.log('[Storage] Deleted user profile');
-  },
-
   // Linked Mirrors Methods
 
   async getLinkedMirrors(): Promise<LinkedMirror[]> {
@@ -235,7 +236,16 @@ export const storage = {
       throw new StorageValidationError('Invalid mirror port');
     }
 
-    const mirrors = await this.getLinkedMirrors();
+    let mirrors = await this.getLinkedMirrors();
+
+    // Entries saved before the app stored the mirror's real id (it used the
+    // mirror's name, "unknown" or host:port) are replaced by the verified
+    // entry for the same address, which fills in the id.
+    if (isMirrorId(mirror.mirrorId)) {
+      mirrors = mirrors.filter(
+        (m) => isMirrorId(m.mirrorId) || m.host !== mirror.host || m.port !== mirror.port
+      );
+    }
 
     // Check if mirror already exists, update if so
     const existingIndex = mirrors.findIndex(
@@ -300,11 +310,6 @@ export const storage = {
     console.log('[Storage] Removed linked mirror:', mirrorId);
   },
 
-  async getLinkedMirror(mirrorId: string): Promise<LinkedMirror | null> {
-    const mirrors = await this.getLinkedMirrors();
-    return mirrors.find((m) => m.mirrorId === mirrorId) || null;
-  },
-
   async markFaceEnrolled(mirrorId: string): Promise<void> {
     await this.updateLinkedMirror(mirrorId, {
       faceEnrolled: true,
@@ -313,6 +318,28 @@ export const storage = {
   },
 
   // Onboarding State Methods
+
+  // ---- Pending mirror (from a deep link) ----
+
+  async getPendingMirror(): Promise<PendingMirror | null> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_MIRROR);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Partial<PendingMirror>;
+      if (typeof parsed.host !== 'string' || typeof parsed.port !== 'number') return null;
+      return { host: parsed.host, port: parsed.port };
+    } catch {
+      return null;
+    }
+  },
+
+  async setPendingMirror(mirror: PendingMirror): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_MIRROR, JSON.stringify(mirror));
+  },
+
+  async clearPendingMirror(): Promise<void> {
+    await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_MIRROR);
+  },
 
   async getOnboardingState(): Promise<OnboardingState | null> {
     try {
@@ -332,100 +359,9 @@ export const storage = {
     console.log('[Storage] Set onboarding state:', state.phase);
   },
 
-  async clearOnboardingState(): Promise<void> {
-    await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_STATE);
-    console.log('[Storage] Cleared onboarding state');
-  },
-
   async isOnboardingComplete(): Promise<boolean> {
     const state = await this.getOnboardingState();
     return state?.phase === 'complete';
-  },
-
-  // Utility Methods
-
-  async clearAll(): Promise<void> {
-    await AsyncStorage.multiRemove([
-      STORAGE_KEYS.USER_PROFILE,
-      STORAGE_KEYS.LINKED_MIRRORS,
-      STORAGE_KEYS.ONBOARDING_STATE,
-    ]);
-    console.log('[Storage] Cleared all storage');
-  },
-
-  /**
-   * Repair storage by validating and cleaning up corrupt data
-   * Returns a report of what was fixed
-   */
-  async repairStorage(): Promise<{ fixed: number; errors: string[] }> {
-    const errors: string[] = [];
-    let fixed = 0;
-
-    // Check and repair user profile
-    try {
-      const profileData = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-      if (profileData) {
-        const parsed = JSON.parse(profileData);
-        if (!validateUserProfile(parsed)) {
-          await AsyncStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
-          errors.push('Removed corrupted user profile');
-          fixed++;
-        }
-      }
-    } catch (e) {
-      await AsyncStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
-      errors.push('Removed unparseable user profile');
-      fixed++;
-    }
-
-    // Check and repair mirrors list
-    try {
-      const mirrorsData = await AsyncStorage.getItem(STORAGE_KEYS.LINKED_MIRRORS);
-      if (mirrorsData) {
-        const parsed = JSON.parse(mirrorsData);
-        if (!Array.isArray(parsed)) {
-          await AsyncStorage.removeItem(STORAGE_KEYS.LINKED_MIRRORS);
-          errors.push('Removed corrupted mirrors list (not an array)');
-          fixed++;
-        } else {
-          const validMirrors = parsed.filter(validateLinkedMirror);
-          const removedCount = parsed.length - validMirrors.length;
-          if (removedCount > 0) {
-            await AsyncStorage.setItem(
-              STORAGE_KEYS.LINKED_MIRRORS,
-              JSON.stringify(validMirrors)
-            );
-            errors.push(`Removed ${removedCount} invalid mirror entries`);
-            fixed += removedCount;
-          }
-        }
-      }
-    } catch (e) {
-      await AsyncStorage.removeItem(STORAGE_KEYS.LINKED_MIRRORS);
-      errors.push('Removed unparseable mirrors list');
-      fixed++;
-    }
-
-    // Check and repair onboarding state
-    try {
-      const onboardingData = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_STATE);
-      if (onboardingData) {
-        const parsed = JSON.parse(onboardingData);
-        const validPhases: OnboardingPhase[] = ['welcome', 'profile', 'discover', 'setup', 'template', 'complete'];
-        if (!parsed.phase || !validPhases.includes(parsed.phase)) {
-          await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_STATE);
-          errors.push('Removed invalid onboarding state');
-          fixed++;
-        }
-      }
-    } catch (e) {
-      await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_STATE);
-      errors.push('Removed unparseable onboarding state');
-      fixed++;
-    }
-
-    console.log('[Storage] Repair complete:', { fixed, errors });
-    return { fixed, errors };
   },
 
   // Cloud Sync Methods
@@ -442,37 +378,5 @@ export const storage = {
   async setCloudSyncEnabled(enabled: boolean): Promise<void> {
     await AsyncStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_ENABLED, String(enabled));
     console.log('[Storage] Cloud sync enabled:', enabled);
-  },
-
-  async getLastSyncTimestamp(): Promise<string | null> {
-    try {
-      return await AsyncStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIMESTAMP);
-    } catch {
-      return null;
-    }
-  },
-
-  async setLastSyncTimestamp(timestamp: string): Promise<void> {
-    await AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIMESTAMP, timestamp);
-    console.log('[Storage] Last sync timestamp:', timestamp);
-  },
-
-  async getPendingSyncChanges(): Promise<unknown[]> {
-    try {
-      const data = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SYNC_CHANGES);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  },
-
-  async addPendingSyncChange(change: unknown): Promise<void> {
-    const changes = await this.getPendingSyncChanges();
-    changes.push(change);
-    await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SYNC_CHANGES, JSON.stringify(changes));
-  },
-
-  async clearPendingSyncChanges(): Promise<void> {
-    await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_SYNC_CHANGES);
   },
 };

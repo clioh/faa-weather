@@ -1,882 +1,725 @@
 /**
- * Layout Editor Screen
- * Visual drag-and-drop interface for customizing mirror layout
- * Supports per-user layouts for multi-user mirrors
+ * Layout editor
+ *
+ * Arrange the widgets on a mirror. The canvas is drawn at the mirror's real
+ * aspect ratio and grid, tiles are dragged and resized directly, and every
+ * change streams to the mirror as a live preview. Nothing is stored until
+ * Save. Layouts are per user when a profile exists, with the mirror's global
+ * layout as the fallback.
  */
 
-import { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  Alert,
-  Modal,
-  ActivityIndicator,
-  TextInput,
-} from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+// expo-router bundles its own copy of React Navigation; hooks must come from
+// it or they cannot find the navigator.
+import { usePreventRemove, type NavigationAction } from 'expo-router/react-navigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { AirportPicker, LocationPicker, ColorPicker, type LocationData } from '@/components';
+import { MirrorNotFound, ScreenHeader } from '@/components';
 import {
-  ModuleInstance,
-  ModuleDefinition,
-  MirrorLayout,
   MODULES,
-  CATEGORIES,
-  SIZE_DIMENSIONS,
-  getModuleById,
+  defaultConfigFor,
   generateInstanceId,
-  ModuleCategory,
+  getModuleById,
+  missingRequiredFields,
+  type MirrorLayout,
+  type ModuleInstance,
+  type ModuleSize,
 } from '@/lib/modules';
 import { api } from '@/lib/api';
 import { useUser } from '@/context/UserContext';
-import { colors, spacing, borderRadius, typography } from '@/lib/theme';
-import { getTemplateById, isAviationModule } from '@/lib/templates';
+import { useDisplayHold } from '@/hooks/useDisplayHold';
+import { goBack } from '@/lib/navigation';
+import { colors, borderRadius, spacing, typography } from '@/lib/theme';
+import { getTemplateById } from '@/lib/templates';
+import { Canvas, type MirrorOrientation } from '@/components/editor/Canvas';
+import { ConfigSheet } from '@/components/editor/ConfigSheet';
+import { DiscardSheet } from '@/components/editor/DiscardSheet';
+import { LibrarySheet } from '@/components/editor/LibrarySheet';
+import { SelectionBar, SELECTION_BAR_HEIGHT } from '@/components/editor/SelectionBar';
+import { Toolbar } from '@/components/editor/Toolbar';
+import { EditorToast, useEditorToast } from '@/components/editor/Toast';
+import type { SizeOption } from '@/components/editor/SizeChips';
+import {
+  canPlace,
+  commitFrom,
+  createHistory,
+  createInstance,
+  duplicateInstance,
+  findPlacement,
+  layoutsEqual,
+  moveInstance,
+  normalizeLayout,
+  placementForSize,
+  pushHistory,
+  rectOf,
+  redoHistory,
+  replacePresent,
+  resizeInstance,
+  tidyLayout,
+  toRects,
+  undoHistory,
+  type LayoutHistory,
+} from '@/components/editor/layoutUtils';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const GRID_COLS = 12;
-const GRID_ROWS = 8;
-const CELL_SIZE = (SCREEN_WIDTH - spacing.lg * 2) / GRID_COLS;
-const MIRROR_ASPECT = 16 / 9;
+function instanceFor(moduleId: string, x: number, y: number, size: ModuleSize): ModuleInstance {
+  const def = getModuleById(moduleId);
+  return {
+    instanceId: generateInstanceId(),
+    moduleId,
+    position: { x, y },
+    size,
+    config: def ? defaultConfigFor(def) : {},
+  };
+}
+
+/** Shown when the mirror has no layout yet. */
+const defaultTiles = () => [instanceFor('digital-clock', 0, 0, 'medium'), instanceFor('metar', 4, 0, 'medium')];
+
+function sameGeometry(a: ModuleInstance[], b: ModuleInstance[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (m, i) =>
+        m.instanceId === b[i].instanceId &&
+        m.size === b[i].size &&
+        m.position.x === b[i].position.x &&
+        m.position.y === b[i].position.y
+    )
+  );
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** HTTP status on errors thrown by api.request(); undefined for network failures. */
+function statusOf(error: unknown): number | undefined {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === 'number' ? status : undefined;
+}
+
+type LiveState = 'pending' | 'live' | 'unreachable';
 
 export default function EditorScreen() {
   const { user, currentMirror } = useUser();
-  const params = useLocalSearchParams<{ templateId?: string }>();
+  const params = useLocalSearchParams<{ templateId?: string; applyKey?: string }>();
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
-  const [modules, setModules] = useState<ModuleInstance[]>([]);
-  const [, setLayoutName] = useState<string>('My Layout');
+  // Keep the mirror awake so edits can be checked on the real display.
+  useDisplayHold(Boolean(currentMirror));
+
+  const [history, setHistory] = useState<LayoutHistory>(() => createHistory([]));
+  const modules = history.present;
+  // Gesture callbacks are memoised into the tiles; they read the latest
+  // layout from here instead of closing over a stale render.
+  const modulesRef = useRef(modules);
+  modulesRef.current = modules;
+
+  const [baseline, setBaseline] = useState('[]');
   const [isLoading, setIsLoading] = useState(true);
-  const [templateApplied, setTemplateApplied] = useState(false);
-
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  // The mirror's global layout as loaded, so a fallback save keeps its id/name.
+  const mirrorLayout = useRef<MirrorLayout | null>(null);
+  const [live, setLive] = useState<LiveState>('pending');
+  const [orientation, setOrientation] = useState<MirrorOrientation>('landscape');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pulse, setPulse] = useState<{ id: string; key: number } | null>(null);
+  const [revision, setRevision] = useState(0);
   const [showLibrary, setShowLibrary] = useState(false);
-  const [selectedModule, setSelectedModule] = useState<ModuleInstance | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<ModuleCategory>('aviation');
-  const [editingModule, setEditingModule] = useState<ModuleInstance | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [configId, setConfigId] = useState<string | null>(null);
+  const configBase = useRef<ModuleInstance[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(null);
+  const [discardVisible, setDiscardVisible] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const pendingLeave = useRef<NavigationAction | null>(null);
+  const { toast, show: showToast } = useEditorToast();
 
-  const handleModulePress = (module: ModuleInstance) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedModule(module);
-  };
+  const dirty = useMemo(() => JSON.stringify(modules) !== baseline, [modules, baseline]);
 
-  const handleModuleLongPress = (module: ModuleInstance) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setSelectedModule(module);
-    setIsDragging(true);
-  };
+  // ------------------------------------------------------------ loading
 
-  const handleGridPress = (x: number, y: number) => {
-    if (isDragging && selectedModule) {
-      // Move module to new position
-      setModules(modules.map(m =>
-        m.instanceId === selectedModule.instanceId
-          ? { ...m, position: { x, y } }
-          : m
-      ));
-      setIsDragging(false);
-      setSelectedModule(null);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-  };
-
-  const addModule = (definition: ModuleDefinition) => {
-    // Find an empty spot
-    let position = { x: 0, y: 0 };
-    const size = SIZE_DIMENSIONS[definition.defaultSize];
-
-    // Simple placement algorithm - find first available spot
-    outer: for (let y = 0; y < GRID_ROWS; y++) {
-      for (let x = 0; x <= GRID_COLS - size.cols; x++) {
-        const conflicts = modules.some(m => {
-          const mSize = SIZE_DIMENSIONS[m.size];
-          return !(x + size.cols <= m.position.x ||
-                   x >= m.position.x + mSize.cols ||
-                   y + size.rows <= m.position.y ||
-                   y >= m.position.y + mSize.rows);
-        });
-        if (!conflicts) {
-          position = { x, y };
-          break outer;
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      let loaded: ModuleInstance[] | null = null;
+      let fromServer = true;
+      try {
+        if (user) {
+          try {
+            // An existing user layout is authoritative even when empty.
+            const userLayout = await api.getUserLayout(user.id);
+            loaded = userLayout?.modules ?? [];
+          } catch (e) {
+            // Only "no layout for this user" falls back; anything else
+            // (offline, 500) must not let the user edit and save over the
+            // real layout with something else.
+            if (statusOf(e) !== 404) throw e;
+          }
         }
+        if (loaded === null) {
+          try {
+            const layout = await api.getLayout();
+            mirrorLayout.current = layout ?? null;
+            loaded = layout?.modules ?? [];
+          } catch (e) {
+            if (statusOf(e) !== 404) throw e;
+            // Neither a user nor a mirror layout exists: offer a starter.
+            loaded = defaultTiles();
+            fromServer = false;
+          }
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setLoadError(
+          statusOf(e) === undefined
+            ? 'Couldn’t reach the mirror. Make sure your phone is on the same network.'
+            : 'The mirror couldn’t load its layout. Try again in a moment.'
+        );
+        setIsLoading(false);
+        return;
       }
-    }
+      if (cancelled) return;
 
-    const newModule: ModuleInstance = {
-      instanceId: generateInstanceId(),
-      moduleId: definition.id,
-      position,
-      size: definition.defaultSize,
-      config: definition.configFields.reduce((acc, field) => {
-        if (field.default !== undefined) {
-          acc[field.key] = field.default;
-        }
-        return acc;
-      }, {} as Record<string, unknown>),
+      const { modules: fitted, dropped } = normalizeLayout(loaded, getModuleById);
+      setHistory(createHistory(fitted));
+      // A layout we had to repair counts as unsaved so the fix can be saved.
+      const repaired = fromServer && (dropped.length > 0 || !sameGeometry(fitted, loaded));
+      setBaseline(JSON.stringify(repaired ? loaded : fitted));
+      setSelectedId(null);
+      setIsLoading(false);
+      if (dropped.length > 0) {
+        showToast(`${plural(dropped.length, 'widget')} didn’t fit and ${dropped.length === 1 ? 'was' : 'were'} left out`, 'info');
+      }
     };
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // Reload only when the person changes (or on Retry), not on every
+    // profile field update.
+  }, [user?.id, loadAttempt]);
 
-    setModules([...modules, newModule]);
-    setShowLibrary(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  useEffect(() => {
+    if (!currentMirror) return;
+    let cancelled = false;
+    api
+      .getConfig()
+      .then((config) => {
+        const display = config?.display as { orientation?: string } | undefined;
+        if (!cancelled) setOrientation(display?.orientation === 'portrait' ? 'portrait' : 'landscape');
+      })
+      .catch(() => {
+        // Unreachable mirror: keep the landscape default.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentMirror]);
+
+  // Mirror the working layout onto the display as it changes. This is a
+  // preview only: nothing is stored until Save.
+  const editable = !isLoading && !loadError;
+
+  const sendPreview = useCallback((next: ModuleInstance[]) => {
+    api
+      .previewLayout(next)
+      .then(() => setLive('live'))
+      .catch(() => setLive('unreachable'));
+  }, []);
+
+  useEffect(() => {
+    if (!editable || !currentMirror) return;
+    const timer = setTimeout(() => sendPreview(modules), 300);
+    return () => clearTimeout(timer);
+  }, [modules, editable, currentMirror, sendPreview]);
+
+  // Leaving the screen (e.g. to /templates) releases the display hold, which
+  // clears the preview on the mirror. Put it back when we regain focus.
+  useFocusEffect(
+    useCallback(() => {
+      if (!editable || !currentMirror) return;
+      sendPreview(modulesRef.current);
+      return () => setLive('pending');
+    }, [editable, currentMirror, sendPreview])
+  );
+
+  // templates.tsx navigates back to this same editor instance with a new
+  // templateId, so track the last applied id rather than a one-shot flag.
+  // Waiting for the load keeps it from being overwritten when the editor is
+  // opened straight from onboarding with a template.
+  // `applyKey` lets the same template be applied again after an undo.
+  const templateRequest = params.templateId ? `${params.templateId}:${params.applyKey ?? ''}` : null;
+  useEffect(() => {
+    if (!editable || !params.templateId || templateRequest === appliedTemplateId) return;
+    setAppliedTemplateId(templateRequest);
+    const template = getTemplateById(params.templateId);
+    if (!template) return;
+    const templateModules: ModuleInstance[] = template.modules.map((mod) => ({
+      ...mod,
+      instanceId: generateInstanceId(),
+      config: { ...mod.config },
+    }));
+    const { modules: fitted } = normalizeLayout(templateModules, getModuleById);
+    setHistory((h) => pushHistory(h, fitted));
+    setSelectedId(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    showToast(`Applied ${template.name}. Save to keep it.`, 'success');
+  }, [params.templateId, templateRequest, appliedTemplateId, editable, showToast]);
+
+  // ------------------------------------------------------------ edits
+
+  /**
+   * Apply an edit to the latest committed layout. The edit runs inside the
+   * state updater so two quick commits (e.g. a drop landing while another
+   * re-render is pending) each see the other's result, never a stale copy.
+   * `onReject` runs when the edit is refused because it would break the
+   * no-overlap/in-bounds invariant.
+   */
+  const commit = useCallback(
+    (edit: (present: ModuleInstance[]) => ModuleInstance[] | null, onReject?: () => void) => {
+      setHistory((h) => {
+        const next = edit(h.present);
+        if (next) return pushHistory(h, next);
+        // Updaters run during render; defer the follow-up state change.
+        if (onReject) queueMicrotask(onReject);
+        return h;
+      });
+    },
+    []
+  );
+
+  const bumpRevision = useCallback(() => setRevision((r) => r + 1), []);
+
+  const handleSelect = useCallback((id: string | null) => setSelectedId(id), []);
+
+  const handleMove = useCallback(
+    (id: string, x: number, y: number) => commit((m) => moveInstance(m, id, x, y), bumpRevision),
+    [commit, bumpRevision]
+  );
+
+  const handleResize = useCallback(
+    (id: string, size: ModuleSize) => commit((m) => resizeInstance(m, id, size), bumpRevision),
+    [commit, bumpRevision]
+  );
+
+  const handleNudge = useCallback(
+    (id: string, dx: number, dy: number) => {
+      const m = modulesRef.current.find((t) => t.instanceId === id);
+      if (!m) return;
+      const x = m.position.x + dx;
+      const y = m.position.y + dy;
+      if (moveInstance(modulesRef.current, id, x, y)) {
+        commit((present) => moveInstance(present, id, x, y));
+        AccessibilityInfo.announceForAccessibility(`Column ${x + 1}, row ${y + 1}`);
+      } else {
+        AccessibilityInfo.announceForAccessibility('No room there');
+      }
+    },
+    [commit]
+  );
+
+  /** Append a tile placed against `snapshot`, re-checking it against the latest layout. */
+  const appendTile = (inst: ModuleInstance) =>
+    commit((present) =>
+      canPlace(toRects(present), rectOf(inst), null) ? [...present, inst] : null
+    );
+
+  const pulseTile = (id: string) => {
+    // Wait for the sheet's dismiss animation so the pulse is actually seen.
+    setTimeout(() => setPulse({ id, key: Date.now() }), 380);
   };
 
-  const removeModule = (instanceId: string) => {
-    Alert.alert(
-      'Remove Module',
-      'Are you sure you want to remove this module?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            setModules(modules.filter(m => m.instanceId !== instanceId));
-            setSelectedModule(null);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          },
-        },
-      ]
+  const addWidget = (def: (typeof MODULES)[number]) => {
+    const inst = createInstance(modulesRef.current, def);
+    if (!inst) return false;
+    appendTile(inst);
+    setShowLibrary(false);
+    setSelectedId(inst.instanceId);
+    pulseTile(inst.instanceId);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    return true;
+  };
+
+  const duplicateSelected = () => {
+    const source = modulesRef.current.find((m) => m.instanceId === selectedId);
+    if (!source) return;
+    const copy = duplicateInstance(modulesRef.current, source, getModuleById(source.moduleId));
+    if (!copy) {
+      showToast('No room — remove or shrink a widget', 'error');
+      return;
+    }
+    appendTile(copy);
+    setSelectedId(copy.instanceId);
+    setPulse({ id: copy.instanceId, key: Date.now() });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  };
+
+  const removeTile = (id: string) => {
+    commit((present) => present.filter((m) => m.instanceId !== id));
+    setSelectedId((s) => (s === id ? null : s));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  };
+
+  const setSelectedSize = (size: ModuleSize) => {
+    if (!selectedId) return;
+    const id = selectedId;
+    commit((present) => resizeInstance(present, id, size));
+    Haptics.selectionAsync().catch(() => {});
+  };
+
+  const tidied = useMemo(() => tidyLayout(modules), [modules]);
+  const canTidy = !layoutsEqual(tidied, modules);
+  const tidy = () => {
+    commit(tidyLayout);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  };
+
+  const undo = () => {
+    setHistory(undoHistory);
+    Haptics.selectionAsync().catch(() => {});
+  };
+  const redo = () => {
+    setHistory(redoHistory);
+    Haptics.selectionAsync().catch(() => {});
+  };
+
+  const openTemplates = () => {
+    router.push({
+      pathname: '/templates',
+      params: { hasModules: modules.length > 0 ? 'true' : 'false' },
+    });
+  };
+
+  // ------------------------------------------------------------ configure sheet
+
+  const openConfig = (id: string) => {
+    configBase.current = modulesRef.current;
+    setConfigId(id);
+  };
+
+  const closeConfig = () => {
+    const base = configBase.current;
+    configBase.current = null;
+    setConfigId(null);
+    // The whole sheet session becomes one undo step.
+    if (base) setHistory((h) => commitFrom(h, base));
+  };
+
+  const changeConfig = (config: Record<string, unknown>) => {
+    if (!configId) return;
+    setHistory((h) =>
+      replacePresent(
+        h,
+        h.present.map((m) => (m.instanceId === configId ? { ...m, config } : m))
+      )
     );
   };
 
-  const [saving, setSaving] = useState(false);
+  const changeConfigSize = (size: ModuleSize) => {
+    if (!configId) return;
+    const id = configId;
+    setHistory((h) => replacePresent(h, resizeInstance(h.present, id, size) ?? h.present));
+  };
 
-  const saveLayout = async () => {
-    if (!user) {
-      Alert.alert('Error', 'No user profile found');
-      return;
-    }
+  const removeFromConfig = () => {
+    const id = configId;
+    closeConfig();
+    if (id) removeTile(id);
+  };
 
+  // ------------------------------------------------------------ save / leave
+
+  const save = async () => {
+    if (saving) return;
     setSaving(true);
+    const snapshot = modulesRef.current;
+    const asGlobal = (): MirrorLayout => {
+      const now = new Date().toISOString();
+      const base = mirrorLayout.current;
+      return {
+        id: base?.id ?? 'custom',
+        name: base?.name ?? 'Custom Layout',
+        createdAt: base?.createdAt ?? now,
+        modules: snapshot,
+        updatedAt: now,
+      };
+    };
     try {
-      // Save to user-specific layout endpoint
-      await api.updateUserLayout(user.id, modules);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Saved', `Layout saved for ${user.name}!`);
-    } catch (error) {
-      // Fall back to global layout if user endpoint fails
-      try {
-        const layout: MirrorLayout = {
-          id: 'custom',
-          name: 'Custom Layout',
-          modules,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        await api.updateLayout(layout);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Saved', 'Layout saved to mirror!');
-      } catch {
-        Alert.alert('Error', 'Failed to save layout. Make sure you are connected to the mirror.');
+      if (user) {
+        try {
+          await api.updateUserLayout(user.id, snapshot);
+        } catch (e) {
+          // Only mirrors without per-user layouts (404/405) fall back to the
+          // global layout; any other failure must surface, not silently
+          // overwrite what everyone else sees.
+          const status = statusOf(e);
+          if (status !== 404 && status !== 405) throw e;
+          await api.updateLayout(asGlobal());
+        }
+      } else {
+        await api.updateLayout(asGlobal());
       }
+      setBaseline(JSON.stringify(snapshot));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      showToast('Saved to mirror', 'success');
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      showToast('Couldn’t save. Check that your phone can reach the mirror.', 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  // Load existing layout on mount
+  // Covers the Close button, the iOS swipe-back and Android back alike.
+  usePreventRemove(dirty && !leaving, ({ data }) => {
+    pendingLeave.current = data.action;
+    setDiscardVisible(true);
+  });
+
+  // Set by Discard; acted on only once the sheet has finished dismissing.
+  const discardChosen = useRef(false);
+  const onDiscardDismissed = useCallback(() => {
+    if (!discardChosen.current) return;
+    discardChosen.current = false;
+    setLeaving(true);
+  }, []);
+
   useEffect(() => {
-    const loadLayout = async () => {
-      setIsLoading(true);
-      try {
-        // Try to load user-specific layout first
-        if (user) {
-          try {
-            const userLayout = await api.getUserLayout(user.id);
-            if (userLayout?.modules?.length > 0) {
-              setModules(userLayout.modules);
-              setLayoutName(userLayout.name || `${user.name}'s Layout`);
-              setIsLoading(false);
-              return;
-            }
-          } catch {
-            // User layout not found, fall back to global
-          }
-        }
+    if (!leaving) return;
+    const action = pendingLeave.current;
+    pendingLeave.current = null;
+    if (action) navigation.dispatch(action);
+    else goBack('/dashboard');
+  }, [leaving, navigation]);
 
-        // Fall back to global layout
-        const layout = await api.getLayout();
-        if (layout?.modules?.length > 0) {
-          setModules(layout.modules);
-          setLayoutName('Mirror Layout');
-        } else {
-          // Set default modules if no layout exists
-          setModules([
-            {
-              instanceId: generateInstanceId(),
-              moduleId: 'digital-clock',
-              position: { x: 0, y: 0 },
-              size: 'medium',
-              config: { format24h: false, showSeconds: true, showDate: true },
-            },
-            {
-              instanceId: generateInstanceId(),
-              moduleId: 'metar',
-              position: { x: 4, y: 0 },
-              size: 'medium',
-              config: { icao: 'KJFK', showDecoded: true },
-            },
-          ]);
-          setLayoutName('New Layout');
-        }
-      } catch {
-        // Use default layout if loading fails
-        setModules([
-          {
-            instanceId: generateInstanceId(),
-            moduleId: 'digital-clock',
-            position: { x: 0, y: 0 },
-            size: 'medium',
-            config: {},
-          },
-        ]);
-        setLayoutName('Default Layout');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadLayout();
-  }, [user]);
-
-  // Apply template if templateId param is present
-  useEffect(() => {
-    if (params.templateId && !templateApplied) {
-      const template = getTemplateById(params.templateId);
-      if (template) {
-        // Generate unique instanceIds and auto-fill airport for aviation modules
-        const templateModules: ModuleInstance[] = template.modules.map(mod => ({
-          ...mod,
-          instanceId: generateInstanceId(),
-          config: {
-            ...mod.config,
-            // Auto-fill ICAO for aviation modules if we have a configured airport
-            ...(isAviationModule(mod.moduleId) && currentMirror?.mirrorName
-              ? {} // Could auto-fill from user preferences in the future
-              : {}),
-          },
-        }));
-        setModules(templateModules);
-        setLayoutName(`${template.name} Layout`);
-        setTemplateApplied(true);
-        setIsLoading(false);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    }
-  }, [params.templateId, templateApplied, currentMirror]);
-
-  const renderModulePreview = (module: ModuleInstance) => {
-    const definition = getModuleById(module.moduleId);
-    if (!definition) return null;
-
-    const size = SIZE_DIMENSIONS[module.size];
-    const isSelected = selectedModule?.instanceId === module.instanceId;
-    const categoryInfo = CATEGORIES[definition.category];
-
-    return (
-      <TouchableOpacity
-        key={module.instanceId}
-        style={[
-          styles.modulePreview,
-          {
-            left: module.position.x * CELL_SIZE,
-            top: module.position.y * CELL_SIZE,
-            width: size.cols * CELL_SIZE - 4,
-            height: size.rows * CELL_SIZE - 4,
-            borderColor: isSelected ? colors.primary : colors.border,
-            backgroundColor: isSelected ? colors.primaryMuted : colors.surfaceElevated,
-          },
-        ]}
-        onPress={() => handleModulePress(module)}
-        onLongPress={() => handleModuleLongPress(module)}
-        delayLongPress={300}
-      >
-        <View style={[styles.moduleIcon, { backgroundColor: categoryInfo.color + '30' }]}>
-          <Ionicons
-            name={definition.icon as any}
-            size={16}
-            color={categoryInfo.color}
-          />
-        </View>
-        <Text style={styles.moduleName} numberOfLines={1}>
-          {definition.name}
-        </Text>
-        {isSelected && (
-          <View style={styles.moduleActions}>
-            <TouchableOpacity
-              style={styles.moduleAction}
-              onPress={() => setEditingModule(module)}
-            >
-              <Ionicons name="settings-outline" size={14} color={colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.moduleAction}
-              onPress={() => removeModule(module.instanceId)}
-            >
-              <Ionicons name="trash-outline" size={14} color={colors.error} />
-            </TouchableOpacity>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
+  const close = () => {
+    if (dirty) setDiscardVisible(true);
+    else goBack('/dashboard');
   };
 
-  const renderGrid = () => {
-    const cells = [];
-    for (let y = 0; y < GRID_ROWS; y++) {
-      for (let x = 0; x < GRID_COLS; x++) {
-        cells.push(
-          <TouchableOpacity
-            key={`${x}-${y}`}
-            style={[
-              styles.gridCell,
-              {
-                left: x * CELL_SIZE,
-                top: y * CELL_SIZE,
-                width: CELL_SIZE,
-                height: CELL_SIZE,
-              },
-              isDragging && styles.gridCellDragging,
-            ]}
-            onPress={() => handleGridPress(x, y)}
-          />
-        );
-      }
-    }
-    return cells;
+  // ------------------------------------------------------------ derived
+
+  const selected = modules.find((m) => m.instanceId === selectedId) ?? null;
+  const selectedDef = selected ? getModuleById(selected.moduleId) : undefined;
+  const configInstance = modules.find((m) => m.instanceId === configId) ?? null;
+  const configDef = configInstance ? getModuleById(configInstance.moduleId) : undefined;
+
+  const sizeOptionsFor = (inst: ModuleInstance | null): SizeOption[] => {
+    const def = inst ? getModuleById(inst.moduleId) : undefined;
+    if (!inst || !def) return [];
+    return def.sizes.map((size) => ({
+      size,
+      fits: size === inst.size || placementForSize(modules, inst, size) !== null,
+    }));
   };
 
-  // Show loading screen while fetching layout
+  const noRoomIds = useMemo(() => {
+    if (!showLibrary) return new Set<string>();
+    return new Set(MODULES.filter((def) => !findPlacement(modules, def)).map((def) => def.id));
+  }, [showLibrary, modules]);
+
+  const subtitle = [user ? `${user.name}’s layout` : 'Mirror layout', currentMirror?.mirrorName]
+    .filter(Boolean)
+    .join(' · ');
+
+  const toolbarHeight = spacing.sm + 48 + Math.max(insets.bottom, spacing.sm);
+
+  const header = (
+    <ScreenHeader
+      title="Layout"
+      subtitle={subtitle}
+      leftIcon="close"
+      onLeftPress={close}
+      right={
+        <TouchableOpacity
+          onPress={save}
+          disabled={saving || !editable}
+          style={[styles.saveButton, !dirty && styles.saveButtonClean]}
+          accessibilityRole="button"
+          accessibilityLabel="Save layout to mirror"
+          accessibilityState={{ busy: saving, disabled: saving || !editable }}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color={dirty ? colors.background : colors.primary} />
+          ) : (
+            <Text style={[styles.saveText, !dirty && styles.saveTextClean]}>Save</Text>
+          )}
+        </TouchableOpacity>
+      }
+    />
+  );
+
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading layout...</Text>
+      <View style={styles.container}>
+        {header}
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading layout…</Text>
+        </View>
       </View>
     );
   }
 
+  if (loadError) {
+    return (
+      <View style={styles.container}>
+        {header}
+        <View style={styles.loading}>
+          <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
+          <Text style={styles.errorTitle}>Layout not loaded</Text>
+          <Text style={styles.errorBody}>{loadError}</Text>
+          <TouchableOpacity
+            style={[styles.emptyButton, styles.emptyButtonPrimary]}
+            onPress={() => setLoadAttempt((n) => n + 1)}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading layout"
+          >
+            <Ionicons name="refresh" size={16} color={colors.background} />
+            <Text style={[styles.emptyButtonText, styles.emptyButtonTextPrimary]}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  const emptyState =
+    modules.length === 0 ? (
+      <View style={styles.empty}>
+        <Text style={styles.emptyTitle}>Your mirror is empty</Text>
+        <View style={styles.emptyButtons}>
+          <TouchableOpacity
+            style={[styles.emptyButton, styles.emptyButtonPrimary]}
+            onPress={() => setShowLibrary(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Add widget"
+          >
+            <Ionicons name="add" size={16} color={colors.background} />
+            <Text style={[styles.emptyButtonText, styles.emptyButtonTextPrimary]}>Add widget</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.emptyButton}
+            onPress={openTemplates}
+            accessibilityRole="button"
+            accessibilityLabel="Start from a template"
+          >
+            <Ionicons name="albums-outline" size={16} color={colors.text} />
+            <Text style={styles.emptyButtonText}>Start from a template</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    ) : null;
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <Ionicons name="close" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Edit Layout</Text>
-          {user && (
-            <Text style={styles.headerSubtitle}>{user.name}'s Layout</Text>
-          )}
-        </View>
-        <TouchableOpacity onPress={saveLayout} style={styles.headerButton} disabled={saving}>
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Ionicons name="checkmark" size={24} color={colors.primary} />
-          )}
-        </TouchableOpacity>
-      </View>
+      {header}
 
-      {/* User info banner */}
-      {user && currentMirror && (
-        <View style={styles.userBanner}>
-          <View style={styles.userAvatar}>
-            <Text style={styles.userAvatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+      <View style={styles.statusRow}>
+        {currentMirror && live === 'live' ? (
+          <View style={styles.livePill} accessibilityLabel="Changes show live on the mirror">
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>Live on mirror</Text>
           </View>
-          <View style={styles.userBannerInfo}>
-            <Text style={styles.userBannerName}>Editing {user.name}'s layout</Text>
-            <Text style={styles.userBannerMirror}>on {currentMirror.mirrorName}</Text>
+        ) : currentMirror && live === 'unreachable' ? (
+          <View style={[styles.livePill, styles.warnPill]}>
+            <Ionicons name="alert-circle-outline" size={12} color={colors.warning} />
+            <Text style={styles.warnText}>Mirror not responding</Text>
           </View>
-          <View style={styles.moduleCount}>
-            <Text style={styles.moduleCountText}>{modules.length}</Text>
-            <Text style={styles.moduleCountLabel}>modules</Text>
+        ) : currentMirror ? (
+          <View style={[styles.livePill, styles.offlinePill]}>
+            <ActivityIndicator size="small" color={colors.textMuted} style={styles.pillSpinner} />
+            <Text style={styles.offlineText}>Connecting to mirror…</Text>
           </View>
-        </View>
-      )}
-
-      {/* Mirror Preview */}
-      <View style={styles.previewContainer}>
-        <View style={styles.mirrorFrame}>
-          <View style={styles.mirrorScreen}>
-            {/* Grid overlay */}
-            <View style={styles.grid}>
-              {renderGrid()}
-            </View>
-
-            {/* Modules */}
-            {modules.map(renderModulePreview)}
-          </View>
-        </View>
-
-        {isDragging && (
-          <View style={styles.dragHint}>
-            <Ionicons name="move" size={16} color={colors.primary} />
-            <Text style={styles.dragHintText}>Tap to place module</Text>
+        ) : (
+          <View style={[styles.livePill, styles.offlinePill]}>
+            <Ionicons name="cloud-offline-outline" size={12} color={colors.textMuted} />
+            <Text style={styles.offlineText}>No mirror connected</Text>
           </View>
         )}
+        <Text style={[styles.statusText, dirty && styles.statusDirty]}>
+          {dirty ? 'Unsaved changes' : `${plural(modules.length, 'widget')} · Saved`}
+        </Text>
       </View>
 
-      {/* Toolbar */}
-      <View style={styles.toolbar}>
-        <TouchableOpacity
-          style={styles.toolbarButton}
-          onPress={() => setShowLibrary(true)}
-        >
-          <Ionicons name="add-circle" size={24} color={colors.primary} />
-          <Text style={styles.toolbarButtonText}>Add</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.toolbarButton}
-          onPress={() => {
-            router.push({
-              pathname: '/templates',
-              params: { hasModules: modules.length > 0 ? 'true' : 'false' },
-            });
-          }}
-        >
-          <Ionicons name="copy-outline" size={24} color={colors.warning} />
-          <Text style={styles.toolbarButtonText}>Templates</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.toolbarButton}
-          onPress={() => {
-            if (selectedModule) {
-              setIsDragging(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            } else {
-              Alert.alert('Select a Module', 'Tap a module first to move it');
-            }
-          }}
-        >
-          <Ionicons name="move" size={24} color={colors.accent} />
-          <Text style={styles.toolbarButtonText}>Move</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.toolbarButton}
-          onPress={() => {
-            if (selectedModule) {
-              setEditingModule(selectedModule);
-            } else {
-              Alert.alert('Select a Module', 'Tap a module first to configure it');
-            }
-          }}
-        >
-          <Ionicons name="settings" size={24} color={colors.textSecondary} />
-          <Text style={styles.toolbarButtonText}>Configure</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Selected module info */}
-      {selectedModule && !isDragging && (
-        <View style={styles.selectionInfo}>
-          <Text style={styles.selectionText}>
-            {getModuleById(selectedModule.moduleId)?.name || 'Unknown'}
-          </Text>
-          <TouchableOpacity onPress={() => setSelectedModule(null)}>
-            <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
+      {currentMirror && live === 'unreachable' && (
+        <View style={styles.notFound}>
+          <MirrorNotFound onFound={() => sendPreview(modulesRef.current)} />
         </View>
       )}
 
-      {/* Module Library Modal */}
-      <Modal
+      <Canvas
+        modules={modules}
+        orientation={orientation}
+        selectedId={selected ? selected.instanceId : null}
+        pulse={pulse}
+        revision={revision}
+        onSelect={handleSelect}
+        onMove={handleMove}
+        onResize={handleResize}
+        onNudge={handleNudge}
+        overlay={emptyState}
+      />
+
+      <SelectionBar
+        instance={selected}
+        definition={selectedDef}
+        sizeOptions={sizeOptionsFor(selected)}
+        needsSetup={selected && selectedDef ? missingRequiredFields(selectedDef, selected.config ?? {}).length > 0 : false}
+        empty={modules.length === 0}
+        onSize={setSelectedSize}
+        onConfigure={() => selected && openConfig(selected.instanceId)}
+        onDuplicate={duplicateSelected}
+        onRemove={() => selected && removeTile(selected.instanceId)}
+      />
+
+      <Toolbar
+        onAdd={() => setShowLibrary(true)}
+        onTemplates={openTemplates}
+        onTidy={tidy}
+        onUndo={undo}
+        onRedo={redo}
+        canTidy={canTidy}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+      />
+
+      <EditorToast toast={toast} bottom={toolbarHeight + SELECTION_BAR_HEIGHT + spacing.sm} />
+
+      <LibrarySheet
         visible={showLibrary}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={styles.libraryContainer}>
-          <View style={styles.libraryHeader}>
-            <Text style={styles.libraryTitle}>Add Module</Text>
-            <TouchableOpacity onPress={() => setShowLibrary(false)}>
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Category tabs */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoryTabs}
-            contentContainerStyle={styles.categoryTabsContent}
-          >
-            {Object.entries(CATEGORIES).map(([key, cat]) => (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.categoryTab,
-                  selectedCategory === key && styles.categoryTabActive,
-                ]}
-                onPress={() => setSelectedCategory(key as ModuleCategory)}
-              >
-                <Ionicons
-                  name={cat.icon as any}
-                  size={18}
-                  color={selectedCategory === key ? cat.color : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.categoryTabText,
-                    selectedCategory === key && { color: cat.color },
-                  ]}
-                >
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Module list */}
-          <ScrollView style={styles.moduleList}>
-            {MODULES.filter(m => m.category === selectedCategory).map((module) => (
-              <TouchableOpacity
-                key={module.id}
-                style={styles.libraryItem}
-                onPress={() => addModule(module)}
-              >
-                <View
-                  style={[
-                    styles.libraryItemIcon,
-                    { backgroundColor: CATEGORIES[module.category].color + '20' },
-                  ]}
-                >
-                  <Ionicons
-                    name={module.icon as any}
-                    size={24}
-                    color={CATEGORIES[module.category].color}
-                  />
-                </View>
-                <View style={styles.libraryItemContent}>
-                  <View style={styles.libraryItemHeader}>
-                    <Text style={styles.libraryItemName}>{module.name}</Text>
-                    {module.premium && (
-                      <View style={styles.premiumBadge}>
-                        <Ionicons name="star" size={10} color={colors.warning} />
-                        <Text style={styles.premiumBadgeText}>PRO</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.libraryItemDescription}>
-                    {module.description}
-                  </Text>
-                  <View style={styles.libraryItemSizes}>
-                    {module.sizes.map((size) => (
-                      <View key={size} style={styles.sizeTag}>
-                        <Text style={styles.sizeTagText}>{size}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-                <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* Module Config Modal */}
-      <Modal
-        visible={editingModule !== null}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        {editingModule && (
-          <ModuleConfigPanel
-            module={editingModule}
-            onSave={(config) => {
-              setModules(modules.map(m =>
-                m.instanceId === editingModule.instanceId
-                  ? { ...m, config }
-                  : m
-              ));
-              setEditingModule(null);
-            }}
-            onCancel={() => setEditingModule(null)}
-            onChangeSize={(size) => {
-              setModules(modules.map(m =>
-                m.instanceId === editingModule.instanceId
-                  ? { ...m, size }
-                  : m
-              ));
-              setEditingModule({ ...editingModule, size });
-            }}
-          />
-        )}
-      </Modal>
-    </View>
-  );
-}
-
-// Module configuration panel component
-function ModuleConfigPanel({
-  module,
-  onSave,
-  onCancel,
-  onChangeSize,
-}: {
-  module: ModuleInstance;
-  onSave: (config: Record<string, unknown>) => void;
-  onCancel: () => void;
-  onChangeSize: (size: ModuleInstance['size']) => void;
-}) {
-  const definition = getModuleById(module.moduleId);
-  const [config, setConfig] = useState(module.config);
-  const [showAirportPicker, setShowAirportPicker] = useState(false);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [activeField, setActiveField] = useState<string | null>(null);
-
-  if (!definition) return null;
-
-  const renderConfigField = (field: typeof definition.configFields[0]) => {
-    switch (field.type) {
-      case 'boolean':
-        return (
-          <TouchableOpacity
-            style={[
-              styles.booleanToggle,
-              !!config[field.key] && styles.booleanToggleActive,
-            ]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setConfig({ ...config, [field.key]: !config[field.key] });
-            }}
-          >
-            <Text style={styles.booleanToggleText}>
-              {config[field.key] ? 'On' : 'Off'}
-            </Text>
-          </TouchableOpacity>
-        );
-
-      case 'select':
-        return (
-          <View style={styles.selectContainer}>
-            {field.options?.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[
-                  styles.selectOption,
-                  config[field.key] === opt.value && styles.selectOptionActive,
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setConfig({ ...config, [field.key]: opt.value });
-                }}
-              >
-                <Text
-                  style={[
-                    styles.selectOptionText,
-                    config[field.key] === opt.value && styles.selectOptionTextActive,
-                  ]}
-                >
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        );
-
-      case 'number':
-        return (
-          <TextInput
-            style={styles.textInput}
-            value={config[field.key] !== undefined ? String(config[field.key]) : ''}
-            onChangeText={(text) => {
-              const num = parseFloat(text);
-              setConfig({ ...config, [field.key]: isNaN(num) ? text : num });
-            }}
-            placeholder={field.placeholder || String(field.default || '')}
-            placeholderTextColor={colors.textMuted}
-            keyboardType="numeric"
-          />
-        );
-
-      case 'airport':
-        return (
-          <TouchableOpacity
-            style={styles.pickerButton}
-            onPress={() => {
-              setActiveField(field.key);
-              setShowAirportPicker(true);
-            }}
-          >
-            <Ionicons name="airplane" size={20} color={colors.primary} />
-            <Text style={[styles.pickerButtonText, !config[field.key] && styles.pickerButtonPlaceholder]}>
-              {config[field.key] ? String(config[field.key]) : 'Select Airport'}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        );
-
-      case 'location':
-        const locationValue = config[field.key] as LocationData | undefined;
-        return (
-          <TouchableOpacity
-            style={styles.pickerButton}
-            onPress={() => {
-              setActiveField(field.key);
-              setShowLocationPicker(true);
-            }}
-          >
-            <Ionicons name="location" size={20} color={colors.accent} />
-            <Text style={[styles.pickerButtonText, !locationValue && styles.pickerButtonPlaceholder]}>
-              {locationValue
-                ? locationValue.city || `${locationValue.latitude}, ${locationValue.longitude}`
-                : 'Set Location'}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        );
-
-      case 'color':
-        return (
-          <TouchableOpacity
-            style={styles.pickerButton}
-            onPress={() => {
-              setActiveField(field.key);
-              setShowColorPicker(true);
-            }}
-          >
-            <View
-              style={[
-                styles.colorSwatch,
-                { backgroundColor: String(config[field.key] || '#ffffff') },
-              ]}
-            />
-            <Text style={[styles.pickerButtonText, !config[field.key] && styles.pickerButtonPlaceholder]}>
-              {config[field.key] ? String(config[field.key]).toUpperCase() : 'Select Color'}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        );
-
-      case 'text':
-      default:
-        return (
-          <TextInput
-            style={styles.textInput}
-            value={config[field.key] !== undefined ? String(config[field.key]) : ''}
-            onChangeText={(text) => setConfig({ ...config, [field.key]: text })}
-            placeholder={field.placeholder || String(field.default || '')}
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        );
-    }
-  };
-
-  return (
-    <View style={styles.configContainer}>
-      <View style={styles.configHeader}>
-        <TouchableOpacity onPress={onCancel}>
-          <Text style={styles.configCancel}>Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.configTitle}>{definition.name}</Text>
-        <TouchableOpacity onPress={() => onSave(config)}>
-          <Text style={styles.configSave}>Save</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.configContent} keyboardShouldPersistTaps="handled">
-        {/* Size selector */}
-        <View style={styles.configSection}>
-          <Text style={styles.configSectionTitle}>SIZE</Text>
-          <View style={styles.sizeSelector}>
-            {definition.sizes.map((size) => (
-              <TouchableOpacity
-                key={size}
-                style={[
-                  styles.sizeOption,
-                  module.size === size && styles.sizeOptionActive,
-                ]}
-                onPress={() => onChangeSize(size)}
-              >
-                <Text
-                  style={[
-                    styles.sizeOptionText,
-                    module.size === size && styles.sizeOptionTextActive,
-                  ]}
-                >
-                  {size}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Config fields */}
-        {definition.configFields.length > 0 && (
-          <View style={styles.configSection}>
-            <Text style={styles.configSectionTitle}>SETTINGS</Text>
-            {definition.configFields.map((field) => (
-              <View key={field.key} style={styles.configField}>
-                <View style={styles.configFieldHeader}>
-                  <Text style={styles.configFieldLabel}>{field.label}</Text>
-                  {field.required && <Text style={styles.requiredBadge}>Required</Text>}
-                </View>
-                {field.description && (
-                  <Text style={styles.configFieldDescription}>{field.description}</Text>
-                )}
-                {renderConfigField(field)}
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Pickers */}
-      <AirportPicker
-        visible={showAirportPicker}
-        currentValue={activeField ? String(config[activeField] || '') : undefined}
-        onSelect={(icao) => {
-          if (activeField) {
-            setConfig({ ...config, [activeField]: icao });
-          }
-          setShowAirportPicker(false);
-          setActiveField(null);
-        }}
-        onClose={() => {
-          setShowAirportPicker(false);
-          setActiveField(null);
-        }}
+        onClose={() => setShowLibrary(false)}
+        onAdd={addWidget}
+        noRoomIds={noRoomIds}
       />
 
-      <LocationPicker
-        visible={showLocationPicker}
-        currentValue={activeField ? (config[activeField] as LocationData) : undefined}
-        onSelect={(location) => {
-          if (activeField) {
-            setConfig({ ...config, [activeField]: location });
-          }
-          setShowLocationPicker(false);
-          setActiveField(null);
-        }}
-        onClose={() => {
-          setShowLocationPicker(false);
-          setActiveField(null);
-        }}
+      <ConfigSheet
+        visible={configInstance !== null}
+        instance={configInstance}
+        definition={configDef}
+        sizeOptions={sizeOptionsFor(configInstance)}
+        onChangeConfig={changeConfig}
+        onChangeSize={changeConfigSize}
+        onRemove={removeFromConfig}
+        onDone={closeConfig}
       />
 
-      <ColorPicker
-        visible={showColorPicker}
-        currentValue={activeField ? String(config[activeField] || '') : undefined}
-        onSelect={(color) => {
-          if (activeField) {
-            setConfig({ ...config, [activeField]: color });
-          }
-          setShowColorPicker(false);
-          setActiveField(null);
+      <DiscardSheet
+        visible={discardVisible}
+        onKeepEditing={() => {
+          pendingLeave.current = null;
+          setDiscardVisible(false);
         }}
-        onClose={() => {
-          setShowColorPicker(false);
-          setActiveField(null);
+        onDiscard={() => {
+          discardChosen.current = true;
+          setDiscardVisible(false);
         }}
+        onDismissed={onDiscardDismissed}
       />
     </View>
   );
@@ -887,484 +730,146 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  loadingContainer: {
+  loading: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.md,
   },
   loadingText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.md,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingTop: 60,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerButton: {
-    padding: spacing.sm,
-    width: 44,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: colors.text,
-  },
-  headerSubtitle: {
-    ...typography.caption,
-    color: colors.primary,
-    marginTop: 2,
-  },
-  userBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  userAvatarText: {
-    ...typography.body,
-    color: colors.background,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  userBannerInfo: {
-    flex: 1,
-  },
-  userBannerName: {
     ...typography.bodySmall,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  userBannerMirror: {
-    ...typography.caption,
     color: colors.textMuted,
   },
-  moduleCount: {
-    alignItems: 'center',
+  saveButton: {
+    minWidth: 64,
+    height: 34,
     paddingHorizontal: spacing.md,
-  },
-  moduleCountText: {
-    ...typography.h3,
-    color: colors.primary,
-  },
-  moduleCountLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-  previewContainer: {
-    flex: 1,
-    padding: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mirrorFrame: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 3,
-    borderColor: colors.surfaceHighlight,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  mirrorScreen: {
-    width: SCREEN_WIDTH - spacing.lg * 2,
-    height: (SCREEN_WIDTH - spacing.lg * 2) / MIRROR_ASPECT,
-    backgroundColor: colors.surface,
-    position: 'relative',
-  },
-  grid: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  gridCell: {
-    position: 'absolute',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    opacity: 0.3,
-  },
-  gridCellDragging: {
-    opacity: 0.8,
-    backgroundColor: colors.primaryMuted,
-  },
-  modulePreview: {
-    position: 'absolute',
-    borderRadius: borderRadius.sm,
-    borderWidth: 2,
-    padding: spacing.xs,
-    margin: 2,
-  },
-  moduleIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: borderRadius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  moduleName: {
-    ...typography.caption,
-    color: colors.text,
-    fontSize: 10,
-  },
-  moduleActions: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  moduleAction: {
-    padding: 2,
-    backgroundColor: colors.surfaceHighlight,
-    borderRadius: borderRadius.sm,
-  },
-  dragHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.md,
-    padding: spacing.sm,
-    backgroundColor: colors.primaryMuted,
-    borderRadius: borderRadius.md,
-  },
-  dragHintText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surfaceElevated,
-  },
-  toolbarButton: {
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  toolbarButtonText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  selectionInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  selectionText: {
-    ...typography.body,
-    color: colors.text,
-  },
-  libraryContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  libraryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  libraryTitle: {
-    ...typography.h2,
-    color: colors.text,
-  },
-  categoryTabs: {
-    maxHeight: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  categoryTabsContent: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  categoryTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceElevated,
-  },
-  categoryTabActive: {
-    backgroundColor: colors.primaryMuted,
-  },
-  categoryTabText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-  },
-  moduleList: {
-    flex: 1,
-  },
-  libraryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  libraryItemIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
+    marginRight: spacing.xs,
   },
-  libraryItemContent: {
-    flex: 1,
+  saveButtonClean: {
+    backgroundColor: 'transparent',
+    borderColor: colors.borderFocus,
   },
-  libraryItemHeader: {
+  saveText: {
+    ...typography.bodySmall,
+    fontWeight: '700',
+    color: colors.background,
+  },
+  saveTextClean: {
+    color: colors.primary,
+  },
+  notFound: {
+    paddingHorizontal: spacing.md,
+  },
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
-  libraryItemName: {
-    ...typography.body,
-    color: colors.text,
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primaryMuted,
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
+  liveText: {
+    ...typography.caption,
+    color: colors.primary,
     fontWeight: '600',
   },
-  libraryItemDescription: {
+  offlinePill: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  offlineText: {
     ...typography.caption,
     color: colors.textMuted,
-    marginTop: 2,
   },
-  libraryItemSizes: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
+  warnPill: {
+    backgroundColor: 'rgba(255, 170, 0, 0.14)',
   },
-  sizeTag: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    backgroundColor: colors.surfaceHighlight,
-    borderRadius: borderRadius.sm,
-  },
-  sizeTagText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-  premiumBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    backgroundColor: 'rgba(255, 170, 0, 0.2)',
-    borderRadius: borderRadius.sm,
-  },
-  premiumBadgeText: {
+  warnText: {
     ...typography.caption,
     color: colors.warning,
-    fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  configContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
+  pillSpinner: {
+    transform: [{ scale: 0.6 }],
+    width: 12,
+    height: 12,
   },
-  configHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  configCancel: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  configTitle: {
+  errorTitle: {
     ...typography.h3,
     color: colors.text,
   },
-  configSave: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  configContent: {
-    flex: 1,
-  },
-  configSection: {
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  configSectionTitle: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  sizeSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  sizeOption: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sizeOptionActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-  },
-  sizeOptionText: {
+  errorBody: {
     ...typography.bodySmall,
     color: colors.textMuted,
-  },
-  sizeOptionTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  configField: {
-    marginBottom: spacing.lg,
-  },
-  configFieldLabel: {
-    ...typography.body,
-    color: colors.text,
-  },
-  configFieldDescription: {
-    ...typography.caption,
-    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
     marginBottom: spacing.sm,
   },
-  booleanToggle: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    alignSelf: 'flex-start',
-  },
-  booleanToggleActive: {
-    backgroundColor: colors.primaryMuted,
-  },
-  booleanToggleText: {
-    ...typography.bodySmall,
-    color: colors.text,
-  },
-  selectContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  selectOption: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  selectOptionActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-  },
-  selectOptionText: {
-    ...typography.bodySmall,
+  statusText: {
+    ...typography.caption,
     color: colors.textMuted,
   },
-  selectOptionTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
+  statusDirty: {
+    color: colors.warning,
   },
-  textInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  textInputValue: {
-    ...typography.body,
-    color: colors.text,
-  },
-  textInput: {
-    height: 48,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    ...typography.body,
-  },
-  pickerButton: {
-    flexDirection: 'row',
+  empty: {
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  pickerButtonText: {
+  emptyTitle: {
     ...typography.body,
-    color: colors.text,
-    flex: 1,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
-  pickerButtonPlaceholder: {
-    color: colors.textMuted,
+  emptyButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
-  colorSwatch: {
-    width: 24,
-    height: 24,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  configFieldHeader: {
+  emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
+    gap: 6,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceHighlight,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  requiredBadge: {
-    ...typography.caption,
-    color: colors.warning,
-    fontSize: 10,
+  emptyButtonPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  emptyButtonText: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  emptyButtonTextPrimary: {
+    color: colors.background,
   },
 });

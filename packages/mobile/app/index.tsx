@@ -14,17 +14,38 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@/context/UserContext';
 import { useMirrorDiscovery } from '@/hooks/useMirrorDiscovery';
 import { api, MirrorDevice } from '@/lib/api';
 import { storage, LinkedMirror } from '@/lib/storage';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { goToDashboard } from '@/lib/navigation';
+import { ensurePaired } from '@/lib/pairing';
+
+/**
+ * Point the API client at the mirror an interrupted onboarding was using.
+ * Falls back to the most recently connected linked mirror.
+ */
+async function restoreMirrorConnection(mirrorId?: string): Promise<void> {
+  const mirrors = await storage.getLinkedMirrors();
+  const mirror =
+    (mirrorId && mirrors.find((m) => m.mirrorId === mirrorId)) ||
+    [...mirrors].sort((a, b) => b.lastConnected.localeCompare(a.lastConnected))[0];
+  if (mirror) {
+    api.setBaseUrl(mirror.host, mirror.port, mirror.mirrorId);
+    console.log(`[Home] Restored connection to ${mirror.mirrorName} at ${mirror.host}:${mirror.port}`);
+  } else {
+    console.warn('[Home] Resuming setup but no linked mirror to reconnect to');
+  }
+}
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const {
     user,
     isLoading: userLoading,
@@ -43,7 +64,12 @@ export default function HomeScreen() {
     manualConnect,
   } = useMirrorDiscovery();
 
-  const [showManual, setShowManual] = useState(false);
+  // ?manual=1 (from "Enter address manually" on a Mirror not found notice)
+  const { manual } = useLocalSearchParams<{ manual?: string }>();
+  const [showManual, setShowManual] = useState(manual === '1');
+  useEffect(() => {
+    if (manual === '1') setShowManual(true);
+  }, [manual]);
   const [manualHost, setManualHost] = useState('');
   const [connecting, setConnecting] = useState<string | null>(null);
 
@@ -61,6 +87,12 @@ export default function HomeScreen() {
       // User exists, check if onboarding was incomplete
       const state = await storage.getOnboardingState();
       if (state && state.phase !== 'complete') {
+        // The API client's base URL lives in memory only. After an app reload
+        // the setup screens would otherwise call the mirror with no address.
+        if (state.phase === 'setup' || state.phase === 'template') {
+          await restoreMirrorConnection(state.mirrorIdForSetup);
+        }
+
         // Resume onboarding at the right step
         switch (state.phase) {
           case 'welcome':
@@ -93,15 +125,16 @@ export default function HomeScreen() {
   const handleConnect = async (mirror: MirrorDevice | LinkedMirror) => {
     if (!user) return;
 
-    const mirrorId = 'mirrorId' in mirror ? mirror.mirrorId : mirror.id;
-    setConnecting(mirrorId);
+    const isLinked = 'lastConnected' in mirror;
+    setConnecting(isLinked ? mirror.mirrorId : mirror.id);
 
     try {
       // Connect to the mirror
       let connected = false;
-      if ('mirrorId' in mirror) {
-        // LinkedMirror - direct connect
-        api.setBaseUrl(mirror.host, mirror.port);
+      if (isLinked) {
+        // LinkedMirror - direct connect. With its id set, a failed ping looks
+        // for the mirror on the network and follows it to a new address.
+        api.setBaseUrl(mirror.host, mirror.port, mirror.mirrorId);
         try {
           await api.ping();
           connected = true;
@@ -120,15 +153,25 @@ export default function HomeScreen() {
       }
 
       // Register user with mirror and get mirror info
-      const result = await registerUserWithMirror(user);
+      const provisioning = !isLinked && mirror.provisioning === true;
+      // Pair before anything else (the setup hotspot has no pairing).
+      const mirrorName = isLinked ? mirror.mirrorName : mirror.name;
+      if (!provisioning && !(await ensurePaired({ mirrorName }))) {
+        return;
+      }
+      const result = await registerUserWithMirror(user, provisioning);
+      // Where the mirror answered (the client may have followed it to a new
+      // address), now with its id.
+      const { host, port } = api.getConnectionState();
+      api.setBaseUrl(host, port, result.mirrorId);
 
       // Save/update linked mirror
       const linkedMirror: LinkedMirror = {
         mirrorId: result.mirrorId,
         mirrorName: result.mirrorName,
-        host: 'host' in mirror ? mirror.host : (mirror as MirrorDevice).host,
-        port: 'port' in mirror ? mirror.port : (mirror as MirrorDevice).port,
-        faceEnrolled: false,
+        host,
+        port,
+        faceEnrolled: isLinked ? mirror.faceEnrolled : false,
         lastConnected: new Date().toISOString(),
       };
 
@@ -140,7 +183,7 @@ export default function HomeScreen() {
       // Check setup status
       const status = await api.getSetupStatus();
       if (status.step === 'complete') {
-        router.replace('/dashboard');
+        goToDashboard();
       } else {
         router.replace('/setup');
       }
@@ -152,38 +195,34 @@ export default function HomeScreen() {
     }
   };
 
-  const registerUserWithMirror = async (userProfile: typeof user) => {
-    // Try to register user, if endpoint exists
-    try {
-      const response = await fetch(`${api.getBaseUrl()}/api/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+  const registerUserWithMirror = async (userProfile: typeof user, provisioning: boolean) => {
+    const { host, port } = api.getConnectionState();
+    const fallbackId = api.getMirrorId() || `${host}:${port}`;
+
+    // The setup hotspot's provisioning server has no user store; the user is
+    // registered once the mirror is on the home network (setup/wifi).
+    if (!provisioning) {
+      try {
+        const { mirrorId, mirrorName } = await api.createUser({
           id: userProfile!.id,
           name: userProfile!.name,
           preferences: userProfile!.preferences,
-        }),
-      });
-
-      if (response.ok) {
-        return await response.json();
+        });
+        return { mirrorId, mirrorName };
+      } catch (err) {
+        console.error('Registering user with mirror failed:', err);
       }
-    } catch {
-      // Endpoint may not exist yet, continue
     }
 
-    // Fallback: get mirror info from discovery
+    // Fallback: the mirror's identity from /api/discovery
     try {
       const discovery = await api.getDiscoveryInfo();
       return {
-        mirrorId: discovery.name || 'unknown',
+        mirrorId: discovery.mirrorId || fallbackId,
         mirrorName: discovery.name || 'SkyGlass',
       };
     } catch {
-      return {
-        mirrorId: 'unknown',
-        mirrorName: 'SkyGlass',
-      };
+      return { mirrorId: fallbackId, mirrorName: 'SkyGlass' };
     }
   };
 
@@ -224,7 +263,13 @@ export default function HomeScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.lg },
+        ]}
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
             refreshing={scanning}
@@ -415,6 +460,8 @@ export default function HomeScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
+              returnKeyType="go"
+              onSubmitEditing={handleManualConnect}
             />
             <TouchableOpacity
               style={[
@@ -477,7 +524,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.lg,
-    paddingTop: 60,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -668,6 +714,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
+    paddingVertical: spacing.sm,
     marginBottom: spacing.md,
   },
   manualButtonText: {

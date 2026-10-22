@@ -15,7 +15,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
-import { ErrorType } from '@/lib/errors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -215,53 +214,6 @@ export function InlineError({ message, onDismiss, onRetry }: InlineErrorProps) {
   );
 }
 
-/**
- * Connection error banner
- */
-interface ConnectionBannerProps {
-  visible: boolean;
-  message?: string;
-  onRetry?: () => void;
-}
-
-export function ConnectionBanner({
-  visible,
-  message = 'No internet connection',
-  onRetry,
-}: ConnectionBannerProps) {
-  if (!visible) {
-    return null;
-  }
-
-  return (
-    <View style={styles.bannerContainer}>
-      <Ionicons name="cloud-offline" size={16} color={colors.warning} />
-      <Text style={styles.bannerMessage}>{message}</Text>
-      {onRetry && (
-        <TouchableOpacity onPress={onRetry} style={styles.bannerRetry}>
-          <Text style={styles.bannerRetryText}>Retry</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-}
-
-/**
- * Get toast type from error type
- */
-export function getToastTypeFromError(errorType: ErrorType): ToastType {
-  switch (errorType) {
-    case ErrorType.NETWORK_TIMEOUT:
-    case ErrorType.NETWORK_ERROR:
-    case ErrorType.NETWORK_OFFLINE:
-      return 'warning';
-    case ErrorType.VALIDATION_ERROR:
-      return 'info';
-    default:
-      return 'error';
-  }
-}
-
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
@@ -316,30 +268,5 @@ const styles = StyleSheet.create({
   },
   inlineAction: {
     padding: spacing.xs,
-  },
-
-  // Banner styles
-  bannerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.sm,
-    backgroundColor: 'rgba(255, 170, 0, 0.15)',
-    gap: spacing.sm,
-  },
-  bannerMessage: {
-    ...typography.caption,
-    color: colors.warning,
-  },
-  bannerRetry: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.warning,
-    borderRadius: borderRadius.sm,
-  },
-  bannerRetryText: {
-    ...typography.caption,
-    color: colors.background,
-    fontWeight: '600',
   },
 });

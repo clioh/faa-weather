@@ -134,17 +134,9 @@ export function classifyError(error: unknown): ErrorType {
 }
 
 /**
- * Get a user-friendly message for an error
- */
-export function getErrorMessage(error: unknown): string {
-  const errorType = classifyError(error);
-  return ERROR_MESSAGES[errorType];
-}
-
-/**
  * Extract error message from various error formats
  */
-export function extractErrorMessage(error: unknown): string {
+function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
@@ -164,113 +156,6 @@ export function extractErrorMessage(error: unknown): string {
   }
 
   return 'An unknown error occurred';
-}
-
-/**
- * Wrapper for async functions with error handling
- */
-export async function withErrorHandling<T>(
-  fn: () => Promise<T>,
-  options?: {
-    onError?: (error: Error, type: ErrorType) => void;
-    fallback?: T;
-    rethrow?: boolean;
-  }
-): Promise<T | null> {
-  try {
-    return await fn();
-  } catch (error) {
-    const errorType = classifyError(error);
-    const wrappedError = error instanceof Error
-      ? error
-      : new Error(extractErrorMessage(error));
-
-    if (options?.onError) {
-      options.onError(wrappedError, errorType);
-    }
-
-    if (options?.rethrow) {
-      throw wrappedError;
-    }
-
-    return options?.fallback ?? null;
-  }
-}
-
-/**
- * Retry a function with exponential backoff
- */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options?: {
-    maxAttempts?: number;
-    delayMs?: number;
-    backoffMultiplier?: number;
-    retryableErrors?: ErrorType[];
-    onRetry?: (attempt: number, error: Error) => void;
-  }
-): Promise<T> {
-  const maxAttempts = options?.maxAttempts ?? 3;
-  const initialDelay = options?.delayMs ?? 1000;
-  const multiplier = options?.backoffMultiplier ?? 2;
-  const retryableErrors = options?.retryableErrors ?? [
-    ErrorType.NETWORK_TIMEOUT,
-    ErrorType.NETWORK_ERROR,
-    ErrorType.API_ERROR,
-  ];
-
-  let lastError: Error | null = null;
-  let delay = initialDelay;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(extractErrorMessage(error));
-      const errorType = classifyError(error);
-
-      // Check if error is retryable
-      if (!retryableErrors.includes(errorType) || attempt === maxAttempts) {
-        throw lastError;
-      }
-
-      // Notify about retry
-      if (options?.onRetry) {
-        options.onRetry(attempt, lastError);
-      }
-
-      // Wait before retrying
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      delay *= multiplier;
-    }
-  }
-
-  throw lastError ?? new Error('Max retry attempts reached');
-}
-
-/**
- * Check if device appears to be online
- * Note: This is a basic check, actual connectivity may vary
- */
-export function isNetworkError(error: unknown): boolean {
-  const errorType = classifyError(error);
-  return [
-    ErrorType.NETWORK_TIMEOUT,
-    ErrorType.NETWORK_OFFLINE,
-    ErrorType.NETWORK_ERROR,
-  ].includes(errorType);
-}
-
-/**
- * Check if error is recoverable (worth retrying)
- */
-export function isRecoverableError(error: unknown): boolean {
-  const errorType = classifyError(error);
-  return [
-    ErrorType.NETWORK_TIMEOUT,
-    ErrorType.NETWORK_ERROR,
-    ErrorType.API_ERROR,
-  ].includes(errorType);
 }
 
 /**

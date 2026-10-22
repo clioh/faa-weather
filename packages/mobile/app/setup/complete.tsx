@@ -9,11 +9,17 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api } from '@/lib/api';
 import { storage } from '@/lib/storage';
+import { goToDashboard } from '@/lib/navigation';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
 export default function SetupCompleteScreen() {
+  const insets = useSafeAreaInsets();
   const [isOnboarding, setIsOnboarding] = useState(false);
+  /** Only list the license when the mirror actually uses one (not with licensing off). */
+  const [licenseActive, setLicenseActive] = useState(false);
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -26,6 +32,10 @@ export default function SetupCompleteScreen() {
       }
     };
     checkOnboardingState();
+    api
+      .getLicenseStatus()
+      .then((license) => setLicenseActive(license.state === 'active'))
+      .catch(() => setLicenseActive(false));
   }, []);
 
   const handleContinue = async () => {
@@ -35,7 +45,7 @@ export default function SetupCompleteScreen() {
       router.replace('/onboarding/template');
     } else {
       // Normal flow - go to dashboard
-      router.replace('/dashboard');
+      goToDashboard();
     }
   };
 
@@ -71,6 +81,15 @@ export default function SetupCompleteScreen() {
             <Text style={styles.featureText}>Connected to WiFi</Text>
           </View>
 
+          {licenseActive && (
+            <View style={styles.feature}>
+              <View style={styles.featureIcon}>
+                <Ionicons name="key" size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.featureText}>License activated</Text>
+            </View>
+          )}
+
           <View style={styles.feature}>
             <View style={styles.featureIcon}>
               <Ionicons name="airplane" size={20} color={colors.primary} />
@@ -105,7 +124,7 @@ export default function SetupCompleteScreen() {
       </View>
 
       {/* Done button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <TouchableOpacity
           style={styles.doneButton}
           onPress={handleContinue}
@@ -216,7 +235,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   doneButton: {
     flexDirection: 'row',

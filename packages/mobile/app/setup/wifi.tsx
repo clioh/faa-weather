@@ -1,6 +1,12 @@
 /**
  * WiFi Setup Screen
  * Connect mirror to home WiFi network
+ *
+ * During first setup the phone talks to the mirror over its SkyGlass-Setup
+ * hotspot (wifi_provisioning.py on 10.42.0.1:80). Sending the credentials
+ * makes the mirror leave the hotspot and join the home network with a new
+ * address, so after Connect this screen hands over to MirrorHandoff, which
+ * finds the same mirror (by id) on the new network before setup continues.
  */
 
 import { useState, useEffect } from 'react';
@@ -12,12 +18,19 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
-  Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
+import { KeyboardAvoidingScreen, MirrorHandoff } from '@/components';
+import { useUser } from '@/context/UserContext';
+import { goBack } from '@/lib/navigation';
+import { continueSetup } from '@/lib/setupSteps';
+import { ensurePaired } from '@/lib/pairing';
+import { isSetupHotspot, type FoundMirror } from '@/lib/mirrorLocator';
+import { logError } from '@/lib/errors';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
 interface WifiNetwork {
@@ -27,6 +40,9 @@ interface WifiNetwork {
 }
 
 export default function WifiSetupScreen() {
+  const insets = useSafeAreaInsets();
+  // 'setup' when opened from the setup checklist; absent from Settings.
+  const { flow } = useLocalSearchParams<{ flow?: string }>();
   const [networks, setNetworks] = useState<WifiNetwork[]>([]);
   const [scanning, setScanning] = useState(true);
   const [selectedNetwork, setSelectedNetwork] = useState<WifiNetwork | null>(null);
@@ -34,6 +50,13 @@ export default function WifiSetupScreen() {
   const [connecting, setConnecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Credentials sent: waiting for the mirror to show up on the new network. */
+  const [handoff, setHandoff] = useState<{
+    ssid: string;
+    mirrorId: string | null;
+    fromHotspot: boolean;
+  } | null>(null);
+  const { user, refresh } = useUser();
 
   useEffect(() => {
     scanNetworks();
@@ -65,31 +88,85 @@ export default function WifiSetupScreen() {
     setError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    // The id is what lets us recognise the mirror at its new address.
+    let mirrorId = api.getMirrorId();
+    const { host, port } = api.getConnectionState();
+    if (!mirrorId) {
+      mirrorId = (await api.getDiscoveryInfo().catch(() => null))?.mirrorId ?? null;
+      if (mirrorId) api.setBaseUrl(host, port, mirrorId);
+    }
+    const ssid = selectedNetwork.ssid;
+    const startHandoff = () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setHandoff({ ssid, mirrorId, fromHotspot: isSetupHotspot(host, port) });
+    };
+
     try {
-      const result = await api.connectWifi(selectedNetwork.ssid, password);
-
+      const result = await api.connectWifi(ssid, password);
       if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-        Alert.alert(
-          'WiFi Connected',
-          `Your mirror is now connected to ${selectedNetwork.ssid}. The mirror will restart and join your home network.`,
-          [
-            {
-              text: 'Continue',
-              onPress: () => router.back(),
-            },
-          ]
-        );
+        startHandoff();
       } else {
-        throw new Error('Connection failed');
+        setError(
+          result.message || result.error || 'Failed to connect to network. Check the password and try again.'
+        );
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (err) {
-      setError('Failed to connect to network. Check the password and try again.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (err instanceof ApiError && err.status === undefined) {
+        // No response: the mirror most likely dropped the hotspot as soon as
+        // it had the credentials. Look for it on the new network.
+        startHandoff();
+      } else {
+        setError(
+          err instanceof Error && err.message
+            ? err.message
+            : 'Failed to connect to network. Check the password and try again.'
+        );
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     } finally {
       setConnecting(false);
     }
+  };
+
+  /** The mirror answered on the new network: adopt its address and move on. */
+  const handleMirrorOnline = async (found: FoundMirror) => {
+    await api.moveTo(found.host, found.port);
+    // The hotspot has no pairing, so a phone set up through it pairs here,
+    // before the first protected call (createUser, setup status, license).
+    let paired = false;
+    try {
+      paired = await ensurePaired({ mirrorName: found.name });
+    } catch (err) {
+      logError('WifiSetup.ensurePaired', err);
+    }
+    if (!paired) {
+      setHandoff(null);
+      setError(
+        'The mirror is on your network now, but this phone isn’t paired with it yet. Select the mirror again from the mirror list to pair and finish setup.'
+      );
+      return;
+    }
+    // The hotspot's provisioning server can't register users, so this is the
+    // first time the mirror hears about this phone's user.
+    if (user) {
+      try {
+        await api.createUser({ id: user.id, name: user.name, preferences: user.preferences });
+      } catch (err) {
+        logError('WifiSetup.createUser', err);
+      }
+    }
+    await refresh();
+    // In setup, License comes next. That screen skips itself when licensing
+    // is off and moves on to Location.
+    if (flow === 'setup') await continueSetup('wifi');
+    else goBack('/dashboard');
+  };
+
+  const chooseNetworkAgain = () => {
+    setHandoff(null);
+    setPassword('');
+    scanNetworks();
   };
 
   const getSignalIcon = (signal: number): keyof typeof Ionicons.glyphMap => {
@@ -135,8 +212,22 @@ export default function WifiSetupScreen() {
     </TouchableOpacity>
   );
 
+  if (handoff) {
+    return (
+      <View style={styles.container}>
+        <MirrorHandoff
+          ssid={handoff.ssid}
+          mirrorId={handoff.mirrorId}
+          fromHotspot={handoff.fromHotspot}
+          onConnected={handleMirrorOnline}
+          onChooseNetwork={chooseNetworkAgain}
+        />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingScreen style={styles.container}>
       {/* Instructions */}
       <View style={styles.instructions}>
         <Ionicons name="wifi" size={20} color={colors.accent} />
@@ -158,6 +249,7 @@ export default function WifiSetupScreen() {
           keyExtractor={(item) => item.ssid}
           style={styles.networkList}
           contentContainerStyle={styles.networkListContent}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="wifi-outline" size={48} color={colors.textMuted} />
@@ -186,6 +278,8 @@ export default function WifiSetupScreen() {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
+              returnKeyType="go"
+              onSubmitEditing={handleConnect}
             />
             <TouchableOpacity
               style={styles.showPasswordButton}
@@ -210,7 +304,7 @@ export default function WifiSetupScreen() {
       )}
 
       {/* Connect button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <TouchableOpacity
           style={[styles.connectButton, !selectedNetwork && styles.connectButtonDisabled]}
           onPress={handleConnect}
@@ -226,7 +320,7 @@ export default function WifiSetupScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingScreen>
   );
 }
 
@@ -309,6 +403,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   rescanButton: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     backgroundColor: colors.surfaceHighlight,
@@ -343,7 +439,10 @@ const styles = StyleSheet.create({
     ...typography.body,
   },
   showPasswordButton: {
-    padding: spacing.md,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -361,7 +460,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   connectButton: {
     flexDirection: 'row',

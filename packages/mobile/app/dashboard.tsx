@@ -16,8 +16,10 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/lib/api';
 import { useUser } from '@/context/UserContext';
+import { MirrorNotFound } from '@/components/MirrorNotFound';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
 interface MirrorStatus {
@@ -37,10 +39,10 @@ interface MirrorStatus {
 
 export default function DashboardScreen() {
   const { user } = useUser();
+  const insets = useSafeAreaInsets();
   const [status, setStatus] = useState<MirrorStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [moduleCount, setModuleCount] = useState<number>(0);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -49,29 +51,13 @@ export default function DashboardScreen() {
         online: true,
         version: health.version,
       });
-
-      // Try to get user's layout module count
-      if (user) {
-        try {
-          const userLayout = await api.getUserLayout(user.id);
-          setModuleCount(userLayout.modules?.length || 0);
-        } catch {
-          // Fall back to global layout
-          try {
-            const layout = await api.getLayout();
-            setModuleCount(layout.modules?.length || 0);
-          } catch {
-            setModuleCount(0);
-          }
-        }
-      }
     } catch {
       setStatus({ online: false, version: '' });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     loadStatus();
@@ -95,7 +81,7 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -131,6 +117,8 @@ export default function DashboardScreen() {
           />
         </View>
 
+        {!status?.online && <MirrorNotFound visible onFound={loadStatus} />}
+
         {/* Customization section */}
         <Text style={styles.sectionTitle}>Customize Mirror</Text>
         <View style={styles.customizeRow}>
@@ -150,27 +138,6 @@ export default function DashboardScreen() {
             <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          style={styles.widgetsCard}
-          onPress={() => router.push('/widgets')}
-        >
-          <View style={[styles.widgetsIcon, { backgroundColor: colors.accentMuted }]}>
-            <Ionicons name="apps-outline" size={28} color={colors.accent} />
-          </View>
-          <View style={styles.widgetsInfo}>
-            <Text style={styles.widgetsTitle}>Installed Widgets</Text>
-            <Text style={styles.widgetsSubtitle}>
-              {user ? `${user.name}'s active widgets` : 'Configure your active widgets'}
-            </Text>
-          </View>
-          {moduleCount > 0 && (
-            <View style={styles.widgetsBadge}>
-              <Text style={styles.widgetsBadgeText}>{moduleCount}</Text>
-            </View>
-          )}
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
 
         {/* Quick actions */}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -232,7 +199,7 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.infoCardContent}>
             <Text style={styles.infoCardTitle}>Setup Wizard</Text>
-            <Text style={styles.infoCardSubtitle}>Configure WiFi, airport, and face registration</Text>
+            <Text style={styles.infoCardSubtitle}>WiFi, license, location, airport and face registration</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </TouchableOpacity>
@@ -252,8 +219,8 @@ export default function DashboardScreen() {
       </ScrollView>
 
       {/* Bottom tab bar */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem}>
+      <View style={[styles.tabBar, { paddingBottom: insets.bottom + spacing.sm }]}>
+        <TouchableOpacity style={styles.tabItem} disabled accessibilityState={{ selected: true }}>
           <Ionicons name="home" size={24} color={colors.primary} />
           <Text style={[styles.tabLabel, styles.tabLabelActive]}>Home</Text>
         </TouchableOpacity>
@@ -414,7 +381,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingBottom: 20,
+    paddingBottom: spacing.sm,
     paddingTop: spacing.sm,
   },
   tabItem: {
@@ -462,48 +429,5 @@ const styles = StyleSheet.create({
   customizeSubtitle: {
     ...typography.caption,
     color: colors.textMuted,
-  },
-  widgetsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  widgetsIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  widgetsInfo: {
-    flex: 1,
-  },
-  widgetsTitle: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  widgetsSubtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  widgetsBadge: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginRight: spacing.sm,
-  },
-  widgetsBadgeText: {
-    ...typography.caption,
-    color: colors.background,
-    fontWeight: '700',
   },
 });

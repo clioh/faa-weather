@@ -19,7 +19,9 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useUser } from '@/context/UserContext';
+import { ScreenHeader, HeaderTextButton, HEADER_HIT_SLOP } from '@/components';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { goHome } from '@/lib/navigation';
 
 export default function ProfileScreen() {
   const { user, updateProfile, linkedMirrors } = useUser();
@@ -60,37 +62,35 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        <ScreenHeader title="Profile" fallbackHref="/" />
+        <View style={[styles.container, styles.centered]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <View style={styles.headerRight}>
-          {!isEditing ? (
-            <TouchableOpacity onPress={() => setIsEditing(true)}>
-              <Text style={styles.editButton}>Edit</Text>
-            </TouchableOpacity>
+      <ScreenHeader
+        title="Profile"
+        fallbackHref="/"
+        right={
+          isEditing ? (
+            <HeaderTextButton label="Cancel" color={colors.textMuted} onPress={handleCancel} />
           ) : (
-            <TouchableOpacity onPress={handleCancel}>
-              <Text style={styles.cancelButton}>Cancel</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+            <HeaderTextButton label="Edit" onPress={() => setIsEditing(true)} />
+          )
+        }
+      />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={styles.avatar}>
@@ -151,7 +151,11 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Linked Mirrors</Text>
-            <TouchableOpacity onPress={() => router.push('/mirrors')}>
+            <TouchableOpacity
+              onPress={() => router.push('/mirrors')}
+              hitSlop={HEADER_HIT_SLOP}
+              accessibilityRole="button"
+            >
               <Text style={styles.sectionAction}>Manage</Text>
             </TouchableOpacity>
           </View>
@@ -162,7 +166,7 @@ export default function ProfileScreen() {
               <Text style={styles.emptyText}>No mirrors linked yet</Text>
               <TouchableOpacity
                 style={styles.linkButton}
-                onPress={() => router.push('/')}
+                onPress={goHome}
               >
                 <Text style={styles.linkButtonText}>Find a Mirror</Text>
               </TouchableOpacity>
@@ -214,36 +218,6 @@ const styles = StyleSheet.create({
   centered: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    width: 40,
-  },
-  headerTitle: {
-    ...typography.h2,
-    color: colors.text,
-  },
-  headerRight: {
-    width: 60,
-    alignItems: 'flex-end',
-  },
-  editButton: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    ...typography.body,
-    color: colors.textMuted,
   },
   content: {
     padding: spacing.lg,
@@ -333,6 +307,7 @@ const styles = StyleSheet.create({
   sectionAction: {
     ...typography.body,
     color: colors.primary,
+    paddingVertical: spacing.xs,
   },
   emptyState: {
     alignItems: 'center',

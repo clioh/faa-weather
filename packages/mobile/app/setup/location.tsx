@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { api } from '@/lib/api';
@@ -26,6 +27,7 @@ interface LocationData {
 }
 
 export default function LocationSetupScreen() {
+  const insets = useSafeAreaInsets();
   const [location, setLocation] = useState<LocationData | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -97,7 +99,9 @@ export default function LocationSetupScreen() {
     try {
       await api.setLocation(location);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      // Hand straight over to the airport step, which suggests fields near
+      // this location. replace() keeps the checklist as the screen behind it.
+      router.replace('/setup/airport');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save location');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -217,7 +221,7 @@ export default function LocationSetupScreen() {
       </View>
 
       {/* Save button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <TouchableOpacity
           style={[styles.saveButton, !location && styles.saveButtonDisabled]}
           onPress={handleSave}
@@ -389,7 +393,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

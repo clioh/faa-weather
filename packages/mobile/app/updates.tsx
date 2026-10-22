@@ -80,7 +80,7 @@ function CircularProgress({ percent, size = 120 }: { percent: number; size?: num
           strokeLinecap="round"
         />
       </Svg>
-      <View style={StyleSheet.absoluteFill as any}>
+      <View style={StyleSheet.absoluteFill}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={styles.progressPercent}>{percent}%</Text>
         </View>
@@ -367,6 +367,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   centerContainer: {
     flex: 1,

@@ -3,7 +3,7 @@
  * Configure mirror options and manage the app
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,16 +14,31 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { api } from '@/lib/api';
+import * as WebBrowser from 'expo-web-browser';
+import { api, type LicenseStatus, type LicenseState, type UpdateConfig } from '@/lib/api';
+import { LICENSE_MANAGE_URL } from '@/lib/license';
+import { logError } from '@/lib/errors';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { goHome } from '@/lib/navigation';
+import { useUser } from '@/context/UserContext';
 
-interface UpdateConfig {
-  autoUpdate: boolean;
-  autoDownload: boolean;
-  checkInterval: number;
+const LICENSE_STATE_LABELS: Record<LicenseState, string> = {
+  active: 'Active',
+  disabled: 'Not required',
+  unlicensed: 'Not activated',
+  expired: 'Reconnect to verify',
+  released: 'Released from this mirror',
+  revoked: 'Revoked',
+  bound_elsewhere: 'In use on another mirror',
+};
+
+function licenseSummary(license: LicenseStatus | null): string {
+  if (!license) return "Couldn't check the license";
+  const label = LICENSE_STATE_LABELS[license.state] ?? license.state;
+  return license.keyLast4 ? `${label} · key …${license.keyLast4}` : label;
 }
 
 interface RegisteredFace {
@@ -33,18 +48,28 @@ interface RegisteredFace {
 }
 
 export default function SettingsScreen() {
+  const { resetAppData } = useUser();
   const [updateConfig, setUpdateConfig] = useState<UpdateConfig | null>(null);
   const [faces, setFaces] = useState<RegisteredFace[]>([]);
+  const [license, setLicense] = useState<LicenseStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadSettings();
   }, []);
 
+  // The license row links to setup/license, which can change the key; re-read
+  // the status whenever this screen comes back into focus.
+  useFocusEffect(
+    useCallback(() => {
+      api.getLicenseStatus().then(setLicense).catch(() => {});
+    }, [])
+  );
+
   const loadSettings = async () => {
     try {
       const [configResponse, facesResponse] = await Promise.all([
-        fetch(`${api.getBaseUrl()}/api/update/config`).then(r => r.json()),
+        api.getUpdateConfig().catch(() => null),
         api.getRegisteredFaces().catch(() => []),
       ]);
       setUpdateConfig(configResponse);
@@ -65,16 +90,21 @@ export default function SettingsScreen() {
     setUpdateConfig(newConfig);
 
     try {
-      await fetch(`${api.getBaseUrl()}/api/update/config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: value }),
-      });
+      await api.setUpdateConfig({ [key]: value });
     } catch {
       // Revert on error
       setUpdateConfig(updateConfig);
     }
   };
+
+  const openLicenseManagement = () => {
+    WebBrowser.openBrowserAsync(license?.manageUrl || LICENSE_MANAGE_URL).catch((err) =>
+      logError('Settings.openLicenseManagement', err)
+    );
+  };
+
+  const licenseNeedsAttention =
+    license !== null && license.state !== 'active' && license.state !== 'disabled';
 
   const deleteFace = async (face: RegisteredFace) => {
     Alert.alert(
@@ -111,7 +141,26 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            router.replace('/');
+            goHome();
+          },
+        },
+      ]
+    );
+  };
+
+  // Dev builds only: start over from registration without reinstalling Expo Go.
+  const confirmResetAppData = () => {
+    Alert.alert(
+      'Reset App Data',
+      'Deletes your profile, linked mirrors and pairing tokens on this phone. The mirror is not changed (npm run setup:dev -- reset does that).',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            await resetAppData().catch((err) => logError('Settings.resetAppData', err));
+            router.replace('/onboarding');
           },
         },
       ]
@@ -199,6 +248,8 @@ export default function SettingsScreen() {
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => deleteFace(face)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${face.name}'s face registration`}
                 >
                   <Ionicons name="trash-outline" size={20} color={colors.error} />
                 </TouchableOpacity>
@@ -219,6 +270,27 @@ export default function SettingsScreen() {
         >
           <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
           <Text style={styles.addFaceButtonText}>Add New Face</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Calendars */}
+      <Text style={styles.sectionTitle}>CALENDARS</Text>
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.settingRow}
+          onPress={() => router.push('/calendars')}
+          accessibilityRole="button"
+          accessibilityLabel="Calendars"
+          accessibilityHint="Connect and manage the calendars shown on the mirror"
+        >
+          <View style={styles.settingIconContainer}>
+            <Ionicons name="calendar-outline" size={20} color="#ff6b6b" />
+          </View>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Calendars</Text>
+            <Text style={styles.settingDescription}>Connect Google, Outlook, iCloud or a calendar link</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -272,6 +344,76 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Paired phones */}
+      <Text style={styles.sectionTitle}>PAIRED PHONES</Text>
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.settingRow}
+          onPress={() => router.push('/paired-phones')}
+          accessibilityRole="button"
+          accessibilityLabel="Paired phones"
+          accessibilityHint="See which phones can control this mirror, rename this phone or remove others"
+        >
+          <View style={styles.settingIconContainer}>
+            <Ionicons name="phone-portrait-outline" size={20} color={colors.primary} />
+          </View>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Paired phones</Text>
+            <Text style={styles.settingDescription}>Phones that can control this mirror</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      {/* License */}
+      <Text style={styles.sectionTitle}>LICENSE</Text>
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.settingRow}
+          onPress={() => router.push('/setup/license')}
+          accessibilityRole="button"
+          accessibilityLabel="License"
+          accessibilityHint="View the license status or enter a different license key"
+        >
+          <View style={styles.settingIconContainer}>
+            <Ionicons
+              name="key-outline"
+              size={20}
+              color={licenseNeedsAttention ? colors.warning : colors.primary}
+            />
+          </View>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>License</Text>
+            <Text
+              style={[
+                styles.settingDescription,
+                licenseNeedsAttention && { color: colors.warning },
+              ]}
+            >
+              {licenseSummary(license)}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        <View style={styles.divider} />
+
+        <TouchableOpacity
+          style={styles.settingRow}
+          onPress={openLicenseManagement}
+          accessibilityRole="link"
+          accessibilityHint="Opens skyglass.dev to release the license or re-send the key"
+        >
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Manage license</Text>
+            <Text style={styles.settingDescription}>
+              Move it to another mirror or have the key re-sent
+            </Text>
+          </View>
+          <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
       {/* About & Support */}
       <Text style={styles.sectionTitle}>ABOUT</Text>
       <View style={styles.card}>
@@ -291,6 +433,13 @@ export default function SettingsScreen() {
         <Ionicons name="log-out-outline" size={20} color={colors.error} />
         <Text style={styles.disconnectButtonText}>Disconnect Mirror</Text>
       </TouchableOpacity>
+
+      {__DEV__ && (
+        <TouchableOpacity style={styles.disconnectButton} onPress={confirmResetAppData}>
+          <Ionicons name="refresh-outline" size={20} color={colors.error} />
+          <Text style={styles.disconnectButtonText}>Reset App Data (dev)</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Footer spacing */}
       <View style={styles.footerSpace} />
@@ -377,7 +526,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   deleteButton: {
-    padding: spacing.sm,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyFaces: {
     padding: spacing.lg,

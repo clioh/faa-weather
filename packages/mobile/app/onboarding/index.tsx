@@ -8,9 +8,12 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
 export default function WelcomeScreen() {
+  const insets = useSafeAreaInsets();
+
   const handleGetStarted = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/onboarding/profile');
@@ -69,10 +72,20 @@ export default function WelcomeScreen() {
             </View>
           </View>
         </View>
+
+        {/* What setup needs */}
+        <View style={styles.prepNote}>
+          <Ionicons name="key-outline" size={20} color={colors.accent} />
+          <Text style={styles.prepText}>
+            Setup covers WiFi, your license, location, home airport and face registration.{' '}
+            <Text style={styles.prepEmphasis}>Have your license key ready</Text>: it's in your
+            SkyGlass order confirmation email. Bought a kit? The license comes pre-installed.
+          </Text>
+        </View>
       </View>
 
       {/* Get Started Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <TouchableOpacity
           style={styles.startButton}
           onPress={handleGetStarted}
@@ -83,7 +96,7 @@ export default function WelcomeScreen() {
         </TouchableOpacity>
 
         <Text style={styles.footerNote}>
-          Takes about 2 minutes to set up
+          Takes about 5 minutes to set up
         </Text>
       </View>
     </View>
@@ -174,9 +187,26 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
   },
+  prepNote: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    backgroundColor: colors.accentMuted,
+    borderRadius: borderRadius.md,
+  },
+  prepText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  prepEmphasis: {
+    color: colors.text,
+    fontWeight: '600',
+  },
   footer: {
     padding: spacing.xl,
-    paddingBottom: spacing.xl + 20,
   },
   startButton: {
     height: 56,

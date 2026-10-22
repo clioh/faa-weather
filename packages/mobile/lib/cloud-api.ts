@@ -7,7 +7,7 @@
  * - Remote mirror access via relay
  */
 
-import { getClerkInstance } from '@clerk/clerk-expo';
+import { getClerkInstance } from '@clerk/expo';
 
 // API configuration
 const CLOUD_API_URL = process.env.EXPO_PUBLIC_CLOUD_API_URL || 'https://api.skyglass.dev';

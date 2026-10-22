@@ -10,22 +10,23 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Alert,
   ScrollView,
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
-import { useSignUp, useOAuth } from '@clerk/clerk-expo';
+import { useSSO } from '@clerk/expo';
+import { useSignUp } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
+import { KeyboardAvoidingScreen, HEADER_HIT_SLOP } from '@/components';
+import { goToDashboard } from '@/lib/navigation';
 import { colors } from '@/lib/theme';
 
 export default function SignUpScreen() {
   const router = useRouter();
   const { signUp, setActive, isLoaded } = useSignUp();
-  const { startOAuthFlow: startGoogleOAuth } = useOAuth({ strategy: 'oauth_google' });
-  const { startOAuthFlow: startAppleOAuth } = useOAuth({ strategy: 'oauth_apple' });
+  const { startSSOFlow } = useSSO();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -82,7 +83,7 @@ export default function SignUpScreen() {
 
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
-        router.replace('/dashboard');
+        goToDashboard();
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Verification failed';
@@ -94,14 +95,15 @@ export default function SignUpScreen() {
 
   const handleOAuthSignUp = useCallback(
     async (provider: 'google' | 'apple') => {
-      const startOAuth = provider === 'google' ? startGoogleOAuth : startAppleOAuth;
       setOauthLoading(provider);
 
       try {
-        const result = await startOAuth();
+        const result = await startSSOFlow({
+          strategy: provider === 'google' ? 'oauth_google' : 'oauth_apple',
+        });
         if (result.createdSessionId) {
           await setActive!({ session: result.createdSessionId });
-          router.replace('/dashboard');
+          goToDashboard();
         }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'OAuth sign up failed';
@@ -110,16 +112,13 @@ export default function SignUpScreen() {
         setOauthLoading(null);
       }
     },
-    [startGoogleOAuth, startAppleOAuth, setActive, router]
+    [startSSOFlow, setActive, router]
   );
 
   // Verification Screen
   if (pendingVerification) {
     return (
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingScreen style={styles.container}>
         <View style={styles.content}>
           <Ionicons name="mail-outline" size={64} color={colors.primary} style={styles.verifyIcon} />
           <Text style={styles.title}>Verify Your Email</Text>
@@ -156,22 +155,24 @@ export default function SignUpScreen() {
 
           <TouchableOpacity
             style={styles.resendButton}
+            hitSlop={HEADER_HIT_SLOP}
             onPress={() => signUp?.prepareEmailAddressVerification({ strategy: 'email_code' })}
           >
             <Text style={styles.resendText}>Didn't receive the code? Resend</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingScreen>
     );
   }
 
   // Sign Up Form
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingScreen style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <View style={styles.content}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Sign up to sync your mirrors across devices</Text>
@@ -216,7 +217,11 @@ export default function SignUpScreen() {
                 secureTextEntry={!showPassword}
                 autoComplete="new-password"
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+                hitSlop={HEADER_HIT_SLOP}
+              >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
@@ -284,14 +289,14 @@ export default function SignUpScreen() {
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
             <Link href="/(auth)/sign-in" asChild>
-              <TouchableOpacity>
+              <TouchableOpacity hitSlop={HEADER_HIT_SLOP}>
                 <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </Link>
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingScreen>
   );
 }
 

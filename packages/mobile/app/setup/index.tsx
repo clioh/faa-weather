@@ -3,7 +3,7 @@
  * Shows setup progress and navigates to current step
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { api, SetupStatus } from '@/lib/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api, ApiError, SetupStatus } from '@/lib/api';
+import { LICENSE_SETUP_ROUTE } from '@/lib/setupSteps';
+import { storage } from '@/lib/storage';
+import { logError } from '@/lib/errors';
+import { HeaderBackButton, MirrorNotFound } from '@/components';
+import { goToDashboard } from '@/lib/navigation';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
 interface SetupStep {
@@ -21,7 +27,7 @@ interface SetupStep {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  route: string;
+  route: Href;
   isComplete: (status: SetupStatus) => boolean;
 }
 
@@ -31,16 +37,16 @@ const SETUP_STEPS: SetupStep[] = [
     title: 'WiFi Network',
     description: 'Connect your mirror to your home network',
     icon: 'wifi-outline',
-    route: '/setup/wifi',
-    isComplete: (status) => status.wifi_configured,
+    route: { pathname: '/setup/wifi', params: { flow: 'setup' } },
+    isComplete: (status) => status.wifiConfigured,
   },
   {
-    id: 'airport',
-    title: 'Home Airport',
-    description: 'Set your primary airport for weather data',
-    icon: 'airplane-outline',
-    route: '/setup/airport',
-    isComplete: (status) => status.airport_configured,
+    id: 'license',
+    title: 'License',
+    description: 'Activate your SkyGlass license key',
+    icon: 'key-outline',
+    route: LICENSE_SETUP_ROUTE,
+    isComplete: (status) => status.licenseActivated,
   },
   {
     id: 'location',
@@ -48,7 +54,15 @@ const SETUP_STEPS: SetupStep[] = [
     description: 'Enable sunrise/sunset and local weather',
     icon: 'location-outline',
     route: '/setup/location',
-    isComplete: (status) => status.location_configured,
+    isComplete: (status) => status.locationConfigured,
+  },
+  {
+    id: 'airport',
+    title: 'Home Airport',
+    description: 'Pick from airports near you, or search',
+    icon: 'airplane-outline',
+    route: '/setup/airport',
+    isComplete: (status) => status.airportConfigured,
   },
   {
     id: 'face',
@@ -56,34 +70,70 @@ const SETUP_STEPS: SetupStep[] = [
     description: 'Register your face for presence detection',
     icon: 'person-circle-outline',
     route: '/setup/face',
-    isComplete: (status) => status.face_registered,
+    isComplete: (status) => status.faceEnrolled,
   },
 ];
 
 export default function SetupIndex() {
+  const insets = useSafeAreaInsets();
   const [status, setStatus] = useState<SetupStatus | null>(null);
+  /** Licensing switched off on the mirror (local development): no License row. */
+  const [licensingOff, setLicensingOff] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** The error was "no response at all" (not an HTTP error). */
+  const [unreachable, setUnreachable] = useState(false);
 
-  useEffect(() => {
-    loadStatus();
-  }, []);
+  // Steps push their own screens and pop back here, so this screen stays
+  // mounted. Re-read the status on every focus so completed steps get ticked.
+  useFocusEffect(
+    useCallback(() => {
+      loadStatus();
+    }, [])
+  );
 
   const loadStatus = async () => {
     try {
-      setLoading(true);
-      const setupStatus = await api.getSetupStatus();
+      // Only blank the screen on the first load; on later focuses keep the
+      // checklist visible while the status refreshes behind it.
+      setLoading((current) => current && status === null);
+      setError(null);
+      const [setupStatus, license] = await Promise.all([
+        api.getSetupStatus(),
+        // Only used to hide the License row; failing to read it just keeps the row.
+        api.getLicenseStatus().catch(() => null),
+      ]);
       setStatus(setupStatus);
+      setLicensingOff(license?.state === 'disabled' || license?.enabled === false);
 
-      // If all steps complete, go to complete screen
+      // During onboarding, finishing the last step moves on to the celebration
+      // screen. Once onboarding is over (opened from the dashboard's Setup
+      // Wizard), show the checklist with every step ticked instead.
       if (setupStatus.step === 'complete') {
-        router.replace('/setup/complete');
+        const state = await storage.getOnboardingState();
+        if (state?.phase === 'setup') {
+          router.replace('/setup/complete');
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load setup status');
+      setUnreachable(err instanceof ApiError && err.status === undefined);
     } finally {
       setLoading(false);
     }
+  };
+
+  const steps = licensingOff ? SETUP_STEPS.filter((s) => s.id !== 'license') : SETUP_STEPS;
+
+  /**
+   * Steps after License wait for it: the mirror won't finish setup without a
+   * license, so the checklist doesn't let Location/Airport/Face jump ahead.
+   * (licenseActivated is always true when licensing is off.)
+   */
+  const isLocked = (step: SetupStep): boolean => {
+    if (!status || status.licenseActivated || step.isComplete(status)) return false;
+    const licenseIndex = SETUP_STEPS.findIndex((s) => s.id === 'license');
+    return SETUP_STEPS.indexOf(step) > licenseIndex;
   };
 
   const getStepStatus = (step: SetupStep): 'complete' | 'current' | 'pending' => {
@@ -91,24 +141,50 @@ export default function SetupIndex() {
     if (step.isComplete(status)) return 'complete';
 
     // Find first incomplete step
-    const firstIncomplete = SETUP_STEPS.find((s) => !s.isComplete(status));
+    const firstIncomplete = steps.find((s) => !s.isComplete(status));
     if (firstIncomplete?.id === step.id) return 'current';
 
     return 'pending';
   };
 
   const handleStepPress = (step: SetupStep) => {
-    router.push(step.route as any);
+    router.push(isLocked(step) ? LICENSE_SETUP_ROUTE : step.route);
   };
 
+  // Leaving setup early still ends onboarding; otherwise app/index.tsx sees
+  // phase 'setup' on the next launch and sends the user straight back here.
+  const leaveSetup = async () => {
+    try {
+      await storage.setOnboardingState({ phase: 'complete' });
+    } catch (err) {
+      logError('SetupIndex.leaveSetup', err);
+    }
+    goToDashboard();
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else leaveSetup();
+  };
+
+  const backButton = (
+    <View style={styles.topRow}>
+      <HeaderBackButton onPress={handleBack} />
+    </View>
+  );
+
   const completedSteps = status
-    ? SETUP_STEPS.filter((step) => step.isComplete(status)).length
+    ? steps.filter((step) => step.isComplete(status)).length
     : 0;
-  const progressPercent = (completedSteps / SETUP_STEPS.length) * 100;
+  const progressPercent = (completedSteps / steps.length) * 100;
+  const allComplete = completedSteps === steps.length;
 
   if (loading) {
     return (
       <View style={styles.centerContainer}>
+        <View style={[styles.errorBackButton, { top: insets.top + spacing.sm }]}>
+          {backButton}
+        </View>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading setup status...</Text>
       </View>
@@ -119,17 +195,26 @@ export default function SetupIndex() {
     return (
       <View style={styles.centerContainer}>
         <Ionicons name="warning-outline" size={48} color={colors.warning} />
+        <View style={[styles.errorBackButton, { top: insets.top + spacing.sm }]}>
+          {backButton}
+        </View>
         <Text style={styles.errorTitle}>Connection Error</Text>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadStatus}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
+        {unreachable ? (
+          <MirrorNotFound visible onFound={loadStatus} />
+        ) : (
+          <TouchableOpacity style={styles.retryButton} onPress={loadStatus}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+      {backButton}
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Setup Your Mirror</Text>
@@ -145,16 +230,17 @@ export default function SetupIndex() {
             />
           </View>
           <Text style={styles.progressText}>
-            {completedSteps} of {SETUP_STEPS.length} complete
+            {completedSteps} of {steps.length} complete
           </Text>
         </View>
       </View>
 
       {/* Steps */}
       <View style={styles.stepsContainer}>
-        {SETUP_STEPS.map((step, index) => {
+        {steps.map((step, index) => {
           const stepStatus = getStepStatus(step);
-          const isLast = index === SETUP_STEPS.length - 1;
+          const locked = isLocked(step);
+          const isLast = index === steps.length - 1;
 
           return (
             <View key={step.id}>
@@ -195,11 +281,13 @@ export default function SetupIndex() {
                   >
                     {step.title}
                   </Text>
-                  <Text style={styles.stepDescription}>{step.description}</Text>
+                  <Text style={styles.stepDescription}>
+                    {locked ? 'Activate your license first' : step.description}
+                  </Text>
                 </View>
 
                 <Ionicons
-                  name="chevron-forward"
+                  name={locked ? 'lock-closed-outline' : 'chevron-forward'}
                   size={20}
                   color={stepStatus === 'pending' ? colors.textDisabled : colors.textMuted}
                 />
@@ -221,12 +309,14 @@ export default function SetupIndex() {
         })}
       </View>
 
-      {/* Skip for now button */}
+      {/* Skip for now / Done button */}
       <TouchableOpacity
         style={styles.skipButton}
-        onPress={() => router.replace('/dashboard')}
+        onPress={leaveSetup}
       >
-        <Text style={styles.skipButtonText}>Skip for now</Text>
+        <Text style={styles.skipButtonText}>
+          {allComplete ? 'Done' : 'Skip for now'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -237,7 +327,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     padding: spacing.lg,
-    paddingTop: 60,
+  },
+  topRow: {
+    flexDirection: 'row',
+    marginLeft: -spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  errorBackButton: {
+    position: 'absolute',
+    left: spacing.lg,
   },
   centerContainer: {
     flex: 1,
@@ -263,6 +361,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   retryButton: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     backgroundColor: colors.primary,

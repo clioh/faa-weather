@@ -6,7 +6,7 @@
  * Integrates with Clerk for cloud authentication.
  */
 
-import React, {
+import {
   createContext,
   useContext,
   useState,
@@ -14,9 +14,11 @@ import React, {
   useCallback,
   ReactNode,
 } from 'react';
-import { useAuth, useUser as useClerkUser } from '@clerk/clerk-expo';
+import { useAuth, useUser as useClerkUser } from '@clerk/expo';
 import { storage, UserProfile, LinkedMirror } from '@/lib/storage';
+import { api } from '@/lib/api';
 import { logError } from '@/lib/errors';
+import { resetAppData as wipeAppData } from '@/lib/devReset';
 
 interface UserContextValue {
   // User profile
@@ -43,7 +45,6 @@ interface UserContextValue {
 
   // Mirror management
   addMirror: (mirror: LinkedMirror) => Promise<void>;
-  updateMirror: (mirrorId: string, updates: Partial<LinkedMirror>) => Promise<void>;
   removeMirror: (mirrorId: string) => Promise<void>;
   setCurrentMirror: (mirror: LinkedMirror | null) => void;
   markFaceEnrolled: (mirrorId: string) => Promise<void>;
@@ -51,6 +52,9 @@ interface UserContextValue {
   // Cloud actions
   setCloudSyncEnabled: (enabled: boolean) => Promise<void>;
   signOut: () => Promise<void>;
+
+  /** Dev only: wipe profile, mirrors, pairing tokens and cloud sign-in (lib/devReset). */
+  resetAppData: () => Promise<void>;
 
   // Reload data
   refresh: () => Promise<void>;
@@ -134,6 +138,20 @@ export function UserProvider({ children }: UserProviderProps) {
     loadData();
   }, [loadData]);
 
+  // The API client found the current mirror at a new address and saved it;
+  // pick up the new host so screens that show it stay accurate.
+  useEffect(
+    () =>
+      api.onMirrorMoved(async (mirrorId, host, port) => {
+        const mirrors = await storage.getLinkedMirrors();
+        setLinkedMirrors(mirrors);
+        setCurrentMirror((current) =>
+          current?.mirrorId === mirrorId ? { ...current, host, port } : current
+        );
+      }),
+    []
+  );
+
   // Create new profile
   const createProfile = useCallback(async (name: string): Promise<UserProfile> => {
     try {
@@ -172,29 +190,6 @@ export function UserProvider({ children }: UserProviderProps) {
       throw err;
     }
   }, []);
-
-  // Update mirror
-  const updateMirror = useCallback(
-    async (mirrorId: string, updates: Partial<LinkedMirror>) => {
-      try {
-        await storage.updateLinkedMirror(mirrorId, updates);
-        const mirrors = await storage.getLinkedMirrors();
-        setLinkedMirrors(mirrors);
-
-        // Update current mirror if it's the one being updated
-        if (currentMirror?.mirrorId === mirrorId) {
-          const updated = mirrors.find((m) => m.mirrorId === mirrorId);
-          if (updated) {
-            setCurrentMirror(updated);
-          }
-        }
-      } catch (err) {
-        logError('UserContext.updateMirror', err, { mirrorId, updates });
-        throw err;
-      }
-    },
-    [currentMirror]
-  );
 
   // Remove mirror
   const removeMirror = useCallback(
@@ -264,6 +259,18 @@ export function UserProvider({ children }: UserProviderProps) {
     }
   }, [clerkAuth]);
 
+  const resetAppData = useCallback(async () => {
+    try {
+      if (clerkAuth?.isSignedIn) await clerkAuth.signOut().catch(() => {});
+      await wipeAppData();
+    } finally {
+      setUser(null);
+      setLinkedMirrors([]);
+      setCurrentMirror(null);
+      setCloudSyncEnabledState(false);
+    }
+  }, [clerkAuth]);
+
   const value: UserContextValue = {
     user,
     isLoading,
@@ -280,12 +287,12 @@ export function UserProvider({ children }: UserProviderProps) {
     createProfile,
     updateProfile,
     addMirror,
-    updateMirror,
     removeMirror,
     setCurrentMirror,
     markFaceEnrolled,
     setCloudSyncEnabled,
     signOut,
+    resetAppData,
     refresh: loadData,
     retryLoad,
   };

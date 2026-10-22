@@ -9,6 +9,7 @@ import {
   Text,
   StyleSheet,
   Modal,
+  ScrollView,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -19,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { ScreenHeader } from './ScreenHeader';
 
 export interface LocationData {
   latitude: number;
@@ -157,14 +159,20 @@ export function LocationPicker({
     >
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Set Location</Text>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="Set Location"
+          leftIcon="close"
+          onLeftPress={handleClose}
+          useTopInset={false}
+        />
 
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+        >
           {/* Detect Location Button */}
           <TouchableOpacity
             style={styles.detectButton}
@@ -262,7 +270,7 @@ export function LocationPicker({
               </View>
             </View>
           )}
-        </View>
+        </ScrollView>
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -286,26 +294,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    ...typography.h2,
-    color: colors.text,
-  },
-  closeButton: {
-    padding: spacing.sm,
+  scroll: {
+    flex: 1,
   },
   content: {
-    flex: 1,
     padding: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   detectButton: {
     flexDirection: 'row',

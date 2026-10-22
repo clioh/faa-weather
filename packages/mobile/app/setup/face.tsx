@@ -6,7 +6,7 @@
  * their phone and the mirror, creating a magical synchronized experience.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,13 +14,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
-  Image,
   Animated,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '@/lib/api';
+import { api, WS_CLOSE_PAIRING_REQUIRED } from '@/lib/api';
+import { MirrorCameraPreview, KeyboardAvoidingScreen } from '@/components';
+import { goBack } from '@/lib/navigation';
 import { useUser } from '@/context/UserContext';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
@@ -42,24 +44,40 @@ interface RegistrationState {
   userName?: string;
   currentInstruction?: string;
   action?: string;
+  /** Token of the active enrollment session; the only key to the mirror's camera stream. */
+  enrollmentToken?: string | null;
 }
 
 export default function FaceRegistrationScreen() {
-  const params = useLocalSearchParams<{ reenroll?: string }>();
-  const isReenrollment = params.reenroll === 'true';
+  const insets = useSafeAreaInsets();
   const { user, currentMirror, markFaceEnrolled } = useUser();
 
-  // For re-enrollment, skip name step and use existing user name
-  const [step, setStep] = useState<'name' | 'capture' | 'complete'>(
-    isReenrollment && user ? 'capture' : 'name'
-  );
-  const [name, setName] = useState(isReenrollment && user ? user.name : '');
+  const [step, setStep] = useState<'name' | 'capture' | 'complete'>('name');
+  const [name, setName] = useState('');
   const [registration, setRegistration] = useState<RegistrationState | null>(null);
   const [processing, setProcessing] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mirrorHost, setMirrorHost] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Mirror the values the unmount cleanup needs; the cleanup closure would
+  // otherwise only ever see the initial render's state.
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  const activeRef = useRef(false);
+  activeRef.current = registration?.active ?? false;
+
+  // The native back button / swipe-back can leave mid-capture. Cancel the
+  // session on the mirror so it doesn't stay stuck in registration mode.
+  useEffect(
+    () => () => {
+      if (stepRef.current === 'capture' && activeRef.current) {
+        api.cancelRegistration().catch(() => {});
+      }
+    },
+    []
+  );
 
   // Animation values
   const pulseAnim = useState(new Animated.Value(1))[0];
@@ -75,20 +93,14 @@ export default function FaceRegistrationScreen() {
     }
   }, []);
 
-  // Auto-start registration for re-enrollment
-  useEffect(() => {
-    if (isReenrollment && user && mirrorHost && step === 'capture' && !registration) {
-      startRegistration();
-    }
-  }, [isReenrollment, user, mirrorHost, step, registration]);
-
   // WebSocket connection for real-time updates
   useEffect(() => {
     if (!mirrorHost || step !== 'capture') return;
 
-    const ws = new WebSocket(`ws://${mirrorHost}:3001`);
-
-    ws.onmessage = (event) => {
+    // Phones authenticate the socket with their pairing token as a subprotocol.
+    let ws: WebSocket | null = null;
+    let closed = false;
+    const onMessage = (event: WebSocketMessageEvent) => {
       try {
         const message = JSON.parse(event.data);
         if (message.type === 'registration') {
@@ -131,7 +143,20 @@ export default function FaceRegistrationScreen() {
       }
     };
 
-    return () => ws.close();
+    api.getWebSocketProtocols().then((protocols) => {
+      if (closed) return;
+      ws = new WebSocket(api.getWebSocketUrl(), protocols);
+      ws.onmessage = onMessage;
+      ws.onclose = (event) => {
+        // Token revoked while enrolling: same as an HTTP 401 pairing_required.
+        if (event.code === WS_CLOSE_PAIRING_REQUIRED) void api.handleSocketPairingRequired();
+      };
+    });
+
+    return () => {
+      closed = true;
+      ws?.close();
+    };
   }, [mirrorHost, step]);
 
   // Countdown timer
@@ -180,19 +205,14 @@ export default function FaceRegistrationScreen() {
 
     try {
       // Start registration on the mirror
-      const response = await fetch(`${api.getBaseUrl()}/api/registration/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userName: name.trim() }),
-      });
-      const result = await response.json();
+      const result = await api.startRegistration(name.trim(), user?.id);
 
       if (result.active) {
         setRegistration(result);
         setStep('capture');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       } else {
-        throw new Error('Failed to start registration');
+        throw new Error(result.error || 'Failed to start registration');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect to mirror');
@@ -209,10 +229,7 @@ export default function FaceRegistrationScreen() {
 
     try {
       // Trigger capture on the mirror (this will start countdown)
-      const response = await fetch(`${api.getBaseUrl()}/api/registration/capture`, {
-        method: 'POST',
-      });
-      const result = await response.json();
+      const result = await api.captureRegistration();
 
       if (!result.success) {
         setError(result.error || 'Capture failed');
@@ -227,25 +244,18 @@ export default function FaceRegistrationScreen() {
     }
   };
 
-  const cancelRegistration = async () => {
-    try {
-      await fetch(`${api.getBaseUrl()}/api/registration/cancel`, { method: 'POST' });
-    } catch (e) {
-      // Ignore errors
-    }
-    router.back();
-  };
-
   const currentInstruction = registration
     ? CAPTURE_INSTRUCTIONS[Math.min(registration.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)]
     : CAPTURE_INSTRUCTIONS[0];
 
-  const videoStreamUrl = mirrorHost ? `http://${mirrorHost}:5000/video_feed` : null;
+  // The mirror only streams its camera during the session this screen
+  // started, with that session's token (start response / WebSocket events).
+  const videoStreamUrl = api.getVideoFeedUrl(registration?.enrollmentToken ?? null);
 
   // Name entry step
   if (step === 'name') {
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingScreen style={styles.container}>
         <View style={styles.content}>
           <View style={styles.iconContainer}>
             <Ionicons name="person-circle-outline" size={80} color={colors.primary} />
@@ -276,7 +286,7 @@ export default function FaceRegistrationScreen() {
           )}
         </View>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
           <TouchableOpacity
             style={[styles.primaryButton, !name.trim() && styles.buttonDisabled]}
             onPress={startRegistration}
@@ -292,7 +302,7 @@ export default function FaceRegistrationScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingScreen>
     );
   }
 
@@ -300,37 +310,19 @@ export default function FaceRegistrationScreen() {
   if (step === 'capture') {
     return (
       <View style={styles.container}>
+        <Stack.Screen
+          options={{ title: 'Face Registration' }}
+        />
+
         {/* Flash overlay */}
         <Animated.View
           style={[styles.flashOverlay, { opacity: flashAnim }]}
           pointerEvents="none"
         />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={cancelRegistration} style={styles.cancelButton}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {isReenrollment ? 'Update Face Data' : 'Face Registration'}
-          </Text>
-          <View style={{ width: 40 }} />
-        </View>
-
         {/* Camera preview from mirror */}
         <View style={styles.previewContainer}>
-          {videoStreamUrl ? (
-            <Image
-              source={{ uri: videoStreamUrl }}
-              style={styles.preview}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.previewPlaceholder}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.previewPlaceholderText}>Connecting to mirror...</Text>
-            </View>
-          )}
+          <MirrorCameraPreview streamUrl={videoStreamUrl} style={styles.preview} />
 
           {/* Countdown overlay */}
           {countdown !== null && countdown > 0 && (
@@ -413,7 +405,7 @@ export default function FaceRegistrationScreen() {
     if (currentMirror && markFaceEnrolled) {
       await markFaceEnrolled(currentMirror.mirrorId);
     }
-    router.back();
+    goBack('/dashboard');
   };
 
   return (
@@ -426,15 +418,13 @@ export default function FaceRegistrationScreen() {
         </View>
 
         <Text style={styles.successTitle}>
-          {isReenrollment ? `Updated, ${name}!` : `Welcome, ${name}!`}
+          {`Welcome, ${name}!`}
         </Text>
         <Text style={styles.successSubtitle}>
-          {isReenrollment ? 'Your face data has been updated' : 'Your face has been registered'}
+          Your face has been registered
         </Text>
         <Text style={styles.successDescription}>
-          {isReenrollment
-            ? 'The mirror will now use your updated appearance for recognition'
-            : 'The mirror will now recognize you and wake up automatically when you approach'}
+          The mirror will now recognize you and wake up automatically when you approach
         </Text>
 
         <TouchableOpacity
@@ -442,7 +432,7 @@ export default function FaceRegistrationScreen() {
           onPress={handleComplete}
         >
           <Text style={styles.primaryButtonText}>
-            {isReenrollment ? 'Done' : 'Continue Setup'}
+            Continue Setup
           </Text>
           <Ionicons name="arrow-forward" size={20} color={colors.background} />
         </TouchableOpacity>
@@ -502,7 +492,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   primaryButton: {
     height: 56,
@@ -521,26 +510,9 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontWeight: '600',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  cancelButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: colors.text,
-  },
   previewContainer: {
     marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
     aspectRatio: 4 / 3,
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
@@ -551,18 +523,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  previewPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  previewPlaceholderText: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
   countdownOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -665,7 +627,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   flashOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#fff',
     zIndex: 100,
   },

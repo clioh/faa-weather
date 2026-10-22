@@ -4,6 +4,8 @@
  */
 
 import { Stack } from 'expo-router';
+import { HeaderBackButton } from '@/components/ScreenHeader';
+import { goBack } from '@/lib/navigation';
 import { colors } from '@/lib/theme';
 
 export default function SetupLayout() {
@@ -21,6 +23,11 @@ export default function SetupLayout() {
           backgroundColor: colors.background,
         },
         animation: 'slide_from_right',
+        // Screens here are often pushed straight from the dashboard or
+        // settings, which makes them the first route of this nested stack and
+        // hides the native back button. Always draw our own.
+        headerBackVisible: false,
+        headerLeft: () => <HeaderBackButton onPress={() => goBack('/dashboard')} />,
         headerBackTitle: 'Back',
       }}
     >
@@ -35,6 +42,12 @@ export default function SetupLayout() {
         name="wifi"
         options={{
           title: 'WiFi Setup',
+        }}
+      />
+      <Stack.Screen
+        name="license"
+        options={{
+          title: 'License',
         }}
       />
       <Stack.Screen

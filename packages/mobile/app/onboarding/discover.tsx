@@ -16,16 +16,21 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@/context/UserContext';
 import { useMirrorDiscovery } from '@/hooks/useMirrorDiscovery';
 import { api, MirrorDevice } from '@/lib/api';
 import { storage, LinkedMirror } from '@/lib/storage';
 import { OnboardingProgress } from '@/components/OnboardingProgress';
 import { InlineError } from '@/components/ErrorToast';
+import { HeaderBackButton } from '@/components';
+import { goBack, goHome, goToDashboard } from '@/lib/navigation';
+import { ensurePaired } from '@/lib/pairing';
 import { classifyError, ErrorType, ERROR_MESSAGES, logError } from '@/lib/errors';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
 export default function DiscoverScreen() {
+  const insets = useSafeAreaInsets();
   const { user, addMirror, setCurrentMirror } = useUser();
   const {
     mirrors: discoveredMirrors,
@@ -41,47 +46,64 @@ export default function DiscoverScreen() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // Start scan on mount
+  // Start scan on mount. If a deep link (the QR code on the mirror's setup
+  // screen) already told us where the mirror is, connect to it directly.
   useEffect(() => {
-    startScan();
+    let cancelled = false;
+    (async () => {
+      const pending = await storage.getPendingMirror();
+      if (cancelled) return;
+      if (!pending) {
+        startScan();
+        return;
+      }
+      await storage.clearPendingMirror();
+      setManualHost(pending.host);
+      const mirror = await manualConnect(pending.host, pending.port);
+      if (cancelled) return;
+      if (mirror) {
+        await handleConnect(mirror);
+      } else {
+        setShowManual(true);
+        setConnectionError(
+          `Could not reach the mirror at ${pending.host}:${pending.port}. Check that your phone is on the same network.`
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const registerUserWithMirror = async () => {
-    if (!user) return { mirrorId: 'unknown', mirrorName: 'SkyGlass' };
+  const registerUserWithMirror = async (mirror: MirrorDevice) => {
+    const fallbackId = mirror.mirrorId || `${mirror.host}:${mirror.port}`;
+    if (!user) return { mirrorId: fallbackId, mirrorName: mirror.name };
 
-    // Try to register user
-    try {
-      const response = await fetch(`${api.getBaseUrl()}/api/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    // The setup hotspot's provisioning server has no user store; the user is
+    // registered once the mirror is on the home network (setup/wifi).
+    if (!mirror.provisioning) {
+      try {
+        const { mirrorId, mirrorName } = await api.createUser({
           id: user.id,
           name: user.name,
           preferences: user.preferences,
-        }),
-      });
-
-      if (response.ok) {
-        return await response.json();
+        });
+        return { mirrorId, mirrorName };
+      } catch (err) {
+        logError('DiscoverScreen.registerUserWithMirror', err, { userId: user.id });
       }
-    } catch (err) {
-      // Endpoint may not exist yet - log but continue
-      logError('DiscoverScreen.registerUserWithMirror', err, { userId: user.id });
     }
 
-    // Fallback: get mirror info from discovery
+    // Fallback: the mirror's identity from /api/discovery
     try {
       const discovery = await api.getDiscoveryInfo();
       return {
-        mirrorId: discovery.name || 'unknown',
-        mirrorName: discovery.name || 'SkyGlass',
+        mirrorId: discovery.mirrorId || fallbackId,
+        mirrorName: discovery.name || mirror.name,
       };
     } catch (err) {
       logError('DiscoverScreen.getDiscoveryInfo', err);
-      return {
-        mirrorId: 'unknown',
-        mirrorName: 'SkyGlass',
-      };
+      return { mirrorId: fallbackId, mirrorName: mirror.name };
     }
   };
 
@@ -102,15 +124,25 @@ export default function DiscoverScreen() {
         return;
       }
 
+      // Pair before anything else: every route past /api/discovery needs
+      // this phone's token. A QR claim (connect) has already stored one.
+      if (!mirror.provisioning && !(await ensurePaired({ mirrorName: mirror.name }))) {
+        setConnectionError('This phone needs to be paired with the mirror before it can set it up. Tap the mirror to try again.');
+        return;
+      }
+
       // Register user with mirror
-      const result = await registerUserWithMirror();
+      const result = await registerUserWithMirror(mirror);
+      // Remember the id with the address so the client can find this mirror
+      // again if its address changes.
+      api.setBaseUrl(mirror.host, mirror.port, result.mirrorId);
 
       // Save linked mirror
       const linkedMirror: LinkedMirror = {
         mirrorId: result.mirrorId,
         mirrorName: result.mirrorName,
-        host: mirror.host,
-        port: mirror.port,
+        host: api.getConnectionState().host,
+        port: api.getConnectionState().port,
         faceEnrolled: false,
         lastConnected: new Date().toISOString(),
       };
@@ -118,22 +150,28 @@ export default function DiscoverScreen() {
       await addMirror(linkedMirror);
       setCurrentMirror(linkedMirror);
 
-      // Store onboarding state
+      // This screen is also reached by the QR deep link, which the dev client
+      // replays on every reload. Once onboarding has finished, connecting is
+      // just connecting: never move the phase backwards.
+      const onboardingComplete = await storage.isOnboardingComplete();
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      const status = await api.getSetupStatus();
+      if (onboardingComplete) {
+        goToDashboard();
+        return;
+      }
+
+      const phase = status.step === 'complete' ? 'template' : 'setup';
       try {
-        await storage.setOnboardingState({
-          phase: 'setup',
-          mirrorIdForSetup: result.mirrorId,
-        });
+        await storage.setOnboardingState({ phase, mirrorIdForSetup: result.mirrorId });
       } catch (storageErr) {
         logError('DiscoverScreen.handleConnect.setOnboardingState', storageErr);
         // Continue anyway - not critical
       }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      // Check setup status and route accordingly
-      const status = await api.getSetupStatus();
-      if (status.step === 'complete') {
+      if (phase === 'template') {
         // Mirror already set up, go to template selection
         router.push('/onboarding/template');
       } else {
@@ -198,22 +236,30 @@ export default function DiscoverScreen() {
       // Mark onboarding as complete but skip mirror setup
       await storage.setOnboardingState({ phase: 'complete' });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.replace('/');
+      goHome();
     } catch (err) {
       logError('DiscoverScreen.handleSkip', err);
       // Still navigate - onboarding state isn't critical
-      router.replace('/');
+      goHome();
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
+      {/* Back + Progress Indicator */}
+      <View style={{ paddingTop: insets.top + spacing.md }}>
+        <View style={styles.topBar}>
+          <HeaderBackButton onPress={() => goBack('/onboarding/profile')} />
+        </View>
         <OnboardingProgress currentPhase="discover" />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.iconContainer}>
@@ -340,6 +386,8 @@ export default function DiscoverScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
+              returnKeyType="go"
+              onSubmitEditing={handleManualConnect}
             />
             <TouchableOpacity
               style={[
@@ -372,7 +420,7 @@ export default function DiscoverScreen() {
       </ScrollView>
 
       {/* Footer */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
           <Text style={styles.skipButtonText}>Set up later</Text>
         </TouchableOpacity>
@@ -386,8 +434,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  progressContainer: {
-    paddingTop: spacing.xl + 20,
+  topBar: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
   },
   scrollContent: {
     padding: spacing.lg,
@@ -546,6 +596,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
+    paddingVertical: spacing.sm,
     marginBottom: spacing.md,
   },
   manualButtonText: {
@@ -605,7 +656,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

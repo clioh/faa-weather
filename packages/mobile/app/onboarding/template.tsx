@@ -12,13 +12,16 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@/context/UserContext';
+import { useDisplayHold } from '@/hooks/useDisplayHold';
 import { api } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import { OnboardingProgress } from '@/components/OnboardingProgress';
+import { HEADER_HIT_SLOP, HeaderBackButton, LayoutThumbnail } from '@/components';
+import { goBack, goToDashboard } from '@/lib/navigation';
 import { InlineError } from '@/components/ErrorToast';
 import { logError } from '@/lib/errors';
 import {
@@ -33,7 +36,10 @@ import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 type FilterCategory = TemplateCategory | 'all';
 
 export default function TemplateScreen() {
+  const insets = useSafeAreaInsets();
   const { user, currentMirror } = useUser();
+  // Keep the mirror on so the chosen layout appears on it right away.
+  useDisplayHold(Boolean(currentMirror));
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
   const [applying, setApplying] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +84,7 @@ export default function TemplateScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       // Navigate to dashboard
-      router.replace('/dashboard');
+      goToDashboard();
     } catch (err) {
       logError('TemplateScreen.handleApplyTemplate', err, { templateId: template.id });
       setError('Failed to apply template. Please try again.');
@@ -93,11 +99,11 @@ export default function TemplateScreen() {
       // Mark onboarding complete without applying template
       await storage.setOnboardingState({ phase: 'complete' });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.replace('/dashboard');
+      goToDashboard();
     } catch (err) {
       logError('TemplateScreen.handleSkip', err);
       // Still navigate - onboarding state isn't critical
-      router.replace('/dashboard');
+      goToDashboard();
     }
   };
 
@@ -111,8 +117,11 @@ export default function TemplateScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
+      {/* Back + Progress Indicator */}
+      <View style={{ paddingTop: insets.top + spacing.md }}>
+        <View style={styles.topBar}>
+          <HeaderBackButton onPress={() => goBack('/setup')} />
+        </View>
         <OnboardingProgress currentPhase="template" />
       </View>
 
@@ -144,6 +153,7 @@ export default function TemplateScreen() {
           {categoryFilters.map((filter) => (
             <TouchableOpacity
               key={filter.key}
+              hitSlop={HEADER_HIT_SLOP}
               style={[
                 styles.filterChip,
                 selectedCategory === filter.key && styles.filterChipActive,
@@ -176,25 +186,12 @@ export default function TemplateScreen() {
             activeOpacity={0.7}
             disabled={applying !== null}
           >
+            <LayoutThumbnail
+              modules={template.modules}
+              style={styles.thumbnail}
+              accessibilityLabel={`${template.name} layout preview`}
+            />
             <View style={styles.templateHeader}>
-              <View
-                style={[
-                  styles.templateIcon,
-                  {
-                    backgroundColor:
-                      TEMPLATE_CATEGORIES[template.category]?.color + '20' ||
-                      colors.primaryMuted,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={template.icon as keyof typeof Ionicons.glyphMap}
-                  size={28}
-                  color={
-                    TEMPLATE_CATEGORIES[template.category]?.color || colors.primary
-                  }
-                />
-              </View>
               <View style={styles.templateInfo}>
                 <Text style={styles.templateName}>{template.name}</Text>
                 <Text style={styles.templateDescription}>{template.description}</Text>
@@ -255,7 +252,7 @@ export default function TemplateScreen() {
       </ScrollView>
 
       {/* Footer */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
           <Text style={styles.skipButtonText}>Skip for now</Text>
         </TouchableOpacity>
@@ -269,8 +266,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  progressContainer: {
-    paddingTop: spacing.xl + 20,
+  topBar: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
   },
   header: {
     paddingHorizontal: spacing.lg,
@@ -336,13 +335,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
-  templateIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
+  thumbnail: {
+    marginBottom: spacing.md,
   },
   templateInfo: {
     flex: 1,
@@ -410,7 +404,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

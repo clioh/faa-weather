@@ -4,13 +4,17 @@
  */
 
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SecureStore from 'expo-secure-store';
-import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
+import { ClerkProvider, ClerkLoaded } from '@clerk/expo';
 import { UserProvider } from '@/context/UserContext';
+import { HeaderBackButton, HeaderIconButton } from '@/components/ScreenHeader';
+import { goBack, goHome } from '@/lib/navigation';
+import { usePairingRedirect } from '@/lib/pairing';
 import { colors } from '@/lib/theme';
 
 // Clerk publishable key from environment
@@ -44,7 +48,16 @@ const tokenCache = {
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
+// Native-header screens draw the app's own back control so it matches the
+// custom headers elsewhere.
+const pushedHeader = {
+  headerBackVisible: false,
+  headerLeft: () => <HeaderBackButton onPress={() => goBack('/dashboard')} />,
+};
+
 function RootLayoutNav() {
+  // A 401 pairing_required from the mirror opens the Pair screen (once).
+  usePairingRedirect();
   return (
     <Stack
       screenOptions={{
@@ -68,6 +81,13 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="connect"
+        options={{
+          headerShown: false,
+          animation: 'fade',
+        }}
+      />
+      <Stack.Screen
         name="onboarding"
         options={{
           headerShown: false,
@@ -80,41 +100,41 @@ function RootLayoutNav() {
           headerShown: false,
         }}
       />
+      {/*
+        The dashboard is entered with replace(), so it is the bottom of the
+        stack. Give it explicit ways out: the mirror list on the left and the
+        profile on the right.
+      */}
       <Stack.Screen
         name="dashboard"
         options={{
           title: 'SkyGlass',
           headerBackVisible: false,
+          headerLeft: () => <HeaderBackButton label="Mirrors" onPress={goHome} />,
+          headerRight: () => (
+            <HeaderIconButton
+              icon="person-circle-outline"
+              accessibilityLabel="Profile"
+              onPress={() => router.push('/profile')}
+            />
+          ),
         }}
       />
-      <Stack.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          presentation: 'modal',
-        }}
-      />
-      <Stack.Screen
-        name="updates"
-        options={{
-          title: 'Software Updates',
-          presentation: 'modal',
-        }}
-      />
-      <Stack.Screen
-        name="profile"
-        options={{
-          title: 'My Profile',
-          presentation: 'modal',
-        }}
-      />
-      <Stack.Screen
-        name="mirrors"
-        options={{
-          title: 'My Mirrors',
-          presentation: 'modal',
-        }}
-      />
+      {/* Pushed (not modal); same back control as every other screen. */}
+      <Stack.Screen name="settings" options={{ title: 'Settings', ...pushedHeader }} />
+      <Stack.Screen name="updates" options={{ title: 'Software Updates', ...pushedHeader }} />
+      {/* These screens draw their own ScreenHeader. */}
+      <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack.Screen name="mirrors" options={{ headerShown: false }} />
+      <Stack.Screen name="editor" options={{ headerShown: false }} />
+      <Stack.Screen name="templates" options={{ headerShown: false }} />
+      <Stack.Screen name="calendars" options={{ headerShown: false }} />
+      <Stack.Screen name="add-calendar" options={{ headerShown: false }} />
+      {/* Opened by lib/pairing only; pops itself when paired. */}
+      <Stack.Screen name="pair" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="paired-phones" options={{ headerShown: false }} />
+      {/* Deep-link target for Google sign-in; pops itself straight away. */}
+      <Stack.Screen name="oauth/google" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen
         name="(auth)"
         options={{
@@ -135,14 +155,16 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
+  // GestureHandlerRootView must wrap everything that uses gesture-handler
+  // gestures (the layout editor canvas).
   // If Clerk key is not set, render without Clerk (for local-only usage)
   if (!CLERK_PUBLISHABLE_KEY) {
     return (
       <UserProvider>
-        <View style={styles.container}>
+        <GestureHandlerRootView style={styles.container}>
           <StatusBar style="light" />
           <RootLayoutNav />
-        </View>
+        </GestureHandlerRootView>
       </UserProvider>
     );
   }
@@ -151,10 +173,10 @@ export default function RootLayout() {
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
       <ClerkLoaded>
         <UserProvider>
-          <View style={styles.container}>
+          <GestureHandlerRootView style={styles.container}>
             <StatusBar style="light" />
             <RootLayoutNav />
-          </View>
+          </GestureHandlerRootView>
         </UserProvider>
       </ClerkLoaded>
     </ClerkProvider>

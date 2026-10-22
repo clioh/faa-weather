@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { ScreenHeader, HEADER_HIT_SLOP } from './ScreenHeader';
 
 interface Airport {
   icao: string;
@@ -139,12 +140,12 @@ export function AirportPicker({
     >
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Select Airport</Text>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="Select Airport"
+          leftIcon="close"
+          onLeftPress={handleClose}
+          useTopInset={false}
+        />
 
         {/* Search Input */}
         <View style={styles.searchContainer}>
@@ -160,7 +161,13 @@ export function AirportPicker({
             returnKeyType="search"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={HEADER_HIT_SLOP}
+              style={styles.clearButton}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
               <Ionicons name="close-circle" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           )}
@@ -182,6 +189,7 @@ export function AirportPicker({
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListHeaderComponent={
             searchQuery.length === 0 ? (
               <Text style={styles.sectionTitle}>Popular Airports</Text>
@@ -215,22 +223,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    ...typography.h2,
-    color: colors.text,
-  },
-  closeButton: {
+  clearButton: {
     padding: spacing.sm,
+    marginRight: -spacing.sm,
   },
   searchContainer: {
     flexDirection: 'row',

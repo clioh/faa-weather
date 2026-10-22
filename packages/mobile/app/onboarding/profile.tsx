@@ -10,18 +10,20 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@/context/UserContext';
 import { OnboardingProgress } from '@/components/OnboardingProgress';
+import { KeyboardAvoidingScreen, HeaderBackButton } from '@/components';
+import { goBack } from '@/lib/navigation';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { createProfile } = useUser();
   const [name, setName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -61,12 +63,12 @@ export default function ProfileScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
+    <KeyboardAvoidingScreen style={styles.container}>
+      {/* Back + Progress Indicator */}
+      <View style={{ paddingTop: insets.top + spacing.md }}>
+        <View style={styles.topBar}>
+          <HeaderBackButton onPress={() => goBack('/onboarding')} />
+        </View>
         <OnboardingProgress currentPhase="profile" />
       </View>
 
@@ -121,7 +123,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Continue Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <TouchableOpacity
           style={[
             styles.continueButton,
@@ -141,7 +143,7 @@ export default function ProfileScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingScreen>
   );
 }
 
@@ -150,8 +152,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  progressContainer: {
-    paddingTop: spacing.xl + 20,
+  topBar: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
   },
   content: {
     flex: 1,
@@ -237,7 +241,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.xl,
-    paddingBottom: spacing.xl + 20,
   },
   continueButton: {
     height: 56,

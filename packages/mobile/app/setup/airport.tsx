@@ -3,7 +3,7 @@
  * Search and select home airport for aviation weather data
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,35 +12,67 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { api, Airport } from '@/lib/api';
+import { KeyboardAvoidingScreen, HEADER_HIT_SLOP } from '@/components';
+import { goBack } from '@/lib/navigation';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 
-// Debounce helper
-function useDebounce<T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): T {
-  let timeoutId: ReturnType<typeof setTimeout>;
+// Debounce helper. The timer lives in a ref so it survives re-renders;
+// a per-render local would start a fresh timer on every keystroke.
+function useDebounce<T extends (...args: never[]) => void>(callback: T, delay: number): T {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
 
-  return ((...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => callback(...args), delay);
-  }) as T;
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  return useCallback(
+    ((...args: Parameters<T>) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => callbackRef.current(...args), delay);
+    }) as T,
+    [delay]
+  );
 }
 
 export default function AirportSetupScreen() {
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Airport[]>([]);
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<Airport | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nearby, setNearby] = useState<Airport[]>([]);
+  const [loadingNearby, setLoadingNearby] = useState(true);
+
+  // Suggest airports near the location saved in the previous step.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const location = await api.getLocation();
+        if (!location) return;
+        const airports = await api.getNearbyAirports(location.latitude, location.longitude, 8);
+        if (!cancelled) setNearby(airports);
+      } catch (err) {
+        console.warn('[AirportSetup] nearby lookup failed:', err);
+      } finally {
+        if (!cancelled) setLoadingNearby(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const searchAirports = useCallback(async (searchQuery: string) => {
     if (searchQuery.length < 2) {
@@ -55,7 +87,8 @@ export default function AirportSetupScreen() {
       const airports = await api.searchAirports(searchQuery);
       setResults(airports);
     } catch (err) {
-      setError('Failed to search airports');
+      console.warn('[AirportSetup] search failed:', err);
+      setError(err instanceof Error ? `Failed to search airports: ${err.message}` : 'Failed to search airports');
       setResults([]);
     } finally {
       setSearching(false);
@@ -86,7 +119,7 @@ export default function AirportSetupScreen() {
     try {
       await api.setAirport(selected.icao);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      goBack('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save airport');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -106,22 +139,24 @@ export default function AirportSetupScreen() {
       <View style={styles.resultContent}>
         <Text style={styles.resultIcao}>{item.icao}</Text>
         <Text style={styles.resultName}>{item.name}</Text>
-        <Text style={styles.resultCity}>{item.city}</Text>
+        <Text style={styles.resultCity}>
+          {item.city}
+          {item.distanceNm !== undefined ? ` · ${item.distanceNm} NM` : ''}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingScreen style={styles.container}>
       <View style={styles.content}>
         {/* Instructions */}
         <View style={styles.instructions}>
           <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
           <Text style={styles.instructionsText}>
-            Enter your home airport's ICAO code (e.g., KJFK, KLAX) or search by name
+            {nearby.length > 0
+              ? 'Pick an airport near you, or search by ICAO code, city or name'
+              : "Enter your home airport's ICAO code (e.g., KJFK, KLAX) or search by name"}
           </Text>
         </View>
 
@@ -140,6 +175,9 @@ export default function AirportSetupScreen() {
           />
           {query.length > 0 && (
             <TouchableOpacity
+              style={styles.clearButton}
+              hitSlop={HEADER_HIT_SLOP}
+              accessibilityLabel="Clear search"
               onPress={() => {
                 setQuery('');
                 setSelected(null);
@@ -181,11 +219,31 @@ export default function AirportSetupScreen() {
                 keyExtractor={(item) => item.icao}
                 style={styles.resultsList}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
               />
             ) : query.length >= 2 ? (
               <View style={styles.emptyContainer}>
                 <Ionicons name="airplane-outline" size={32} color={colors.textMuted} />
                 <Text style={styles.emptyText}>No airports found</Text>
+              </View>
+            ) : nearby.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>Near your location</Text>
+                <FlatList
+                  data={nearby}
+                  renderItem={renderAirport}
+                  keyExtractor={(item) => item.icao}
+                  style={styles.resultsList}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                />
+              </>
+            ) : loadingNearby ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Finding airports near you...</Text>
               </View>
             ) : null}
           </View>
@@ -201,7 +259,7 @@ export default function AirportSetupScreen() {
       </View>
 
       {/* Save button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <TouchableOpacity
           style={[styles.saveButton, !selected && styles.saveButtonDisabled]}
           onPress={handleSave}
@@ -217,7 +275,7 @@ export default function AirportSetupScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingScreen>
   );
 }
 
@@ -261,6 +319,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text,
   },
+  clearButton: {
+    padding: spacing.xs,
+    marginVertical: -spacing.xs,
+  },
   selectedContainer: {
     marginBottom: spacing.lg,
   },
@@ -294,6 +356,13 @@ const styles = StyleSheet.create({
   selectedCity: {
     ...typography.bodySmall,
     color: colors.textSecondary,
+  },
+  sectionTitle: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
   },
   resultsContainer: {
     flex: 1,
@@ -372,7 +441,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

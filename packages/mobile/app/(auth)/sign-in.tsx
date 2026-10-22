@@ -10,21 +10,22 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
-import { useSignIn, useOAuth } from '@clerk/clerk-expo';
+import { useSSO } from '@clerk/expo';
+import { useSignIn } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
+import { KeyboardAvoidingScreen, HEADER_HIT_SLOP } from '@/components';
+import { goToDashboard } from '@/lib/navigation';
 import { colors } from '@/lib/theme';
 
 export default function SignInScreen() {
   const router = useRouter();
   const { signIn, setActive, isLoaded } = useSignIn();
-  const { startOAuthFlow: startGoogleOAuth } = useOAuth({ strategy: 'oauth_google' });
-  const { startOAuthFlow: startAppleOAuth } = useOAuth({ strategy: 'oauth_apple' });
+  const { startSSOFlow } = useSSO();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,7 +49,7 @@ export default function SignInScreen() {
 
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
-        router.replace('/dashboard');
+        goToDashboard();
       } else {
         console.log('Sign in requires additional steps:', result.status);
       }
@@ -62,14 +63,15 @@ export default function SignInScreen() {
 
   const handleOAuthSignIn = useCallback(
     async (provider: 'google' | 'apple') => {
-      const startOAuth = provider === 'google' ? startGoogleOAuth : startAppleOAuth;
       setOauthLoading(provider);
 
       try {
-        const result = await startOAuth();
+        const result = await startSSOFlow({
+          strategy: provider === 'google' ? 'oauth_google' : 'oauth_apple',
+        });
         if (result.createdSessionId) {
           await setActive!({ session: result.createdSessionId });
-          router.replace('/dashboard');
+          goToDashboard();
         }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'OAuth sign in failed';
@@ -78,14 +80,11 @@ export default function SignInScreen() {
         setOauthLoading(null);
       }
     },
-    [startGoogleOAuth, startAppleOAuth, setActive, router]
+    [startSSOFlow, setActive, router]
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingScreen style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Welcome Back</Text>
         <Text style={styles.subtitle}>Sign in to sync your mirrors across devices</Text>
@@ -117,7 +116,11 @@ export default function SignInScreen() {
               secureTextEntry={!showPassword}
               autoComplete="password"
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeButton}
+              hitSlop={HEADER_HIT_SLOP}
+            >
               <Ionicons
                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                 size={20}
@@ -185,13 +188,13 @@ export default function SignInScreen() {
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
           <Link href="/(auth)/sign-up" asChild>
-            <TouchableOpacity>
+            <TouchableOpacity hitSlop={HEADER_HIT_SLOP}>
               <Text style={styles.footerLink}>Sign Up</Text>
             </TouchableOpacity>
           </Link>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingScreen>
   );
 }
 

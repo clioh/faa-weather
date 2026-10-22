@@ -1,6 +1,12 @@
 /**
- * Module/Widget System
- * Defines available modules, their configurations, and layout system
+ * Widget catalog
+ *
+ * Single source of truth for the widgets a mirror can show: ids, categories,
+ * allowed sizes, and the settings the phone app exposes for each one.
+ *
+ * The mirror UI keeps a matching registry in
+ * packages/frontend/src/components/modules/index.ts; every id listed here must
+ * have a component there. Ids are stable and stored in saved layouts.
  */
 
 export type ModuleCategory =
@@ -9,37 +15,64 @@ export type ModuleCategory =
   | 'time'
   | 'calendar'
   | 'news'
-  | 'smart-home'
-  | 'health'
   | 'finance'
-  | 'media'
   | 'productivity'
-  | 'social'
+  | 'media'
   | 'utilities';
 
 export type ModuleSize = 'small' | 'medium' | 'large' | 'wide' | 'tall' | 'full';
 
+export type ModuleConfigFieldType =
+  | 'text'
+  | 'number'
+  | 'boolean'
+  | 'select'
+  | 'color'
+  | 'airport'
+  | 'location'
+  | 'timezone'
+  | 'date'
+  | 'list';
+
 export interface ModuleConfigField {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'boolean' | 'select' | 'color' | 'airport' | 'location';
+  type: ModuleConfigFieldType;
   default?: unknown;
   options?: { label: string; value: string }[];
   placeholder?: string;
   required?: boolean;
+  /** One-line helper shown under the control. */
   description?: string;
+  /** Only show this field when another field has the given value. */
+  showWhen?: { key: string; value: unknown };
+  /** For 'number' fields. */
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Suffix shown next to a number input, e.g. "min" or "nm". */
+  unit?: string;
+  /** For 'list' fields: how an entry is labelled in the chip input. */
+  itemLabel?: string;
 }
 
 export interface ModuleDefinition {
   id: string;
   name: string;
+  /** Short blurb for the library card. */
   description: string;
   category: ModuleCategory;
-  icon: string; // Ionicons name
+  /** Ionicons name. */
+  icon: string;
   sizes: ModuleSize[];
   defaultSize: ModuleSize;
   configFields: ModuleConfigField[];
-  premium?: boolean;
+  /**
+   * Set when the widget has data the phone manages beyond settings (to-do
+   * items, photos, connected calendar accounts). The editor's config sheet
+   * shows a manager or link for it.
+   */
+  manages?: 'todos' | 'photos' | 'calendars';
 }
 
 export interface ModuleInstance {
@@ -47,7 +80,7 @@ export interface ModuleInstance {
   moduleId: string;
   position: {
     x: number; // 0-11 (12 column grid)
-    y: number; // row position
+    y: number; // 0-7 (8 row grid)
   };
   size: ModuleSize;
   config: Record<string, unknown>;
@@ -61,7 +94,10 @@ export interface MirrorLayout {
   updatedAt: string;
 }
 
-// Size dimensions in grid units (12 column grid)
+export const GRID_COLS = 12;
+export const GRID_ROWS = 8;
+
+// Size presets in grid units (12 columns x 8 rows)
 export const SIZE_DIMENSIONS: Record<ModuleSize, { cols: number; rows: number }> = {
   small: { cols: 3, rows: 2 },
   medium: { cols: 4, rows: 3 },
@@ -71,585 +107,423 @@ export const SIZE_DIMENSIONS: Record<ModuleSize, { cols: number; rows: number }>
   full: { cols: 12, rows: 4 },
 };
 
-// Category metadata
+export const SIZE_LABELS: Record<ModuleSize, string> = {
+  small: 'Small',
+  medium: 'Medium',
+  large: 'Large',
+  wide: 'Wide',
+  tall: 'Tall',
+  full: 'Full width',
+};
+
 export const CATEGORIES: Record<ModuleCategory, { label: string; icon: string; color: string }> = {
   aviation: { label: 'Aviation', icon: 'airplane', color: '#00ff88' },
   weather: { label: 'Weather', icon: 'partly-sunny', color: '#ffaa00' },
-  time: { label: 'Time & Date', icon: 'time', color: '#0088ff' },
+  time: { label: 'Time', icon: 'time', color: '#3388ff' },
   calendar: { label: 'Calendar', icon: 'calendar', color: '#ff6b6b' },
-  news: { label: 'News', icon: 'newspaper', color: '#9b59b6' },
-  'smart-home': { label: 'Smart Home', icon: 'home', color: '#1abc9c' },
-  health: { label: 'Health', icon: 'fitness', color: '#e74c3c' },
+  news: { label: 'News', icon: 'newspaper', color: '#b388ff' },
   finance: { label: 'Finance', icon: 'trending-up', color: '#2ecc71' },
-  media: { label: 'Media', icon: 'images', color: '#e91e63' },
-  productivity: { label: 'Productivity', icon: 'checkbox', color: '#3498db' },
-  social: { label: 'Social', icon: 'people', color: '#00bcd4' },
-  utilities: { label: 'Utilities', icon: 'build', color: '#95a5a6' },
+  productivity: { label: 'Productivity', icon: 'checkbox', color: '#4fc3f7' },
+  media: { label: 'Media', icon: 'images', color: '#f06292' },
+  utilities: { label: 'Utilities', icon: 'construct', color: '#9e9e9e' },
 };
 
-// Module definitions
+export const CATEGORY_ORDER: ModuleCategory[] = [
+  'aviation',
+  'weather',
+  'time',
+  'calendar',
+  'news',
+  'finance',
+  'productivity',
+  'media',
+  'utilities',
+];
+
+const AIRPORT_FIELD: ModuleConfigField = {
+  key: 'icao',
+  label: 'Airport',
+  type: 'airport',
+  placeholder: 'Mirror default',
+  description: 'Leave empty to use the mirror’s home airport.',
+};
+
+const LOCATION_FIELD: ModuleConfigField = {
+  key: 'location',
+  label: 'Location',
+  type: 'location',
+  description: 'Leave empty to use the mirror’s location.',
+};
+
+const UNITS_FIELD: ModuleConfigField = {
+  key: 'units',
+  label: 'Units',
+  type: 'select',
+  default: 'imperial',
+  options: [
+    { label: '°F, mph', value: 'imperial' },
+    { label: '°C, km/h', value: 'metric' },
+  ],
+};
+
 export const MODULES: ModuleDefinition[] = [
-  // Aviation modules
+  // ---------------------------------------------------------------- Aviation
   {
     id: 'metar',
-    name: 'METAR Display',
-    description: 'Current weather conditions at an airport',
+    name: 'METAR',
+    description: 'Current conditions with flight rules, wind, visibility and ceiling',
     category: 'aviation',
     icon: 'cloud',
-    sizes: ['small', 'medium', 'wide'],
+    sizes: ['small', 'medium', 'wide', 'large'],
     defaultSize: 'medium',
     configFields: [
-      {
-        key: 'icao',
-        label: 'Airport ICAO',
-        type: 'airport',
-        required: true,
-        placeholder: 'KJFK',
-      },
-      {
-        key: 'showRaw',
-        label: 'Show Raw METAR',
-        type: 'boolean',
-        default: false,
-      },
-      {
-        key: 'showDecoded',
-        label: 'Show Decoded Data',
-        type: 'boolean',
-        default: true,
-      },
+      AIRPORT_FIELD,
+      { key: 'showRaw', label: 'Show raw METAR', type: 'boolean', default: true },
     ],
   },
   {
     id: 'taf',
-    name: 'TAF Forecast',
-    description: 'Terminal aerodrome forecast',
+    name: 'TAF',
+    description: 'Terminal forecast as a timeline of flight-rule periods',
     category: 'aviation',
-    icon: 'calendar-outline',
-    sizes: ['medium', 'large', 'wide'],
+    icon: 'time-outline',
+    sizes: ['medium', 'wide', 'large', 'full'],
     defaultSize: 'wide',
     configFields: [
-      {
-        key: 'icao',
-        label: 'Airport ICAO',
-        type: 'airport',
-        required: true,
-      },
+      AIRPORT_FIELD,
       {
         key: 'hoursAhead',
-        label: 'Hours to Show',
+        label: 'Hours to show',
         type: 'number',
         default: 24,
+        min: 6,
+        max: 30,
+        step: 6,
+        unit: 'h',
       },
+      { key: 'showRaw', label: 'Show raw TAF', type: 'boolean', default: false },
     ],
   },
   {
     id: 'flight-rules',
     name: 'Flight Rules',
-    description: 'VFR/MVFR/IFR/LIFR indicator',
+    description: 'Big VFR / MVFR / IFR / LIFR indicator',
     category: 'aviation',
     icon: 'flag',
-    sizes: ['small'],
+    sizes: ['small', 'medium'],
     defaultSize: 'small',
     configFields: [
-      {
-        key: 'icao',
-        label: 'Airport ICAO',
-        type: 'airport',
-        required: true,
-      },
-      {
-        key: 'showCeiling',
-        label: 'Show Ceiling',
-        type: 'boolean',
-        default: true,
-      },
-      {
-        key: 'showVisibility',
-        label: 'Show Visibility',
-        type: 'boolean',
-        default: true,
-      },
-    ],
-  },
-  {
-    id: 'winds-aloft',
-    name: 'Winds Aloft',
-    description: 'Wind forecasts at altitude',
-    category: 'aviation',
-    icon: 'analytics',
-    sizes: ['medium', 'large'],
-    defaultSize: 'medium',
-    configFields: [
-      {
-        key: 'location',
-        label: 'Location',
-        type: 'location',
-        required: true,
-      },
-      {
-        key: 'altitudes',
-        label: 'Altitudes',
-        type: 'text',
-        default: '3000,6000,9000,12000',
-        description: 'Comma-separated altitudes in feet',
-      },
+      AIRPORT_FIELD,
+      { key: 'showDetails', label: 'Show ceiling and visibility', type: 'boolean', default: true },
     ],
   },
   {
     id: 'notams',
     name: 'NOTAMs',
-    description: 'Notices to Air Missions',
+    description: 'Active notices for an airport, grouped by category',
     category: 'aviation',
     icon: 'warning',
-    sizes: ['medium', 'large', 'tall'],
+    sizes: ['medium', 'tall', 'large', 'full'],
     defaultSize: 'tall',
     configFields: [
+      AIRPORT_FIELD,
+      { key: 'maxItems', label: 'Max notices', type: 'number', default: 6, min: 1, max: 20 },
       {
-        key: 'icao',
-        label: 'Airport ICAO',
-        type: 'airport',
-        required: true,
-      },
-      {
-        key: 'maxItems',
-        label: 'Max Items',
-        type: 'number',
-        default: 5,
-      },
-    ],
-  },
-  {
-    id: 'sectional-map',
-    name: 'Sectional Map',
-    description: 'Aviation sectional chart view',
-    category: 'aviation',
-    icon: 'map',
-    sizes: ['large', 'full'],
-    defaultSize: 'large',
-    configFields: [
-      {
-        key: 'center',
-        label: 'Center Location',
-        type: 'location',
-        required: true,
-      },
-      {
-        key: 'zoom',
-        label: 'Zoom Level',
-        type: 'number',
-        default: 10,
-      },
-    ],
-    premium: true,
-  },
-
-  // Weather modules
-  {
-    id: 'current-weather',
-    name: 'Current Weather',
-    description: 'Current conditions with temperature',
-    category: 'weather',
-    icon: 'partly-sunny',
-    sizes: ['small', 'medium'],
-    defaultSize: 'small',
-    configFields: [
-      {
-        key: 'location',
-        label: 'Location',
-        type: 'location',
-        required: true,
-      },
-      {
-        key: 'units',
-        label: 'Units',
+        key: 'categories',
+        label: 'Categories',
         type: 'select',
-        default: 'imperial',
+        default: 'all',
         options: [
-          { label: 'Imperial (°F)', value: 'imperial' },
-          { label: 'Metric (°C)', value: 'metric' },
+          { label: 'All', value: 'all' },
+          { label: 'Runways and taxiways', value: 'runway,taxiway' },
+          { label: 'Airspace and obstacles', value: 'airspace,obstacle' },
+          { label: 'Navaids and approaches', value: 'navaid,approach' },
         ],
       },
     ],
   },
   {
-    id: 'weather-forecast',
-    name: 'Weather Forecast',
-    description: '5-day weather forecast',
-    category: 'weather',
-    icon: 'calendar',
-    sizes: ['wide', 'large'],
-    defaultSize: 'wide',
+    id: 'tfr',
+    name: 'TFRs',
+    description: 'Temporary flight restrictions near the mirror’s location',
+    category: 'aviation',
+    icon: 'alert-circle',
+    sizes: ['small', 'medium', 'tall', 'wide'],
+    defaultSize: 'medium',
     configFields: [
-      {
-        key: 'location',
-        label: 'Location',
-        type: 'location',
-        required: true,
-      },
-      {
-        key: 'days',
-        label: 'Days to Show',
-        type: 'number',
-        default: 5,
-      },
+      { key: 'radiusNm', label: 'Radius', type: 'number', default: 100, min: 25, max: 500, step: 25, unit: 'nm' },
+      { key: 'maxItems', label: 'Max items', type: 'number', default: 5, min: 1, max: 15 },
     ],
   },
   {
-    id: 'radar-map',
-    name: 'Weather Radar',
-    description: 'Animated radar imagery',
-    category: 'weather',
-    icon: 'radio',
-    sizes: ['medium', 'large'],
-    defaultSize: 'large',
+    id: 'winds-aloft',
+    name: 'Winds Aloft',
+    description: 'Forecast winds and temperatures by altitude',
+    category: 'aviation',
+    icon: 'analytics',
+    sizes: ['small', 'medium', 'tall', 'wide'],
+    defaultSize: 'medium',
     configFields: [
+      LOCATION_FIELD,
       {
-        key: 'location',
-        label: 'Location',
-        type: 'location',
-        required: true,
-      },
-      {
-        key: 'animated',
-        label: 'Show Animation',
-        type: 'boolean',
-        default: true,
-      },
-    ],
-  },
-  {
-    id: 'sun-times',
-    name: 'Sunrise & Sunset',
-    description: 'Sun times with twilight phases',
-    category: 'weather',
-    icon: 'sunny',
-    sizes: ['small', 'medium'],
-    defaultSize: 'small',
-    configFields: [
-      {
-        key: 'location',
-        label: 'Location',
-        type: 'location',
-        required: true,
-      },
-      {
-        key: 'showTwilight',
-        label: 'Show Twilight Times',
-        type: 'boolean',
-        default: true,
-        description: 'Civil, nautical, and astronomical twilight',
+        key: 'maxAltitude',
+        label: 'Highest altitude',
+        type: 'select',
+        default: '12000',
+        options: [
+          { label: '9,000 ft', value: '9000' },
+          { label: '12,000 ft', value: '12000' },
+          { label: '18,000 ft', value: '18000' },
+          { label: '30,000 ft', value: '30000' },
+        ],
       },
     ],
   },
 
-  // Time modules
+  // ----------------------------------------------------------------- Weather
+  {
+    id: 'current-weather',
+    name: 'Current Weather',
+    description: 'Temperature, conditions, wind and humidity',
+    category: 'weather',
+    icon: 'partly-sunny',
+    sizes: ['small', 'medium', 'wide'],
+    defaultSize: 'small',
+    configFields: [LOCATION_FIELD, UNITS_FIELD],
+  },
+  {
+    id: 'weather-forecast',
+    name: 'Forecast',
+    description: 'Daily highs, lows and conditions for the week ahead',
+    category: 'weather',
+    icon: 'calendar-outline',
+    sizes: ['wide', 'large', 'full'],
+    defaultSize: 'wide',
+    configFields: [
+      LOCATION_FIELD,
+      UNITS_FIELD,
+      { key: 'days', label: 'Days', type: 'number', default: 5, min: 3, max: 7 },
+    ],
+  },
+  {
+    id: 'radar-map',
+    name: 'Radar',
+    description: 'Animated precipitation radar centred on a location',
+    category: 'weather',
+    icon: 'radio',
+    sizes: ['medium', 'large', 'tall', 'full'],
+    defaultSize: 'large',
+    configFields: [
+      LOCATION_FIELD,
+      {
+        key: 'zoom',
+        label: 'Zoom',
+        type: 'select',
+        default: '6',
+        options: [
+          { label: 'Region', value: '5' },
+          { label: 'Local', value: '6' },
+          { label: 'City', value: '7' },
+        ],
+      },
+      { key: 'animated', label: 'Animate', type: 'boolean', default: true },
+    ],
+  },
+  {
+    id: 'sun-times',
+    name: 'Sun & Moon',
+    description: 'Sunrise, sunset, civil twilight and moon phase',
+    category: 'weather',
+    icon: 'sunny',
+    sizes: ['small', 'medium', 'wide'],
+    defaultSize: 'small',
+    configFields: [
+      { key: 'showTwilight', label: 'Show civil twilight', type: 'boolean', default: true },
+      { key: 'showMoon', label: 'Show moon phase', type: 'boolean', default: true },
+      { key: 'showZulu', label: 'Show Zulu times', type: 'boolean', default: false },
+    ],
+  },
+
+  // -------------------------------------------------------------------- Time
   {
     id: 'digital-clock',
-    name: 'Digital Clock',
-    description: 'Large digital time display',
+    name: 'Clock',
+    description: 'Large time display with date and optional Zulu time',
     category: 'time',
     icon: 'time',
-    sizes: ['small', 'medium', 'wide'],
+    sizes: ['small', 'medium', 'wide', 'large'],
     defaultSize: 'medium',
     configFields: [
-      {
-        key: 'timezone',
-        label: 'Timezone',
-        type: 'text',
-        default: 'local',
-        placeholder: 'America/New_York or "local"',
-      },
-      {
-        key: 'format24h',
-        label: '24-Hour Format',
-        type: 'boolean',
-        default: false,
-      },
-      {
-        key: 'showSeconds',
-        label: 'Show Seconds',
-        type: 'boolean',
-        default: true,
-      },
-      {
-        key: 'showDate',
-        label: 'Show Date',
-        type: 'boolean',
-        default: true,
-      },
+      { key: 'timezone', label: 'Time zone', type: 'timezone', placeholder: 'Mirror default' },
+      { key: 'format24h', label: '24-hour', type: 'boolean', default: false },
+      { key: 'showSeconds', label: 'Show seconds', type: 'boolean', default: false },
+      { key: 'showDate', label: 'Show date', type: 'boolean', default: true },
+      { key: 'showZulu', label: 'Show Zulu time', type: 'boolean', default: true },
     ],
   },
   {
     id: 'analog-clock',
     name: 'Analog Clock',
-    description: 'Classic analog clock face',
+    description: 'Clock face with hour, minute and second hands',
     category: 'time',
     icon: 'timer',
-    sizes: ['small', 'medium'],
+    sizes: ['small', 'medium', 'large'],
     defaultSize: 'medium',
     configFields: [
-      {
-        key: 'timezone',
-        label: 'Timezone',
-        type: 'text',
-        default: 'local',
-      },
+      { key: 'timezone', label: 'Time zone', type: 'timezone', placeholder: 'Mirror default' },
       {
         key: 'style',
         label: 'Style',
         type: 'select',
-        default: 'modern',
+        default: 'minimal',
         options: [
-          { label: 'Modern', value: 'modern' },
-          { label: 'Classic', value: 'classic' },
           { label: 'Minimal', value: 'minimal' },
+          { label: 'Classic', value: 'classic' },
         ],
       },
+      { key: 'showSeconds', label: 'Second hand', type: 'boolean', default: true },
     ],
   },
   {
     id: 'world-clocks',
     name: 'World Clocks',
-    description: 'Multiple timezone clocks',
+    description: 'Time in several cities side by side',
     category: 'time',
     icon: 'globe',
-    sizes: ['wide', 'large'],
+    sizes: ['small', 'wide', 'tall', 'large'],
     defaultSize: 'wide',
     configFields: [
       {
         key: 'timezones',
-        label: 'Timezones',
-        type: 'text',
-        default: 'America/New_York,Europe/London,Asia/Tokyo',
-        description: 'Comma-separated timezone names',
+        label: 'Time zones',
+        type: 'list',
+        itemLabel: 'time zone',
+        default: ['America/New_York', 'Europe/London', 'Asia/Tokyo'],
+        description: 'IANA names such as Europe/Paris.',
       },
+      { key: 'format24h', label: '24-hour', type: 'boolean', default: true },
     ],
   },
 
-  // Calendar modules
+  // ---------------------------------------------------------------- Calendar
   {
     id: 'calendar',
-    name: 'Calendar Events',
-    description: 'Upcoming calendar events',
+    name: 'Schedule',
+    description: 'Events from Google, Outlook, iCloud or a calendar link, plus imported crew schedules',
     category: 'calendar',
     icon: 'calendar',
-    sizes: ['medium', 'tall', 'large'],
+    sizes: ['medium', 'tall', 'large', 'wide'],
     defaultSize: 'tall',
+    manages: 'calendars',
     configFields: [
       {
-        key: 'calendarUrl',
-        label: 'Calendar URL (iCal)',
-        type: 'text',
-        placeholder: 'https://calendar.google.com/...',
+        key: 'mode',
+        label: 'Show',
+        type: 'select',
+        default: 'all',
+        options: [
+          { label: 'All events', value: 'all' },
+          { label: 'Flights only', value: 'flights' },
+        ],
       },
-      {
-        key: 'maxEvents',
-        label: 'Max Events',
-        type: 'number',
-        default: 10,
-      },
-      {
-        key: 'daysAhead',
-        label: 'Days Ahead',
-        type: 'number',
-        default: 7,
-      },
+      { key: 'daysAhead', label: 'Days ahead', type: 'number', default: 7, min: 1, max: 30, unit: 'days' },
+      { key: 'maxEvents', label: 'Max events', type: 'number', default: 8, min: 1, max: 20 },
+      { key: 'showLocation', label: 'Show locations', type: 'boolean', default: true },
     ],
   },
   {
     id: 'countdown',
-    name: 'Countdown Timer',
-    description: 'Countdown to a specific date',
+    name: 'Countdown',
+    description: 'Days, hours and minutes until a date',
     category: 'calendar',
     icon: 'hourglass',
-    sizes: ['small', 'medium'],
+    sizes: ['small', 'medium', 'wide'],
     defaultSize: 'small',
     configFields: [
-      {
-        key: 'targetDate',
-        label: 'Target Date',
-        type: 'text',
-        placeholder: '2024-12-25',
-        required: true,
-      },
-      {
-        key: 'label',
-        label: 'Event Label',
-        type: 'text',
-        placeholder: 'Days until...',
-      },
+      { key: 'label', label: 'Label', type: 'text', placeholder: 'Checkride', required: true },
+      { key: 'targetDate', label: 'Date', type: 'date', required: true },
     ],
   },
 
-  // News modules
+  // -------------------------------------------------------------------- News
   {
-    id: 'news-headlines',
-    name: 'News Headlines',
-    description: 'Top news headlines',
+    id: 'news',
+    name: 'News',
+    description: 'Headlines from a preset source or any RSS feed',
     category: 'news',
     icon: 'newspaper',
-    sizes: ['medium', 'tall', 'large'],
+    sizes: ['medium', 'tall', 'wide', 'large', 'full'],
     defaultSize: 'tall',
     configFields: [
       {
         key: 'source',
-        label: 'News Source',
+        label: 'Source',
         type: 'select',
-        default: 'top',
+        default: 'world',
         options: [
-          { label: 'Top Headlines', value: 'top' },
-          { label: 'Technology', value: 'technology' },
+          { label: 'World', value: 'world' },
+          { label: 'US', value: 'us' },
           { label: 'Business', value: 'business' },
+          { label: 'Technology', value: 'technology' },
           { label: 'Sports', value: 'sports' },
           { label: 'Aviation', value: 'aviation' },
+          { label: 'Custom RSS feed', value: 'custom' },
         ],
       },
-      {
-        key: 'maxItems',
-        label: 'Max Headlines',
-        type: 'number',
-        default: 5,
-      },
-    ],
-  },
-  {
-    id: 'rss-feed',
-    name: 'RSS Feed',
-    description: 'Custom RSS feed reader',
-    category: 'news',
-    icon: 'logo-rss',
-    sizes: ['medium', 'tall'],
-    defaultSize: 'tall',
-    configFields: [
       {
         key: 'feedUrl',
         label: 'Feed URL',
         type: 'text',
+        placeholder: 'https://example.com/feed.xml',
         required: true,
-        placeholder: 'https://...',
+        showWhen: { key: 'source', value: 'custom' },
       },
-      {
-        key: 'maxItems',
-        label: 'Max Items',
-        type: 'number',
-        default: 5,
-      },
+      { key: 'maxItems', label: 'Headlines', type: 'number', default: 6, min: 1, max: 15 },
+      { key: 'showSource', label: 'Show source and time', type: 'boolean', default: true },
     ],
   },
 
-  // Smart Home modules
-  {
-    id: 'hue-lights',
-    name: 'Philips Hue',
-    description: 'Control Hue lights',
-    category: 'smart-home',
-    icon: 'bulb',
-    sizes: ['small', 'medium'],
-    defaultSize: 'small',
-    configFields: [
-      {
-        key: 'bridgeIp',
-        label: 'Bridge IP',
-        type: 'text',
-        required: true,
-      },
-      {
-        key: 'apiKey',
-        label: 'API Key',
-        type: 'text',
-        required: true,
-      },
-    ],
-    premium: true,
-  },
-  {
-    id: 'thermostat',
-    name: 'Thermostat',
-    description: 'Smart thermostat display',
-    category: 'smart-home',
-    icon: 'thermometer',
-    sizes: ['small', 'medium'],
-    defaultSize: 'small',
-    configFields: [
-      {
-        key: 'provider',
-        label: 'Provider',
-        type: 'select',
-        default: 'nest',
-        options: [
-          { label: 'Nest', value: 'nest' },
-          { label: 'Ecobee', value: 'ecobee' },
-          { label: 'Honeywell', value: 'honeywell' },
-        ],
-      },
-    ],
-    premium: true,
-  },
-
-  // Health modules
-  {
-    id: 'fitness-ring',
-    name: 'Fitness Rings',
-    description: 'Activity, exercise, and stand goals',
-    category: 'health',
-    icon: 'fitness',
-    sizes: ['small', 'medium'],
-    defaultSize: 'small',
-    configFields: [
-      {
-        key: 'source',
-        label: 'Data Source',
-        type: 'select',
-        default: 'apple',
-        options: [
-          { label: 'Apple Health', value: 'apple' },
-          { label: 'Google Fit', value: 'google' },
-          { label: 'Fitbit', value: 'fitbit' },
-        ],
-      },
-    ],
-    premium: true,
-  },
-
-  // Finance modules
+  // ----------------------------------------------------------------- Finance
   {
     id: 'stocks',
-    name: 'Stock Ticker',
-    description: 'Stock prices and changes',
+    name: 'Stocks',
+    description: 'Prices, daily change and a 30-day trend for your symbols',
     category: 'finance',
     icon: 'trending-up',
-    sizes: ['small', 'wide'],
+    sizes: ['small', 'medium', 'wide', 'tall', 'large'],
     defaultSize: 'wide',
     configFields: [
       {
         key: 'symbols',
-        label: 'Stock Symbols',
-        type: 'text',
-        default: 'AAPL,GOOGL,MSFT',
-        description: 'Comma-separated stock symbols',
+        label: 'Symbols',
+        type: 'list',
+        itemLabel: 'symbol',
+        default: ['AAPL', 'MSFT', 'SPY'],
+        description: 'US tickers and ETFs, e.g. AAPL or VOO.',
       },
+      { key: 'showSparkline', label: 'Show 30-day trend', type: 'boolean', default: true },
     ],
   },
   {
     id: 'crypto',
-    name: 'Crypto Prices',
-    description: 'Cryptocurrency prices',
+    name: 'Crypto',
+    description: 'Coin prices with 24-hour change',
     category: 'finance',
     icon: 'logo-bitcoin',
-    sizes: ['small', 'medium'],
+    sizes: ['small', 'medium', 'wide', 'tall'],
     defaultSize: 'small',
     configFields: [
       {
         key: 'coins',
-        label: 'Cryptocurrencies',
-        type: 'text',
-        default: 'BTC,ETH',
-        description: 'Comma-separated coin symbols',
+        label: 'Coins',
+        type: 'list',
+        itemLabel: 'coin',
+        default: ['BTC', 'ETH'],
+        description: 'Symbols such as BTC, ETH, SOL.',
       },
       {
         key: 'currency',
-        label: 'Display Currency',
+        label: 'Currency',
         type: 'select',
         default: 'USD',
         options: [
@@ -661,150 +535,114 @@ export const MODULES: ModuleDefinition[] = [
     ],
   },
 
-  // Media modules
-  {
-    id: 'photo-frame',
-    name: 'Photo Frame',
-    description: 'Rotating photo display',
-    category: 'media',
-    icon: 'images',
-    sizes: ['medium', 'large', 'full'],
-    defaultSize: 'large',
-    configFields: [
-      {
-        key: 'source',
-        label: 'Photo Source',
-        type: 'select',
-        default: 'local',
-        options: [
-          { label: 'Local Folder', value: 'local' },
-          { label: 'Google Photos', value: 'google' },
-          { label: 'iCloud', value: 'icloud' },
-        ],
-      },
-      {
-        key: 'interval',
-        label: 'Rotation Interval (sec)',
-        type: 'number',
-        default: 30,
-      },
-    ],
-  },
-  {
-    id: 'spotify',
-    name: 'Now Playing',
-    description: 'Spotify now playing display',
-    category: 'media',
-    icon: 'musical-notes',
-    sizes: ['small', 'medium', 'wide'],
-    defaultSize: 'wide',
-    configFields: [],
-    premium: true,
-  },
-
-  // Productivity modules
+  // ------------------------------------------------------------ Productivity
   {
     id: 'todo-list',
-    name: 'To-Do List',
-    description: 'Task list from various sources',
+    name: 'To-do',
+    description: 'A short list you manage from the app',
     category: 'productivity',
     icon: 'checkbox',
-    sizes: ['medium', 'tall'],
+    sizes: ['small', 'medium', 'tall', 'large'],
     defaultSize: 'tall',
+    manages: 'todos',
     configFields: [
-      {
-        key: 'source',
-        label: 'Source',
-        type: 'select',
-        default: 'todoist',
-        options: [
-          { label: 'Todoist', value: 'todoist' },
-          { label: 'Apple Reminders', value: 'reminders' },
-          { label: 'Google Tasks', value: 'google' },
-        ],
-      },
-      {
-        key: 'maxItems',
-        label: 'Max Items',
-        type: 'number',
-        default: 10,
-      },
+      { key: 'title', label: 'Title', type: 'text', default: 'To-do', placeholder: 'To-do' },
+      { key: 'showCompleted', label: 'Show completed items', type: 'boolean', default: false },
+      { key: 'maxItems', label: 'Max items', type: 'number', default: 8, min: 1, max: 20 },
     ],
   },
   {
     id: 'quotes',
-    name: 'Daily Quote',
-    description: 'Inspirational quotes',
+    name: 'Quote of the Day',
+    description: 'A new quote each day',
     category: 'productivity',
     icon: 'chatbox-ellipses',
-    sizes: ['wide', 'medium'],
+    sizes: ['wide', 'medium', 'full'],
     defaultSize: 'wide',
     configFields: [
       {
         key: 'category',
-        label: 'Quote Category',
+        label: 'Theme',
         type: 'select',
-        default: 'motivational',
+        default: 'aviation',
         options: [
-          { label: 'Motivational', value: 'motivational' },
           { label: 'Aviation', value: 'aviation' },
+          { label: 'Motivation', value: 'motivational' },
           { label: 'Wisdom', value: 'wisdom' },
-          { label: 'Humor', value: 'humor' },
         ],
       },
     ],
   },
 
-  // Utilities
+  // ------------------------------------------------------------------- Media
+  {
+    id: 'photo-frame',
+    name: 'Photos',
+    description: 'A slideshow of photos uploaded from your phone',
+    category: 'media',
+    icon: 'images',
+    sizes: ['medium', 'large', 'tall', 'full'],
+    defaultSize: 'large',
+    manages: 'photos',
+    configFields: [
+      { key: 'interval', label: 'Change every', type: 'number', default: 30, min: 5, max: 600, unit: 's' },
+      {
+        key: 'fit',
+        label: 'Fit',
+        type: 'select',
+        default: 'cover',
+        options: [
+          { label: 'Fill', value: 'cover' },
+          { label: 'Fit', value: 'contain' },
+        ],
+      },
+    ],
+  },
+
+  // --------------------------------------------------------------- Utilities
   {
     id: 'qr-code',
     name: 'QR Code',
-    description: 'Display a QR code',
+    description: 'Share a link or Wi-Fi details with a scannable code',
     category: 'utilities',
     icon: 'qr-code',
-    sizes: ['small'],
+    sizes: ['small', 'medium'],
     defaultSize: 'small',
     configFields: [
-      {
-        key: 'content',
-        label: 'QR Content',
-        type: 'text',
-        required: true,
-        placeholder: 'URL or text',
-      },
-      {
-        key: 'label',
-        label: 'Label',
-        type: 'text',
-        placeholder: 'WiFi Password',
-      },
+      { key: 'content', label: 'Content', type: 'text', required: true, placeholder: 'https://...' },
+      { key: 'label', label: 'Caption', type: 'text', placeholder: 'Guest Wi-Fi' },
     ],
   },
   {
     id: 'text-label',
-    name: 'Text Label',
-    description: 'Custom text display',
+    name: 'Text',
+    description: 'A line of your own text',
     category: 'utilities',
     icon: 'text',
-    sizes: ['small', 'wide'],
-    defaultSize: 'small',
+    sizes: ['small', 'wide', 'full'],
+    defaultSize: 'wide',
     configFields: [
-      {
-        key: 'text',
-        label: 'Text',
-        type: 'text',
-        required: true,
-      },
+      { key: 'text', label: 'Text', type: 'text', required: true, placeholder: 'Fly safe' },
       {
         key: 'fontSize',
-        label: 'Font Size',
+        label: 'Size',
         type: 'select',
         default: 'medium',
         options: [
           { label: 'Small', value: 'small' },
           { label: 'Medium', value: 'medium' },
           { label: 'Large', value: 'large' },
-          { label: 'X-Large', value: 'xlarge' },
+        ],
+      },
+      {
+        key: 'align',
+        label: 'Align',
+        type: 'select',
+        default: 'left',
+        options: [
+          { label: 'Left', value: 'left' },
+          { label: 'Center', value: 'center' },
+          { label: 'Right', value: 'right' },
         ],
       },
     ],
@@ -812,7 +650,7 @@ export const MODULES: ModuleDefinition[] = [
   {
     id: 'spacer',
     name: 'Spacer',
-    description: 'Empty space for layout',
+    description: 'Empty space to shape the layout',
     category: 'utilities',
     icon: 'resize',
     sizes: ['small', 'medium', 'wide', 'tall'],
@@ -821,15 +659,51 @@ export const MODULES: ModuleDefinition[] = [
   },
 ];
 
-// Helper functions
 export function getModuleById(id: string): ModuleDefinition | undefined {
   return MODULES.find((m) => m.id === id);
 }
 
-export function getModulesByCategory(category: ModuleCategory): ModuleDefinition[] {
-  return MODULES.filter((m) => m.category === category);
+/** Config populated with every field's default. */
+export function defaultConfigFor(definition: ModuleDefinition): Record<string, unknown> {
+  return definition.configFields.reduce((acc, field) => {
+    if (field.default !== undefined) acc[field.key] = field.default;
+    return acc;
+  }, {} as Record<string, unknown>);
+}
+
+/**
+ * Whether a field should be shown given the current config. Pass the
+ * definition so an unset controlling field falls back to its default.
+ */
+export function isFieldVisible(
+  field: ModuleConfigField,
+  config: Record<string, unknown>,
+  definition?: ModuleDefinition
+): boolean {
+  if (!field.showWhen) return true;
+  const { key, value } = field.showWhen;
+  let current = config[key];
+  if (current === undefined && definition) {
+    current = definition.configFields.find((f) => f.key === key)?.default;
+  }
+  return current === value;
+}
+
+/** Required fields that are still empty, for the editor's attention badge. */
+export function missingRequiredFields(
+  definition: ModuleDefinition,
+  config: Record<string, unknown>
+): ModuleConfigField[] {
+  return definition.configFields.filter((field) => {
+    if (!field.required || !isFieldVisible(field, config, definition)) return false;
+    const value = config[field.key];
+    if (value === undefined || value === null) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    if (Array.isArray(value)) return value.length === 0;
+    return false;
+  });
 }
 
 export function generateInstanceId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }

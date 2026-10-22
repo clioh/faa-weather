@@ -4,14 +4,9 @@
     "slug": "skyglass",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon.png",
     "scheme": "skyglass",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -22,7 +17,10 @@
         "NSCameraUsageDescription": "SkyGlass uses your camera to register your face for presence detection.",
         "NSLocationWhenInUseUsageDescription": "SkyGlass uses your location to provide accurate sunrise/sunset times and local weather.",
         "NSLocalNetworkUsageDescription": "SkyGlass needs to discover your mirror on the local network.",
-        "NSBonjourServices": ["_skyglass._tcp", "_http._tcp"]
+        "NSBonjourServices": [
+          "_skyglass._tcp",
+          "_http._tcp"
+        ]
       }
     },
     "android": {
@@ -35,8 +33,6 @@
         "CAMERA",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_WIFI_STATE",
-        "CHANGE_WIFI_STATE",
         "ACCESS_NETWORK_STATE"
       ]
     },
@@ -53,7 +49,19 @@
           "cameraPermission": "SkyGlass uses your camera for face registration and QR code scanning."
         }
       ],
-      "expo-location"
+      "expo-location",
+      "expo-font",
+      "expo-web-browser",
+      "expo-secure-store",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

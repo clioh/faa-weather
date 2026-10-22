@@ -1,11 +1,11 @@
 /**
  * Mirrors Management Screen
  *
- * Allows users to view and manage their linked mirrors,
- * remove mirrors, and manage face enrollment.
+ * Lists the mirrors this phone is linked to, to reconnect to or unlink
+ * them. Faces are managed per mirror in Settings.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -15,70 +15,20 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useUser } from '@/context/UserContext';
 import { api } from '@/lib/api';
 import { LinkedMirror } from '@/lib/storage';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
-
-interface FaceStatus {
-  enrolled: boolean;
-  enrolledAt?: string;
-  samples?: number;
-}
+import { ScreenHeader, goToManualEntry } from '@/components';
+import { goHome, goToDashboard } from '@/lib/navigation';
+import { ensurePaired } from '@/lib/pairing';
 
 export default function MirrorsScreen() {
-  const { user, linkedMirrors, removeMirror, setCurrentMirror, updateMirror } = useUser();
+  const { linkedMirrors, removeMirror, setCurrentMirror } = useUser();
   const [expandedMirror, setExpandedMirror] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [faceStatuses, setFaceStatuses] = useState<Record<string, FaceStatus>>({});
-
-  // Fetch face status when a mirror is expanded
-  const fetchFaceStatus = useCallback(async (mirror: LinkedMirror) => {
-    if (!user) return;
-
-    try {
-      api.setBaseUrl(mirror.host, mirror.port);
-      const response = await fetch(
-        `http://${mirror.host}:5000/api/users/${user.id}/face`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setFaceStatuses(prev => ({
-          ...prev,
-          [mirror.mirrorId]: {
-            enrolled: data.enrolled || false,
-            enrolledAt: data.enrolledAt || data.enrolled_at,
-            samples: data.samples || 5,
-          },
-        }));
-      } else {
-        setFaceStatuses(prev => ({
-          ...prev,
-          [mirror.mirrorId]: { enrolled: false },
-        }));
-      }
-    } catch (error) {
-      // Mirror might be offline
-      setFaceStatuses(prev => ({
-        ...prev,
-        [mirror.mirrorId]: { enrolled: mirror.faceEnrolled },
-      }));
-    }
-  }, [user]);
-
-  // Fetch face status when mirror is expanded
-  useEffect(() => {
-    if (expandedMirror) {
-      const mirror = linkedMirrors.find(m => m.mirrorId === expandedMirror);
-      if (mirror && !faceStatuses[mirror.mirrorId]) {
-        fetchFaceStatus(mirror);
-      }
-    }
-  }, [expandedMirror, linkedMirrors, faceStatuses, fetchFaceStatus]);
 
   const handleRemoveMirror = async (mirror: LinkedMirror) => {
     Alert.alert(
@@ -106,129 +56,38 @@ export default function MirrorsScreen() {
     );
   };
 
-  const handleDeleteFaceData = async (mirror: LinkedMirror) => {
-    Alert.alert(
-      'Delete Face Data',
-      `This will permanently delete your face data from "${mirror.mirrorName}". The mirror will no longer recognize you. Continue?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setLoadingAction(`delete-face-${mirror.mirrorId}`);
-            try {
-              // Connect to the mirror
-              api.setBaseUrl(mirror.host, mirror.port);
-
-              // Delete face data
-              const response = await fetch(
-                `${api.getBaseUrl()}/api/presence/users/${user?.id}/face`,
-                { method: 'DELETE' }
-              );
-
-              if (response.ok) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                Alert.alert('Success', 'Face data deleted from this mirror');
-              } else {
-                throw new Error('Failed to delete');
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete face data. Make sure the mirror is reachable.');
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            } finally {
-              setLoadingAction(null);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const handleConnect = async (mirror: LinkedMirror) => {
     setLoadingAction(`connect-${mirror.mirrorId}`);
     try {
-      api.setBaseUrl(mirror.host, mirror.port);
+      // With the id set, a failed ping searches for the mirror and follows it
+      // to a new address (saved by the API client).
+      api.setBaseUrl(mirror.host, mirror.port, mirror.mirrorId);
       await api.ping();
-      setCurrentMirror(mirror);
+      // An unpaired (or revoked) phone pairs before anything else.
+      if (!(await ensurePaired({ mirrorName: mirror.mirrorName }))) return;
+      const { host, port } = api.getConnectionState();
+      setCurrentMirror({ ...mirror, host, port });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/dashboard');
+      goToDashboard();
     } catch (error) {
-      Alert.alert('Error', 'Unable to connect to mirror. Make sure it\'s online and on the same network.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
-  const handleEnrollFace = async (mirror: LinkedMirror) => {
-    setLoadingAction(`enroll-${mirror.mirrorId}`);
-    try {
-      api.setBaseUrl(mirror.host, mirror.port);
-      await api.ping();
-      setCurrentMirror(mirror);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push('/setup/face');
-    } catch (error) {
-      Alert.alert('Error', 'Unable to connect to mirror for face enrollment.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setLoadingAction(null);
-    }
-  };
-
-  const handleUpdateFace = async (mirror: LinkedMirror) => {
-    Alert.alert(
-      'Update Face Data',
-      'This will replace your current face data with new photos. The mirror will use your updated appearance for recognition.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Update',
-          onPress: async () => {
-            setLoadingAction(`update-face-${mirror.mirrorId}`);
-            try {
-              api.setBaseUrl(mirror.host, mirror.port);
-
-              // First delete existing face data
-              const deleteResponse = await fetch(
-                `http://${mirror.host}:5000/api/users/${user?.id}/face`,
-                { method: 'DELETE' }
-              );
-
-              if (!deleteResponse.ok) {
-                throw new Error('Failed to delete existing face data');
-              }
-
-              // Update local state
-              setFaceStatuses(prev => ({
-                ...prev,
-                [mirror.mirrorId]: { enrolled: false },
-              }));
-
-              // Update mirror's faceEnrolled status
-              if (updateMirror) {
-                await updateMirror(mirror.mirrorId, { faceEnrolled: false });
-              }
-
-              setCurrentMirror(mirror);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-              // Navigate to face enrollment with re-enrollment flag
-              router.push({
-                pathname: '/setup/face',
-                params: { reenroll: 'true' },
-              });
-            } catch (error) {
-              Alert.alert('Error', 'Failed to start face update. Make sure the mirror is reachable.');
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            } finally {
-              setLoadingAction(null);
-            }
+      Alert.alert(
+        'Mirror not found',
+        `${mirror.mirrorName} didn't answer at ${mirror.host} and wasn't found on this network. Make sure it's powered on and your phone is on the same WiFi.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Enter address manually', onPress: goToManualEntry },
+          {
+            text: 'Search again',
+            onPress: () => {
+              void handleConnect(mirror);
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } finally {
+      setLoadingAction(null);
+    }
   };
 
   const formatLastConnected = (dateString: string) => {
@@ -250,17 +109,7 @@ export default function MirrorsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Mirrors</Text>
-        <View style={styles.headerRight} />
-      </View>
+      <ScreenHeader title="My Mirrors" fallbackHref="/" />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Mirror Count */}
@@ -292,7 +141,7 @@ export default function MirrorsScreen() {
             </Text>
             <TouchableOpacity
               style={styles.addButton}
-              onPress={() => router.push('/')}
+              onPress={goHome}
             >
               <Ionicons name="add" size={20} color={colors.background} />
               <Text style={styles.addButtonText}>Find a Mirror</Text>
@@ -328,8 +177,8 @@ export default function MirrorsScreen() {
                         <View style={styles.badge}>
                           <Ionicons name="checkmark-circle" size={12} color={colors.success} />
                           <Text style={styles.badgeText}>
-                            {faceStatuses[mirror.mirrorId]?.enrolledAt
-                              ? `Enrolled ${formatEnrollmentDate(faceStatuses[mirror.mirrorId].enrolledAt!)}`
+                            {mirror.enrolledAt
+                              ? `Enrolled ${formatEnrollmentDate(mirror.enrolledAt)}`
                               : 'Face Enrolled'}
                           </Text>
                         </View>
@@ -371,60 +220,6 @@ export default function MirrorsScreen() {
                       )}
                     </TouchableOpacity>
 
-                    {!mirror.faceEnrolled && (
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleEnrollFace(mirror)}
-                        disabled={loadingAction !== null}
-                      >
-                        {loadingAction === `enroll-${mirror.mirrorId}` ? (
-                          <ActivityIndicator size="small" color={colors.primary} />
-                        ) : (
-                          <>
-                            <Ionicons name="scan-outline" size={18} color={colors.primary} />
-                            <Text style={styles.actionButtonText}>Enroll Face</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    )}
-
-                    {mirror.faceEnrolled && (
-                      <>
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => handleUpdateFace(mirror)}
-                          disabled={loadingAction !== null}
-                        >
-                          {loadingAction === `update-face-${mirror.mirrorId}` ? (
-                            <ActivityIndicator size="small" color={colors.accent} />
-                          ) : (
-                            <>
-                              <Ionicons name="refresh-outline" size={18} color={colors.accent} />
-                              <Text style={[styles.actionButtonText, { color: colors.accent }]}>
-                                Update Face
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.actionButton, styles.actionButtonDanger]}
-                          onPress={() => handleDeleteFaceData(mirror)}
-                          disabled={loadingAction !== null}
-                        >
-                          {loadingAction === `delete-face-${mirror.mirrorId}` ? (
-                            <ActivityIndicator size="small" color={colors.error} />
-                          ) : (
-                            <>
-                              <Ionicons name="trash-outline" size={18} color={colors.error} />
-                              <Text style={[styles.actionButtonText, styles.actionButtonTextDanger]}>
-                                Delete Face
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      </>
-                    )}
-
                     <TouchableOpacity
                       style={[styles.actionButton, styles.actionButtonDanger]}
                       onPress={() => handleRemoveMirror(mirror)}
@@ -452,7 +247,7 @@ export default function MirrorsScreen() {
         {linkedMirrors.length > 0 && (
           <TouchableOpacity
             style={styles.addAnotherButton}
-            onPress={() => router.push('/')}
+            onPress={goHome}
           >
             <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.addAnotherText}>Add Another Mirror</Text>
@@ -463,8 +258,8 @@ export default function MirrorsScreen() {
         <View style={styles.infoBox}>
           <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
           <Text style={styles.infoText}>
-            Each mirror stores your face data locally. When you unlink a mirror, your face data
-            remains on that device. Use "Delete Face" to remove it completely.
+            Each mirror stores its face data locally. Unlinking a mirror leaves that data on the
+            device; to add or remove faces, connect to the mirror and open Settings.
           </Text>
         </View>
       </ScrollView>
@@ -476,26 +271,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    width: 40,
-  },
-  headerTitle: {
-    ...typography.h2,
-    color: colors.text,
-  },
-  headerRight: {
-    width: 40,
   },
   content: {
     padding: spacing.lg,
@@ -649,6 +424,8 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

@@ -1,17 +1,10 @@
 /**
  * Templates Screen
- * Browse and apply pre-built layout templates
+ * Browse starting layouts as miniature mirror previews and apply one to the editor.
  */
 
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -21,14 +14,37 @@ import {
   TemplateCategory,
   LayoutTemplate,
 } from '@/lib/templates';
+import { getModuleById } from '@/lib/modules';
+import { useUser } from '@/context/UserContext';
+import { useDisplayHold } from '@/hooks/useDisplayHold';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
+import { ScreenHeader, LayoutThumbnail } from '@/components';
 
 type FilterCategory = TemplateCategory | 'all';
 
+const CATEGORY_FILTERS: { key: FilterCategory; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'aviation', label: 'Aviation' },
+  { key: 'weather', label: 'Weather' },
+  { key: 'lifestyle', label: 'Lifestyle' },
+  { key: 'minimal', label: 'Minimal' },
+];
+
+function widgetNames(template: LayoutTemplate): string {
+  return template.modules
+    .map((m) => getModuleById(m.moduleId)?.name)
+    .filter(Boolean)
+    .join(', ');
+}
+
 export default function TemplatesScreen() {
+  const { currentMirror } = useUser();
+  useDisplayHold(Boolean(currentMirror));
   const params = useLocalSearchParams<{ hasModules?: string }>();
   const hasExistingModules = params.hasModules === 'true';
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
+  // Replacing a layout is destructive, so the card asks inline before applying.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const filteredTemplates =
     selectedCategory === 'all'
@@ -36,160 +52,128 @@ export default function TemplatesScreen() {
       : LAYOUT_TEMPLATES.filter((t) => t.category === selectedCategory);
 
   const handleApplyTemplate = (template: LayoutTemplate) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    if (hasExistingModules) {
-      Alert.alert(
-        'Replace Layout?',
-        `This will replace your current layout with "${template.name}". You can customize it before saving.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Replace',
-            style: 'destructive',
-            onPress: () => applyAndNavigate(template),
-          },
-        ]
-      );
-    } else {
-      applyAndNavigate(template);
+    if (hasExistingModules && confirmingId !== template.id) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setConfirmingId(template.id);
+      return;
     }
+    applyAndNavigate(template);
   };
 
   const applyAndNavigate = (template: LayoutTemplate) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Navigate back to editor with selected template
-    router.replace({
+    setConfirmingId(null);
+    // Pop back to the editor we came from and hand it the template; navigate()
+    // and replace() would stack a second editor over the unsaved one. When
+    // there is no editor below (e.g. from onboarding) this replaces us with
+    // one. applyKey lets the same template be re-applied after an undo.
+    router.dismissTo({
       pathname: '/editor',
-      params: { templateId: template.id },
+      params: { templateId: template.id, applyKey: String(Date.now()) },
     });
   };
 
-  const categoryFilters: { key: FilterCategory; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'aviation', label: 'Aviation' },
-    { key: 'weather', label: 'Weather' },
-    { key: 'lifestyle', label: 'Lifestyle' },
-    { key: 'minimal', label: 'Minimal' },
-  ];
-
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Choose a Template</Text>
-        <View style={styles.headerRight} />
-      </View>
+      <ScreenHeader title="Choose a Template" fallbackHref="/editor" />
 
-      {/* Category Filter */}
       <View style={styles.filterContainer}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScroll}
         >
-          {categoryFilters.map((filter) => (
-            <TouchableOpacity
-              key={filter.key}
-              style={[
-                styles.filterChip,
-                selectedCategory === filter.key && styles.filterChipActive,
-              ]}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setSelectedCategory(filter.key);
-              }}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selectedCategory === filter.key && styles.filterChipTextActive,
-                ]}
+          {CATEGORY_FILTERS.map((filter) => {
+            const active = selectedCategory === filter.key;
+            return (
+              <TouchableOpacity
+                key={filter.key}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setSelectedCategory(filter.key);
+                  setConfirmingId(null);
+                }}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`${filter.label} templates`}
               >
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
-      {/* Templates List */}
       <ScrollView contentContainerStyle={styles.content}>
-        {filteredTemplates.map((template) => (
-          <TouchableOpacity
-            key={template.id}
-            style={styles.templateCard}
-            onPress={() => handleApplyTemplate(template)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.templateHeader}>
-              <View
-                style={[
-                  styles.templateIcon,
-                  {
-                    backgroundColor:
-                      TEMPLATE_CATEGORIES[template.category]?.color + '20' ||
-                      colors.primaryMuted,
-                  },
-                ]}
+        {filteredTemplates.map((template) => {
+          const category = TEMPLATE_CATEGORIES[template.category];
+          const confirming = confirmingId === template.id;
+          return (
+            <View key={template.id} style={[styles.templateCard, confirming && styles.templateCardConfirming]}>
+              <TouchableOpacity
+                onPress={() => handleApplyTemplate(template)}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`${template.name}. ${template.description}. ${template.modules.length} widgets: ${widgetNames(template)}`}
+                accessibilityHint={hasExistingModules ? 'Asks before replacing your layout' : 'Opens it in the editor'}
               >
-                <Ionicons
-                  name={template.icon as keyof typeof Ionicons.glyphMap}
-                  size={28}
-                  color={
-                    TEMPLATE_CATEGORIES[template.category]?.color || colors.primary
-                  }
+                <LayoutThumbnail
+                  modules={template.modules}
+                  accessibilityLabel={`Preview of ${template.name}`}
                 />
-              </View>
-              <View style={styles.templateInfo}>
-                <Text style={styles.templateName}>{template.name}</Text>
-                <Text style={styles.templateDescription}>{template.description}</Text>
-              </View>
-            </View>
-
-            <View style={styles.templateFooter}>
-              <View style={styles.templateMeta}>
-                <View style={styles.moduleBadge}>
-                  <Ionicons name="grid-outline" size={14} color={colors.textMuted} />
-                  <Text style={styles.moduleCount}>
-                    {template.modules.length} modules
+                <View style={styles.templateInfo}>
+                  <View style={styles.templateTitleRow}>
+                    <Text style={styles.templateName}>{template.name}</Text>
+                    <View style={[styles.categoryBadge, { backgroundColor: `${category.color}20` }]}>
+                      <Text style={[styles.categoryBadgeText, { color: category.color }]}>
+                        {category.label}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.templateDescription}>{template.description}</Text>
+                  <Text style={styles.widgetList} numberOfLines={2}>
+                    {template.modules.length} widgets · {widgetNames(template)}
                   </Text>
                 </View>
-                <View
-                  style={[
-                    styles.categoryBadge,
-                    {
-                      backgroundColor:
-                        TEMPLATE_CATEGORIES[template.category]?.color + '20' ||
-                        colors.primaryMuted,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.categoryBadgeText,
-                      {
-                        color:
-                          TEMPLATE_CATEGORIES[template.category]?.color ||
-                          colors.primary,
-                      },
-                    ]}
-                  >
-                    {TEMPLATE_CATEGORIES[template.category]?.label || template.category}
-                  </Text>
-                </View>
-              </View>
+                {!confirming && (
+                  <View style={styles.applyRow}>
+                    <Text style={styles.applyButtonText}>Use this layout</Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                  </View>
+                )}
+              </TouchableOpacity>
 
-              <View style={styles.applyButton}>
-                <Text style={styles.applyButtonText}>Apply</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-              </View>
+              {confirming && (
+                <View style={styles.confirmRow}>
+                  <Text style={styles.confirmText}>
+                    Replace your current layout? You can still edit before saving.
+                  </Text>
+                  <View style={styles.confirmButtons}>
+                    <TouchableOpacity
+                      style={styles.confirmCancel}
+                      onPress={() => setConfirmingId(null)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Keep current layout"
+                    >
+                      <Text style={styles.confirmCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.confirmReplace}
+                      onPress={() => applyAndNavigate(template)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Replace layout with ${template.name}`}
+                    >
+                      <Text style={styles.confirmReplaceText}>Replace</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
-          </TouchableOpacity>
-        ))}
+          );
+        })}
 
         {filteredTemplates.length === 0 && (
           <View style={styles.emptyState}>
@@ -198,12 +182,11 @@ export default function TemplatesScreen() {
           </View>
         )}
 
-        {/* Info footer */}
         <View style={styles.infoBox}>
           <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
           <Text style={styles.infoText}>
-            Templates provide a starting point. After applying, you can customize the
-            layout by moving, resizing, or removing modules.
+            Templates use your mirror’s airport and location. After applying one you can move,
+            resize or remove widgets before saving.
           </Text>
         </View>
       </ScrollView>
@@ -216,39 +199,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    width: 40,
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: colors.text,
-  },
-  headerRight: {
-    width: 40,
-  },
   filterContainer: {
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   filterScroll: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     gap: spacing.sm,
     flexDirection: 'row',
   },
   filterChip: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
@@ -273,58 +237,37 @@ const styles = StyleSheet.create({
   templateCard: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  templateHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.md,
-  },
-  templateIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
+  templateCardConfirming: {
+    borderColor: colors.warning,
   },
   templateInfo: {
-    flex: 1,
+    marginTop: spacing.md,
+  },
+  templateTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   templateName: {
     ...typography.h3,
     color: colors.text,
-    marginBottom: spacing.xs,
+    flexShrink: 1,
   },
   templateDescription: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    lineHeight: 20,
   },
-  templateFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  templateMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  moduleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  moduleCount: {
+  widgetList: {
     ...typography.caption,
     color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   categoryBadge: {
     paddingHorizontal: spacing.sm,
@@ -335,15 +278,59 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontWeight: '600',
   },
-  applyButton: {
+  applyRow: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: spacing.xs,
+    marginTop: spacing.xs,
   },
   applyButtonText: {
     ...typography.body,
     color: colors.primary,
     fontWeight: '600',
+  },
+  confirmRow: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
+  confirmText: {
+    ...typography.bodySmall,
+    color: colors.text,
+  },
+  confirmButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  confirmCancel: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmCancelText: {
+    ...typography.body,
+    color: colors.text,
+  },
+  confirmReplace: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.warning,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmReplaceText: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.background,
   },
   emptyState: {
     alignItems: 'center',
