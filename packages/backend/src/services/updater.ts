@@ -30,7 +30,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PROJECT_ROOT = path.resolve(__dirname, '../../../../');
 
 // GitHub repository for releases
-const GITHUB_REPO = process.env.GITHUB_REPO || 'YOUR_USERNAME/SkyGlass';
+const GITHUB_REPO = process.env.GITHUB_REPO || 'clioh/skyglass';
 const REPO_PLACEHOLDER = /YOUR_USERNAME|^\s*$/;
 const DEFAULT_GITHUB_API_BASE = 'https://api.github.com';
 // Versions become file names; never let a tag name escape .update-temp.

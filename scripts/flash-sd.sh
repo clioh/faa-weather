@@ -43,7 +43,7 @@ PI_OS_URL="https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_l
 PI_OS_IMAGE="raspios-bookworm-arm64-lite.img"
 
 # SkyGlass Release (CHANGE THIS TO YOUR REPO)
-GITHUB_REPO="YOUR_USERNAME/SkyGlass"
+GITHUB_REPO="${GITHUB_REPO:-clioh/skyglass}"
 RELEASE_VERSION="${SKYGLASS_VERSION:-latest}"
 RELEASE_FILE="$DOWNLOAD_DIR/skyglass-release.tar.gz"
 

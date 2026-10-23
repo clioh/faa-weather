@@ -45,8 +45,8 @@ A smart mirror built for pilots that displays aviation weather, flight schedules
 ### Development Setup (Mac/Linux)
 
 ```bash
-# Clone the repository (replace <your-fork> with the GitHub account hosting your copy)
-git clone https://github.com/<your-fork>/SkyGlass.git
+# Clone the repository
+git clone https://github.com/clioh/skyglass.git SkyGlass
 cd SkyGlass
 
 # Install dependencies
@@ -80,14 +80,12 @@ See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for how the pipeline 
 
 ```bash
 # Clone and run setup script
-git clone https://github.com/<your-fork>/SkyGlass.git ~/SkyGlass
+git clone https://github.com/clioh/skyglass.git ~/SkyGlass
 cd ~/SkyGlass
 ./scripts/setup-pi.sh
 ```
 
 `setup-pi.sh` installs everything natively (no Docker): Node, the presence venv, PM2 with the three apps in `config/pm2.config.cjs`, the `skyglass-boot`, `skyglass-provision` and `skyglass-watchdog` systemd units, and a Chromium kiosk pointed at `http://localhost:3001`. Setup (WiFi, license, location, airport, face registration) is done from the phone app; on first boot without WiFi the mirror opens the `SkyGlass-Setup` hotspot. Once on your network the mirror is at `http://skyglass.local:3001`.
-
-`<your-fork>` is a placeholder: there is no official public repository URL yet, so use the URL of the repository you cloned or forked.
 
 The Pi install lives at `~/SkyGlass`; `setup-pi.sh` always installs there. The PM2 config (`config/pm2.config.cjs`) defaults to the checkout it lives in and can be pointed elsewhere with the `SKYGLASS_DIR` environment variable (e.g. `SKYGLASS_DIR=/opt/SkyGlass pm2 start config/pm2.config.cjs`).
 
@@ -235,7 +233,7 @@ journalctl -u skyglass-watchdog -f
 
 ### Updating
 
-Updates are installed from the `skyglass-vX.Y.Z.tar.gz` asset attached to each GitHub release (built by `.github/workflows/release.yml`; it contains the prebuilt `packages/backend/dist` and `packages/frontend/dist`). Set `GITHUB_REPO=<owner>/SkyGlass` in the environment of the backend and of `scripts/update.sh` so they look at your repository.
+Updates are installed from the `skyglass-vX.Y.Z.tar.gz` asset attached to each GitHub release (built by `.github/workflows/release.yml`; it contains the prebuilt `packages/backend/dist` and `packages/frontend/dist`). They come from `clioh/skyglass` by default; a fork sets `GITHUB_REPO=<owner>/<repo>` in the environment of the backend and of `scripts/update.sh`.
 
 - **In the display UI**: *Download* fetches the tarball, *Install Now* hands it to `scripts/update.sh --apply-tarball` and returns immediately. The display shows "Update started, restarting…" and reloads itself once the backend is back on the new version.
 - **From a shell**: `npm run update` (prompt), `./scripts/update.sh --check` (exit 0 if an update is available) or `./scripts/update.sh --apply` (no prompt). There is no automatic update timer.

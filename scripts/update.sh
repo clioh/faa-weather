@@ -82,7 +82,7 @@ UPDATE_EXCLUDES=(
 )
 
 # GitHub repository (override with GITHUB_REPO env var)
-GITHUB_REPO="${GITHUB_REPO:-YOUR_USERNAME/SkyGlass}"
+GITHUB_REPO="${GITHUB_REPO:-clioh/skyglass}"
 
 # Colors (terminal only; logs/update.log gets plain text)
 RED='\033[0;31m'

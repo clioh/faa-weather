@@ -209,8 +209,8 @@ backend `updater.test.ts` and presence `test_watchdog_updates.py`)
       services, mirror widgets, phone editor, calendar (backend + app + website), docs.
 - [x] **Rename the workspace packages.** Done 2026-10-21: backend, frontend, cloud-api and
       license-server are now `@skyglass/*` (turbo filters in the root `package.json` updated).
-- [ ] **Rename the git remote.** It is still `clioh/faa-weather`. The README uses a `<your-fork>`
-      placeholder until there is a public repository URL.
+- [x] **Rename the repository.** Done 2026-10-23: `clioh/faa-weather` is now `clioh/skyglass`
+      (GitHub redirects the old URL). The updater, `update.sh` and `flash-sd.sh` default to it.
 - [x] **Regenerate `packages/website/package-lock.json`.** Done 2026-10-21. Vercel installs
       `packages/website` on its own (`.npmrc` has `workspaces=false`), and a clean `npm ci && npm run build`
       there failed three ways, all fixed: `react-helmet-async` 2 rejected React 19 (now 3.0.0),
