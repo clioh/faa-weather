@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { validateBody } from '../middleware/validate.js';
 import { layoutSchema, oauthTokenSchema } from '../validation/schemas.js';
 import { broadcast } from '../server.js';
+import { loadConfig, type MirrorOrientation } from '../config/index.js';
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -58,43 +59,58 @@ interface OAuthTokens {
   };
 }
 
-// Default layout for new installations
-const DEFAULT_LAYOUT: MirrorLayout = {
-  id: 'default',
-  name: 'Default Layout',
-  modules: [
-    {
-      instanceId: 'clock-1',
-      moduleId: 'digital-clock',
-      position: { x: 0, y: 0 },
-      size: 'medium',
-      config: { format24h: false, showSeconds: true, showDate: true },
-    },
-    {
-      instanceId: 'metar-1',
-      moduleId: 'metar',
-      position: { x: 4, y: 0 },
-      size: 'medium',
-      config: { icao: 'KJFK', showDecoded: true },
-    },
-    {
-      instanceId: 'flight-rules-1',
-      moduleId: 'flight-rules',
-      position: { x: 8, y: 0 },
-      size: 'small',
-      config: { icao: 'KJFK' },
-    },
-    {
-      instanceId: 'sun-times-1',
-      moduleId: 'sun-times',
-      position: { x: 0, y: 3 },
-      size: 'small',
-      config: {},
-    },
-  ],
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
+// Default layout for new installations: what the mirror shows until a layout
+// is saved, and what new users' layouts are copied from (routes/users.ts). No
+// airport is pinned, so the aviation widgets use the mirror's configured one.
+function tile(instanceId: string, moduleId: string, x: number, y: number, size: ModuleSize, config: Record<string, unknown> = {}): ModuleInstance {
+  return { instanceId, moduleId, position: { x, y }, size, config };
+}
+
+const CLOCK_CONFIG = { format24h: false, showSeconds: true, showDate: true };
+
+// Landscape: one band across the top of the 12x8 grid.
+const LANDSCAPE_MODULES: ModuleInstance[] = [
+  tile('clock-1', 'digital-clock', 0, 0, 'medium', CLOCK_CONFIG),
+  tile('metar-1', 'metar', 4, 0, 'medium'),
+  tile('flight-rules-1', 'flight-rules', 8, 0, 'small'),
+  tile('sun-times-1', 'sun-times', 0, 3, 'small'),
+];
+
+// Portrait keeps the 12x8 grid but rows come out ~240px tall and columns
+// ~90px wide, so tiles go six columns wide and fill the height.
+const PORTRAIT_MODULES: ModuleInstance[] = [
+  // Rows 0-1: clock · flight rules · sun
+  tile('clock-1', 'digital-clock', 0, 0, 'wide', CLOCK_CONFIG),
+  tile('flight-rules-1', 'flight-rules', 6, 0, 'small'),
+  tile('sun-times-1', 'sun-times', 9, 0, 'small'),
+  // Rows 2-5: METAR · TAF
+  tile('metar-1', 'metar', 0, 2, 'large'),
+  tile('taf-1', 'taf', 6, 2, 'large'),
+  // Rows 6-7: TFRs · winds aloft
+  tile('tfr-1', 'tfr', 0, 6, 'wide'),
+  tile('winds-aloft-1', 'winds-aloft', 6, 6, 'wide'),
+];
+
+export function defaultLayout(orientation: MirrorOrientation = 'landscape'): MirrorLayout {
+  const now = new Date().toISOString();
+  const modules = orientation === 'landscape' ? LANDSCAPE_MODULES : PORTRAIT_MODULES;
+  return {
+    id: 'default',
+    name: 'Default Layout',
+    modules: structuredClone(modules),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/** The mirror's display.orientation; landscape if the config can't be read. */
+function currentOrientation(): MirrorOrientation {
+  try {
+    return loadConfig().display?.orientation ?? 'landscape';
+  } catch {
+    return 'landscape';
+  }
+}
 
 /**
  * Load OAuth tokens from storage
@@ -132,7 +148,7 @@ export function loadCurrentLayout(): MirrorLayout {
   } catch (err) {
     console.error('Failed to load layout:', err);
   }
-  return { ...DEFAULT_LAYOUT };
+  return defaultLayout(currentOrientation());
 }
 
 /**

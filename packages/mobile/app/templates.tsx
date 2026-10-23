@@ -1,21 +1,24 @@
 /**
  * Templates Screen
  * Browse starting layouts as miniature mirror previews and apply one to the editor.
+ * A portrait mirror is offered the portrait variants.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Badge, Button, Chip, Notice, Text } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
-  LAYOUT_TEMPLATES,
   TEMPLATE_CATEGORIES,
   TemplateCategory,
+  TemplateOrientation,
   LayoutTemplate,
+  templatesFor,
 } from '@/lib/templates';
 import { getModuleById } from '@/lib/modules';
+import { api, isPortrait } from '@/lib/api';
 import { useUser } from '@/context/UserContext';
 import { useDisplayHold } from '@/hooks/useDisplayHold';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
@@ -46,11 +49,30 @@ export default function TemplatesScreen() {
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
   // Replacing a layout is destructive, so the card asks inline before applying.
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<TemplateOrientation>('landscape');
 
+  useEffect(() => {
+    if (!currentMirror) return;
+    let cancelled = false;
+    api
+      .getConfig()
+      .then((config) => {
+        if (!cancelled) setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
+      })
+      .catch(() => {
+        // Unreachable mirror: keep the landscape templates.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentMirror]);
+
+  const templates = templatesFor(orientation);
+  const portrait = orientation === 'portrait';
   const filteredTemplates =
     selectedCategory === 'all'
-      ? LAYOUT_TEMPLATES
-      : LAYOUT_TEMPLATES.filter((t) => t.category === selectedCategory);
+      ? templates
+      : templates.filter((t) => t.category === selectedCategory);
 
   const handleApplyTemplate = (template: LayoutTemplate) => {
     if (hasExistingModules && confirmingId !== template.id) {
@@ -115,8 +137,9 @@ export default function TemplatesScreen() {
               >
                 <LayoutThumbnail
                   modules={template.modules}
-                  style={styles.thumbnail}
-                  accessibilityLabel={`Preview of ${template.name}`}
+                  aspectRatio={portrait ? 9 / 16 : 16 / 9}
+                  style={[styles.thumbnail, portrait && styles.thumbnailPortrait]}
+                  accessibilityLabel={`Preview of ${template.name}${portrait ? ', portrait' : ''}`}
                 />
                 <View style={styles.templateTitleRow}>
                   <Text style={styles.templateName}>{template.name}</Text>
@@ -214,6 +237,11 @@ const styles = StyleSheet.create({
   },
   thumbnail: {
     borderRadius: 8,
+  },
+  // Full card width would make a 9:16 preview taller than the screen.
+  thumbnailPortrait: {
+    width: '50%',
+    alignSelf: 'center',
   },
   templateTitleRow: {
     flexDirection: 'row',

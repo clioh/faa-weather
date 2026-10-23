@@ -6,6 +6,12 @@
  * in the catalog, tiles inside the grid and no overlaps. Configs only set
  * what differs from the catalog default (or what makes the template's point),
  * and never pin an airport or location so they follow the mirror's own.
+ *
+ * A portrait mirror keeps the 12x8 grid, but its rows come out ~240px tall
+ * and its columns ~90px wide (1080x1920), so every landscape template has a
+ * portrait variant (PORTRAIT_TEMPLATES, id `<id>-portrait`) that fills the
+ * height: lists are at least four columns wide, METAR is large and TAF at
+ * least six columns wide. templatesFor() picks the set for the mirror.
  */
 
 import {
@@ -18,6 +24,7 @@ import {
 } from './modules';
 
 export type TemplateCategory = 'aviation' | 'weather' | 'lifestyle' | 'minimal';
+export type TemplateOrientation = 'landscape' | 'portrait';
 
 export interface LayoutTemplate {
   id: string;
@@ -25,6 +32,7 @@ export interface LayoutTemplate {
   description: string;
   icon: string; // Ionicons name
   category: TemplateCategory;
+  orientation: TemplateOrientation;
   modules: Omit<ModuleInstance, 'instanceId'>[];
 }
 
@@ -49,6 +57,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     description: 'METAR, TAF, NOTAMs, TFRs and winds aloft for flight planning',
     icon: 'airplane',
     category: 'aviation',
+    orientation: 'landscape',
     modules: [
       // Rows 0-1: clock · flight rules · sun
       tile('digital-clock', 0, 0, 'wide', { format24h: true, showZulu: true }),
@@ -69,6 +78,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     description: 'Your trips, Zulu and home-base time, and the weather where you are',
     icon: 'briefcase',
     category: 'aviation',
+    orientation: 'landscape',
     modules: [
       tile('digital-clock', 0, 0, 'wide', { format24h: true, showZulu: true }),
       tile('world-clocks', 6, 0, 'wide', {
@@ -90,6 +100,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     description: 'Current conditions, the week ahead and live radar',
     icon: 'partly-sunny',
     category: 'weather',
+    orientation: 'landscape',
     modules: [
       tile('digital-clock', 0, 0, 'medium', { showSeconds: true }),
       tile('current-weather', 4, 0, 'medium'),
@@ -106,6 +117,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     description: 'A large clock and the weather, nothing else',
     icon: 'remove',
     category: 'minimal',
+    orientation: 'landscape',
     modules: [
       tile('digital-clock', 3, 1, 'large', { showZulu: false }),
       tile('current-weather', 3, 5, 'wide'),
@@ -119,6 +131,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     description: 'Time, weather, your day and the headlines',
     icon: 'sunny',
     category: 'lifestyle',
+    orientation: 'landscape',
     modules: [
       tile('digital-clock', 0, 0, 'medium', { showZulu: false }),
       tile('current-weather', 4, 0, 'small'),
@@ -134,6 +147,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     description: 'Family photos with your schedule, headlines and markets',
     icon: 'images',
     category: 'lifestyle',
+    orientation: 'landscape',
     modules: [
       tile('photo-frame', 0, 0, 'large', { interval: 30 }),
       tile('digital-clock', 6, 0, 'small', { showZulu: false }),
@@ -151,6 +165,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     description: 'Everything at a glance: aviation, weather, schedule and markets',
     icon: 'grid',
     category: 'lifestyle',
+    orientation: 'landscape',
     modules: [
       tile('digital-clock', 0, 0, 'small'),
       tile('current-weather', 3, 0, 'small'),
@@ -165,9 +180,109 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 ];
 
+/** A portrait variant: same name, blurb and category as the landscape one. */
+function portraitOf(id: string, modules: TemplateModule[]): LayoutTemplate {
+  const base = LAYOUT_TEMPLATES.find((t) => t.id === id);
+  if (!base) throw new Error(`No landscape template "${id}"`);
+  return { ...base, id: `${id}-portrait`, orientation: 'portrait', modules };
+}
+
+export const PORTRAIT_TEMPLATES: LayoutTemplate[] = [
+  // ------------------------------------------------------------- Aviation
+  portraitOf('pilot-briefing', [
+    // Rows 0-1: clock · flight rules · winds aloft
+    tile('digital-clock', 0, 0, 'small', { format24h: true, showZulu: true }),
+    tile('flight-rules', 3, 0, 'small'),
+    tile('winds-aloft', 6, 0, 'wide'),
+    // Rows 2-5: METAR · NOTAMs
+    tile('metar', 0, 2, 'large', { showRaw: true }),
+    tile('notams', 6, 2, 'large', { maxItems: 8 }),
+    // Rows 6-7: TAF · TFRs
+    tile('taf', 0, 6, 'wide', { hoursAhead: 24 }),
+    tile('tfr', 6, 6, 'wide'),
+  ]),
+  portraitOf('crew-day', [
+    tile('digital-clock', 0, 0, 'wide', { format24h: true, showZulu: true }),
+    tile('world-clocks', 6, 0, 'wide', {
+      timezones: ['America/New_York', 'America/Chicago', 'America/Los_Angeles'],
+    }),
+    tile('calendar', 0, 2, 'large', { mode: 'flights', daysAhead: 3 }),
+    tile('metar', 6, 2, 'large'),
+    tile('taf', 0, 6, 'wide'),
+    tile('sun-times', 6, 6, 'small'),
+    tile('flight-rules', 9, 6, 'small', { showDetails: false }),
+  ]),
+
+  // -------------------------------------------------------------- Weather
+  portraitOf('weather-dashboard', [
+    tile('digital-clock', 0, 0, 'wide', { showSeconds: true }),
+    tile('current-weather', 6, 0, 'wide'),
+    tile('radar-map', 0, 2, 'full', { animated: true }),
+    tile('weather-forecast', 0, 6, 'wide', { days: 5 }),
+    tile('sun-times', 6, 6, 'wide'),
+  ]),
+
+  // -------------------------------------------------------------- Minimal
+  // Already a centred stack, which reads the same on a tall panel.
+  portraitOf('minimal', [
+    tile('digital-clock', 3, 1, 'large', { showZulu: false }),
+    tile('current-weather', 3, 5, 'wide'),
+  ]),
+
+  // ------------------------------------------------------------ Lifestyle
+  portraitOf('morning-routine', [
+    tile('digital-clock', 0, 0, 'wide', { showZulu: false }),
+    tile('current-weather', 6, 0, 'wide'),
+    tile('calendar', 0, 2, 'large', { maxEvents: 8, daysAhead: 7 }),
+    tile('news', 6, 2, 'large', { source: 'world', maxItems: 5 }),
+    tile('quotes', 0, 6, 'wide', { category: 'motivational' }),
+    tile('sun-times', 6, 6, 'wide', { showTwilight: false }),
+  ]),
+  portraitOf('home-hub', [
+    tile('photo-frame', 0, 0, 'large', { interval: 30 }),
+    tile('digital-clock', 6, 0, 'small', { showZulu: false }),
+    tile('current-weather', 9, 0, 'small'),
+    tile('stocks', 6, 2, 'wide', { symbols: ['SPY', 'QQQ', 'AAPL'] }),
+    tile('calendar', 0, 4, 'large', { daysAhead: 7 }),
+    tile('news', 6, 4, 'large', { source: 'world', maxItems: 5 }),
+  ]),
+  portraitOf('information-dense', [
+    tile('digital-clock', 0, 0, 'small'),
+    tile('current-weather', 3, 0, 'small'),
+    tile('flight-rules', 6, 0, 'small'),
+    tile('sun-times', 9, 0, 'small', { showTwilight: false }),
+    tile('metar', 0, 2, 'large', { showRaw: false }),
+    tile('calendar', 6, 2, 'large', { maxEvents: 6 }),
+    tile('taf', 0, 6, 'wide'),
+    tile('stocks', 6, 6, 'wide', { symbols: ['AAPL', 'GOOGL', 'MSFT'] }),
+  ]),
+];
+
+/** The templates that suit a mirror mounted this way. */
+export function templatesFor(orientation: TemplateOrientation): LayoutTemplate[] {
+  return orientation === 'portrait' ? PORTRAIT_TEMPLATES : LAYOUT_TEMPLATES;
+}
+
+/**
+ * Narrowest a widget may be on a portrait mirror, in columns: lists need four
+ * to keep their lines readable, TAF's timeline six. METAR must be large.
+ */
+const PORTRAIT_MIN_COLS: Record<string, number> = {
+  notams: 4,
+  tfr: 4,
+  'winds-aloft': 4,
+  calendar: 4,
+  news: 4,
+  stocks: 4,
+  crypto: 4,
+  'todo-list': 4,
+  taf: 6,
+};
+
 /**
  * Problems with a template, as human-readable strings; empty when valid.
- * Checks the template against the widget catalog and the 12x8 grid.
+ * Checks the template against the widget catalog and the 12x8 grid, and a
+ * portrait template against PORTRAIT_MIN_COLS.
  */
 export function validateTemplate(template: LayoutTemplate): string[] {
   const problems: string[] = [];
@@ -240,6 +355,11 @@ export function validateTemplate(template: LayoutTemplate): string[] {
 
     const dims = SIZE_DIMENSIONS[mod.size];
     if (!dims) return;
+    if (template.orientation === 'portrait') {
+      const minCols = PORTRAIT_MIN_COLS[mod.moduleId];
+      if (minCols && dims.cols < minCols) problems.push(`${where}: ${dims.cols} columns is too narrow in portrait (min ${minCols})`);
+      if (mod.moduleId === 'metar' && mod.size !== 'large') problems.push(`${where}: METAR should be large in portrait`);
+    }
     const { x, y } = mod.position;
     if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x + dims.cols > GRID_COLS || y + dims.rows > GRID_ROWS) {
       problems.push(`${where}: at (${x},${y}) size ${dims.cols}x${dims.rows} falls outside the ${GRID_COLS}x${GRID_ROWS} grid`);
@@ -263,6 +383,7 @@ export function validateTemplate(template: LayoutTemplate): string[] {
   return problems;
 }
 
+/** Either orientation's template, by id. */
 export function getTemplateById(id: string): LayoutTemplate | undefined {
-  return LAYOUT_TEMPLATES.find((t) => t.id === id);
+  return LAYOUT_TEMPLATES.find((t) => t.id === id) ?? PORTRAIT_TEMPLATES.find((t) => t.id === id);
 }

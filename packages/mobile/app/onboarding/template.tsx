@@ -1,9 +1,10 @@
 /**
  * Template Selection Screen
- * Part of the onboarding flow - choose initial layout
+ * Part of the onboarding flow - choose initial layout (portrait variants for a
+ * portrait mirror)
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Chip, Footer, Spinner, Text, TextButton } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@/context/UserContext';
 import { useDisplayHold } from '@/hooks/useDisplayHold';
-import { api } from '@/lib/api';
+import { api, isPortrait } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import { OnboardingProgress } from '@/components/OnboardingProgress';
 import { HeaderBackButton, LayoutThumbnail } from '@/components';
@@ -19,10 +20,11 @@ import { goBack, goToDashboard } from '@/lib/navigation';
 import { InlineError } from '@/components/ErrorToast';
 import { logError } from '@/lib/errors';
 import {
-  LAYOUT_TEMPLATES,
   TEMPLATE_CATEGORIES,
   TemplateCategory,
+  TemplateOrientation,
   LayoutTemplate,
+  templatesFor,
 } from '@/lib/templates';
 import { ModuleInstance } from '@/lib/modules';
 import { colors, fonts, spacing, typography } from '@/lib/theme';
@@ -37,11 +39,30 @@ export default function TemplateScreen() {
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
   const [applying, setApplying] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<TemplateOrientation>('landscape');
 
+  useEffect(() => {
+    if (!currentMirror) return;
+    let cancelled = false;
+    api
+      .getConfig()
+      .then((config) => {
+        if (!cancelled) setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
+      })
+      .catch(() => {
+        // Unreachable mirror: keep the landscape templates.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentMirror]);
+
+  const templates = templatesFor(orientation);
+  const portrait = orientation === 'portrait';
   const filteredTemplates =
     selectedCategory === 'all'
-      ? LAYOUT_TEMPLATES
-      : LAYOUT_TEMPLATES.filter((t) => t.category === selectedCategory);
+      ? templates
+      : templates.filter((t) => t.category === selectedCategory);
 
   const handleApplyTemplate = async (template: LayoutTemplate) => {
     if (!user) return;
@@ -172,8 +193,9 @@ export default function TemplateScreen() {
             >
               <LayoutThumbnail
                 modules={template.modules}
-                style={styles.thumbnail}
-                accessibilityLabel={`${template.name} layout preview`}
+                aspectRatio={portrait ? 9 / 16 : 16 / 9}
+                style={portrait ? styles.thumbnailPortrait : styles.thumbnail}
+                accessibilityLabel={`${template.name} layout preview${portrait ? ', portrait' : ''}`}
               />
               <View style={styles.templateInfo}>
                 <Text style={styles.templateName}>{template.name}</Text>
@@ -259,6 +281,10 @@ const styles = StyleSheet.create({
   },
   thumbnail: {
     width: 112,
+  },
+  // Same height as the landscape thumbnail (112 x 63).
+  thumbnailPortrait: {
+    width: 36,
   },
   templateInfo: {
     flex: 1,

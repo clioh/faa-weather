@@ -234,6 +234,23 @@ function App() {
     if (status && typeof status.state === 'string') setLicense(status);
   });
 
+  // A mirror with no saved layout shows the default for its orientation
+  // (GET /api/layout), so a saved orientation change re-reads it. Previews
+  // while the phone's Orientation step is open don't count.
+  const savedOrientation = useRef<string | null>(null);
+  useWsEvent('orientation', (data) => {
+    const orientation = (data as { orientation?: unknown } | null)?.orientation;
+    if (typeof orientation !== 'string') return;
+    // Sent only when the config changes, so the first one compares with the loaded config.
+    const previous = savedOrientation.current ?? config?.display?.orientation ?? 'landscape';
+    savedOrientation.current = orientation;
+    if (previous === orientation || currentUserId) return;
+    const change = userChange.current;
+    void fetchDefaultLayout().then((defaultLayout) => {
+      if (userChange.current === change) setLayout(defaultLayout);
+    });
+  });
+
   // Setup finishes with the license already active, but re-read it so the
   // mirror never opens on a stale status.
   const handleSetupComplete = useCallback(() => {
