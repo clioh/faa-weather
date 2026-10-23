@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import { isDevBuild } from '@/lib/devBuild';
-import { api, type LicenseStatus, type LicenseState, type MirrorOrientation, type UpdateConfig } from '@/lib/api';
+import { type MirrorPerson, api, type LicenseStatus, type LicenseState, type MirrorOrientation, type UpdateConfig } from '@/lib/api';
 import { LICENSE_MANAGE_URL } from '@/lib/license';
 import { logError } from '@/lib/errors';
 import {
@@ -57,9 +57,10 @@ interface RegisteredFace {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { resetAppData, currentMirror } = useUser();
+  const { user, resetAppData, currentMirror } = useUser();
   const [updateConfig, setUpdateConfig] = useState<UpdateConfig | null>(null);
   const [faces, setFaces] = useState<RegisteredFace[]>([]);
+  const [people, setPeople] = useState<MirrorPerson[]>([]);
   const [license, setLicense] = useState<LicenseStatus | null>(null);
   const [airport, setAirport] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<MirrorOrientation | null>(null);
@@ -74,6 +75,9 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       api.getLicenseStatus().then(setLicense).catch(() => {});
+      // People change on their own screens (add, invite, remove); refresh on return.
+      api.getPeople().then(setPeople).catch(() => {});
+      api.getRegisteredFaces().then(setFaces).catch(() => {});
       // Shown next to Home airport and Orientation, which can be changed from here.
       api
         .getConfig()
@@ -125,28 +129,23 @@ export default function SettingsScreen() {
   const licenseNeedsAttention =
     license !== null && license.state !== 'active' && license.state !== 'disabled';
 
-  const deleteFace = async (face: RegisteredFace) => {
-    Alert.alert(
-      'Delete Face',
-      `Are you sure you want to remove ${face.name}'s face registration?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            try {
-              await api.deleteFace(face.id);
-              setFaces(faces.filter(f => f.id !== face.id));
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch {
-              Alert.alert('Error', 'Failed to delete face registration');
-            }
-          },
-        },
-      ]
-    );
+  // Everyone on the mirror: its people, plus any face registered without one.
+  const faceIds = new Set(faces.map((f) => f.id));
+  const everyone = [
+    ...people.map((p) => ({ id: p.id, name: p.name, person: p as MirrorPerson | null })),
+    ...faces.filter((f) => !people.some((p) => p.id === f.id)).map((f) => ({ id: f.id, name: f.name, person: null })),
+  ].sort((a, b) => (a.id === user?.id ? -1 : b.id === user?.id ? 1 : a.name.localeCompare(b.name)));
+
+  const personCaption = (id: string, person: MirrorPerson | null): string => {
+    const face = faceIds.has(id) ? null : 'No face registered';
+    let status: string;
+    if (id === user?.id) status = 'You · this phone';
+    else if (!person) status = 'Face only';
+    else if (person.joined) status = 'Uses SkyGlass on their phone';
+    else if (person.inviteExpiresAt)
+      status = `Invite sent · until ${new Date(person.inviteExpiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+    else status = 'Not invited yet';
+    return [status, face].filter(Boolean).join(' · ');
   };
 
   const disconnectMirror = () => {
@@ -248,41 +247,38 @@ export default function SettingsScreen() {
 
       {/* Registered Faces */}
       <View>
-        <SectionLabel>REGISTERED FACES</SectionLabel>
+        <SectionLabel>PEOPLE</SectionLabel>
         <RowGroup>
-          {faces.length > 0 ? (
-            faces.map((face) => (
+          {everyone.length > 0 ? (
+            everyone.map(({ id, name, person }) => (
               <Row
-                key={face.id}
+                key={id}
                 leading={
                   <View style={styles.faceInitial}>
-                    <Text style={styles.faceInitialText}>{face.name.charAt(0).toUpperCase()}</Text>
+                    <Text style={styles.faceInitialText}>{name.charAt(0).toUpperCase()}</Text>
                   </View>
                 }
-                title={face.name}
-                caption={`Added ${new Date(face.createdAt).toLocaleDateString()}`}
-                trailing={
-                  <Pressable
-                    style={styles.iconButton}
-                    onPress={() => deleteFace(face)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete ${face.name}'s face registration`}
-                  >
-                    <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
-                  </Pressable>
+                title={name}
+                caption={personCaption(id, person)}
+                onPress={() =>
+                  id === user?.id ? router.push('/setup/face') : router.push({ pathname: '/person', params: { id, name } })
                 }
+                accessibilityHint={id === user?.id ? 'Register your face again' : `Manage ${name}`}
               />
             ))
           ) : (
-            <Row title="No faces registered" style={styles.emptyRow} />
+            <Row title="Nobody registered yet" style={styles.emptyRow} />
           )}
           <Row
-            icon="add"
-            title="Add New Face"
+            icon="person-add-outline"
+            title="Add Person"
             tone="accent"
-            onPress={() => router.push('/setup/face')}
+            onPress={() => router.push({ pathname: '/setup/face', params: { person: 'new' } })}
           />
         </RowGroup>
+        <Text style={styles.sectionNote}>
+          Add someone by registering their face, then invite them to set up their own layout on their phone.
+        </Text>
       </View>
 
       {/* Software Updates */}
@@ -465,6 +461,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     color: colors.text,
+  },
+  sectionNote: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   caption: {
     ...typography.caption,

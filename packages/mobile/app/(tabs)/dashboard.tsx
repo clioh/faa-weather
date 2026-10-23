@@ -191,10 +191,14 @@ export default function DashboardScreen() {
                 valueMono
                 onPress={() => router.push('/setup/airport')}
               />
+              {/* Each person registers from their own phone, so this is always your face. */}
               <Row
-                title="Add Face"
-                value="Register a new person"
+                title="Your Face"
+                value={currentMirror?.faceEnrolled ? 'Registered' : 'Not registered'}
                 onPress={() => router.push('/setup/face')}
+                accessibilityHint={
+                  currentMirror?.faceEnrolled ? 'Register your face again' : 'Register your face with the mirror'
+                }
               />
               <Row
                 title="Software Updates"

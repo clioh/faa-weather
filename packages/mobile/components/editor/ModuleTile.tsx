@@ -5,6 +5,10 @@
  * state only changes once, on release, through onMove/onResize. The canvas
  * owns a single drop ghost (shared values in `ghost`) that whichever tile is
  * being dragged writes to, so only one outline is ever drawn.
+ *
+ * Dragging a tile down past the bottom of the canvas parks it on the shelf
+ * (components/editor/Shelf.tsx): the ghost disappears, the shelf lights up
+ * and releasing there calls onShelve.
  */
 
 import { memo, useEffect, useMemo } from 'react';
@@ -55,6 +59,8 @@ export interface GhostValues {
    * competing drag that would fight over the ghost and the collision state.
    */
   lock: SharedValue<string>;
+  /** 1 while the dragged tile is over the shelf (the shelf highlights). */
+  shelf: SharedValue<number>;
 }
 
 interface ModuleTileProps {
@@ -79,6 +85,8 @@ interface ModuleTileProps {
   onResize: (id: string, size: ModuleSize) => void;
   /** Screen-reader move: shift by whole cells. */
   onNudge: (id: string, dx: number, dy: number) => void;
+  /** Dropped on the shelf below the canvas. */
+  onShelve: (id: string) => void;
 }
 
 // Haptics are JS-side; these are the only things the worklets schedule besides commits.
@@ -106,6 +114,7 @@ function ModuleTileImpl({
   onMove,
   onResize,
   onNudge,
+  onShelve,
 }: ModuleTileProps) {
   const id = instance.instanceId;
   const { cols, rows } = dimsOf(instance.size);
@@ -127,6 +136,10 @@ function ModuleTileImpl({
   const panActive = useSharedValue(0);
   const resizeActive = useSharedValue(0);
   const target = useSharedValue({ x, y, cols, rows, size: instance.size as string });
+  // Where on the tile the finger went down, to tell when the finger (not the
+  // clamped tile) has left the canvas for the shelf.
+  const touchY = useSharedValue(0);
+  const overShelf = useSharedValue(0);
 
   useEffect(() => {
     grid.value = { x, y, cols, rows };
@@ -190,10 +203,11 @@ function ModuleTileImpl({
     const pan = Gesture.Pan()
       .minDistance(6)
       .maxPointers(1)
-      .onStart(() => {
+      .onStart((e) => {
         if (ghost.lock.value !== '') return;
         ghost.lock.value = panKey;
         panActive.value = 1;
+        touchY.value = e.y;
         const g = grid.value;
         dragStart.value = { left: left.value, top: top.value, width: width.value, height: height.value };
         target.value = { x: g.x, y: g.y, cols: g.cols, rows: g.rows, size: target.value.size };
@@ -210,6 +224,17 @@ function ModuleTileImpl({
         // The tile follows the finger but stays over the canvas.
         left.value = Math.max(0, Math.min(canvasW - s.width, s.left + e.translationX));
         top.value = Math.max(0, Math.min(canvasH - s.height, s.top + e.translationY));
+
+        // Finger below the canvas: over the shelf.
+        const onShelf = s.top + touchY.value + e.translationY > canvasH;
+        if (onShelf !== (overShelf.value === 1)) {
+          overShelf.value = onShelf ? 1 : 0;
+          ghost.shelf.value = overShelf.value;
+          ghost.visible.value = withTiming(onShelf ? 0 : 1, { duration: 120 });
+          scheduleOnRN(tick);
+        }
+        if (onShelf) return;
+
         const nx = Math.max(0, Math.min(COLS - g.cols, Math.round(left.value / cellW)));
         const ny = Math.max(0, Math.min(ROWS - g.rows, Math.round(top.value / cellH)));
         const t = target.value;
@@ -223,6 +248,12 @@ function ModuleTileImpl({
         if (panActive.value !== 1) return;
         const g = grid.value;
         const t = target.value;
+        if (overShelf.value === 1) {
+          left.value = withSpring(g.x * cellW, SPRING);
+          top.value = withSpring(g.y * cellH, SPRING);
+          if (success) scheduleOnRN(onShelve, id);
+          return;
+        }
         const ok = success && ghost.valid.value === 1;
         const dest = ok ? t : g;
         left.value = withSpring(dest.x * cellW, SPRING);
@@ -237,6 +268,8 @@ function ModuleTileImpl({
       .onFinalize(() => {
         if (panActive.value !== 1) return;
         panActive.value = 0;
+        overShelf.value = 0;
+        ghost.shelf.value = 0;
         ghost.lock.value = '';
         lifted.value = withSpring(0, SPRING);
         ghost.visible.value = withTiming(0, { duration: 120 });
@@ -340,9 +373,12 @@ function ModuleTileImpl({
     target,
     panActive,
     resizeActive,
+    touchY,
+    overShelf,
     onSelect,
     onMove,
     onResize,
+    onShelve,
   ]);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -353,6 +389,8 @@ function ModuleTileImpl({
       width: width.value,
       height: height.value,
       zIndex: l > 0.01 ? 100 : selected ? 10 : 1,
+      // Fades while over the shelf: it will leave the canvas on release.
+      opacity: 1 - overShelf.value * 0.6,
       transform: [{ scale: 1 + l * (LIFT_SCALE - 1) + pulse.value * 0.05 }],
       shadowOpacity: l * 0.5,
       shadowRadius: 4 + l * 10,
@@ -378,6 +416,7 @@ function ModuleTileImpl({
     { name: 'moveRight', label: 'Move right' },
     { name: 'moveUp', label: 'Move up' },
     { name: 'moveDown', label: 'Move down' },
+    { name: 'shelve', label: 'Move to shelf' },
   ];
   const handleA11yAction = (e: AccessibilityActionEvent) => {
     switch (e.nativeEvent.actionName) {
@@ -391,6 +430,8 @@ function ModuleTileImpl({
         return onNudge(id, 0, -1);
       case 'moveDown':
         return onNudge(id, 0, 1);
+      case 'shelve':
+        return onShelve(id);
     }
   };
 
@@ -401,7 +442,7 @@ function ModuleTileImpl({
         accessible
         accessibilityRole="button"
         accessibilityLabel={`${name}, ${sizeLabel}, column ${x + 1}, row ${y + 1}${needsSetup ? ', needs setup' : ''}`}
-        accessibilityHint="Drag to move. Use the actions to move one cell at a time."
+        accessibilityHint="Drag to move, or below the mirror to set it aside on the shelf. Use the actions to move one cell at a time."
         accessibilityState={{ selected }}
         accessibilityActions={a11yActions}
         onAccessibilityAction={handleA11yAction}

@@ -293,6 +293,32 @@ export interface PairingResult {
   mirror: PairingMirror;
 }
 
+/** GET /api/users: a person on this mirror. */
+export interface MirrorPerson {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastSeen: string | null;
+  /** Their own phone registered them or accepted their invite. */
+  joined: boolean;
+  /** Pending invite's expiry (ISO), or null. */
+  inviteExpiresAt: string | null;
+}
+
+/** POST /api/users/:id/invite. */
+export interface PersonInvite {
+  /** Single use; goes into the invite link (lib/invites.ts), never stored. */
+  token: string;
+  expiresAt: string;
+  mirrorId: string;
+  mirrorName: string;
+}
+
+/** POST /api/invites/claim. */
+export interface InviteClaimResult extends PairingResult {
+  user: { id: string; name: string };
+}
+
 /** POST /api/pairing/request. The mirror now shows a 6-digit code. */
 export interface PairingRequest {
   requestId: string;
@@ -1090,11 +1116,43 @@ class MirrorAPI {
     id: string;
     name: string;
     preferences?: Record<string, unknown>;
+    /** Someone else added from this phone, to be invited; omit for your own profile. */
+    invited?: boolean;
   }): Promise<{ success: boolean; mirrorId: string; mirrorName: string }> {
     return this.request('/api/users', {
       method: 'POST',
       body: JSON.stringify(user),
     });
+  }
+
+  /** Everyone on this mirror, and whether they have joined from their own phone. */
+  async getPeople(): Promise<MirrorPerson[]> {
+    return this.request('/api/users');
+  }
+
+  /** Remove a person from this mirror (their layouts go too; face data separately). */
+  async deletePerson(userId: string): Promise<void> {
+    await this.request(`/api/users/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+  }
+
+  /** A single-use invite for someone added from a phone (valid 7 days; replaces older ones). */
+  async createInvite(userId: string): Promise<PersonInvite> {
+    return this.request(`/api/users/${encodeURIComponent(userId)}/invite`, { method: 'POST' });
+  }
+
+  /**
+   * Accept an invite on the invited person's phone: pairs this phone with the
+   * mirror as that person and stores the token. Call setBaseUrl first.
+   */
+  async claimInvite(token: string, deviceName: string): Promise<InviteClaimResult> {
+    const res = await this.request<InviteClaimResult & { token: string }>(
+      '/api/invites/claim',
+      { method: 'POST', body: JSON.stringify({ token, deviceName }) },
+      this.timeout,
+      false
+    );
+    await this.savePairingToken(res.mirror?.id, res.token);
+    return { deviceId: res.deviceId, mirror: res.mirror, user: res.user };
   }
 
   // ============================================================
@@ -1108,6 +1166,8 @@ class MirrorAPI {
     id: string;
     name: string;
     modules: ModuleInstance[];
+    /** Editor shelf; absent from mirrors that predate it. */
+    shelf?: ModuleInstance[];
     updatedAt: string;
   }> {
     return this.request(`/api/users/${userId}/layout`);
@@ -1118,11 +1178,12 @@ class MirrorAPI {
    */
   async updateUserLayout(
     userId: string,
-    modules: ModuleInstance[]
+    modules: ModuleInstance[],
+    shelf?: ModuleInstance[]
   ): Promise<{ success: boolean }> {
     return this.request(`/api/users/${userId}/layout`, {
       method: 'PUT',
-      body: JSON.stringify({ modules }),
+      body: JSON.stringify({ modules, shelf }),
     });
   }
 

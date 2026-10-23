@@ -97,9 +97,7 @@ export default function ProfileScreen() {
           maxLength={50}
         />
 
-        <View style={styles.spacer} />
-
-        {/* Info Box */}
+        {/* Info Box: right under the field, so the keyboard never covers it */}
         <Notice
           tone="info"
           icon="shield-checkmark-outline"
@@ -150,8 +148,5 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
-  },
-  spacer: {
-    flex: 1,
   },
 });

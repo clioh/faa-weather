@@ -40,7 +40,8 @@ interface UserContextValue {
   cloudSyncEnabled: boolean;
 
   // Actions
-  createProfile: (name: string) => Promise<UserProfile>;
+  /** `id` only when accepting an invite (the mirror already knows the person). */
+  createProfile: (name: string, id?: string) => Promise<UserProfile>;
   updateProfile: (updates: Partial<Omit<UserProfile, 'id' | 'createdAt'>>) => Promise<void>;
 
   // Mirror management
@@ -153,9 +154,9 @@ export function UserProvider({ children }: UserProviderProps) {
   );
 
   // Create new profile
-  const createProfile = useCallback(async (name: string): Promise<UserProfile> => {
+  const createProfile = useCallback(async (name: string, id?: string): Promise<UserProfile> => {
     try {
-      const profile = await storage.createUserProfile(name);
+      const profile = await storage.createUserProfile(name, id);
       setUser(profile);
       setError(null);
       return profile;

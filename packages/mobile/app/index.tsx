@@ -1,6 +1,10 @@
 /**
  * Home Screen
  * Mirror discovery and connection with user profile
+ *
+ * On launch, a user who has finished onboarding goes straight to the
+ * dashboard of the mirror they used last. This list is where the dashboard's
+ * "Mirrors" button leads to switch mirrors or add another.
  */
 
 import { useState, useEffect } from 'react';
@@ -40,7 +44,7 @@ import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
  * Point the API client at the mirror an interrupted onboarding was using.
  * Falls back to the most recently connected linked mirror.
  */
-async function restoreMirrorConnection(mirrorId?: string): Promise<void> {
+async function restoreMirrorConnection(mirrorId?: string): Promise<LinkedMirror | null> {
   const mirrors = await storage.getLinkedMirrors();
   const mirror =
     (mirrorId && mirrors.find((m) => m.mirrorId === mirrorId)) ||
@@ -48,10 +52,17 @@ async function restoreMirrorConnection(mirrorId?: string): Promise<void> {
   if (mirror) {
     api.setBaseUrl(mirror.host, mirror.port, mirror.mirrorId);
     console.log(`[Home] Restored connection to ${mirror.mirrorName} at ${mirror.host}:${mirror.port}`);
-  } else {
-    console.warn('[Home] Resuming setup but no linked mirror to reconnect to');
+    return mirror;
   }
+  console.warn('[Home] No linked mirror to reconnect to');
+  return null;
 }
+
+/**
+ * Opening the last mirror happens once per app launch. Coming back here later
+ * (the dashboard's "Mirrors" button) must show the list, not bounce back.
+ */
+let openedLastMirror = false;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -92,6 +103,8 @@ export default function HomeScreen() {
   }, [manual]);
   const [manualHost, setManualHost] = useState('');
   const [connecting, setConnecting] = useState<string | null>(null);
+  // Spinner instead of the list while deciding whether to open the last mirror.
+  const [openingLast, setOpeningLast] = useState(!openedLastMirror);
 
   // Check onboarding state and redirect appropriately
   useEffect(() => {
@@ -129,18 +142,30 @@ export default function HomeScreen() {
             router.replace('/onboarding/template');
             break;
         }
+        return;
+      }
+
+      if (openedLastMirror) return;
+      openedLastMirror = true;
+      // The dashboard handles an unreachable mirror itself (Mirror not found).
+      const mirror = await restoreMirrorConnection();
+      if (mirror) {
+        setCurrentMirror(mirror);
+        goToDashboard();
+      } else {
+        setOpeningLast(false);
       }
     };
 
     checkOnboardingState();
   }, [userLoading, isOnboarded]);
 
-  // Start scan on mount
+  // Start scan on mount (not while handing over to the last mirror's dashboard)
   useEffect(() => {
-    if (isOnboarded) {
+    if (isOnboarded && !openingLast) {
       startScan();
     }
-  }, [isOnboarded]);
+  }, [isOnboarded, openingLast]);
 
   const handleConnect = async (mirror: MirrorDevice | LinkedMirror) => {
     if (!user) return;
@@ -259,7 +284,7 @@ export default function HomeScreen() {
   };
 
   // Show loading while checking user status
-  if (userLoading) {
+  if (userLoading || (isOnboarded && openingLast)) {
     return (
       <View style={[styles.container, styles.centered]}>
         <Spinner size="large" />

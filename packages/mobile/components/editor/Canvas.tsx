@@ -2,10 +2,13 @@
  * The mirror canvas: a framed 12 x 8 grid at the mirror's real aspect ratio,
  * so a tile's proportions on the phone match what the mirror will draw.
  * Cells are width/12 by height/8 and therefore not square.
+ *
+ * The shelf (Shelf.tsx) sits right under the glass; the canvas is sized to
+ * leave room for it.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { StyleSheet, View, type LayoutChangeEvent, type ViewInstance } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -14,6 +17,7 @@ import { GRID_COLS, GRID_ROWS, getModuleById, type ModuleInstance, type ModuleSi
 import { colors } from '@/lib/theme';
 import { toRects, type GridRect } from './layoutUtils';
 import { ModuleTile, TILE_INSET, type GhostValues } from './ModuleTile';
+import { Shelf, SHELF_SPACE } from './Shelf';
 
 /** Canvas shape; both portrait mounts (portrait-cw / -ccw) draw the portrait canvas. */
 export type CanvasOrientation = 'landscape' | 'portrait';
@@ -23,6 +27,8 @@ const GUTTER = 24; // screen gutter
 
 interface CanvasProps {
   modules: ModuleInstance[];
+  /** Widgets set aside on the shelf under the canvas. */
+  shelf: ModuleInstance[];
   orientation: CanvasOrientation;
   selectedId: string | null;
   pulse: { id: string; key: number } | null;
@@ -31,6 +37,8 @@ interface CanvasProps {
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, size: ModuleSize) => void;
   onNudge: (id: string, dx: number, dy: number) => void;
+  onShelve: (id: string) => void;
+  onUnshelve: (id: string, x: number, y: number) => void;
   /** Rendered centred over the glass, e.g. the empty state. */
   overlay?: ReactNode;
 }
@@ -50,6 +58,7 @@ function fitCanvas(availW: number, availH: number, orientation: CanvasOrientatio
 
 export function Canvas({
   modules,
+  shelf,
   orientation,
   selectedId,
   pulse,
@@ -58,10 +67,12 @@ export function Canvas({
   onMove,
   onResize,
   onNudge,
+  onShelve,
+  onUnshelve,
   overlay,
 }: CanvasProps) {
   const [area, setArea] = useState({ width: 0, height: 0 });
-  const { width, height } = fitCanvas(area.width, area.height, orientation);
+  const { width, height } = fitCanvas(area.width, area.height - SHELF_SPACE, orientation);
   const cellW = width / GRID_COLS;
   const cellH = height / GRID_ROWS;
 
@@ -78,6 +89,7 @@ export function Canvas({
     visible: useSharedValue(0),
     valid: useSharedValue(1),
     lock: useSharedValue(''),
+    shelf: useSharedValue(0),
   };
   // Stable identity so memoised tiles don't rebuild their gestures every render.
   const [ghostRef] = useState(ghost);
@@ -104,6 +116,15 @@ export function Canvas({
     if (success) scheduleOnRN(deselect);
   });
 
+  // Shelf chips are dragged in window coordinates; keep the glass's origin.
+  const glassRef = useRef<ViewInstance>(null);
+  const origin = useSharedValue({ x: 0, y: 0 });
+  const measureGlass = () => {
+    glassRef.current?.measureInWindow((x, y) => {
+      origin.value = { x, y };
+    });
+  };
+
   const onLayout = (e: LayoutChangeEvent) => {
     const { width: w, height: h } = e.nativeEvent.layout;
     if (w !== area.width || h !== area.height) setArea({ width: w, height: h });
@@ -116,6 +137,8 @@ export function Canvas({
       {ready && (
         <View style={styles.frame}>
           <View
+            ref={glassRef}
+            onLayout={measureGlass}
             style={[styles.glass, { width, height }]}
             accessibilityLabel={`Mirror canvas, ${orientation}, ${modules.length} widget${modules.length === 1 ? '' : 's'}`}
           >
@@ -150,6 +173,7 @@ export function Canvas({
                 onMove={onMove}
                 onResize={onResize}
                 onNudge={onNudge}
+                onShelve={onShelve}
               />
             ))}
 
@@ -160,6 +184,20 @@ export function Canvas({
             ) : null}
           </View>
         </View>
+      )}
+      {ready && (
+        <Shelf
+          shelf={shelf}
+          selectedId={selectedId}
+          width={width + FRAME * 2}
+          cellW={cellW}
+          cellH={cellH}
+          origin={origin}
+          rects={rects}
+          ghost={ghostRef}
+          onSelect={onSelect}
+          onUnshelve={onUnshelve}
+        />
       )}
     </View>
   );

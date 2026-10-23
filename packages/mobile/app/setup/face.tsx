@@ -1,7 +1,8 @@
 /**
  * Face Registration Screen
  *
- * The phone starts the session (name, POST /api/registration/start); from then
+ * The phone starts the session (POST /api/registration/start) with the name
+ * from the onboarding profile, so it isn't asked for twice; from then
  * on the mirror's presence server takes each of the five photos itself once
  * the face is framed, posed and steady, and shows live guidance on the glass.
  * This screen follows along over the WebSocket: current instruction, the same
@@ -11,13 +12,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, ScrollView } from 'react-native';
-import { Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { v4 as uuidv4 } from 'uuid';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { api, WS_CLOSE_PAIRING_REQUIRED, type RegistrationStatus } from '@/lib/api';
 import { KeyboardAvoidingScreen } from '@/components';
 import { goBack } from '@/lib/navigation';
+import { continueSetup } from '@/lib/setupSteps';
+import { storage } from '@/lib/storage';
 import { useUser } from '@/context/UserContext';
 import { Button, Field, Footer, IconCircle, Notice, Text, TextButton } from '@/components/ui';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
@@ -61,9 +65,23 @@ function guidanceHint(guidance: RegistrationStatus['guidance'], step: number): s
 export default function FaceRegistrationScreen() {
   const insets = useSafeAreaInsets();
   const { user, currentMirror, markFaceEnrolled } = useUser();
+  // Someone else (Settings › People): `person=new` adds a new person, or
+  // personId/personName re-registers someone added earlier who hasn't joined.
+  // Otherwise this phone's own person.
+  const params = useLocalSearchParams<{ person?: string; personId?: string; personName?: string }>();
+  const addingNew = params.person === 'new';
+  const forOther = addingNew || typeof params.personId === 'string';
+  const otherId = useRef<string | null>(typeof params.personId === 'string' ? params.personId : null);
 
   const [step, setStep] = useState<'name' | 'capture' | 'complete'>('name');
-  const [name, setName] = useState('');
+  // Your own profile already has a name; ask only for a new person (or no profile).
+  const askName = addingNew || (!forOther && !user?.name);
+  const [name, setName] = useState(
+    forOther ? (typeof params.personName === 'string' ? params.personName : '') : (user?.name ?? '')
+  );
+  useEffect(() => {
+    if (!forOther && user?.name) setName((prev) => prev || user.name);
+  }, [forOther, user?.name]);
   const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [processing, setProcessing] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -197,7 +215,7 @@ export default function FaceRegistrationScreen() {
 
   const startRegistration = async () => {
     if (!name.trim()) {
-      setError('Please enter your name');
+      setError(addingNew ? 'Please enter their name' : 'Please enter your name');
       return;
     }
 
@@ -205,8 +223,17 @@ export default function FaceRegistrationScreen() {
     setProcessing(true);
 
     try {
+      let personId = user?.id;
+      if (forOther) {
+        // A new person exists on the mirror before their face does; created
+        // once, so a retry doesn't add them twice.
+        if (!otherId.current) otherId.current = uuidv4();
+        if (addingNew) await api.createUser({ id: otherId.current, name: name.trim(), invited: true });
+        personId = otherId.current;
+      }
+
       // Start registration on the mirror
-      const result = await api.startRegistration(name.trim(), user?.id);
+      const result = await api.startRegistration(name.trim(), personId);
 
       if (result.active) {
         setRegistration(result);
@@ -272,22 +299,38 @@ export default function FaceRegistrationScreen() {
           <IconCircle icon="person-outline" />
 
           <View style={styles.heading}>
-            <Text style={styles.title}>What's your name?</Text>
+            <Text style={styles.title}>
+              {addingNew
+                ? 'Who are you adding?'
+                : askName
+                  ? "What's your name?"
+                  : forOther
+                    ? `Register ${name.trim()}’s face`
+                    : 'Register your face'}
+            </Text>
             <Text style={styles.subtitle}>
-              The mirror will greet you personally when it recognizes you
+              {addingNew
+                ? 'They’ll stand in front of the mirror next. Afterwards you can invite them to choose what it shows them.'
+                : askName
+                  ? 'The mirror will greet you personally when it recognizes you'
+                  : forOther
+                    ? `${name.trim()} stands in front of the mirror and follows the prompts on the glass.`
+                    : `Stand in front of the mirror. It will greet you as ${name.trim()} when it recognizes you.`}
             </Text>
           </View>
 
-          <Field
-            label="Name"
-            placeholder="Enter your name"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            autoCorrect={false}
-            returnKeyType="done"
-            onSubmitEditing={startRegistration}
-          />
+          {askName && (
+            <Field
+              label="Name"
+              placeholder={addingNew ? 'Their name' : 'Enter your name'}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={startRegistration}
+            />
+          )}
 
           {error && <Notice tone="error" message={error} />}
         </ScrollView>
@@ -388,9 +431,24 @@ export default function FaceRegistrationScreen() {
 
   // Complete step - celebration!
   const handleComplete = async () => {
+    if (forOther) {
+      if (otherId.current) {
+        router.replace({ pathname: '/invite-person', params: { userId: otherId.current, name: name.trim() } });
+      } else {
+        goBack('/settings');
+      }
+      return;
+    }
     // Update face enrollment status in context
     if (currentMirror && markFaceEnrolled) {
       await markFaceEnrolled(currentMirror.mirrorId);
+    }
+    // During onboarding, face is the last step: carry on to "You're all set"
+    // and the layout picker (via the checklist) instead of the dashboard.
+    const onboarding = await storage.getOnboardingState().catch(() => null);
+    if (onboarding?.phase === 'setup') {
+      await continueSetup('face');
+      return;
     }
     goBack('/dashboard');
   };
@@ -408,16 +466,34 @@ export default function FaceRegistrationScreen() {
         </View>
 
         <View style={styles.heading}>
-          <Text style={styles.successTitle}>{`Welcome, ${name}!`}</Text>
-          <Text style={styles.successSubtitle}>Your face has been registered</Text>
-          <Text style={styles.subtitle}>
-            The mirror will now recognize you and wake up automatically when you approach
-          </Text>
+          {forOther ? (
+            <>
+              <Text style={styles.successTitle}>{`${name} is registered`}</Text>
+              <Text style={styles.subtitle}>
+                The mirror will recognize {name} now. Invite them so they can choose what it shows them.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.successTitle}>{`Welcome, ${name}!`}</Text>
+              <Text style={styles.successSubtitle}>Your face has been registered</Text>
+              <Text style={styles.subtitle}>
+                The mirror will now recognize you and wake up automatically when you approach
+              </Text>
+            </>
+          )}
         </View>
       </Animated.View>
 
       <Footer>
-        <Button label="Continue Setup" trailingIcon="arrow-forward" onPress={handleComplete} />
+        {forOther ? (
+          <>
+            <Button label={`Invite ${name}`} icon="paper-plane-outline" onPress={handleComplete} />
+            <TextButton label="Not now" onPress={() => goBack('/settings')} />
+          </>
+        ) : (
+          <Button label="Continue Setup" trailingIcon="arrow-forward" onPress={handleComplete} />
+        )}
       </Footer>
     </View>
   );

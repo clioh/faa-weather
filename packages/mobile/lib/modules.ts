@@ -84,12 +84,19 @@ export interface ModuleInstance {
   };
   size: ModuleSize;
   config: Record<string, unknown>;
+  /**
+   * Editor only: parked on the shelf under the canvas, not on the mirror.
+   * Never sent to the mirror; saved layouts carry the shelf as its own list.
+   */
+  shelved?: boolean;
 }
 
 export interface MirrorLayout {
   id: string;
   name: string;
   modules: ModuleInstance[];
+  /** Widgets parked on the editor's shelf; the mirror never draws them. */
+  shelf?: ModuleInstance[];
   createdAt: string;
   updatedAt: string;
 }

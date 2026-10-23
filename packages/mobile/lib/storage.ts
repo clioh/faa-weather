@@ -131,7 +131,11 @@ export const storage = {
     }
   },
 
-  async createUserProfile(name: string): Promise<UserProfile> {
+  /**
+   * Create this phone's profile. `id` is given when accepting an invite: the
+   * phone becomes a person the mirror already knows.
+   */
+  async createUserProfile(name: string, id?: string): Promise<UserProfile> {
     // Validate input
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -142,7 +146,7 @@ export const storage = {
     }
 
     const profile: UserProfile = {
-      id: uuidv4(),
+      id: id ?? uuidv4(),
       name: trimmedName,
       createdAt: new Date().toISOString(),
       preferences: {},

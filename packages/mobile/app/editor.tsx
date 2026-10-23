@@ -5,7 +5,13 @@
  * aspect ratio and grid, tiles are dragged and resized directly, and every
  * change streams to the mirror as a live preview. Nothing is stored until
  * Save. Layouts are per user when a profile exists, with the mirror's global
- * layout as the fallback.
+ * layout as the fallback. `personId`/`personName` edit someone else this
+ * phone added who hasn't joined yet (app/person.tsx).
+ *
+ * Widgets can be set aside on the shelf under the canvas while rearranging.
+ * The shelf is saved with the layout and never shown on the mirror. The
+ * working list (history.present) holds both, shelf entries marked `shelved`;
+ * see layoutUtils.splitShelf.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -59,7 +65,12 @@ import {
   redoHistory,
   replacePresent,
   resizeInstance,
+  shelfForSave,
+  shelveInstance,
+  splitShelf,
   tidyLayout,
+  unshelveInstance,
+  withShelf,
   toRects,
   undoHistory,
   type LayoutHistory,
@@ -92,6 +103,15 @@ function sameGeometry(a: ModuleInstance[], b: ModuleInstance[]): boolean {
   );
 }
 
+/** Resize on the mirror (where it must still fit) or on the shelf (always fits). */
+function resizeAnywhere(list: ModuleInstance[], id: string, size: ModuleSize): ModuleInstance[] | null {
+  const target = list.find((m) => m.instanceId === id);
+  if (!target) return null;
+  if (target.shelved) return list.map((m) => (m === target ? { ...m, size } : m));
+  const resized = resizeInstance(splitShelf(list).placed, id, size);
+  return resized ? withShelf(resized, list) : null;
+}
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** HTTP status on errors thrown by api.request(); undefined for network failures. */
@@ -103,8 +123,21 @@ function statusOf(error: unknown): number | undefined {
 type LiveState = 'pending' | 'live' | 'unreachable';
 
 export default function EditorScreen() {
-  const { user, currentMirror } = useUser();
-  const params = useLocalSearchParams<{ templateId?: string; applyKey?: string }>();
+  const { user: me, currentMirror } = useUser();
+  const params = useLocalSearchParams<{
+    templateId?: string;
+    applyKey?: string;
+    personId?: string;
+    personName?: string;
+  }>();
+  // Whose layout this is: this phone's person, or someone it set up.
+  const user = useMemo(
+    () =>
+      typeof params.personId === 'string' && params.personId !== me?.id
+        ? { id: params.personId, name: typeof params.personName === 'string' ? params.personName : 'Their' }
+        : me,
+    [params.personId, params.personName, me]
+  );
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
@@ -112,11 +145,15 @@ export default function EditorScreen() {
   useDisplayHold(Boolean(currentMirror));
 
   const [history, setHistory] = useState<LayoutHistory>(() => createHistory([]));
-  const modules = history.present;
+  // The mirror's tiles and the shelf, split from the one working list.
+  const all = history.present;
+  const { placed: modules, shelf } = useMemo(() => splitShelf(all), [all]);
   // Gesture callbacks are memoised into the tiles; they read the latest
   // layout from here instead of closing over a stale render.
   const modulesRef = useRef(modules);
   modulesRef.current = modules;
+  const allRef = useRef(all);
+  allRef.current = all;
 
   const [baseline, setBaseline] = useState('[]');
   const [isLoading, setIsLoading] = useState(true);
@@ -139,7 +176,7 @@ export default function EditorScreen() {
   const pendingLeave = useRef<NavigationAction | null>(null);
   const { toast, show: showToast } = useEditorToast();
 
-  const dirty = useMemo(() => JSON.stringify(modules) !== baseline, [modules, baseline]);
+  const dirty = useMemo(() => JSON.stringify(all) !== baseline, [all, baseline]);
 
   // ------------------------------------------------------------ loading
 
@@ -149,6 +186,7 @@ export default function EditorScreen() {
       setIsLoading(true);
       setLoadError(null);
       let loaded: ModuleInstance[] | null = null;
+      let loadedShelf: ModuleInstance[] = [];
       let fromServer = true;
       try {
         if (user) {
@@ -156,6 +194,7 @@ export default function EditorScreen() {
             // An existing user layout is authoritative even when empty.
             const userLayout = await api.getUserLayout(user.id);
             loaded = userLayout?.modules ?? [];
+            loadedShelf = userLayout?.shelf ?? [];
           } catch (e) {
             // Only "no layout for this user" falls back; anything else
             // (offline, 500) must not let the user edit and save over the
@@ -168,6 +207,7 @@ export default function EditorScreen() {
             const layout = await api.getLayout();
             mirrorLayout.current = layout ?? null;
             loaded = layout?.modules ?? [];
+            loadedShelf = layout?.shelf ?? [];
           } catch (e) {
             if (statusOf(e) !== 404) throw e;
             // Neither a user nor a mirror layout exists: offer a starter.
@@ -188,10 +228,18 @@ export default function EditorScreen() {
       if (cancelled) return;
 
       const { modules: fitted, dropped } = normalizeLayout(loaded, getModuleById);
-      setHistory(createHistory(fitted));
+      const seen = new Set(fitted.map((m) => m.instanceId));
+      const shelved: ModuleInstance[] = (Array.isArray(loadedShelf) ? loadedShelf : [])
+        .filter((m) => m && typeof m === 'object' && typeof m.moduleId === 'string')
+        .map((m) => {
+          const instanceId = m.instanceId && !seen.has(m.instanceId) ? m.instanceId : generateInstanceId();
+          seen.add(instanceId);
+          return { ...m, instanceId, config: m.config ?? {}, shelved: true };
+        });
+      setHistory(createHistory([...fitted, ...shelved]));
       // A layout we had to repair counts as unsaved so the fix can be saved.
       const repaired = fromServer && (dropped.length > 0 || !sameGeometry(fitted, loaded));
-      setBaseline(JSON.stringify(repaired ? loaded : fitted));
+      setBaseline(JSON.stringify(repaired ? [...loaded, ...shelved] : [...fitted, ...shelved]));
       setSelectedId(null);
       setIsLoading(false);
       if (dropped.length > 0) {
@@ -267,7 +315,7 @@ export default function EditorScreen() {
       config: { ...mod.config },
     }));
     const { modules: fitted } = normalizeLayout(templateModules, getModuleById);
-    setHistory((h) => pushHistory(h, fitted));
+    setHistory((h) => pushHistory(h, withShelf(fitted, h.present)));
     setSelectedId(null);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     showToast(`Applied ${template.name}. Save to keep it.`, 'success');
@@ -282,8 +330,8 @@ export default function EditorScreen() {
    * `onReject` runs when the edit is refused because it would break the
    * no-overlap/in-bounds invariant.
    */
-  const commit = useCallback(
-    (edit: (present: ModuleInstance[]) => ModuleInstance[] | null, onReject?: () => void) => {
+  const commitAll = useCallback(
+    (edit: (all: ModuleInstance[]) => ModuleInstance[] | null, onReject?: () => void) => {
       setHistory((h) => {
         const next = edit(h.present);
         if (next) return pushHistory(h, next);
@@ -293,6 +341,16 @@ export default function EditorScreen() {
       });
     },
     []
+  );
+
+  /** commitAll for edits to the mirror's tiles only; the shelf is carried over. */
+  const commit = useCallback(
+    (edit: (present: ModuleInstance[]) => ModuleInstance[] | null, onReject?: () => void) =>
+      commitAll((list) => {
+        const next = edit(splitShelf(list).placed);
+        return next ? withShelf(next, list) : null;
+      }, onReject),
+    [commitAll]
   );
 
   const bumpRevision = useCallback(() => setRevision((r) => r + 1), []);
@@ -323,6 +381,33 @@ export default function EditorScreen() {
       }
     },
     [commit]
+  );
+
+  const handleShelve = useCallback(
+    (id: string) => {
+      commitAll((list) => shelveInstance(list, id));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    },
+    [commitAll]
+  );
+
+  /** Back onto the mirror: at (x, y) for a drop, else wherever it fits. */
+  const handleUnshelve = useCallback(
+    (id: string, x?: number, y?: number) => {
+      const entry = allRef.current.find((m) => m.instanceId === id);
+      if (!entry) return;
+      const at = x === undefined || y === undefined ? undefined : { x, y };
+      commitAll(
+        (list) => unshelveInstance(list, id, getModuleById(entry.moduleId), at),
+        () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+          showToast(at ? 'No room there' : 'No room — shelve or shrink a widget first', 'error');
+        }
+      );
+      setSelectedId(id);
+      setPulse({ id, key: Date.now() });
+    },
+    [commitAll, showToast]
   );
 
   /** Append a tile placed against `snapshot`, re-checking it against the latest layout. */
@@ -369,7 +454,7 @@ export default function EditorScreen() {
   };
 
   const removeTile = (id: string) => {
-    commit((present) => present.filter((m) => m.instanceId !== id));
+    commitAll((list) => list.filter((m) => m.instanceId !== id));
     setSelectedId((s) => (s === id ? null : s));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   };
@@ -377,7 +462,7 @@ export default function EditorScreen() {
   const setSelectedSize = (size: ModuleSize) => {
     if (!selectedId) return;
     const id = selectedId;
-    commit((present) => resizeInstance(present, id, size));
+    commitAll((list) => resizeAnywhere(list, id, size));
     Haptics.selectionAsync().catch(() => {});
   };
 
@@ -407,7 +492,7 @@ export default function EditorScreen() {
   // ------------------------------------------------------------ configure sheet
 
   const openConfig = (id: string) => {
-    configBase.current = modulesRef.current;
+    configBase.current = allRef.current;
     setConfigId(id);
   };
 
@@ -432,7 +517,7 @@ export default function EditorScreen() {
   const changeConfigSize = (size: ModuleSize) => {
     if (!configId) return;
     const id = configId;
-    setHistory((h) => replacePresent(h, resizeInstance(h.present, id, size) ?? h.present));
+    setHistory((h) => replacePresent(h, resizeAnywhere(h.present, id, size) ?? h.present));
   };
 
   const removeFromConfig = () => {
@@ -446,7 +531,9 @@ export default function EditorScreen() {
   const save = async () => {
     if (saving) return;
     setSaving(true);
-    const snapshot = modulesRef.current;
+    const snapshotAll = allRef.current;
+    const { placed: snapshot } = splitShelf(snapshotAll);
+    const shelfSnapshot = shelfForSave(snapshotAll);
     const asGlobal = (): MirrorLayout => {
       const now = new Date().toISOString();
       const base = mirrorLayout.current;
@@ -455,13 +542,14 @@ export default function EditorScreen() {
         name: base?.name ?? 'Custom Layout',
         createdAt: base?.createdAt ?? now,
         modules: snapshot,
+        shelf: shelfSnapshot,
         updatedAt: now,
       };
     };
     try {
       if (user) {
         try {
-          await api.updateUserLayout(user.id, snapshot);
+          await api.updateUserLayout(user.id, snapshot, shelfSnapshot);
         } catch (e) {
           // Only mirrors without per-user layouts (404/405) fall back to the
           // global layout; any other failure must surface, not silently
@@ -473,12 +561,17 @@ export default function EditorScreen() {
       } else {
         await api.updateLayout(asGlobal());
       }
-      setBaseline(JSON.stringify(snapshot));
+      setBaseline(JSON.stringify(snapshotAll));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       showToast('Saved to mirror', 'success');
-    } catch {
+    } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      showToast('Couldn’t save. Check that your phone can reach the mirror.', 'error');
+      showToast(
+        statusOf(e) === 403
+          ? `${user?.name ?? 'They'} now manage${user ? 's' : ''} this layout from their own phone.`
+          : 'Couldn’t save. Check that your phone can reach the mirror.',
+        'error'
+      );
     } finally {
       setSaving(false);
     }
@@ -513,9 +606,9 @@ export default function EditorScreen() {
 
   // ------------------------------------------------------------ derived
 
-  const selected = modules.find((m) => m.instanceId === selectedId) ?? null;
+  const selected = all.find((m) => m.instanceId === selectedId) ?? null;
   const selectedDef = selected ? getModuleById(selected.moduleId) : undefined;
-  const configInstance = modules.find((m) => m.instanceId === configId) ?? null;
+  const configInstance = all.find((m) => m.instanceId === configId) ?? null;
   const configDef = configInstance ? getModuleById(configInstance.moduleId) : undefined;
 
   const sizeOptionsFor = (inst: ModuleInstance | null): SizeOption[] => {
@@ -523,7 +616,8 @@ export default function EditorScreen() {
     if (!inst || !def) return [];
     return def.sizes.map((size) => ({
       size,
-      fits: size === inst.size || placementForSize(modules, inst, size) !== null,
+      // Any size fits on the shelf.
+      fits: size === inst.size || inst.shelved === true || placementForSize(modules, inst, size) !== null,
     }));
   };
 
@@ -651,7 +745,11 @@ export default function EditorScreen() {
           </View>
         )}
         <Text style={[styles.statusText, dirty && styles.statusDirty]}>
-          {dirty ? 'Unsaved changes' : `${plural(modules.length, 'widget')} · Saved`}
+          {dirty
+            ? 'Unsaved changes'
+            : [plural(modules.length, 'widget'), shelf.length > 0 ? `${shelf.length} on shelf` : null, 'Saved']
+                .filter(Boolean)
+                .join(' · ')}
         </Text>
       </View>
 
@@ -663,6 +761,7 @@ export default function EditorScreen() {
 
       <Canvas
         modules={modules}
+        shelf={shelf}
         orientation={orientation}
         selectedId={selected ? selected.instanceId : null}
         pulse={pulse}
@@ -671,6 +770,8 @@ export default function EditorScreen() {
         onMove={handleMove}
         onResize={handleResize}
         onNudge={handleNudge}
+        onShelve={handleShelve}
+        onUnshelve={handleUnshelve}
         overlay={emptyState}
       />
 
@@ -683,6 +784,8 @@ export default function EditorScreen() {
         onSize={setSelectedSize}
         onConfigure={() => selected && openConfig(selected.instanceId)}
         onDuplicate={duplicateSelected}
+        onShelve={() => selected && handleShelve(selected.instanceId)}
+        onUnshelve={() => selected && handleUnshelve(selected.instanceId)}
         onRemove={() => selected && removeTile(selected.instanceId)}
       />
 

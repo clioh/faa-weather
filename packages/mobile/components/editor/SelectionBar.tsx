@@ -28,6 +28,10 @@ interface SelectionBarProps {
   onSize: (size: ModuleSize) => void;
   onConfigure: () => void;
   onDuplicate: () => void;
+  /** Set the widget aside on the shelf under the canvas. */
+  onShelve: () => void;
+  /** Shelf widget: put it back on the mirror wherever it fits. */
+  onUnshelve: () => void;
   onRemove: () => void;
 }
 
@@ -42,7 +46,9 @@ export function SelectionBar(props: SelectionBarProps) {
           {!empty && (
             <>
               <Ionicons name="hand-left-outline" size={18} color={colors.textMuted} />
-              <Text style={styles.hint}>Tap a widget to edit it. Drag to move, drag its corner to resize.</Text>
+              <Text style={styles.hint}>
+                Tap a widget to edit it. Drag to move, drag its corner to resize, or drag it down to the shelf.
+              </Text>
             </>
           )}
         </Animated.View>
@@ -59,8 +65,11 @@ function SelectedContent({
   onSize,
   onConfigure,
   onDuplicate,
+  onShelve,
+  onUnshelve,
   onRemove,
 }: SelectionBarProps & { instance: ModuleInstance }) {
+  const shelved = instance.shelved === true;
   const [confirming, setConfirming] = useState(false);
   const [blockedHint, setBlockedHint] = useState<string | null>(null);
 
@@ -134,7 +143,14 @@ function SelectedContent({
           onPress={onConfigure}
           disabled={!definition}
         />
-        <ActionButton icon="copy-outline" label="Duplicate" onPress={onDuplicate} disabled={!definition} />
+        {shelved ? (
+          <ActionButton icon="arrow-up-circle-outline" label="Put back" onPress={onUnshelve} />
+        ) : (
+          <>
+            <ActionButton icon="copy-outline" label="Duplicate" onPress={onDuplicate} disabled={!definition} />
+            <ActionButton icon="arrow-down-circle-outline" label="Shelf" onPress={onShelve} />
+          </>
+        )}
         <ActionButton
           icon={confirming ? 'trash' : 'trash-outline'}
           label={confirming ? 'Remove?' : 'Remove'}
@@ -179,7 +195,9 @@ function ActionButton({
       accessibilityState={{ disabled }}
     >
       <Ionicons name={icon} size={18} color={color} />
-      <Text style={[styles.actionLabel, { color }]}>{label}</Text>
+      <Text style={[styles.actionLabel, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -264,7 +282,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
+    paddingHorizontal: 6,
     borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.chipBorder,

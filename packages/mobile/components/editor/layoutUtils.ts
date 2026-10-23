@@ -305,6 +305,71 @@ export function normalizeLayout(
   return { modules: placed, dropped };
 }
 
+// ------------------------------------------------------------ shelf
+
+/*
+ * The editor keeps one working list: the mirror's tiles plus shelf entries
+ * marked `shelved`. Undo/redo and the unsaved-changes check then cover the
+ * shelf for free. The grid invariant only applies to the unshelved tiles.
+ */
+
+export function splitShelf(all: ModuleInstance[]): { placed: ModuleInstance[]; shelf: ModuleInstance[] } {
+  const placed: ModuleInstance[] = [];
+  const shelf: ModuleInstance[] = [];
+  for (const m of all) (m.shelved ? shelf : placed).push(m);
+  return { placed, shelf };
+}
+
+/** Replace the mirror's tiles, keeping the shelf as it is. */
+export function withShelf(placed: ModuleInstance[], all: ModuleInstance[]): ModuleInstance[] {
+  return [...placed, ...all.filter((m) => m.shelved)];
+}
+
+/** Move a tile off the mirror onto the end of the shelf; null if it isn't on the mirror. */
+export function shelveInstance(all: ModuleInstance[], id: string): ModuleInstance[] | null {
+  const tile = all.find((m) => m.instanceId === id && !m.shelved);
+  if (!tile) return null;
+  return [...all.filter((m) => m !== tile), { ...tile, shelved: true }];
+}
+
+/**
+ * Put a shelf entry back on the mirror: at `at` when given (a drop), else in
+ * the first spot it fits, shrinking to another allowed size if it must.
+ * Null when there is no room.
+ */
+export function unshelveInstance(
+  all: ModuleInstance[],
+  id: string,
+  definition: ModuleDefinition | undefined,
+  at?: Placement
+): ModuleInstance[] | null {
+  const entry = all.find((m) => m.instanceId === id && m.shelved);
+  if (!entry) return null;
+  const { placed } = splitShelf(all);
+  const { shelved: _shelved, ...tile } = entry;
+  let next: ModuleInstance | null = null;
+  if (at) {
+    const d = dimsOf(tile.size);
+    if (canPlace(toRects(placed), { ...at, cols: d.cols, rows: d.rows }, null)) {
+      next = { ...tile, position: at };
+    }
+  } else if (definition) {
+    const spot = findPlacement(placed, definition, tile.size);
+    if (spot) next = { ...tile, size: spot.size, position: spot.position };
+  } else {
+    const d = dimsOf(tile.size);
+    const slot = findFreeSlot(toRects(placed), d.cols, d.rows);
+    if (slot) next = { ...tile, position: slot };
+  }
+  if (!next) return null;
+  return [...placed, next, ...all.filter((m) => m.shelved && m !== entry)];
+}
+
+/** The shelf as saved: plain instances without the editor's flag. */
+export function shelfForSave(all: ModuleInstance[]): ModuleInstance[] {
+  return all.filter((m) => m.shelved).map(({ shelved: _shelved, ...m }) => m);
+}
+
 export function layoutsEqual(a: ModuleInstance[], b: ModuleInstance[]): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
