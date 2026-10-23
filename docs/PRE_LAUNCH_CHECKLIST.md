@@ -3,7 +3,7 @@
 Everything that still has to happen before SkyGlass ships to customers. Items are grouped by
 who has to act and roughly ordered by risk within each group. Tick them off as they land.
 
-Last reviewed: 2026-10-21, after the calendar sign-in work, moving API keys to the cloud and hardening the presence server.
+Last reviewed: 2026-10-23, after update hardening, invites, the website restyle and closing the code gaps below.
 
 ## 1. Security blockers
 
@@ -24,10 +24,13 @@ Last reviewed: 2026-10-21, after the calendar sign-in work, moving API keys to t
       now live only on Vercel, behind `/api/data/notams`, `/api/data/stocks` and
       `/api/data/stock-profiles` (see `docs/CLOUD_SERVICE.md`). The mirror has no API keys at all;
       its only cloud setting is `skyglass_service`.
-- [ ] **Rate-limit the cloud service for real.** The limits in `packages/website/api/_lib/` apply per
-      server instance, so the real cap is higher. Add Vercel firewall rules on `/api/oauth/*` and
-      `/api/data/*`. Anyone who finds the data endpoints can spend SkyGlass's FAA and Finnhub quota,
-      and CDN caching only softens that.
+- [ ] **Turn on the cloud service rate limits.** The in-function limits in `packages/website/api/_lib/`
+      apply per server instance, so the real cap is higher. Per-IP Vercel WAF rules for
+      `/api/data/notams`, `/api/data/stock*`, `/api/oauth/config` and `/api/oauth/google/token` are
+      ready in `packages/website/firewall/rate-limits.json` (sizing and caveats in
+      `docs/CLOUD_SERVICE.md`, "Global rate limits"). In `packages/website`, run
+      `node scripts/firewall-rules.mjs --stage`, `vercel firewall diff`, `vercel firewall publish --yes`
+      (log only); watch Firewall › Traffic for a few days, then repeat with `--stage --enforce`.
 - [ ] **Get a Finnhub plan that allows redistribution.** The free tier is for personal use and about
       60 calls a minute. Serving every customer from one key needs a commercial licence, or a
       different quote provider.
@@ -233,15 +236,18 @@ backend `updater.test.ts` and presence `test_watchdog_updates.py`)
       XLSX upload (`POST /api/schedule/upload`) and crew feeds by calendar link. It could come back
       later as a cloud mail import through skyglass.dev: Outlook `Mail.Read` is easy; Gmail
       `gmail.readonly` is a restricted scope that needs a yearly security assessment.
-- [ ] The phone app has no screen for the XLSX schedule upload (`POST /api/schedule/upload`); today
-      only scripts can use it. Add one, or drop the route if calendar links cover airline rosters.
-- [ ] Add a calendar step to the phone onboarding flow.
-- [ ] Portrait layouts: the 12 × 8 grid gives 240px-tall rows on a portrait panel, so every
-      template leaves a large empty band, and the default layout (`DEFAULT_LAYOUT` in
-      `packages/backend/src/routes/layout.ts`) uses only the top half. Add portrait variants (list
-      widgets at least 4 columns wide, METAR large and TAF at least 6) and a portrait default.
-- [ ] `DEFAULT_LAYOUT` pins `icao: 'KJFK'` and sets `showDecoded`; the per-user default in
-      `packages/backend/src/db/index.ts` uses a widget id (`aviation-weather`) the mirror doesn't
-      have, placed over the clock.
+- [x] Phone screen for the XLSX schedule upload (`POST /api/schedule/upload`): `app/schedule.tsx`,
+      reached from Calendars ("Airline schedule") and from the setup complete screen. Needs a new dev
+      build (adds `expo-document-picker`).
+- [x] The uploaded XLSX schedule is kept in `data/flight-schedule.xlsx` and parsed again at startup;
+      `DELETE /api/schedule` removes it (Remove schedule in the app). Files over 10 MB get a 413.
+- [x] Calendar step in phone onboarding: optional "Add your schedule" rows on `setup/complete`
+      (add a calendar, upload an airline schedule); the main button skips it.
+- [x] Portrait layouts: every template in `packages/mobile/lib/templates.ts` has a portrait variant
+      (lists at least 4 columns, METAR large, TAF at least 6), and the pickers show the set matching
+      the mirror's orientation. The default layout (`defaultLayout()` in `routes/layout.ts`) has a
+      portrait version too, and the mirror re-reads it when the orientation changes.
+- [x] The default layout no longer pins `KJFK` (widgets fall back to the mirror's airport), and new
+      users start from a copy of the mirror's layout instead of a hard-coded one.
 - [ ] Google-only calendar sign-in through the cloud means SkyGlass's Google project quota and
       verification status affect every customer. Monitor the quota once verified.
