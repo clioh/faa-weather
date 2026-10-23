@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mirror — pairing code overlay (landscape)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mirror.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&amp;family=JetBrains+Mono:wght@400&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="mr land">
+  <div class="top"><div class="kick" style="display: flex; align-items: center; gap: 10px"><span style="width: 8px; height: 8px; border-radius: 4px; background: #7ad7ff"></span>Pairing request</div><div></div></div>
+  <div class="center">
+    <h1 class="h" style="font-size: 52px">Pair <span style="font-weight: 400">Clio’s iPhone</span>?</h1>
+    <div class="code" style="font-size: 120px; font-weight: 300">481 926</div>
+    <p class="p">Enter this code in the SkyGlass app</p>
+    <div style="width: 420px; display: flex; flex-direction: column; gap: 10px; align-items: center">
+      <div class="bar" style="width: 100%"><i style="width: 78%"></i></div>
+      <div class="m faint" style="font-size: 14px">Expires in 4:37</div>
+    </div>
+  </div>
+  <div class="foot"><span>Only someone at the mirror can see this code</span><span></span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

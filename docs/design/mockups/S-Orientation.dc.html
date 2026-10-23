@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mirror orientation</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>body{margin:0}
+.opt{display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 8px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:transparent;color:#fff;font-family:inherit;cursor:pointer}
+.opt.sel{border:1.5px solid #7ad7ff;background:rgba(122,215,255,.08)}
+.pic{display:flex;align-items:flex-end;justify-content:center;height:96px}
+</style>
+</helmet>
+<div class="s">
+  <div class="hdr">
+    <a href="S-Checklist.dc.html" class="back" style="text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+    <div class="t">Orientation</div>
+    <div class="sp"></div>
+  </div>
+  <div class="body" style="gap: 24px; padding-top: 16px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <h1 class="h1">How is your mirror mounted?</h1>
+      <p class="p">The mirror turns its screen to match. Look at the glass and check the arrow points up.</p>
+    </div>
+    <div role="radiogroup" aria-label="Mirror orientation" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+      <button class="opt" role="radio" aria-checked="false">
+        <div class="pic"><div style="width: 92px; height: 54px; border: 2px solid rgba(255,255,255,0.7); border-radius: 6px; display: flex; align-items: center; justify-content: center"><svg width="14" height="20" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 30V3M3 12l9-9 9 9" fill="none" stroke="#7ad7ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+        <div style="font-size: 14px">Landscape</div>
+      </button>
+      <button class="opt sel" role="radio" aria-checked="true">
+        <div class="pic"><div style="width: 54px; height: 92px; border: 2px solid #ffffff; border-radius: 6px; border-left-width: 6px; display: flex; align-items: center; justify-content: center"><svg width="14" height="20" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 30V3M3 12l9-9 9 9" fill="none" stroke="#7ad7ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; align-items: center"><div style="font-size: 14px">Portrait</div><div class="cap">Turned right</div></div>
+      </button>
+      <button class="opt" role="radio" aria-checked="false">
+        <div class="pic"><div style="width: 54px; height: 92px; border: 2px solid rgba(255,255,255,0.7); border-radius: 6px; border-right-width: 6px; display: flex; align-items: center; justify-content: center"><svg width="14" height="20" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 30V3M3 12l9-9 9 9" fill="none" stroke="#7ad7ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></div></div>
+        <div style="display: flex; flex-direction: column; gap: 2px; align-items: center"><div style="font-size: 14px">Portrait</div><div class="cap">Turned left</div></div>
+      </button>
+    </div>
+    <div class="note ni">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="flex: none; margin-top: 1px"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect></svg>
+      <div>The mirror now shows a large arrow and an outline around the edge of the glass. If the arrow points sideways or down, pick the other portrait option.</div>
+    </div>
+    <div style="flex: 1"></div>
+    <p class="cap" style="margin: 0">Your layouts follow this too. You can change it later in Settings › Mirror.</p>
+  </div>
+  <div class="foot">
+    <a href="S-License.dc.html" class="btn">The arrow points up</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

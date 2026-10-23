@@ -1,0 +1,54 @@
+/* Mirror onboarding screens. Artboards are drawn at 2/3 of 1920x1080 (1px here = 1.5px on the mirror).
+   One layout, two orientations: .land (16:9) and .port (9:16). Implement with an orientation class or
+   @media (orientation: portrait) on the root; everything else is shared. */
+body{margin:0}
+.mr{background:#000;color:#fff;font-family:'Inter',-apple-system,sans-serif;box-sizing:border-box;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.land{width:1280px;height:720px;padding:48px 72px 40px}
+.port{width:720px;height:1280px;padding:72px 56px 56px}
+.top{display:flex;align-items:center;justify-content:space-between;flex:none}
+.brand{display:flex;align-items:center;gap:14px;font-size:13px;font-weight:500;letter-spacing:.34em}
+.m{font-family:'JetBrains Mono',Menlo,monospace}
+.dim{color:rgba(255,255,255,.62)}
+.faint{color:rgba(255,255,255,.45)}
+.ac{color:#7ad7ff}
+.main{flex:1;display:flex;align-items:center;gap:80px;min-height:0}
+.port .main{flex-direction:column;align-items:stretch;justify-content:center;gap:64px}
+.col{flex:1;display:flex;flex-direction:column;gap:22px;min-width:0}
+.port .col{flex:none}
+.kick{font-family:'JetBrains Mono',monospace;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:#7ad7ff}
+.h{margin:0;font-size:58px;font-weight:200;letter-spacing:-.035em;line-height:1.04}
+.port .h{font-size:54px}
+.p{margin:0;font-size:22px;font-weight:300;line-height:1.45;color:rgba(255,255,255,.68);max-width:560px}
+.steps{display:flex;flex-direction:column;border-bottom:1px solid rgba(255,255,255,.14)}
+.st{display:flex;align-items:center;gap:20px;min-height:58px;border-top:1px solid rgba(255,255,255,.14);font-size:21px;font-weight:300}
+.st .n{font-family:'JetBrains Mono',monospace;font-size:14px;width:28px;color:rgba(255,255,255,.45)}
+.st .r{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:14px;color:rgba(255,255,255,.45)}
+.st.done .n,.st.done .r{color:#7ad7ff}
+.st.now{font-weight:400}
+.st.now .n{color:#fff}
+.st.todo{color:rgba(255,255,255,.45)}
+.panel{flex:none;display:flex;flex-direction:column;align-items:center;gap:22px}
+.port .panel{align-self:center}
+.qr{width:260px;height:260px;background:#fff;border-radius:18px;position:relative;box-sizing:border-box}
+.qr i{position:absolute;width:62px;height:62px;border:11px solid #000;border-radius:6px;box-sizing:border-box;display:block}
+.qr b{position:absolute;inset:96px;background:repeating-linear-gradient(90deg,#000 0 10px,#fff 10px 20px),#000;opacity:.85;border-radius:4px;display:block}
+.qr2{width:190px;height:190px}
+.qr2 i{width:48px;height:48px;border-width:9px}
+.qr2 b{inset:70px}
+.feed{background:#0d1014;border:1px solid rgba(255,255,255,.14);border-radius:18px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.facts{display:flex;gap:48px;margin:0}
+.facts div{display:flex;flex-direction:column;gap:4px}
+.facts dt{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.45)}
+.facts dd{margin:0;font-family:'JetBrains Mono',monospace;font-size:20px}
+.bar{height:3px;border-radius:2px;background:rgba(255,255,255,.14);overflow:hidden}
+.bar i{display:block;height:100%;background:#7ad7ff}
+.code{font-family:'JetBrains Mono',monospace;font-size:64px;font-weight:400;letter-spacing:.18em;padding-left:.18em}
+.foot{flex:none;display:flex;justify-content:space-between;align-items:center;font-family:'JetBrains Mono',monospace;font-size:13px;color:rgba(255,255,255,.45)}
+.spin{width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,255,255,.14);border-top-color:#7ad7ff;box-sizing:border-box}
+.dots{display:flex;gap:10px}
+.dots i{width:10px;height:10px;border-radius:5px;background:rgba(255,255,255,.2);display:block}
+.dots .d{background:#7ad7ff}.dots .c{background:#fff}
+.port .first{order:-1}
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center}
+.port .center.eye{justify-content:flex-start;padding-top:120px}
+.oval{border:2px dashed rgba(122,215,255,.55);border-radius:50%}

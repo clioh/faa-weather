@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mirror — setup complete (portrait)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mirror.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&amp;family=JetBrains+Mono:wght@400&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="mr port">
+  <div class="top"><div></div><div></div></div>
+  <div class="center eye" style="padding-top: 200px">
+    <svg width="44" height="64" viewBox="0 0 64 92" aria-hidden="true"><rect x="2" y="2" width="60" height="88" rx="9" fill="#fff"></rect><path d="M2 45L62 11V23L2 57Z" fill="#7ad7ff"></path><path d="M2 61L62 27V30L2 64Z" fill="#7ad7ff"></path></svg>
+    <h1 class="h" style="font-size: 64px">Welcome, Clio!</h1>
+    <p class="p" style="color: #ffffff">Your face has been registered successfully</p>
+    <p class="p">The mirror will now recognize you automatically</p>
+  </div>
+  <div class="foot"><span>Showing your layout in 5s</span><span>v1.4.2</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":1280}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

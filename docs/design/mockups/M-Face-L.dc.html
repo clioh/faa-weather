@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mirror — face registration (landscape)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mirror.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&amp;family=JetBrains+Mono:wght@400&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="mr land">
+  <div class="top">
+    <div class="kick">Face registration</div>
+    <div class="dots"><i class="d"></i><i class="c"></i><i></i><i></i><i></i></div>
+  </div>
+  <div class="main" style="gap: 72px">
+    <div class="feed first" role="img" aria-label="Live camera feed" style="width: 440px; height: 520px; flex: none">
+      <div class="oval" style="width: 230px; height: 310px"></div>
+      <span style="position: absolute; font-size: 150px; font-weight: 200; line-height: 1">2</span>
+      <span class="m faint" style="position: absolute; bottom: 14px; font-size: 12px">Camera</span>
+    </div>
+    <div class="col">
+      <div class="dim" style="font-size: 20px; font-weight: 300">Setting up for Clio</div>
+      <h1 class="h" style="font-size: 52px">Turn your head slightly left</h1>
+      <div class="m faint" style="font-size: 16px">2 of 5 photos</div>
+      <p class="p" style="padding-top: 12px">Use your phone to capture each photo</p>
+    </div>
+  </div>
+  <div class="foot"><span>Face data stays on this mirror</span><span></span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

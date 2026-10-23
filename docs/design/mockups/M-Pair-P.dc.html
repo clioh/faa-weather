@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mirror — setup progress (portrait)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mirror.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&amp;family=JetBrains+Mono:wght@400&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="mr port">
+  <div class="top">
+    <div class="brand"><svg width="18" height="26" viewBox="0 0 64 92" aria-hidden="true"><rect x="2" y="2" width="60" height="88" rx="9" fill="#fff"></rect><path d="M2 45L62 11V23L2 57Z" fill="#7ad7ff"></path><path d="M2 61L62 27V30L2 64Z" fill="#7ad7ff"></path></svg>SKYGLASS</div>
+    <div class="m faint" style="font-size: 13px">HarperHome</div>
+  </div>
+  <div class="main">
+    <div class="col">
+      <div class="kick">Setting up your mirror</div>
+      <h1 class="h">Activate your license</h1>
+      <p class="p">Enter your license key in the SkyGlass app.</p>
+      <div class="steps">
+        <div class="st done"><span class="n">✓</span>Orientation<span class="r">Portrait</span></div>
+        <div class="st now"><span class="n">02</span>License</div>
+        <div class="st todo"><span class="n">03</span>Location</div>
+        <div class="st todo"><span class="n">04</span>Airport</div>
+        <div class="st todo"><span class="n">05</span>Face</div>
+      </div>
+    </div>
+    <div class="panel first">
+      <div class="qr" role="img" aria-label="QR code that opens the SkyGlass app on this mirror"><i style="left: 18px; top: 18px"></i><i style="right: 18px; top: 18px"></i><i style="left: 18px; bottom: 18px"></i><b></b></div>
+      <div class="dim" style="font-size: 18px; font-weight: 300; text-align: center; max-width: 300px">Continue setup in the SkyGlass app on your phone.</div>
+    </div>
+  </div>
+  <div class="foot"><span>skyglass.local</span><span>v1.4.2</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":1280}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

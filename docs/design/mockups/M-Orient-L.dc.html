@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mirror — orientation check (landscape)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mirror.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&amp;family=JetBrains+Mono:wght@400&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="mr land" style="border: 2px solid rgba(122,215,255,0.5)">
+  <div class="top">
+    <div class="kick">Orientation</div>
+    <div class="m faint" style="font-size: 13px">Landscape</div>
+  </div>
+  <div class="center">
+    <svg width="90" height="120" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 30V3M3 12l9-9 9 9" fill="none" stroke="#7ad7ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <h1 class="h">This way up?</h1>
+    <p class="p" style="max-width: 640px">If the arrow points to the ceiling and the outline traces the edge of the glass, confirm in the SkyGlass app.</p>
+  </div>
+  <div class="foot"><span>Confirm on your phone</span><span>v1.4.2</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>
