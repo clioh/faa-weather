@@ -12,6 +12,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './api';
+import { isDevBuild } from './devBuild';
 import { pairingStore } from './pairingStore';
 import { storage } from './storage';
 
@@ -37,7 +38,7 @@ export async function resetAppData(): Promise<void> {
 
 /** True the first time a given reset nonce is seen (and records it). */
 export async function claimResetNonce(nonce: string): Promise<boolean> {
-  if (!__DEV__ || !nonce) return false;
+  if (!isDevBuild || !nonce) return false;
   if ((await AsyncStorage.getItem(RESET_NONCE_KEY)) === nonce) return false;
   await AsyncStorage.setItem(RESET_NONCE_KEY, nonce);
   return true;

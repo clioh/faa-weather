@@ -182,6 +182,14 @@ What that means on a dev machine:
   single use and rotates every 10 minutes, so the terminal copy goes stale;
   the mirror screen always shows the current one
   (`curl -s localhost:3001/api/pairing/qr`).
+- `npm run dev:e2e -- --device`: for an iPhone on USB, when the LAN is too slow
+  for Metro. It builds the app (Release, so the JS bundle is embedded) with
+  `xcodebuild`, installs it over USB with `devicectl`, skips Metro, and the QR
+  becomes `skyglass://connect?...`, which opens the installed app. The build
+  sets `EXPO_PUBLIC_SKYGLASS_DEV_BUILD=1` (`packages/mobile/lib/devBuild.ts`),
+  so `--reset` and the dev screens still work. API calls still go over the network; JS changes need
+  another run (`--no-build` reuses the last install). Needs Developer Mode on
+  the phone and an Apple Development certificate.
 - A phone that is not paired (manual address, mirrors list) is sent to the
   Pair screen and pairs with the 6-digit code the mirror shows.
 

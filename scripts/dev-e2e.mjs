@@ -21,15 +21,25 @@
  *   SKYGLASS_DETECTOR_LOG=debug npm run dev:e2e   # per-second detector diagnostics
  *   npm run dev:e2e -- --no-expo    # skip the phone app dev server
  *   npm run dev:e2e -- --no-open    # don't open the browser
+ *   npm run dev:e2e -- --device     # iPhone on USB: build the app with its JS bundle
+ *                                   # inside and install it (no Expo Go, no Metro)
+ *   npm run dev:e2e -- --device --no-build  # reuse the last install (JS not refreshed)
+ *   SKYGLASS_DEV_HOST=<ip> npm run dev:e2e  # address the phone uses for this machine
  *
  * Phone prerequisites: Expo Go installed, same WiFi as this machine.
+ * With --device: the iPhone plugged in and trusted (Developer Mode on) and an
+ * "Apple Development" certificate in the keychain (Xcode > Settings >
+ * Accounts). The phone loads the app over USB and only API calls go over the
+ * network. SKYGLASS_IOS_DEVICE picks the device by UDID when several are
+ * attached; SKYGLASS_IOS_TEAM sets the signing team (default: the one in the
+ * Apple Development certificate).
  * Ctrl+C stops everything.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { randomBytes } from 'node:crypto';
-import { networkInterfaces } from 'node:os';
+import { networkInterfaces, tmpdir } from 'node:os';
 import net from 'node:net';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -48,7 +58,11 @@ const flags = {
   noDetector: args.has('--no-detector'),
   noExpo: args.has('--no-expo'),
   noOpen: args.has('--no-open'),
+  device: args.has('--device'),
+  noBuild: args.has('--no-build'),
 };
+// The device build carries its own JS bundle, so Metro is not needed.
+if (flags.device) flags.noExpo = true;
 if (args.has('--help') || args.has('-h')) {
   console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('*/')[0].replace(/^\/\*\*?\n?/, '').replace(/^ \* ?/gm, ''));
   process.exit(0);
@@ -74,6 +88,7 @@ const fail = (m) => {
 // ---------------------------------------------------------------------------
 
 function lanIp() {
+  if (process.env.SKYGLASS_DEV_HOST) return process.env.SKYGLASS_DEV_HOST;
   const ifaces = networkInterfaces();
   const candidates = [];
   for (const [name, infos] of Object.entries(ifaces)) {
@@ -137,7 +152,7 @@ async function waitFor(label, probe, timeoutMs = 90_000) {
 
 const children = [];
 
-function start(label, color, cmd, cmdArgs, { cwd, env = {} }) {
+function start(label, color, cmd, cmdArgs, { cwd, env = {}, oneShot = false, skip = null }) {
   const child = spawn(cmd, cmdArgs, {
     cwd,
     env: { ...process.env, FORCE_COLOR: '0', ...env },
@@ -153,14 +168,14 @@ function start(label, color, cmd, cmdArgs, { cwd, env = {} }) {
       while ((i = buf.indexOf('\n')) !== -1) {
         const line = buf.slice(0, i).trimEnd();
         buf = buf.slice(i + 1);
-        if (line) console.log(`${prefix} ${line}`);
+        if (line && !(skip && skip.test(line))) console.log(`${prefix} ${line}`);
       }
     });
   };
   pipe(child.stdout);
   pipe(child.stderr);
   child.on('exit', (code, signal) => {
-    if (shuttingDown) return;
+    if (shuttingDown || (oneShot && code === 0)) return;
     warn(`${label} exited (${signal || code}).`);
   });
   children.push({ label, child });
@@ -211,6 +226,76 @@ function printQr(text) {
 }
 
 // ---------------------------------------------------------------------------
+// iPhone over USB (--device)
+// ---------------------------------------------------------------------------
+
+const IOS_DIR = path.join(PKG('mobile'), 'ios');
+const IOS_DERIVED = path.join(IOS_DIR, 'build', 'device');
+const IOS_APP = path.join(IOS_DERIVED, 'Build', 'Products', 'Release-iphoneos', 'SkyGlass.app');
+const IOS_BUNDLE_ID = 'com.skyglass.app';
+
+/** UDID of the USB-connected iPhone (or SKYGLASS_IOS_DEVICE). */
+function iosDevice() {
+  if (process.env.SKYGLASS_IOS_DEVICE) return { udid: process.env.SKYGLASS_IOS_DEVICE, name: process.env.SKYGLASS_IOS_DEVICE };
+  const out = path.join(fs.mkdtempSync(path.join(tmpdir(), 'skyglass-e2e-')), 'devices.json');
+  try {
+    spawnSync('xcrun', ['devicectl', 'list', 'devices', '--json-output', out], { stdio: 'ignore' });
+    const devices = JSON.parse(fs.readFileSync(out, 'utf8')).result?.devices || [];
+    const d = devices.find(
+      (x) => x.hardwareProperties?.reality === 'physical' && x.connectionProperties?.transportType === 'wired',
+    );
+    return d ? { udid: d.hardwareProperties.udid, name: d.deviceProperties?.name || d.hardwareProperties.udid } : null;
+  } catch {
+    return null;
+  } finally {
+    fs.rmSync(path.dirname(out), { recursive: true, force: true });
+  }
+}
+
+/** Team ID from the "Apple Development" certificate (its OU field). */
+function iosTeam() {
+  if (process.env.SKYGLASS_IOS_TEAM) return process.env.SKYGLASS_IOS_TEAM;
+  const pem = spawnSync('security', ['find-certificate', '-c', 'Apple Development', '-p'], { encoding: 'utf8' }).stdout;
+  if (!pem) return null;
+  const subject = spawnSync('openssl', ['x509', '-noout', '-subject'], { input: pem, encoding: 'utf8' }).stdout || '';
+  return subject.match(/OU\s*=\s*([A-Z0-9]{10})/)?.[1] || null;
+}
+
+function waitExit(child) {
+  return new Promise((resolve) => child.on('exit', (code) => resolve(code === 0)));
+}
+
+/**
+ * Release build for the device, so the JS bundle is inside the app (Expo's
+ * bundle phase skips bundling for every Debug build). EXPO_PUBLIC_SKYGLASS_DEV_BUILD
+ * keeps the dev-only tools (--reset, dev screens) on; see mobile/lib/devBuild.ts.
+ */
+async function buildAndInstallIos(device) {
+  if (!flags.noBuild) {
+    const team = iosTeam();
+    if (!team) return warn('No signing team found. Set SKYGLASS_IOS_TEAM or add your Apple ID in Xcode > Settings > Accounts.'), false;
+    info(`Building the phone app for ${device.name} (team ${team}); the first build takes several minutes`);
+    const build = start('ios', 'yellow', 'xcodebuild', [
+      '-workspace', 'SkyGlass.xcworkspace', '-scheme', 'SkyGlass', '-configuration', 'Release',
+      '-destination', `id=${device.udid}`, '-destination-timeout', '600', '-derivedDataPath', IOS_DERIVED,
+      '-allowProvisioningUpdates', '-allowProvisioningDeviceRegistration', '-quiet',
+      `DEVELOPMENT_TEAM=${team}`, 'CODE_SIGN_STYLE=Automatic',
+      'build',
+    ], { cwd: IOS_DIR, env: { EXPO_PUBLIC_SKYGLASS_DEV_BUILD: '1' }, oneShot: true, skip: /^note: Run script build phase/ });
+    if (!(await waitExit(build))) {
+      return warn('iOS build failed; see [ios] output above (Developer Mode off on the phone shows up there).'), false;
+    }
+    ok('Phone app built');
+  }
+  if (!fs.existsSync(IOS_APP)) return warn(`No build at ${path.relative(ROOT, IOS_APP)}; run without --no-build.`), false;
+  info(`Installing on ${device.name} over USB`);
+  const install = start('ios', 'yellow', 'xcrun', ['devicectl', 'device', 'install', 'app', '--device', device.udid, IOS_APP], { cwd: ROOT, oneShot: true });
+  if (!(await waitExit(install))) return warn('Install failed; is the phone unlocked?'), false;
+  ok(`Installed ${IOS_BUNDLE_ID} on ${device.name}`);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -220,6 +305,14 @@ async function main() {
   const ip = lanIp();
   if (!ip) return fail('No LAN IPv4 address found. Connect to WiFi or Ethernet first.');
   ok(`This machine on the LAN: ${c.bold(ip)}`);
+
+  let device = null;
+  if (flags.device) {
+    if (process.platform !== 'darwin') return fail('--device needs macOS with Xcode.');
+    device = iosDevice();
+    if (!device) return fail('No iPhone connected over USB (xcrun devicectl list devices). Plug it in, unlock it and trust this Mac.');
+    ok(`iPhone on USB: ${c.bold(device.name)} (${device.udid})`);
+  }
 
   // Ports must be free: the backend must be started here so it gets the
   // SKYGLASS_DEV_APP_URL that puts the QR code on the setup screen.
@@ -241,9 +334,16 @@ async function main() {
   // &reset=<nonce> makes the app wipe its own data the first time this
   // run's QR is scanned (packages/mobile/lib/devReset.ts).
   const resetParam = flags.reset ? `&reset=${randomBytes(4).toString('hex')}` : '';
-  const appUrl = flags.noExpo
-    ? null
-    : `exp://${ip}:${PORTS.metro}/--/connect?host=${ip}&port=${PORTS.backend}${resetParam}`;
+  // A device build opens its own scheme (app.json "scheme") instead of Expo Go.
+  const connectQuery = `connect?host=${ip}&port=${PORTS.backend}${resetParam}`;
+  const appUrl = flags.device
+    ? `skyglass://${connectQuery}`
+    : flags.noExpo
+      ? null
+      : `exp://${ip}:${PORTS.metro}/--/${connectQuery}`;
+
+  // Runs alongside the servers; the summary waits for it.
+  const iosReady = device ? buildAndInstallIos(device) : null;
 
   // 1. Backend
   info('Starting backend on :3001');
@@ -319,6 +419,8 @@ async function main() {
     await waitFor('Expo', () => fetchOk(`http://localhost:${PORTS.metro}/status`), 120_000);
   }
 
+  const installed = iosReady ? await iosReady : false;
+
   // 4. Browser
   const mirrorUrl = `http://localhost:${PORTS.frontend}`;
   if (!flags.noOpen) {
@@ -342,7 +444,8 @@ async function main() {
     // stops working after one scan or 10 minutes; the mirror screen always
     // shows the current one (GET /api/pairing/qr, local callers only).
     const pairUrl = await pairingQrUrl();
-    console.log(`  Phone app (Expo Go):    ${pairUrl || appUrl}`);
+    console.log(`  Phone app (${device ? 'USB build' : 'Expo Go'}):${device ? '  ' : '    '}${pairUrl || appUrl}`);
+    if (device && !installed) warn('The phone app was not installed; the QR opens whatever SkyGlass build is already on the phone.');
     console.log('');
     console.log('  Scan the QR code on the mirror\'s setup screen with your phone camera,');
     console.log(pairUrl ? '  or this one (single use, valid 10 minutes):' : '  or this one (it does not pair; the phone will ask for a code):');

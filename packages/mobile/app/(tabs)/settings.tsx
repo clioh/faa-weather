@@ -9,6 +9,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
+import { isDevBuild } from '@/lib/devBuild';
 import { api, type LicenseStatus, type LicenseState, type MirrorOrientation, type UpdateConfig } from '@/lib/api';
 import { LICENSE_MANAGE_URL } from '@/lib/license';
 import { logError } from '@/lib/errors';
@@ -378,7 +379,7 @@ export default function SettingsScreen() {
       <View style={styles.dangerZone}>
         <Button label="Disconnect Mirror" variant="danger" icon="log-out-outline" onPress={disconnectMirror} />
 
-        {__DEV__ && (
+        {isDevBuild && (
           <Button
             label="Reset App Data (dev)"
             variant="danger"

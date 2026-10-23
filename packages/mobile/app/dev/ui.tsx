@@ -27,6 +27,7 @@ import {
   Toast,
 } from '@/components/ui';
 import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
+import { isDevBuild } from '@/lib/devBuild';
 import { colors, fonts, spacing, typography } from '@/lib/theme';
 
 const noop = () => {};
@@ -37,7 +38,7 @@ export default function DevUiScreen() {
   const [tab, setTab] = useState('mirror');
   const [sheet, setSheet] = useState(false);
 
-  if (!__DEV__) return <Redirect href="/" />;
+  if (!isDevBuild) return <Redirect href="/" />;
 
   return (
     <>
