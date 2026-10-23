@@ -16,6 +16,7 @@ import {
   Text as RNText,
   TextInput as RNTextInput,
   type StyleProp,
+  type TextInputInstance,
   type TextStyle,
 } from 'react-native';
 import { fonts } from '@/lib/theme';
@@ -83,4 +84,4 @@ export function TextInput({ style, ...props }: ComponentPropsWithRef<typeof RNTe
 }
 
 // Instance type, so `useRef<TextInput>(null)` keeps working.
-export type TextInput = RNTextInput;
+export type TextInput = TextInputInstance;

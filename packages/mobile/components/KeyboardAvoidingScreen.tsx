@@ -29,6 +29,7 @@ import {
   StyleSheet,
   View,
   type StyleProp,
+  type ViewInstance,
   type ViewStyle,
 } from 'react-native';
 
@@ -40,7 +41,7 @@ interface KeyboardAvoidingScreenProps {
 }
 
 export function KeyboardAvoidingScreen({ children, style, avoidOnIOS = true }: KeyboardAvoidingScreenProps) {
-  const outerRef = useRef<View>(null);
+  const outerRef = useRef<ViewInstance>(null);
   const [offset, setOffset] = useState(0);
 
   const handleLayout = useCallback(() => {

@@ -24,7 +24,7 @@ const ITEMS: Record<string, Omit<TabBarItem, 'key'>> = {
   settings: { label: 'Settings', icon: 'options-outline' },
 };
 
-function GlassTabBar({ state, navigation }: BottomTabBarProps) {
+function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   // Only routes with a tab entry; anything else in the group gets no button.
   const items = state.routes.flatMap((route) =>
     ITEMS[route.name] ? [{ key: route.key, ...ITEMS[route.name] }] : []
@@ -36,14 +36,14 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   const onPress = (key: string) => {
     const route = state.routes.find((r) => r.key === key);
     if (!route) return;
-    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
     if (route.key !== active.key && !event.defaultPrevented) {
-      navigation.navigate(route.name, route.params);
+      navigateToTab(route.key);
     }
   };
 
   const onLongPress = (key: string) => {
-    navigation.emit({ type: 'tabLongPress', target: key });
+    emitter.emit({ type: 'tabLongPress', target: key });
   };
 
   return <TabBar items={items} activeKey={active.key} onPress={onPress} onLongPress={onLongPress} />;

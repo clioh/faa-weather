@@ -150,10 +150,10 @@ export function TimezonePickerModal({
                   <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
                   <Text style={styles.customText}>Use “{customCandidate}”</Text>
                 </TouchableOpacity>
-              ) : null
+              ) : undefined
             }
             ListEmptyComponent={
-              customCandidate ? null : (
+              customCandidate ? undefined : (
                 <Text style={styles.empty}>
                   No match. Type a full IANA name such as Europe/Paris.
                 </Text>

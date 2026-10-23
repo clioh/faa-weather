@@ -168,9 +168,9 @@ export function AirportPicker({
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             ListHeaderComponent={
-              searchQuery.length === 0 ? <SectionLabel>Popular Airports</SectionLabel> : null
+              searchQuery.length === 0 ? <SectionLabel>Popular Airports</SectionLabel> : undefined
             }
-            ListFooterComponent={results.length > 0 ? <View style={styles.listEnd} /> : null}
+            ListFooterComponent={results.length > 0 ? <View style={styles.listEnd} /> : undefined}
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Ionicons name="airplane-outline" size={32} color={colors.textMuted} />
