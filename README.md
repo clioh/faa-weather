@@ -8,10 +8,10 @@ A smart mirror built for pilots that displays aviation weather, flight schedules
 
 - **Aviation Weather** - Real-time METAR/TAF with flight rules color coding (VFR/MVFR/IFR/LIFR)
 - **TFRs & NOTAMs** - Active restrictions and notices for your area
-- **Schedule** - Google, Outlook, iCloud, CalDAV or calendar-link (ICS) accounts connected from the phone app, plus airline XLSX schedule import via email ([docs/CALENDAR.md](docs/CALENDAR.md))
+- **Schedule** - Google, Outlook, iCloud, CalDAV or calendar-link (ICS) accounts connected from the phone app, plus airline schedules: XLSX files uploaded from the phone app's Airline schedule screen, or crew-scheduling calendar links ([docs/CALENDAR.md](docs/CALENDAR.md))
 - **Presence Detection** - Wakes when you approach, sleeps when you leave
 - **Sun/Moon Times** - Civil twilight for VFR currency tracking
-- **Gesture Control** - Swipe to dismiss or put display to sleep
+- **Gesture Control** (`opencv` detection mode only) - Swipe to dismiss or put display to sleep
 
 ## Screenshots
 
@@ -85,7 +85,7 @@ cd ~/SkyGlass
 ./scripts/setup-pi.sh
 ```
 
-`setup-pi.sh` installs everything natively (no Docker): Node, the presence venv, PM2 with the three apps in `config/pm2.config.cjs`, the `skyglass-boot`, `skyglass-provision` and `skyglass-watchdog` systemd units, and a Chromium kiosk pointed at `http://localhost:3001`. Setup (WiFi, license, location, airport, face registration) is done from the phone app; on first boot without WiFi the mirror opens the `SkyGlass-Setup` hotspot. Once on your network the mirror is at `http://skyglass.local:3001`.
+`setup-pi.sh` installs everything natively (there is no Docker image): Node.js 24, the presence venv, PM2 with the three apps in `config/pm2.config.cjs`, the `skyglass-boot`, `skyglass-provision` and `skyglass-watchdog` systemd units, and a Chromium kiosk pointed at `http://localhost:3001`. Setup (WiFi, license, location, airport, face registration) is done from the phone app; on first boot without WiFi the mirror opens the `SkyGlass-Setup` hotspot. Once on your network the mirror is at `http://skyglass.local:3001`.
 
 The Pi install lives at `~/SkyGlass`; `setup-pi.sh` always installs there. The PM2 config (`config/pm2.config.cjs`) defaults to the checkout it lives in and can be pointed elsewhere with the `SKYGLASS_DIR` environment variable (e.g. `SKYGLASS_DIR=/opt/SkyGlass pm2 start config/pm2.config.cjs`).
 
@@ -239,7 +239,7 @@ Updates are installed from the `skyglass-vX.Y.Z.tar.gz` asset attached to each G
 - **In the display UI**: _Download_ fetches the tarball, _Install Now_ hands it to `scripts/update.sh --apply-tarball` and returns immediately. The display shows "Update started, restarting…" and reloads itself once the backend is back on the new version.
 - **From a shell**: `npm run update` (prompt), `./scripts/update.sh --check` (exit 0 if an update is available) or `./scripts/update.sh --apply` (no prompt). There is no automatic update timer.
 
-Either way `scripts/update.sh` backs up the install to `.backup/`, stops the PM2 apps, copies the release over the install with `rsync`, runs `npm install` (and `npm run build` only if the tarball has no `dist/`), updates the presence venv if `requirements.txt` changed, and restarts the apps with `pm2 startOrRestart config/pm2.config.cjs`. If `/api/health` is not up within 120 s, or any step fails, it restores the backup and restarts the previous version. Runtime state is never touched: `config/config.yaml`, `data/`, `logs/`, `.env` files, `node_modules`, Python venvs and `packages/presence/face_data`. Progress and errors are written to `logs/update.log`.
+Either way `scripts/update.sh` verifies the checksum and refuses a tarball without the prebuilt `dist/` output (it never builds on the mirror), backs up the install to `.backup/`, stops the PM2 apps, copies the release over the install with `rsync`, runs `npm install` only if `package-lock.json` changed and `pip install` only if `requirements.txt` changed, and restarts the apps with `pm2 startOrRestart config/pm2.config.cjs`. `/api/health` and the display must then pass 6 consecutive health checks 5 s apart (within 120 s); if they don't, or any step fails, it rolls back to the previous version. Details, recovery after power loss and Node.js upgrades: [docs/UPDATES.md](docs/UPDATES.md). Runtime state is never touched: `config/config.yaml`, `data/`, `logs/`, `.env` files, `node_modules`, Python venvs and `packages/presence/face_data`. Progress and errors are written to `logs/update.log`.
 
 `rsync` and `curl` are required; `scripts/setup-pi.sh` installs both.
 
@@ -269,7 +269,7 @@ npm run format:check       # Check formatting
 
 ```bash
 # Check camera connection
-libcamera-hello --list-cameras
+rpicam-hello --list-cameras
 
 # Test with OpenCV
 cd packages/presence
@@ -304,7 +304,9 @@ python3 test_camera.py
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+Source-available, not open source: the [PolyForm Strict License 1.0.0](LICENSE) with added
+permissions for customers (as the [Terms of Sale](https://skyglass.dev/terms) allow) and for
+contributors. See [LICENSE](LICENSE).
 
 ## Acknowledgments
 

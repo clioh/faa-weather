@@ -7,8 +7,9 @@ Thank you for your interest in contributing to SkyGlass! This document provides 
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/SkyGlass.git
+   git clone https://github.com/YOUR_USERNAME/skyglass.git SkyGlass
    cd SkyGlass
+   git remote add upstream https://github.com/clioh/skyglass.git
    ```
 3. **Set up the development environment**:
    ```bash
@@ -111,7 +112,6 @@ SkyGlass/
 │   ├── frontend/       # React display UI (@skyglass/frontend)
 │   ├── mobile/         # React Native/Expo phone app (setup + layout editor)
 │   ├── presence/       # Python presence detection + admin server
-│   ├── cloud-api/      # Optional cloud sync API (@skyglass/cloud-api)
 │   └── website/        # Marketing site (Vercel)
 ├── config/           # default.yaml, PM2 config, systemd units
 ├── scripts/          # Setup and utility scripts
@@ -182,7 +182,7 @@ Include:
 
 ### Review Process
 
-1. PRs require one approval before merging
+1. A maintainer reviews each PR before it is merged; CI must pass
 2. Address review comments promptly
 3. Keep PRs focused and reasonably sized
 4. Squash commits when merging
@@ -256,6 +256,12 @@ Include:
 - Clear description of the feature
 - Use case / why it's needed
 - Proposed implementation (if any)
+
+## Licensing of contributions
+
+SkyGlass is source-available ([LICENSE](LICENSE)): you may change the code only to prepare a
+contribution. By opening a pull request you confirm that you wrote the change (or have the right
+to submit it) and agree that SkyGlass may distribute it under the project's license.
 
 ## Questions?
 

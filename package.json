@@ -2,6 +2,7 @@
   "name": "skyglass",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "description": "Smart mirror for pilots with aviation data, scheduling, and presence detection",
   "workspaces": [
     "packages/*"
@@ -25,7 +26,7 @@
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,yaml,yml,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,yaml,yml,md}\"",
-    "clean": "turbo clean && rm -rf node_modules",
+    "clean": "rm -rf .turbo packages/*/.turbo packages/backend/dist packages/frontend/dist packages/website/dist node_modules",
     "setup:pi": "./scripts/setup-pi.sh",
     "update": "./scripts/update.sh",
     "update:check": "./scripts/update.sh --check",
