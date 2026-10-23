@@ -158,6 +158,14 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
 - [ ] **Pre-flashed orientation.** Write `portrait-cw` to `/boot/firmware/skyglass-orientation.txt`
       on a fresh card: the hotspot screen comes up the right way up on first boot, and the app's
       Orientation step starts on "Turned right".
+- [ ] **Hands-free face capture** (`packages/presence/auto_capture.py`). Register a face on the
+      Pi with only the Start button: each photo is taken after about a second of holding still, the
+      hints ("Move a little closer", "Turn a little further", "Now turn the other way") match what
+      you do, the two turn steps need opposite sides, and the smile step fires on a natural smile.
+      Tune the constants at the top of `auto_capture.py` (hold, steadiness, cooldown, yaw, pitch,
+      smile, patience) from what you see, including with glasses, in dim light and at 1–2 m. Then
+      check that "Take photo now" on the phone counts down and takes exactly one photo, and that
+      the enrolled face is recognised afterwards.
 - [ ] Run the app's Orientation step on a real phone (iOS and Android): previews follow each tap,
       Back returns the mirror to the saved orientation, and Settings › Mirror › Orientation saves.
 
@@ -198,12 +206,6 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
 - [ ] The phone app has no screen for the XLSX schedule upload (`POST /api/schedule/upload`); today
       only scripts can use it. Add one, or drop the route if calendar links cover airline rosters.
 - [ ] Add a calendar step to the phone onboarding flow.
-- [ ] Hands-free face capture: the phone starts the session, then the mirror takes each photo
-      itself once one face is centred and steady (the presence server already runs that check on
-      each tap) and shows "Move closer" or "Centre your face" live. The phone keeps progress and
-      Cancel.
-- [ ] The setup screen's face step (`SetupProgressScreen`) has no camera feed, unlike
-      `RegistrationOverlay`.
 - [ ] Portrait layouts: the 12 × 8 grid gives 240px-tall rows on a portrait panel, so every
       template leaves a large empty band, and the default layout (`DEFAULT_LAYOUT` in
       `packages/backend/src/routes/layout.ts`) uses only the top half. Add portrait variants (list

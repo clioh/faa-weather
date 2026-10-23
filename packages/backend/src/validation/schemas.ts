@@ -183,6 +183,28 @@ export const registrationProgressSchema = z.object({
 
 export type RegistrationProgressInput = z.infer<typeof registrationProgressSchema>;
 
+/**
+ * Live capture guidance from the presence server (hands-free capture). Sent
+ * only when the reason changes; holdMs is the steadiness time left for 'hold'.
+ */
+export const REGISTRATION_GUIDANCE_REASONS = [
+  'no_face',
+  'multiple',
+  'too_far',
+  'off_centre',
+  'turn_more',
+  'other_way',
+  'hold',
+  'cooldown',
+] as const;
+
+export const registrationGuidanceSchema = z.object({
+  reason: z.enum(REGISTRATION_GUIDANCE_REASONS),
+  holdMs: z.number().min(0).max(10000),
+});
+
+export type RegistrationGuidanceInput = z.infer<typeof registrationGuidanceSchema>;
+
 // ============= Update Config Schema =============
 
 /**

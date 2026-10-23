@@ -27,7 +27,7 @@ Every mockup is in `docs/design/mockups/` and shares `app.css`, which holds the 
 | `/setup/license` | `S-License`, `S-LicenseActive` | Key field in mono 18pt. All mirror-state warnings and activation errors use `Notice` (title + body + optional "skyglass.dev/license" link or "Check again"). "Activate" stays disabled until the key is valid. |
 | `/setup/location` | `S-Location` | Set state shown. Not-set state: "Detect your location" + "Detect location" button. Coordinates in mono. |
 | `/setup/airport` | `A-Setup` | Nearby list with mono ICAO + "{city} · 12 NM". Selected row = selected-row style + accent tick. |
-| `/setup/face` | `S-FaceName`, `S-FaceCapture`, `S-FaceDone` | Capture: live preview card with a dashed accent face oval, "Look at the mirror" pill, 3-2-1 countdown, five dots, a 76pt shutter button (accent inner disc). |
+| `/setup/face` | `S-FaceName`, `S-FaceCapture`, `S-FaceDone` | Capture (hands-free; the mirror takes each photo once the face is steady): "Look at the mirror" title, current instruction in a ring (3-2-1 countdown there for a manual photo), the mirror's live hint in accent, five dots, secondary "Take photo now" and a Cancel text button. No camera feed on the phone; `S-FaceCapture` still shows the old preview card and shutter. |
 
 ## 3. Home, dashboard and account
 

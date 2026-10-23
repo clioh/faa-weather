@@ -49,6 +49,8 @@ import {
   gestureSchema,
   registrationStartSchema,
   registrationProgressSchema,
+  registrationGuidanceSchema,
+  type RegistrationGuidanceInput,
   displayHoldSchema,
   userLayoutModulesSchema,
 } from './validation/schemas.js';
@@ -353,6 +355,8 @@ interface RegistrationMode {
   enrollmentToken: string | null;
   /** Session expiry, ms since epoch. */
   expiresAt: number | null;
+  /** Latest hands-free capture hint from the presence server; null when idle and at start. */
+  guidance: RegistrationGuidanceInput | null;
 }
 
 function idleRegistration(previous?: RegistrationMode): RegistrationMode {
@@ -366,6 +370,7 @@ function idleRegistration(previous?: RegistrationMode): RegistrationMode {
     userId: previous?.userId ?? null,
     enrollmentToken: null,
     expiresAt: null,
+    guidance: null,
   };
 }
 
@@ -465,6 +470,7 @@ app.post('/api/registration/start', authLimiter, validateBody(registrationStartS
     userId,
     enrollmentToken: session.enrollmentToken,
     expiresAt: session.expiresAt,
+    guidance: null,
   };
   // The presence server expires the token on its own; mirror that here so the
   // overlay closes even if its notification is lost.
@@ -488,6 +494,10 @@ app.post('/api/registration/start', authLimiter, validateBody(registrationStartS
   res.json(registrationMode);
 });
 
+// Manual fallback ("Take photo now"). The presence server takes photos on its
+// own once the face is framed and steady; this asks it for one now. It waits
+// out the 3-2-1 countdown itself (delay) and reports the sample through
+// /progress, which is the only source of the 'captured' broadcast.
 app.post('/api/registration/capture', async (_req, res) => {
   if (!registrationMode.active) {
     return res.status(400).json({ error: 'Registration not active' });
@@ -496,30 +506,24 @@ app.post('/api/registration/capture', async (_req, res) => {
   // Broadcast capture-start to show countdown on mirror
   broadcast('registration', { ...registrationMode, action: 'capture-start' });
 
-  // Wait for countdown (3 seconds)
-  await new Promise(resolve => setTimeout(resolve, 3000));
-
-  // Trigger the capture on the presence server
   try {
     const response = await fetch(`${presenceServerUrl}/api/capture`, {
       method: 'POST',
-      headers: internalHeaders(),
+      headers: { 'Content-Type': 'application/json', ...internalHeaders() },
+      body: JSON.stringify({ delay: 3 }),
       signal: AbortSignal.timeout(10000),
     });
     const result = await response.json() as { success: boolean; samples_captured?: number; message?: string; complete?: boolean };
 
     if (result.success) {
-      registrationMode.samplesCollected = result.samples_captured || registrationMode.samplesCollected + 1;
+      // Normally /progress has already arrived; never move the count backwards.
+      registrationMode.samplesCollected = Math.max(
+        registrationMode.samplesCollected,
+        result.samples_captured || registrationMode.samplesCollected + 1,
+      );
       const complete = registrationMode.samplesCollected >= registrationMode.samplesNeeded;
 
-      // Broadcast captured event
-      broadcast('registration', {
-        ...registrationMode,
-        action: 'captured',
-        currentInstruction: CAPTURE_INSTRUCTIONS[Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)],
-      });
-
-      if (complete) {
+      if (complete && registrationMode.active) {
         endRegistration('completed');
         console.log('Registration completed successfully');
       }
@@ -541,12 +545,27 @@ app.post('/api/registration/capture', async (_req, res) => {
 // Progress / completion notifications come only from the presence server.
 app.post('/api/registration/progress', requireInternal, validateBody(registrationProgressSchema), (req, res) => {
   const { samplesCollected, samplesNeeded } = req.body;
+  const before = registrationMode.samplesCollected;
   registrationMode.samplesCollected = samplesCollected ?? registrationMode.samplesCollected;
   registrationMode.samplesNeeded = samplesNeeded ?? registrationMode.samplesNeeded;
 
+  // A new sample (auto or manual): mirror and phone flash / buzz on 'captured'.
   broadcast('registration', {
     ...registrationMode,
-    action: 'progress',
+    action: registrationMode.samplesCollected > before ? 'captured' : 'progress',
+    currentInstruction: CAPTURE_INSTRUCTIONS[Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)],
+  });
+  res.json({ success: true });
+});
+
+// Live hint while the presence server waits for a framed, posed, steady face.
+// Sent only when the reason changes; ignored outside a session.
+app.post('/api/registration/guidance', requireInternal, validateBody(registrationGuidanceSchema), (req, res) => {
+  if (!registrationMode.active) return res.json({ success: true, ignored: true });
+  registrationMode.guidance = req.body as RegistrationGuidanceInput;
+  broadcast('registration', {
+    ...registrationMode,
+    action: 'guidance',
     currentInstruction: CAPTURE_INSTRUCTIONS[Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)],
   });
   res.json({ success: true });

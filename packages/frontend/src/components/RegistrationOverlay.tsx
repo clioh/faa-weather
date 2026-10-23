@@ -6,7 +6,7 @@
  * FaceCapture (M-Face-L/P); completion: M-Welcome-L/P.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FaceCapture } from './FaceCapture';
 import { LogoMark } from './setup/LogoMark';
 import { SetupFrame } from './setup/SetupFrame';
@@ -23,7 +23,28 @@ interface RegistrationState {
   userName?: string;
   currentInstruction?: string;
   action?: string;
+  /** Live framing / pose guidance from the presence server; null when idle. */
+  guidance?: Guidance | null;
 }
+
+type GuidanceReason =
+  | 'no_face'
+  | 'multiple'
+  | 'too_far'
+  | 'off_centre'
+  | 'turn_more'
+  | 'other_way'
+  | 'hold'
+  | 'cooldown';
+
+interface Guidance {
+  reason: GuidanceReason;
+  /** Length of the steadiness timer when reason is 'hold', else 0. */
+  holdMs: number;
+}
+
+/** Ring length when a hold arrives without holdMs (HOLD_SECONDS on the presence server). */
+const DEFAULT_HOLD_MS = 1000;
 
 // Guided instructions for each capture
 const CAPTURE_INSTRUCTIONS = [
@@ -33,6 +54,35 @@ const CAPTURE_INSTRUCTIONS = [
   'Tilt your head up a little',
   'Now smile naturally',
 ];
+
+/**
+ * Hint under the instruction for a guidance reason (same table as the phone).
+ * `step` is samplesCollected, the index of the current instruction.
+ */
+function guidanceHint(reason: GuidanceReason | undefined, step: number): string | null {
+  switch (reason) {
+    case 'no_face':
+      return 'Step in front of the mirror';
+    case 'multiple':
+      return 'Only one person, please';
+    case 'too_far':
+      return 'Move a little closer';
+    case 'off_centre':
+      return 'Centre your face in the outline';
+    case 'turn_more':
+      if (step === 1 || step === 2) return 'Turn a little further';
+      if (step === 3) return 'Tilt up a little further';
+      if (step === 4) return 'A bigger smile';
+      return null;
+    case 'other_way':
+      return 'Now turn the other way';
+    case 'hold':
+      return 'Hold still';
+    default:
+      // cooldown: the next instruction is the cue.
+      return null;
+  }
+}
 
 /** Confetti on the welcome screen: sky blue and white only. */
 const CONFETTI_COLORS = ['var(--color-accent)', 'var(--color-accent-dim)', '#ffffff'];
@@ -51,6 +101,9 @@ export function RegistrationOverlay() {
   const [showFlash, setShowFlash] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [presenceServerUrl, setPresenceServerUrl] = useState<string | null>(null);
+  // Running hold ring; a new key restarts it.
+  const [hold, setHold] = useState<{ key: number; ms: number } | null>(null);
+  const lastReasonRef = useRef<GuidanceReason | null>(null);
   // Drawn once, so the pieces don't jump on every poll.
   const [confetti] = useState(makeConfetti);
   const mirror = useMirrorInfo();
@@ -60,13 +113,27 @@ export function RegistrationOverlay() {
     ? CAPTURE_INSTRUCTIONS[Math.min(registration.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)]
     : CAPTURE_INSTRUCTIONS[0];
 
+  // Starts the ring when a hold begins (every 'guidance' hold event, or a
+  // poll that sees the change first) and clears it when the reason moves on.
+  const applyGuidance = useCallback((guidance: Guidance | null | undefined, holdEvent: boolean) => {
+    const reason = guidance?.reason ?? null;
+    if (reason !== 'hold') {
+      setHold(null);
+    } else if (holdEvent || lastReasonRef.current !== 'hold') {
+      const ms = guidance?.holdMs || DEFAULT_HOLD_MS;
+      setHold((prev) => ({ key: (prev?.key ?? 0) + 1, ms }));
+    }
+    lastReasonRef.current = reason;
+  }, []);
+
   // Poll registration state
   useEffect(() => {
     const checkRegistration = async () => {
       try {
         const res = await fetch('/api/registration');
-        const data = await res.json();
+        const data = (await res.json()) as RegistrationState;
         setRegistration(data);
+        applyGuidance(data.guidance, false);
 
         if (data.presenceServerUrl) {
           setPresenceServerUrl(data.presenceServerUrl);
@@ -79,7 +146,7 @@ export function RegistrationOverlay() {
     checkRegistration();
     const interval = setInterval(checkRegistration, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [applyGuidance]);
 
   // Listen for WebSocket updates
   useEffect(() => {
@@ -91,12 +158,14 @@ export function RegistrationOverlay() {
         if (message.type === 'registration') {
           const data = message.data as RegistrationState;
           setRegistration(data);
+          applyGuidance(data.guidance, data.action === 'guidance');
 
           if (data.action === 'capture-start') {
             // Start countdown
             setCountdown(3);
           } else if (data.action === 'captured') {
-            // Show flash effect
+            // Show flash effect; the ring is done.
+            setHold(null);
             setShowFlash(true);
             setPhase('captured');
             setTimeout(() => {
@@ -113,7 +182,7 @@ export function RegistrationOverlay() {
     };
 
     return () => ws.close();
-  }, []);
+  }, [applyGuidance]);
 
   // Countdown timer
   useEffect(() => {
@@ -139,6 +208,9 @@ export function RegistrationOverlay() {
   const videoStreamUrl = enrollmentToken
     ? `${presenceServerUrl ?? `http://${window.location.hostname}:5000`}/video_feed?token=${encodeURIComponent(enrollmentToken)}`
     : null;
+
+  const samplesCollected = registration?.samplesCollected || 0;
+  const reason = registration?.guidance?.reason;
 
   // Complete state - celebration!
   if (phase === 'complete') {
@@ -178,12 +250,15 @@ export function RegistrationOverlay() {
     <FaceCapture
       instruction={currentInstruction}
       userName={registration?.userName}
-      samplesCollected={registration?.samplesCollected || 0}
+      samplesCollected={samplesCollected}
       samplesNeeded={registration?.samplesNeeded || 5}
-      body="Use your phone to capture each photo"
+      body="The mirror takes each photo when you hold still"
+      hint={guidanceHint(reason, samplesCollected)}
+      hintActive={reason === 'hold'}
       videoStreamUrl={videoStreamUrl}
       countdown={countdown}
       pulse={phase === 'captured'}
+      hold={hold}
       overlay={showFlash && <div className="face-capture__flash" />}
     />
   );

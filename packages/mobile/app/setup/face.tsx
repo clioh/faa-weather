@@ -1,29 +1,25 @@
 /**
  * Face Registration Screen
  *
- * Remote control for face registration - captures photos using the mirror's camera.
- * This provides a seamless experience where the user sees the same view on both
- * their phone and the mirror, creating a magical synchronized experience.
+ * The phone starts the session (name, POST /api/registration/start); from then
+ * on the mirror's presence server takes each of the five photos itself once
+ * the face is framed, posed and steady, and shows live guidance on the glass.
+ * This screen follows along over the WebSocket: current instruction, the same
+ * hint, progress, Cancel, and a "Take photo now" fallback (3-2-1 countdown).
+ * The phone never shows the camera feed.
  */
 
 import { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  Animated,
-  ScrollView,
-} from 'react-native';
-import Svg, { Ellipse } from 'react-native-svg';
+import { View, StyleSheet, Animated, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { api, WS_CLOSE_PAIRING_REQUIRED } from '@/lib/api';
-import { MirrorCameraPreview, KeyboardAvoidingScreen } from '@/components';
+import { api, WS_CLOSE_PAIRING_REQUIRED, type RegistrationStatus } from '@/lib/api';
+import { KeyboardAvoidingScreen } from '@/components';
 import { goBack } from '@/lib/navigation';
 import { useUser } from '@/context/UserContext';
-import { Button, Field, Footer, IconCircle, Notice, Spinner, Text } from '@/components/ui';
+import { Button, Field, Footer, IconCircle, Notice, Text, TextButton } from '@/components/ui';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
 
 const REQUIRED_PHOTOS = 5;
@@ -37,15 +33,29 @@ const CAPTURE_INSTRUCTIONS = [
   { text: 'Now smile naturally', icon: 'happy-outline' },
 ];
 
-interface RegistrationState {
-  active: boolean;
-  samplesCollected: number;
-  samplesNeeded: number;
-  userName?: string;
-  currentInstruction?: string;
-  action?: string;
-  /** Token of the active enrollment session; the only key to the mirror's camera stream. */
-  enrollmentToken?: string | null;
+/** The mirror's hint for a guidance reason (same table as the mirror overlay). */
+function guidanceHint(guidance: RegistrationStatus['guidance'], step: number): string | null {
+  switch (guidance?.reason) {
+    case 'no_face':
+      return 'Step in front of the mirror';
+    case 'multiple':
+      return 'Only one person, please';
+    case 'too_far':
+      return 'Move a little closer';
+    case 'off_centre':
+      return 'Centre your face in the outline';
+    case 'turn_more':
+      if (step === 1 || step === 2) return 'Turn a little further';
+      if (step === 3) return 'Tilt up a little further';
+      if (step === 4) return 'A bigger smile';
+      return null;
+    case 'other_way':
+      return 'Now turn the other way';
+    case 'hold':
+      return 'Hold still';
+    default:
+      return null; // cooldown: the next instruction is enough
+  }
 }
 
 export default function FaceRegistrationScreen() {
@@ -54,9 +64,10 @@ export default function FaceRegistrationScreen() {
 
   const [step, setStep] = useState<'name' | 'capture' | 'complete'>('name');
   const [name, setName] = useState('');
-  const [registration, setRegistration] = useState<RegistrationState | null>(null);
+  const [registration, setRegistration] = useState<RegistrationStatus | null>(null);
   const [processing, setProcessing] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mirrorHost, setMirrorHost] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -67,12 +78,13 @@ export default function FaceRegistrationScreen() {
   stepRef.current = step;
   const activeRef = useRef(false);
   activeRef.current = registration?.active ?? false;
+  const cancellingRef = useRef(false);
 
   // The native back button / swipe-back can leave mid-capture. Cancel the
   // session on the mirror so it doesn't stay stuck in registration mode.
   useEffect(
     () => () => {
-      if (stepRef.current === 'capture' && activeRef.current) {
+      if (stepRef.current === 'capture' && activeRef.current && !cancellingRef.current) {
         api.cancelRegistration().catch(() => {});
       }
     },
@@ -80,7 +92,6 @@ export default function FaceRegistrationScreen() {
   );
 
   // Animation values
-  const pulseAnim = useState(new Animated.Value(1))[0];
   const flashAnim = useState(new Animated.Value(0))[0];
   const successScale = useState(new Animated.Value(0))[0];
 
@@ -104,7 +115,7 @@ export default function FaceRegistrationScreen() {
       try {
         const message = JSON.parse(event.data);
         if (message.type === 'registration') {
-          const data = message.data as RegistrationState;
+          const data = message.data as RegistrationStatus;
           setRegistration(data);
 
           if (data.action === 'capture-start') {
@@ -125,7 +136,10 @@ export default function FaceRegistrationScreen() {
               }),
             ]).start();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setCapturing(false);
+            setError(null);
+          } else if (data.action === 'cancelled' && !cancellingRef.current) {
+            // Expired, or ended on the mirror.
+            setError('The mirror ended registration. Go back and start again.');
           } else if (data.action === 'completed') {
             // Transition to success
             setStep('complete');
@@ -147,6 +161,15 @@ export default function FaceRegistrationScreen() {
       if (closed) return;
       ws = new WebSocket(api.getWebSocketUrl(), protocols);
       ws.onmessage = onMessage;
+      // Catch up on guidance / progress sent before the socket opened.
+      ws.onopen = () => {
+        api
+          .getRegistration()
+          .then((state) => {
+            if (!closed && state.active) setRegistration((prev) => ({ ...state, action: prev?.action }));
+          })
+          .catch(() => {});
+      };
       ws.onclose = (event) => {
         // Token revoked while enrolling: same as an HTTP 401 pairing_required.
         if (event.code === WS_CLOSE_PAIRING_REQUIRED) void api.handleSocketPairingRequired();
@@ -171,28 +194,6 @@ export default function FaceRegistrationScreen() {
       setCountdown(null);
     }
   }, [countdown]);
-
-  // Pulse animation for capture button
-  useEffect(() => {
-    if (step !== 'capture' || capturing) return;
-
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [step, capturing]);
 
   const startRegistration = async () => {
     if (!name.trim()) {
@@ -221,36 +222,47 @@ export default function FaceRegistrationScreen() {
     }
   };
 
+  // Fallback when hands-free capture doesn't trigger: the mirror counts down
+  // 3-2-1 and takes the photo with the framing check only.
   const capturePhoto = async () => {
     if (capturing) return;
 
     setCapturing(true);
+    setError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // Trigger capture on the mirror (this will start countdown)
       const result = await api.captureRegistration();
 
       if (!result.success) {
         setError(result.error || 'Capture failed');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setCapturing(false);
       }
-      // Success is handled via WebSocket
+      // The photo itself arrives as a 'captured' event.
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Capture failed');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
       setCapturing(false);
     }
   };
 
-  const currentInstruction = registration
-    ? CAPTURE_INSTRUCTIONS[Math.min(registration.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)]
-    : CAPTURE_INSTRUCTIONS[0];
+  const cancelCapture = async () => {
+    cancellingRef.current = true;
+    setCancelling(true);
+    try {
+      await api.cancelRegistration();
+    } catch {
+      // Leaving anyway; the session also expires on the mirror.
+    }
+    activeRef.current = false;
+    goBack('/dashboard');
+  };
 
-  // The mirror only streams its camera during the session this screen
-  // started, with that session's token (start response / WebSocket events).
-  const videoStreamUrl = api.getVideoFeedUrl(registration?.enrollmentToken ?? null);
+  const collected = registration?.samplesCollected || 0;
+  const currentInstruction = CAPTURE_INSTRUCTIONS[Math.min(collected, CAPTURE_INSTRUCTIONS.length - 1)];
+  // Right after a photo the stored hint is stale until the next one arrives.
+  const hint = registration?.action === 'captured' ? null : guidanceHint(registration?.guidance, collected);
 
   // Name entry step
   if (step === 'name') {
@@ -293,64 +305,42 @@ export default function FaceRegistrationScreen() {
     );
   }
 
-  // Capture step - remote control for mirror camera
+  // Capture step - progress while the mirror takes the photos
   if (step === 'capture') {
-    const collected = registration?.samplesCollected || 0;
+    const counting = countdown !== null && countdown > 0;
     return (
       <View style={styles.container}>
-        <Stack.Screen
-          options={{ title: 'Face Registration' }}
-        />
+        <Stack.Screen options={{ title: 'Face registration' }} />
 
         {/* Flash overlay */}
-        <Animated.View
-          style={[styles.flashOverlay, { opacity: flashAnim }]}
-          pointerEvents="none"
-        />
+        <Animated.View style={[styles.flashOverlay, { opacity: flashAnim }]} pointerEvents="none" />
 
         <ScrollView contentContainerStyle={styles.captureContent}>
-          {/* Camera preview from mirror */}
-          <View style={styles.previewContainer}>
-            <MirrorCameraPreview streamUrl={videoStreamUrl} style={styles.preview} />
-
-            {/* Face guide */}
-            <View style={styles.faceGuide} pointerEvents="none">
-              <Svg width={170} height={220}>
-                <Ellipse
-                  cx={85}
-                  cy={110}
-                  rx={84}
-                  ry={109}
-                  stroke={colors.faceGuide}
-                  strokeWidth={1.5}
-                  strokeDasharray="6 5"
-                  fill="none"
-                />
-              </Svg>
+          <View style={styles.heading}>
+            <View style={styles.mirrorCue}>
+              <Ionicons name="tv-outline" size={24} color={colors.primary} />
+              <Text style={styles.mirrorCueText}>Look at the mirror</Text>
             </View>
-
-            {/* Countdown overlay */}
-            {countdown !== null && countdown > 0 && (
-              <View style={styles.countdownOverlay}>
-                <Text style={styles.countdownNumber}>{countdown}</Text>
-              </View>
-            )}
-
-            {/* "Look at mirror" badge */}
-            <View style={styles.mirrorBadge}>
-              <Ionicons name="tv-outline" size={14} color={colors.primary} />
-              <Text style={styles.mirrorBadgeText}>Look at the mirror</Text>
-            </View>
+            <Text style={styles.subtitle}>
+              The mirror takes each photo when you hold still. Follow the prompts on the glass.
+            </Text>
           </View>
 
-          {/* Instruction */}
-          <View style={styles.instructionContainer}>
-            <Ionicons
-              name={currentInstruction.icon as keyof typeof Ionicons.glyphMap}
-              size={22}
-              color={colors.primary}
-            />
+          {/* Current instruction, or the 3-2-1 countdown of a manual photo */}
+          <View style={styles.stage} accessibilityLiveRegion="polite">
+            <View style={styles.stageCircle}>
+              {counting ? (
+                <Text style={styles.countdownNumber}>{countdown}</Text>
+              ) : (
+                <Ionicons
+                  name={currentInstruction.icon as keyof typeof Ionicons.glyphMap}
+                  size={40}
+                  color={colors.primary}
+                />
+              )}
+            </View>
             <Text style={styles.instructionText}>{currentInstruction.text}</Text>
+            <Text style={styles.hintText}>{counting ? 'Hold still' : hint ?? ' '}</Text>
           </View>
 
           {/* Progress */}
@@ -375,27 +365,22 @@ export default function FaceRegistrationScreen() {
           {error && <Notice tone="error" message={error} style={styles.captureError} />}
         </ScrollView>
 
-        {/* Capture button */}
-        <Footer style={styles.captureSection}>
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <Pressable
-              style={({ pressed }) => [styles.captureButton, pressed && styles.captureButtonPressed]}
-              onPress={capturePhoto}
-              disabled={capturing}
-              accessibilityRole="button"
-              accessibilityLabel="Capture photo"
-              accessibilityState={{ disabled: capturing, busy: capturing }}
-            >
-              {capturing ? (
-                <Spinner size="large" />
-              ) : (
-                <View style={styles.captureButtonInner} />
-              )}
-            </Pressable>
-          </Animated.View>
-          <Text style={styles.captureHint}>
-            {capturing ? 'Capturing...' : 'Tap to capture'}
-          </Text>
+        <Footer>
+          <Button
+            label="Take photo now"
+            variant="secondary"
+            icon="camera-outline"
+            onPress={capturePhoto}
+            loading={capturing}
+            disabled={cancelling || registration?.active === false}
+            accessibilityHint="The mirror counts down from three, then takes the photo"
+          />
+          <TextButton
+            label="Cancel"
+            onPress={cancelCapture}
+            disabled={cancelling}
+            style={styles.cancelButton}
+          />
         </Footer>
       </View>
     );
@@ -461,70 +446,54 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   captureContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: 12,
-    paddingBottom: spacing.md,
-    gap: 20,
-    alignItems: 'center',
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    gap: 32,
   },
-  previewContainer: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    maxHeight: 400,
-    borderRadius: 18,
+  mirrorCue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  mirrorCueText: {
+    ...typography.h1,
+    color: colors.text,
+  },
+  stage: {
+    alignItems: 'center',
+    gap: 14,
+    paddingTop: spacing.md,
+  },
+  stageCircle: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     borderWidth: 1,
-    borderColor: colors.thumbTileBorder,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  preview: {
-    ...StyleSheet.absoluteFill,
-  },
-  faceGuide: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countdownOverlay: {
-    ...StyleSheet.absoluteFill,
+    borderColor: colors.chipBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   countdownNumber: {
-    fontSize: 96,
+    fontSize: 64,
     fontWeight: '200',
     color: colors.text,
-    opacity: 0.9,
-  },
-  mirrorBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    height: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    backgroundColor: colors.previewPill,
-  },
-  mirrorBadgeText: {
-    fontSize: 12,
-    color: colors.text,
-  },
-  instructionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
   instructionText: {
-    fontSize: 17,
+    fontSize: 20,
     color: colors.text,
+    textAlign: 'center',
+  },
+  hintText: {
+    ...typography.body,
+    color: colors.primary,
+    textAlign: 'center',
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 12,
   },
   progressDots: {
@@ -551,31 +520,8 @@ const styles = StyleSheet.create({
   captureError: {
     alignSelf: 'stretch',
   },
-  captureSection: {
-    alignItems: 'center',
-  },
-  captureButton: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 2,
-    borderColor: colors.text,
-    padding: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  captureButtonPressed: {
-    opacity: 0.7,
-  },
-  captureButtonInner: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 33,
-    backgroundColor: colors.primary,
-  },
-  captureHint: {
-    ...typography.caption,
-    color: colors.textMuted,
+  cancelButton: {
+    alignSelf: 'center',
   },
   flashOverlay: {
     ...StyleSheet.absoluteFill,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FaceCapture } from './FaceCapture';
 import { PairingQr } from './PairingQr';
+import { RegistrationOverlay } from './RegistrationOverlay';
 import { SetupFrame } from './setup/SetupFrame';
 import { StepList, type StepListItem } from './setup/StepList';
 import { useMirrorInfo } from './setup/useMirrorInfo';
@@ -20,9 +20,6 @@ interface SetupStatus {
 
 interface RegistrationStatus {
   active: boolean;
-  samplesCollected: number;
-  samplesNeeded: number;
-  userName?: string;
 }
 
 interface SetupProgressScreenProps {
@@ -183,17 +180,10 @@ export function SetupProgressScreen({ license, onSetupComplete }: SetupProgressS
 
   const currentStep = getCurrentStep();
 
+  // App shows the overlay on the session's WS events; this covers a reload
+  // mid-session, before the next event arrives. Same screen either way.
   if (currentStep.isFaceRegistration) {
-    return (
-      <FaceCapture
-        instruction="Look at the mirror"
-        userName={registration?.userName}
-        samplesCollected={registration?.samplesCollected || 0}
-        samplesNeeded={registration?.samplesNeeded || 5}
-        body="Position your face in the center of the screen"
-        hint="Turn your head slightly for different angles"
-      />
-    );
+    return <RegistrationOverlay />;
   }
 
   // Set by OrientationFrame on <html>.

@@ -39,7 +39,8 @@ thing that grants access.
 - Who sends it: the backend on every call to the presence server
   (`routes/device.ts`, `/api/registration/*` in `server.ts`), and the presence
   server on its notifications to the backend's internal-only
-  `/api/registration/progress` and `/api/registration/complete`.
+  `/api/registration/progress`, `/api/registration/guidance` and
+  `/api/registration/complete`.
 - Anyone who can read `data/` on the device has full control; that is the same
   as having a shell on it.
 
@@ -167,7 +168,7 @@ walks every mounted route and asserts each non-allowlisted one answers 401
 to an unauthenticated LAN client, and that the gate precedes all routes.
 
 Inside the trusted set, a few routes narrow further: `GET /api/pairing/qr` is
-local only (403 for a phone), `/api/registration/progress|complete` need the
+local only (403 for a phone), `/api/registration/progress|guidance|complete` need the
 internal token, `POST /api/registration/cancel` with
 `source=presence-server` is only honoured with the internal token.
 

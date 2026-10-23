@@ -158,6 +158,29 @@ export interface OrientationState {
   preview: MirrorOrientation | null;
 }
 
+/** Why the mirror is still waiting to take the next face photo (hands-free capture). */
+export type RegistrationGuidanceReason =
+  | 'no_face'
+  | 'multiple'
+  | 'too_far'
+  | 'off_centre'
+  | 'turn_more'
+  | 'other_way'
+  | 'hold'
+  | 'cooldown';
+
+/** Face enrollment session (POST /api/registration/start, GET /api/registration, 'registration' events). */
+export interface RegistrationStatus {
+  active: boolean;
+  samplesCollected: number;
+  samplesNeeded: number;
+  userName?: string | null;
+  currentInstruction?: string;
+  action?: 'started' | 'guidance' | 'capture-start' | 'captured' | 'progress' | 'completed' | 'cancelled';
+  /** Latest hint from the presence server; null when idle and at the start of a session. */
+  guidance?: { reason: RegistrationGuidanceReason; holdMs: number } | null;
+}
+
 export interface MirrorConfig {
   airport: string;
   location: LocationConfig;
@@ -698,25 +721,6 @@ class MirrorAPI {
   }
 
   /**
-   * Get the presence server URL (port 5000). Empty string until setBaseUrl.
-   */
-  private getPresenceUrl(): string {
-    return this.baseUrl ? this.baseUrl.replace(':3001', ':5000') : '';
-  }
-
-  /**
-   * MJPEG stream from the mirror's camera, for live previews during enrollment.
-   * Needs the enrollmentToken returned by POST /api/registration/start (also in
-   * the 'registration' WebSocket events); the presence server refuses the
-   * stream without it and ends it when the session ends (docs/SECURITY.md).
-   */
-  getVideoFeedUrl(enrollmentToken: string | null): string | null {
-    const presenceUrl = this.getPresenceUrl();
-    if (!presenceUrl || !enrollmentToken) return null;
-    return `${presenceUrl}/video_feed?token=${encodeURIComponent(enrollmentToken)}`;
-  }
-
-  /**
    * Make a request to the main API server.
    *
    * When the mirror can't be reached at all (no HTTP response), the client
@@ -896,18 +900,16 @@ class MirrorAPI {
   // FACE ENROLLMENT (session control; progress arrives over the WebSocket)
   // ============================================================
 
-  async startRegistration(userName: string, userId?: string): Promise<{
-    active: boolean;
-    samplesCollected: number;
-    samplesNeeded: number;
-    userName?: string;
-    enrollmentToken?: string | null;
-    error?: string;
-  }> {
+  async startRegistration(userName: string, userId?: string): Promise<RegistrationStatus & { error?: string }> {
     return this.request('/api/registration/start', {
       method: 'POST',
       body: JSON.stringify({ userName, userId }),
     });
+  }
+
+  /** Current session state, to catch up on guidance sent before the WebSocket opened. */
+  async getRegistration(): Promise<RegistrationStatus> {
+    return this.request('/api/registration');
   }
 
   async captureRegistration(): Promise<{ success: boolean; error?: string }> {

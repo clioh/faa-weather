@@ -135,6 +135,20 @@ face under `face_data/users/<userId>/`. `/video_feed` streams the camera
 preview during enrollment. There is no browser registration or settings page;
 setup happens only in the phone app.
 
+Capture is hands-free (`auto_capture.py`): from `/api/start` on, one thread
+per session reads the camera (the feed and captures share its latest frame)
+and another analyses it at ~10 fps. Each of the 5 photos is taken once the
+face is framed (one face, at least 120px wide, centre within 80px of the frame
+centre), posed for the step (straight, turn, turn the other way, tilt up,
+smile; judged from YuNet's landmarks against the first photo) and steady for a
+second. A pose not reached within 8 s is dropped for that step. The server
+posts the hint to show (`/api/registration/guidance`, `no_face`, `too_far`,
+`hold`, `cooldown`, ...) to the backend whenever it changes, then `progress`
+and `complete` as before. `/api/capture` is the manual fallback: optional
+`{"delay": 0-5}` pauses auto capture for the countdown, then takes the latest
+frame with the framing check only. Tunables are constants at the top of
+`auto_capture.py`.
+
 ### Access control
 
 Every route except `/api/health`, `/api/status` and the login page needs a

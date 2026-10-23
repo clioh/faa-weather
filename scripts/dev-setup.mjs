@@ -628,6 +628,9 @@ async function enrollWithCamera({ userId, userName, samples }) {
       if (r.data.complete) break;
       await sleep(1000);
     } else {
+      // The presence server also captures hands-free; it may have finished the set itself.
+      const after = await probe(`${BACKEND_URL}/api/registration`);
+      if (after && !after.active && Number(after.samplesCollected) >= needed) break;
       failures++;
       warn(`Capture rejected: ${r.data?.error || r.data?.message || `HTTP ${r.status}`}`);
       if (failures >= 8) {

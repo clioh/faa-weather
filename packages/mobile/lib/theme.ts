@@ -94,8 +94,6 @@ export const colors = {
   ghostValid: 'rgba(122, 215, 255, 0.10)',
   ghostInvalid: 'rgba(255, 107, 122, 0.14)',
   ringTrack: 'rgba(255, 255, 255, 0.12)', // progress ring track
-  faceGuide: 'rgba(122, 215, 255, 0.6)', // dashed oval on the camera preview
-  previewPill: 'rgba(0, 0, 0, 0.6)', // pills over the camera preview
 };
 
 /** Notice tones: tinted fill, stronger border, light text in the tone's hue. */

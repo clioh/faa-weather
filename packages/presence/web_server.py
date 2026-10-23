@@ -36,6 +36,7 @@ import requests
 import cv2
 from flask import Flask, Response, jsonify, request
 
+import auto_capture
 import cameras
 import rotation
 import security
@@ -148,6 +149,10 @@ registration_state = {
     "samples_captured": 0,
     "encodings": [],
 }
+# Guards registration_state and the session's AutoCapture: request threads
+# (manual capture, reset), the analysis thread and the expiry timer all touch
+# them. Never held across a backend call or a thread join.
+registration_lock = threading.RLock()
 
 
 def internal_headers() -> dict:
@@ -218,16 +223,25 @@ def release_camera():
 upright = rotation.CameraRotation()
 
 
-def get_frame():
-    """Get a frame from the camera."""
+def read_camera():
+    """Read one upright frame straight from the camera (None if closed or failed)."""
     with camera_lock:
         if camera is None:
             return None
         ret, frame = camera.read()
         if not ret:
             return None
-        # Upright on a portrait mount, for the captures and the mirror's feed alike.
-        return upright.apply(frame)
+    # Upright on a portrait mount, for the captures and the mirror's feed alike.
+    return upright.apply(frame)
+
+
+def get_frame():
+    """A copy of the latest frame. During a session the CaptureLoop thread is
+    the only camera reader, shared by the feed, manual and auto capture."""
+    loop = _capture_loop
+    if loop is None:
+        return read_camera()
+    return loop.latest()
 
 
 # One detector shared by the MJPEG stream thread and the capture endpoints
@@ -246,8 +260,160 @@ def get_face_detector() -> FaceDetector:
 
 
 def detect_faces(frame):
-    """Detect faces; returns a list of (x, y, w, h) boxes."""
-    return get_face_detector().detect(frame)
+    """Detect faces; returns face_detect.Face records (box + landmarks)."""
+    return get_face_detector().detect_faces(frame)
+
+
+def detect_for_auto_capture(frame):
+    """The analysis thread's detector call (separate so tests can stub it)."""
+    return get_face_detector().detect_faces(frame)
+
+
+class CaptureLoop:
+    """One enrollment session's camera reader and hands-free capture.
+
+    The reader thread keeps the latest frame; the analysis thread runs face
+    detection at auto_capture.ANALYSIS_FPS, steps the session's AutoCapture,
+    stores samples and sends guidance to the backend (only from this thread,
+    so a slow backend never stalls frame reading).
+    """
+
+    READ_INTERVAL = 1 / 60   # paces cameras that return instantly
+    STALE_SECONDS = 1.0      # get_frame() returns None for older frames
+
+    def __init__(self, samples_needed: int):
+        self.auto = auto_capture.AutoCapture(samples_needed)
+        self._stop = threading.Event()
+        self._frame_cond = threading.Condition()
+        self._frame = None
+        self._frame_at = 0.0
+        self._seq = 0
+        self._paused = 0  # open manual captures; guarded by registration_lock
+        # Guidance reason last sent to the backend (store_sample sets cooldown).
+        self.last_guidance: Optional[str] = None
+        self._threads = [
+            threading.Thread(target=self._read_loop, name="enroll-camera", daemon=True),
+            threading.Thread(target=self._analyse_loop, name="enroll-analyse", daemon=True),
+        ]
+
+    def start(self) -> None:
+        for t in self._threads:
+            t.start()
+
+    def stop(self) -> None:
+        """Stop both threads; safe to call from either of them."""
+        self._stop.set()
+        with self._frame_cond:
+            self._frame_cond.notify_all()
+        for t in self._threads:
+            if t.is_alive() and t is not threading.current_thread():
+                t.join(timeout=3)
+
+    @property
+    def running(self) -> bool:
+        return any(t.is_alive() for t in self._threads)
+
+    def latest(self, wait: float = 1.0):
+        """Copy of the newest frame, waiting up to ``wait`` s for a first one."""
+        with self._frame_cond:
+            if self._frame is None and not self._stop.is_set():
+                self._frame_cond.wait(wait)
+            if self._frame is None or time.monotonic() - self._frame_at > self.STALE_SECONDS:
+                return None
+            return self._frame.copy()
+
+    def pause(self) -> None:
+        with registration_lock:
+            self._paused += 1
+
+    def resume(self) -> None:
+        with registration_lock:
+            self._paused = max(0, self._paused - 1)
+            if not self._paused:
+                self.auto.reset_hold()
+
+    def _read_loop(self) -> None:
+        while not self._stop.is_set():
+            started = time.monotonic()
+            frame = read_camera()
+            if frame is None:
+                self._stop.wait(0.05)
+                continue
+            with self._frame_cond:
+                self._frame = frame
+                self._frame_at = time.monotonic()
+                self._seq += 1
+                self._frame_cond.notify_all()
+            self._stop.wait(max(0.0, self.READ_INTERVAL - (time.monotonic() - started)))
+
+    def _analyse_loop(self) -> None:
+        interval = 1.0 / auto_capture.ANALYSIS_FPS
+        last_seq = 0
+        failed = False
+        while not self._stop.is_set():
+            started = time.monotonic()
+            with self._frame_cond:
+                frame, seq = self._frame, self._seq
+            if frame is not None and seq != last_seq:
+                last_seq = seq
+                try:
+                    self._analyse(frame)
+                    failed = False
+                except Exception as e:  # keep the session alive; manual capture still works
+                    if not failed:
+                        print(f"[Enrollment] Auto capture error: {e}")
+                    failed = True
+            self._stop.wait(max(0.0, interval - (time.monotonic() - started)))
+
+    def _analyse(self, frame) -> None:
+        """One analysis step: decide, send guidance on change, capture."""
+        faces = detect_for_auto_capture(frame)
+        with registration_lock:
+            if self._paused or self._stop.is_set() or not registration_state["active"]:
+                return
+            decision = self.auto.update(faces, frame.shape, time.monotonic())
+
+        if decision.reason != self.last_guidance or decision.hold_restarted:
+            send_guidance(decision.reason)
+
+        if decision.capture:
+            result = store_sample(frame, faces[0])
+            if result["success"]:
+                print(f"[Enrollment] Auto capture {result['samples_captured']}/{result['samples_needed']}")
+            else:
+                with registration_lock:
+                    self.auto.capture_failed()
+
+
+def send_guidance(reason: str) -> None:
+    """POST /api/registration/guidance; the backend keeps the last one."""
+    loop = _capture_loop
+    if loop is not None:
+        loop.last_guidance = reason
+    hold_ms = int(auto_capture.HOLD_SECONDS * 1000) if reason == auto_capture.HOLD else 0
+    notify_backend("guidance", {"reason": reason, "holdMs": hold_ms})
+
+
+# The open session's CaptureLoop (None outside a session).
+_capture_loop: Optional[CaptureLoop] = None
+_capture_loop_lock = threading.Lock()
+
+
+def start_capture_loop() -> None:
+    global _capture_loop
+    stop_capture_loop()
+    loop = CaptureLoop(registration_state["samples_needed"])
+    with _capture_loop_lock:
+        _capture_loop = loop
+    loop.start()
+
+
+def stop_capture_loop() -> None:
+    global _capture_loop
+    with _capture_loop_lock:
+        loop, _capture_loop = _capture_loop, None
+    if loop is not None:
+        loop.stop()
 
 
 def _get_gate() -> security.EnrollmentGate:
@@ -274,10 +440,13 @@ def end_enrollment(notify: bool) -> None:
     if _expiry_timer is not None:
         _expiry_timer.cancel()
         _expiry_timer = None
-    was_active = registration_state["active"]
-    registration_state["active"] = False
-    registration_state["samples_captured"] = 0
-    registration_state["encodings"] = []
+    # Before release_camera: the loop's reader is the camera's only user.
+    stop_capture_loop()
+    with registration_lock:
+        was_active = registration_state["active"]
+        registration_state["active"] = False
+        registration_state["samples_captured"] = 0
+        registration_state["encodings"] = []
     release_camera()
     if notify and was_active:
         # Hide the mirror overlay. source=presence-server stops the backend
@@ -307,44 +476,7 @@ def generate_frames(token: str):
                 time.sleep(0.1)
                 continue
 
-            # Detect faces
-            faces = detect_faces(frame)
-
-            # Draw face rectangles
-            h, w_frame = frame.shape[:2]
-            center_x, center_y = w_frame // 2, h // 2
-
-            # Draw center guide box
-            guide_size = 120
-            cv2.rectangle(
-                frame,
-                (center_x - guide_size, center_y - guide_size),
-                (center_x + guide_size, center_y + guide_size),
-                (100, 100, 100),
-                2,
-            )
-
-            for (x, y, w, h) in faces:
-                face_center_x = x + w // 2
-                face_center_y = y + h // 2
-
-                # Check if face is centered and large enough
-                dx = abs(face_center_x - center_x)
-                dy = abs(face_center_y - center_y)
-
-                if dx < 80 and dy < 80 and w > 120:
-                    color = (0, 255, 0)  # Green - ready
-                else:
-                    color = (0, 165, 255)  # Orange - not ready
-
-                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-
-            # Add status overlay
-            if registration_state["active"]:
-                status_text = f"Sample {registration_state['samples_captured'] + 1}/{registration_state['samples_needed']}"
-                cv2.putText(frame, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-
-            # Encode frame as JPEG
+            # Plain frames: the mirror UI draws its own outline and hints.
             _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             frame_bytes = buffer.tobytes()
 
@@ -424,12 +556,15 @@ def api_start():
     if not acquire_camera():
         return jsonify({"success": False, "message": "Camera not available"}), 503
 
-    registration_state["active"] = True
-    registration_state["user_id"] = user_id
-    registration_state["user_name"] = name if isinstance(name, str) and name.strip() else "Unknown"
-    registration_state["samples_captured"] = 0
-    registration_state["encodings"] = []
+    with registration_lock:
+        registration_state["active"] = True
+        registration_state["user_id"] = user_id
+        registration_state["user_name"] = name if isinstance(name, str) and name.strip() else "Unknown"
+        registration_state["samples_captured"] = 0
+        registration_state["encodings"] = []
     token, expires_at = open_enrollment()
+    # Hands-free capture (auto_capture.py) watches the camera from here on.
+    start_capture_loop()
 
     return jsonify({
         "success": True,
@@ -439,80 +574,104 @@ def api_start():
     })
 
 
+MAX_CAPTURE_DELAY = 5
+
+
 @app.route('/api/capture', methods=['POST'])
 @enrollment_required(_get_gate, allow_internal=True)
 def api_capture():
-    """Capture a face sample (backend with the internal token, or the
-    enrollment token in X-SkyGlass-Enrollment)."""
+    """Capture a face sample now (backend with the internal token, or the
+    enrollment token in X-SkyGlass-Enrollment): the manual fallback to the
+    hands-free capture.
+
+    Optional JSON {"delay": seconds, 0-5}: auto capture is paused, the server
+    waits that long (the mirror's 3-2-1 countdown), then captures the latest
+    frame with the framing check only.
+    """
+    data = request.get_json(silent=True)
+    delay = data.get("delay", 0) if isinstance(data, dict) else 0
+    if (isinstance(delay, bool) or not isinstance(delay, (int, float))
+            or not 0 <= delay <= MAX_CAPTURE_DELAY):
+        return jsonify({"success": False, "message": f"delay must be 0-{MAX_CAPTURE_DELAY} seconds"}), 400
+
     if not enrollment_active():
         return jsonify({"success": False, "message": "Registration not active"})
 
+    loop = _capture_loop
+    if loop is not None:
+        loop.pause()
+    try:
+        if delay:
+            time.sleep(delay)
+            if not enrollment_active():
+                return jsonify({"success": False, "message": "Registration not active"})
+        return jsonify(capture_now())
+    finally:
+        if loop is not None:
+            loop.resume()
+
+
+def capture_now() -> dict:
+    """Manual capture of the latest frame: framing check, then store_sample."""
     frame = get_frame()
     if frame is None:
-        return jsonify({"success": False, "message": "Camera not available"})
+        return {"success": False, "message": "Camera not available"}
 
-    # Detect faces
     faces = detect_faces(frame)
+    reason = auto_capture.assess_framing(faces, frame.shape)
+    if reason in (auto_capture.NO_FACE, auto_capture.MULTIPLE):
+        return {"success": False, "message": "Need exactly one face visible"}
+    if reason is not None:
+        return {"success": False, "message": "Center your face in the box"}
+    return store_sample(frame, faces[0])
 
-    if len(faces) != 1:
-        return jsonify({
-            "success": False,
-            "message": "Need exactly one face visible"
-        })
 
-    x, y, w, h = faces[0]
+def store_sample(frame, face) -> dict:
+    """Encode and count one sample (manual and auto capture alike), notify
+    the backend, and finish the registration after the last one.
 
-    # Check if face is centered and large enough
-    frame_h, frame_w = frame.shape[:2]
-    center_x, center_y = frame_w // 2, frame_h // 2
-    face_center_x = x + w // 2
-    face_center_y = y + h // 2
-
-    dx = abs(face_center_x - center_x)
-    dy = abs(face_center_y - center_y)
-
-    if dx > 80 or dy > 80 or w < 120:
-        return jsonify({
-            "success": False,
-            "message": "Center your face in the box"
-        })
-
+    Returns the /api/capture response body.
+    """
     # Encode the face YuNet found, exactly as detector.py does when matching.
     # A sample that cannot be encoded is not counted: every registration must
     # end with one encoding per sample or the detector cannot recognise them.
+    encoding = None
     if FR_AVAILABLE:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        encodings = face_recognition.face_encodings(rgb, dlib_locations([faces[0]]))
+        encodings = face_recognition.face_encodings(rgb, dlib_locations([face]))
         if not encodings:
-            return jsonify({
-                "success": False,
-                "message": "Hold still and face the mirror"
-            })
-        registration_state["encodings"].append(encodings[0])
+            return {"success": False, "message": "Hold still and face the mirror"}
+        encoding = encodings[0]
 
-    registration_state["samples_captured"] += 1
+    with registration_lock:
+        needed = registration_state["samples_needed"]
+        if not registration_state["active"] or registration_state["samples_captured"] >= needed:
+            return {"success": False, "message": "Registration not active"}
+        if encoding is not None:
+            registration_state["encodings"].append(encoding)
+        registration_state["samples_captured"] += 1
+        captured = registration_state["samples_captured"]
+        complete = captured >= needed
+        loop = _capture_loop
+        if loop is not None:
+            # Manual samples advance the hands-free steps too.
+            loop.auto.captured(time.monotonic(), face)
+        if complete:
+            save_registration()
 
-    # Notify backend of progress
-    notify_backend("progress", {
-        "samplesCollected": registration_state["samples_captured"],
-        "samplesNeeded": registration_state["samples_needed"],
-    })
-
-    # Check if complete
-    complete = registration_state["samples_captured"] >= registration_state["samples_needed"]
-
-    captured = registration_state["samples_captured"]
+    # Drop "Hold still" on the mirror and phone at once, then report progress.
+    send_guidance(auto_capture.COOLDOWN_REASON)
+    notify_backend("progress", {"samplesCollected": captured, "samplesNeeded": needed})
     if complete:
-        save_registration()
         end_enrollment(notify=False)
         notify_backend("complete", {})
 
-    return jsonify({
+    return {
         "success": True,
         "samples_captured": captured,
-        "samples_needed": registration_state["samples_needed"],
+        "samples_needed": needed,
         "complete": complete,
-    })
+    }
 
 
 @app.route('/api/reset', methods=['POST'])

@@ -6,7 +6,6 @@ export { AirportPicker } from './AirportPicker';
 export { LocationPicker, type LocationData } from './LocationPicker';
 export { ColorPicker } from './ColorPicker';
 export { OnboardingProgress, type OnboardingPhase } from './OnboardingProgress';
-export { MirrorCameraPreview } from './MirrorCameraPreview';
 export {
   ErrorToast,
   InlineError,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useWsEvent } from './components/modules/useWsEvent';
 import { UpdateNotification } from './components/UpdateNotification';
@@ -77,6 +77,8 @@ async function fetchLicenseStatus(): Promise<LicenseStatus | null> {
 
 /** While the license screen is up, re-check this often in case a WS event was missed. */
 const LICENSE_RECHECK_MS = 60_000;
+/** How long the registration welcome screen stays up after the last photo. */
+const WELCOME_MS = 6000;
 
 /** Startup requests that failed (backend still starting) are retried: 1 s, 2 s, 4 s … up to 30 s. */
 const RETRY_MAX_MS = 30_000;
@@ -122,6 +124,7 @@ function App() {
   const [isPresent, setIsPresent] = useState(true);
   const [presenceState, setPresenceState] = useState<PresenceState>('present');
   const [registrationMode, setRegistrationMode] = useState(false);
+  const registrationEndTimer = useRef<number | undefined>(undefined);
   const [appMode, setAppMode] = useState<AppMode>('loading');
   const { lastMessage, isConnected } = useWebSocket(WS_URL);
 
@@ -363,8 +366,14 @@ function App() {
     }
 
     if (lastMessage.type === 'registration') {
-      const data = lastMessage.data as { active: boolean };
-      setRegistrationMode(data.active);
+      const data = lastMessage.data as { active: boolean; action?: string };
+      window.clearTimeout(registrationEndTimer.current);
+      if (data.action === 'completed') {
+        // `active` is already false: keep the overlay up for its welcome screen.
+        registrationEndTimer.current = window.setTimeout(() => setRegistrationMode(false), WELCOME_MS);
+      } else {
+        setRegistrationMode(data.active);
+      }
     }
 
     // Handle layout updates from mobile app
@@ -423,6 +432,12 @@ function App() {
     );
   }
 
+  // Registration takes over every screen past WiFi, setup included, so the
+  // setup screen's Face step shows the live feed and guidance too.
+  if (registrationMode) {
+    return <RegistrationOverlay />;
+  }
+
   // Show setup progress screen if setup is needed
   // This shows on the mirror while user configures on phone
   if (appMode === 'setup') {
@@ -459,11 +474,6 @@ function App() {
         <span>Loading...</span>
       </div>
     );
-  }
-
-  // Show registration overlay when in registration mode
-  if (registrationMode) {
-    return <RegistrationOverlay />;
   }
 
   const renderContent = () => {
