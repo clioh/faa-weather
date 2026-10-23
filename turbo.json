@@ -16,7 +16,6 @@
         "PORT",
         "TMPDIR",
         "CORS_*",
-        "CLOUD_RELAY_URL",
         "GITHUB_REPO",
         "CAMERA_INDEX",
         "DEBUG",
@@ -37,9 +36,6 @@
     },
     "lint": {
       "dependsOn": ["^build"]
-    },
-    "clean": {
-      "cache": false
     }
   },
   "globalDependencies": ["eslint.config.mjs"]

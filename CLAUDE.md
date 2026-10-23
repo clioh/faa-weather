@@ -25,7 +25,6 @@ SkyGlass/
 │   ├── frontend/       # React display UI (Vite + TypeScript)
 │   ├── mobile/         # React Native/Expo mobile app
 │   ├── presence/       # Python presence detection (OpenCV, face_recognition)
-│   ├── cloud-api/      # Cloud sync API (optional)
 │   └── website/        # Marketing site + store, license API (Vercel)
 ├── config/             # default.yaml / config.yaml, PM2 config, systemd units
 ├── scripts/            # Setup and utility shell scripts
@@ -73,7 +72,6 @@ npm run format        # Run Prettier
 | Frontend         | 5173 | React UI (Vite dev server, `npm run dev` only; in production the backend serves the built UI on 3001)                                         |
 | Presence / Admin | 5000 | Flask presence server (`packages/presence/web_server.py`, gunicorn `wsgi:app` in production): enrollment API, camera feed, slim `/admin` page |
 | mDNS             | -    | Advertises `_skyglass._tcp` for discovery (from the backend, `services/mdns.ts`)                                                              |
-| Cloud API        | 3003 | Optional, separate deployment (`packages/cloud-api`)                                                                                          |
 | Website          | 5174 | Marketing site dev server (`packages/website`, deployed to Vercel; also hosts the license API, `api/license`)                                 |
 
 ## Key Directories
@@ -89,11 +87,12 @@ npm run format        # Run Prettier
 - `docs/CLOUD_SERVICE.md` - skyglass.dev functions holding all third-party keys (OAuth broker, NOTAM and stock proxies); mirror setting `skyglass_service`
 - `docs/design/` - Glass Cockpit redesign: `DESIGN_SYSTEM.md` (tokens, components), `SCREENS.md` (route → mockup map), `IMPLEMENTATION_PLAN.md` (phased work), `mockups/*.dc.html` + `mockups/app.css` (reference markup for every app screen and the website). Mobile tokens live in `packages/mobile/lib/theme.ts`
 - `docs/build-guide/` - Customer bill of materials: `bom.html` is the source, `SkyGlass-Bill-of-Materials.pdf` is built from it with `npm run docs:bom` (headless Chrome). `docs/HARDWARE.md` (assembly) refers to its part codes
+- `docs/KIT_CARDS.md` - Kit SD cards: golden image from a reference Pi (`scripts/prepare-image.sh`), captured and written per kit with `scripts/flash-sd.sh` (license key + orientation files; `scripts/provision-sd.sh` issues keys)
 - `docs/PRE_LAUNCH_CHECKLIST.md` - Open security, setup, device-testing and release items; keep it current
 - `docs/WIDGETS.md` - Widget data endpoints (news, finance, weather, winds aloft, todos, photos) and the `data/` files they use
 - `packages/presence/` - Python presence detection scripts
 - `config/pm2.config.cjs` - PM2 apps: skyglass-backend (:3001, also serves the built mirror UI), skyglass-detector, skyglass-admin (:5000)
-- `config/systemd/` - systemd units for skyglass-boot, skyglass-provision, skyglass-watchdog (installed by `scripts/setup-pi.sh`)
+- `config/systemd/` - systemd units for skyglass-boot, skyglass-provision, skyglass-watchdog (installed by `scripts/setup-pi.sh`), and skyglass-firstboot (kit cards only, armed by `scripts/prepare-image.sh`)
 
 ## Naming Conventions
 
