@@ -29,6 +29,7 @@
     "setup:pi": "./scripts/setup-pi.sh",
     "update": "./scripts/update.sh",
     "update:check": "./scripts/update.sh --check",
+    "test:update": "node --test scripts/tests/*.test.mjs",
     "docs:bom": "./scripts/build-bom-pdf.sh"
   },
   "devDependencies": {

@@ -183,6 +183,22 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
 - [ ] Run the app's Orientation step on a real phone (iOS and Android): previews follow each tap,
       Back returns the mirror to the saved orientation, and Settings › Mirror › Orientation saves.
 
+**Updates that fail** (`docs/UPDATES.md`; the simulated versions run in CI as `npm run test:update`,
+backend `updater.test.ts` and presence `test_watchdog_updates.py`)
+- [ ] Publish two test releases from a fork (`GITHUB_REPO`), install the older one on a Pi, then
+      update from the display. Check `logs/update.log`, that faces, layouts, `config.yaml` and
+      paired phones survive, and how long `npm install` takes when the lockfile changes.
+- [ ] **Network drop.** Pull the network mid-download (the mirror reports the error and a retry
+      works), and again during `npm install` on a release whose lockfile changed (the mirror rolls
+      back to the old version and starts, with no network).
+- [ ] **Power loss.** Cut power during the install, several times at different points. Each boot
+      runs `update.sh --recover` from `skyglass-boot` and comes back on the old version; the
+      watchdog logs "Update in progress; pausing service restarts" and never restarts apps mid-update.
+- [ ] **Bad release.** Ship a release whose backend crashes a few seconds after starting: the
+      stability check (6 checks, 5 s apart) rolls it back.
+- [ ] Run `npm run test:update` on the Pi itself (Raspberry Pi OS: GNU rsync and coreutils), and
+      check that the CI `test-update` job passes on its first Linux run.
+
 ## 4. Repository and release hygiene
 
 - [ ] **Commit the work in reviewable pieces.** The working tree holds the release-prep pass,

@@ -1,24 +1,94 @@
 /**
  * Update Service
  * Handles checking for and applying software updates via GitHub Releases
+ *
+ * Download integrity contract (scripts/update.sh relies on it):
+ * - the tarball is downloaded to `.update-temp/release-<version>.tar.gz.part`;
+ * - only when every byte arrived (Content-Length and the GitHub asset size) AND its
+ *   SHA-256 equals the release's published `<asset>.sha256`, the .part is renamed to
+ *   `release-<version>.tar.gz` and the digest is written to `release-<version>.tar.gz.sha256`;
+ * - "download ready" means both files exist and the tarball still hashes to that digest
+ *   (re-checked on every update check and right before launching update.sh, which also
+ *   receives the digest via `--sha256` and re-verifies before extracting).
  */
 
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import https from 'https';
-import { createWriteStream } from 'fs';
 import { EventEmitter } from 'events';
+import {
+  DEFAULT_CONNECT_TIMEOUT_MS,
+  DEFAULT_STALL_TIMEOUT_MS,
+  downloadToFile,
+  fetchText,
+  parseChecksum,
+  sha256File,
+} from './updateDownload.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = path.resolve(__dirname, '../../../../');
-const UPDATE_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'update.sh');
+const DEFAULT_PROJECT_ROOT = path.resolve(__dirname, '../../../../');
 
 // GitHub repository for releases
 const GITHUB_REPO = process.env.GITHUB_REPO || 'YOUR_USERNAME/SkyGlass';
 const REPO_PLACEHOLDER = /YOUR_USERNAME|^\s*$/;
-const GITHUB_API_BASE = 'https://api.github.com';
+const DEFAULT_GITHUB_API_BASE = 'https://api.github.com';
+// Versions become file names; never let a tag name escape .update-temp.
+const SAFE_VERSION = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/;
+
+export const NO_CHECKSUM_MESSAGE = 'Release has no checksum; refusing to install';
+export const BAD_CHECKSUM_FILE_MESSAGE = 'Could not read the release checksum; refusing to install';
+export const CHECKSUM_MISMATCH_MESSAGE =
+  'Downloaded update failed checksum verification; try downloading again';
+export const VERIFY_FAILED_MESSAGE =
+  'Downloaded update is damaged or incomplete; please download it again';
+
+/** Launches scripts/update.sh detached; injectable for tests. */
+export type UpdateLauncher = (
+  script: string,
+  args: string[],
+  opts: { cwd: string; outLog: string }
+) => Promise<void>;
+
+export interface UpdateServiceOptions {
+  /** Repo checkout root (VERSION, package.json, scripts/, logs/). */
+  projectRoot?: string;
+  /** Download dir; default `<projectRoot>/.update-temp` or $SKYGLASS_UPDATE_TEMP_DIR. */
+  tempDir?: string;
+  /** Default https://api.github.com or $GITHUB_API_BASE. */
+  githubApiBase?: string;
+  /** Default `<projectRoot>/scripts/update.sh`. */
+  updateScript?: string;
+  /** Abort a download when no bytes arrive for this long. Default 60 s. */
+  stallTimeoutMs?: number;
+  /** Abort when the server does not answer with headers within this long. Default 30 s. */
+  connectTimeoutMs?: number;
+  launcher?: UpdateLauncher;
+}
+
+const defaultLauncher: UpdateLauncher = async (script, args, { cwd, outLog }) => {
+  // It must run outside this process: it stops and restarts skyglass-backend,
+  // i.e. us. `bash -c '... &'` double-forks so the script is reparented
+  // away from this process and is not killed by PM2's tree-kill when the
+  // backend is stopped. --delay gives us time to send the HTTP response.
+  const child = spawn(
+    '/bin/bash',
+    ['-c', 'nohup "$0" "$@" >> "$UPDATE_OUT_LOG" 2>&1 < /dev/null &', script, ...args],
+    {
+      cwd,
+      detached: true,
+      stdio: 'ignore',
+      env: { ...process.env, UPDATE_OUT_LOG: outLog },
+    }
+  );
+  await new Promise<void>((resolve, reject) => {
+    child.once('error', reject);
+    child.once('exit', (code) =>
+      code === 0 ? resolve() : reject(new Error(`Failed to launch updater (exit ${code})`))
+    );
+  });
+  child.unref();
+};
 
 export interface ReleaseInfo {
   version: string;
@@ -28,6 +98,10 @@ export interface ReleaseInfo {
   publishedAt: string;
   downloadUrl: string;
   size: number;
+  /** File name of the tarball asset (the .sha256 file names it). */
+  assetName: string;
+  /** browser_download_url of `<assetName>.sha256`, or null if the release has none. */
+  checksumUrl: string | null;
 }
 
 export interface DownloadProgress {
@@ -87,63 +161,7 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-/**
- * Make HTTPS request to GitHub API
- */
-async function githubApiRequest<T>(endpoint: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const url = `${GITHUB_API_BASE}${endpoint}`;
-    const options = {
-      headers: {
-        'User-Agent': 'SkyGlass-Updater',
-        Accept: 'application/vnd.github.v3+json',
-      },
-    };
-
-    https
-      .get(url, options, (res) => {
-        if (res.statusCode === 301 || res.statusCode === 302) {
-          const redirectUrl = res.headers.location;
-          if (redirectUrl) {
-            https
-              .get(redirectUrl, options, (redirectRes) => {
-                let data = '';
-                redirectRes.on('data', (chunk) => (data += chunk));
-                redirectRes.on('end', () => {
-                  try {
-                    resolve(JSON.parse(data));
-                  } catch {
-                    reject(new Error('Failed to parse GitHub API response'));
-                  }
-                });
-              })
-              .on('error', reject);
-          } else {
-            reject(new Error('Redirect without location header'));
-          }
-          return;
-        }
-
-        if (res.statusCode !== 200) {
-          reject(new Error(`GitHub API returned status ${res.statusCode}`));
-          return;
-        }
-
-        let data = '';
-        res.on('data', (chunk) => (data += chunk));
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch {
-            reject(new Error('Failed to parse GitHub API response'));
-          }
-        });
-      })
-      .on('error', reject);
-  });
-}
-
-class UpdateService extends EventEmitter {
+export class UpdateService extends EventEmitter {
   private status: UpdateStatus = {
     updateAvailable: false,
     currentVersion: '',
@@ -179,6 +197,39 @@ class UpdateService extends EventEmitter {
   private updateInProgress = false;
   private warnedNoRepo = false;
   private downloadedTarball: string | null = null;
+  private downloading = false;
+
+  private readonly projectRoot: string;
+  private readonly tempDir: string;
+  private readonly githubApiBase: string;
+  private readonly updateScript: string;
+  private readonly launcher: UpdateLauncher;
+  private stallTimeoutMs: number;
+  private connectTimeoutMs: number;
+
+  constructor(options: UpdateServiceOptions = {}) {
+    super();
+    this.projectRoot = options.projectRoot ?? DEFAULT_PROJECT_ROOT;
+    this.tempDir =
+      options.tempDir ??
+      process.env.SKYGLASS_UPDATE_TEMP_DIR ??
+      path.join(this.projectRoot, '.update-temp');
+    this.githubApiBase = (
+      options.githubApiBase ??
+      process.env.GITHUB_API_BASE ??
+      DEFAULT_GITHUB_API_BASE
+    ).replace(/\/+$/, '');
+    this.updateScript = options.updateScript ?? path.join(this.projectRoot, 'scripts', 'update.sh');
+    this.launcher = options.launcher ?? defaultLauncher;
+    this.stallTimeoutMs = options.stallTimeoutMs ?? DEFAULT_STALL_TIMEOUT_MS;
+    this.connectTimeoutMs = options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
+  }
+
+  /** Test hook: shorten the network timeouts. */
+  setTimeouts(t: { stallTimeoutMs?: number; connectTimeoutMs?: number }): void {
+    if (t.stallTimeoutMs !== undefined) this.stallTimeoutMs = t.stallTimeoutMs;
+    if (t.connectTimeoutMs !== undefined) this.connectTimeoutMs = t.connectTimeoutMs;
+  }
 
   /**
    * Initialize the update service
@@ -191,6 +242,8 @@ class UpdateService extends EventEmitter {
     this.status.autoDownloadEnabled = this.config.autoDownload;
 
     await this.getCurrentVersion();
+    // A crash or power cut mid-download leaves a .part behind; it is never usable.
+    this.removePartFiles();
 
     if (this.config.checkInterval > 0) {
       this.scheduleCheck();
@@ -216,14 +269,14 @@ class UpdateService extends EventEmitter {
 
   private async getCurrentVersion(): Promise<string> {
     try {
-      const versionFile = path.join(PROJECT_ROOT, 'VERSION');
+      const versionFile = path.join(this.projectRoot, 'VERSION');
       if (fs.existsSync(versionFile)) {
         const version = fs.readFileSync(versionFile, 'utf-8').trim();
         this.status.currentVersion = version;
         return version;
       }
 
-      const packageJson = path.join(PROJECT_ROOT, 'package.json');
+      const packageJson = path.join(this.projectRoot, 'package.json');
       if (fs.existsSync(packageJson)) {
         const pkg = JSON.parse(fs.readFileSync(packageJson, 'utf-8'));
         this.status.currentVersion = pkg.version || '0.0.0';
@@ -238,10 +291,67 @@ class UpdateService extends EventEmitter {
     }
   }
 
+  private tarballPathFor(version: string): string {
+    return path.join(this.tempDir, `release-${version}.tar.gz`);
+  }
+
+  private removePartFiles(): void {
+    try {
+      for (const file of fs.readdirSync(this.tempDir)) {
+        if (file.endsWith('.part')) {
+          fs.rmSync(path.join(this.tempDir, file), { force: true });
+        }
+      }
+    } catch {
+      // temp dir does not exist yet
+    }
+  }
+
+  private removeDownloaded(tarballPath: string): void {
+    fs.rmSync(tarballPath, { force: true });
+    fs.rmSync(`${tarballPath}.sha256`, { force: true });
+  }
+
+  /**
+   * Is release-<version>.tar.gz a complete, verified download? Requires the tarball and
+   * its .sha256 file, and recomputes the tarball's hash. Anything else (a leftover
+   * partial file from an old crash, a missing/garbled .sha256, a mismatch) is deleted.
+   */
+  private async verifyDownloaded(version: string): Promise<string | null> {
+    const tarballPath = this.tarballPathFor(version);
+    const shaPath = `${tarballPath}.sha256`;
+    const hasTarball = fs.existsSync(tarballPath);
+    const hasSha = fs.existsSync(shaPath);
+    if (!hasTarball && !hasSha) return null;
+    if (!hasTarball || !hasSha) {
+      console.warn(`Discarding incomplete update download for v${version}`);
+      this.removeDownloaded(tarballPath);
+      return null;
+    }
+    try {
+      const expected = fs.readFileSync(shaPath, 'utf-8').trim().toLowerCase();
+      if (!/^[0-9a-f]{64}$/.test(expected)) throw new Error('bad .sha256 file');
+      const actual = await sha256File(tarballPath);
+      if (actual !== expected) throw new Error('checksum mismatch');
+      return expected;
+    } catch (error) {
+      console.warn(
+        `Discarding update download for v${version}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      this.removeDownloaded(tarballPath);
+      return null;
+    }
+  }
+
   private async fetchLatestRelease(): Promise<ReleaseInfo | null> {
     try {
-      const endpoint = `/repos/${this.config.githubRepo}/releases/latest`;
-      const release = await githubApiRequest<{
+      const url = `${this.githubApiBase}/repos/${this.config.githubRepo}/releases/latest`;
+      const text = await fetchText(url, {
+        headers: { Accept: 'application/vnd.github.v3+json' },
+        connectTimeoutMs: this.connectTimeoutMs,
+        stallTimeoutMs: this.stallTimeoutMs,
+      });
+      let release: {
         tag_name: string;
         name: string;
         body: string;
@@ -251,23 +361,39 @@ class UpdateService extends EventEmitter {
           browser_download_url: string;
           size: number;
         }>;
-      }>(endpoint);
+      };
+      try {
+        release = JSON.parse(text);
+      } catch {
+        throw new Error('Failed to parse GitHub API response');
+      }
 
-      const tarball = release.assets.find((a) => a.name.endsWith('.tar.gz'));
+      const assets = Array.isArray(release.assets) ? release.assets : [];
+      const tarball = assets.find((a) => a.name.endsWith('.tar.gz'));
 
       if (!tarball) {
         console.warn('No tarball found in latest release');
         return null;
       }
 
+      const version = String(release.tag_name ?? '').replace(/^v/, '');
+      if (!SAFE_VERSION.test(version)) {
+        console.warn(`Ignoring release with unusable tag name: ${release.tag_name}`);
+        return null;
+      }
+
+      const checksum = assets.find((a) => a.name === `${tarball.name}.sha256`);
+
       return {
-        version: release.tag_name.replace(/^v/, ''),
+        version,
         tag: release.tag_name,
         name: release.name,
         body: release.body,
         publishedAt: release.published_at,
         downloadUrl: tarball.browser_download_url,
-        size: tarball.size,
+        size: typeof tarball.size === 'number' ? tarball.size : 0,
+        assetName: tarball.name,
+        checksumUrl: checksum?.browser_download_url ?? null,
       };
     } catch (error) {
       console.warn(
@@ -277,97 +403,34 @@ class UpdateService extends EventEmitter {
     }
   }
 
-  /**
-   * Download file with progress reporting
-   */
-  private downloadFileWithProgress(
-    url: string,
-    destPath: string,
-    totalSize: number
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const file = createWriteStream(destPath);
-      let bytesDownloaded = 0;
-      let lastTime = Date.now();
-      let lastBytes = 0;
+  /** Fetch and parse `<asset>.sha256`; throws with a user-facing message. */
+  private async fetchExpectedChecksum(release: ReleaseInfo): Promise<string> {
+    if (!release.checksumUrl) {
+      throw new Error(NO_CHECKSUM_MESSAGE);
+    }
+    let text: string;
+    try {
+      text = await fetchText(release.checksumUrl, {
+        maxBytes: 4096,
+        connectTimeoutMs: this.connectTimeoutMs,
+        stallTimeoutMs: this.stallTimeoutMs,
+      });
+    } catch (error) {
+      console.warn(
+        `Checksum download failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw new Error(BAD_CHECKSUM_FILE_MESSAGE);
+    }
+    const digest = parseChecksum(text, release.assetName);
+    if (!digest) {
+      throw new Error(BAD_CHECKSUM_FILE_MESSAGE);
+    }
+    return digest;
+  }
 
-      const updateProgress = () => {
-        const now = Date.now();
-        const timeDiff = (now - lastTime) / 1000;
-        const bytesDiff = bytesDownloaded - lastBytes;
-        const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
-        const remaining = totalSize - bytesDownloaded;
-        const eta = speed > 0 ? remaining / speed : 0;
-
-        this.status.downloadProgress = {
-          phase: 'downloading',
-          bytesDownloaded,
-          totalBytes: totalSize,
-          percent: totalSize > 0 ? Math.round((bytesDownloaded / totalSize) * 100) : 0,
-          speed: Math.round(speed),
-          eta: Math.round(eta),
-        };
-
-        this.emit('downloadProgress', this.status.downloadProgress);
-
-        lastTime = now;
-        lastBytes = bytesDownloaded;
-      };
-
-      const progressInterval = setInterval(updateProgress, 500);
-
-      const makeRequest = (requestUrl: string) => {
-        https
-          .get(requestUrl, { headers: { 'User-Agent': 'SkyGlass-Updater' } }, (res) => {
-            if (res.statusCode === 301 || res.statusCode === 302) {
-              const redirectUrl = res.headers.location;
-              if (redirectUrl) {
-                makeRequest(redirectUrl);
-                return;
-              }
-            }
-
-            if (res.statusCode !== 200) {
-              clearInterval(progressInterval);
-              file.close();
-              fs.unlinkSync(destPath);
-              reject(new Error(`Download failed with status ${res.statusCode}`));
-              return;
-            }
-
-            res.on('data', (chunk) => {
-              bytesDownloaded += chunk.length;
-            });
-
-            res.pipe(file);
-
-            file.on('finish', () => {
-              clearInterval(progressInterval);
-              file.close();
-              this.status.downloadProgress = {
-                phase: 'complete',
-                bytesDownloaded: totalSize,
-                totalBytes: totalSize,
-                percent: 100,
-                speed: 0,
-                eta: 0,
-              };
-              this.emit('downloadProgress', this.status.downloadProgress);
-              resolve();
-            });
-          })
-          .on('error', (err) => {
-            clearInterval(progressInterval);
-            file.close();
-            if (fs.existsSync(destPath)) {
-              fs.unlinkSync(destPath);
-            }
-            reject(err);
-          });
-      };
-
-      makeRequest(url);
-    });
+  private setProgress(progress: DownloadProgress): void {
+    this.status.downloadProgress = progress;
+    this.emit('downloadProgress', this.status.downloadProgress);
   }
 
   /**
@@ -409,14 +472,12 @@ class UpdateService extends EventEmitter {
 
       const updateAvailable = comparison < 0;
 
-      // Check if we already have this update downloaded
-      const tempDir = path.join(PROJECT_ROOT, '.update-temp');
-      const expectedTarball = path.join(tempDir, `release-${release.version}.tar.gz`);
-      const downloadReady = fs.existsSync(expectedTarball);
-
-      if (downloadReady) {
-        this.downloadedTarball = expectedTarball;
-      }
+      // Ready only if a previous download completed AND still verifies. While a
+      // download is running its .part is not looked at.
+      const downloadReady = this.downloading
+        ? false
+        : (await this.verifyDownloaded(release.version)) !== null;
+      this.downloadedTarball = downloadReady ? this.tarballPathFor(release.version) : null;
 
       this.status = {
         ...this.status,
@@ -429,6 +490,7 @@ class UpdateService extends EventEmitter {
         downloadSize: release.size,
         lastChecked: Date.now(),
         downloadReady,
+        error: undefined,
       };
 
       if (updateAvailable) {
@@ -437,13 +499,13 @@ class UpdateService extends EventEmitter {
         this.emit('updateAvailable', this.status);
 
         // Auto-download if configured (but not installed)
-        if (this.config.autoDownload && !downloadReady) {
+        if (this.config.autoDownload && !this.status.downloadReady) {
           console.log('Auto-downloading update...');
           await this.downloadUpdate();
         }
 
         // Auto-apply if configured
-        if (this.config.autoUpdate && !this.config.notifyOnly && downloadReady) {
+        if (this.config.autoUpdate && !this.config.notifyOnly && this.status.downloadReady) {
           console.log('Auto-update enabled. Applying updates...');
           await this.applyUpdates();
         }
@@ -471,54 +533,97 @@ class UpdateService extends EventEmitter {
       return { success: true, message: 'Update already downloaded' };
     }
 
-    if (this.status.downloadProgress.phase === 'downloading') {
+    if (this.downloading) {
       return { success: false, message: 'Download already in progress' };
     }
 
-    const tempDir = path.join(PROJECT_ROOT, '.update-temp');
-    const tarballPath = path.join(tempDir, `release-${this.latestRelease.version}.tar.gz`);
+    const release = this.latestRelease;
+    const tarballPath = this.tarballPathFor(release.version);
+    const partPath = `${tarballPath}.part`;
+    this.downloading = true;
 
     try {
-      if (fs.existsSync(tempDir)) {
-        // Clean old downloads but keep if same version
-        const files = fs.readdirSync(tempDir);
-        for (const file of files) {
-          if (file !== `release-${this.latestRelease.version}.tar.gz`) {
-            fs.rmSync(path.join(tempDir, file), { recursive: true });
-          }
-        }
+      // Start from a clean temp dir: nothing in it is a verified download (or
+      // downloadReady would be true), including stray .part files.
+      fs.mkdirSync(this.tempDir, { recursive: true });
+      for (const file of fs.readdirSync(this.tempDir)) {
+        fs.rmSync(path.join(this.tempDir, file), { recursive: true, force: true });
       }
-      fs.mkdirSync(tempDir, { recursive: true });
 
-      console.log(`Downloading update v${this.latestRelease.version}...`);
+      console.log(`Downloading update v${release.version}...`);
 
-      this.status.downloadProgress = {
+      this.setProgress({
         phase: 'downloading',
         bytesDownloaded: 0,
-        totalBytes: this.latestRelease.size,
+        totalBytes: release.size,
         percent: 0,
         speed: 0,
         eta: 0,
-      };
-      this.emit('downloadProgress', this.status.downloadProgress);
+      });
 
-      await this.downloadFileWithProgress(
-        this.latestRelease.downloadUrl,
-        tarballPath,
-        this.latestRelease.size
-      );
+      // Required: an unverifiable release is never installed.
+      const expectedSha = await this.fetchExpectedChecksum(release);
 
-      // Verify download
-      const stats = fs.statSync(tarballPath);
-      if (stats.size < 1000) {
-        throw new Error('Downloaded file is too small');
+      let bytesDownloaded = 0;
+      let totalBytes = release.size;
+      let lastTime = Date.now();
+      let lastBytes = 0;
+      const progressInterval = setInterval(() => {
+        const now = Date.now();
+        const timeDiff = (now - lastTime) / 1000;
+        const speed = timeDiff > 0 ? (bytesDownloaded - lastBytes) / timeDiff : 0;
+        const eta = speed > 0 ? Math.max(0, totalBytes - bytesDownloaded) / speed : 0;
+        this.setProgress({
+          phase: 'downloading',
+          bytesDownloaded,
+          totalBytes,
+          percent: totalBytes > 0 ? Math.min(100, Math.round((bytesDownloaded / totalBytes) * 100)) : 0,
+          speed: Math.round(speed),
+          eta: Math.round(eta),
+        });
+        lastTime = now;
+        lastBytes = bytesDownloaded;
+      }, 500);
+
+      let result;
+      try {
+        result = await downloadToFile(release.downloadUrl, partPath, {
+          expectedSize: release.size,
+          stallTimeoutMs: this.stallTimeoutMs,
+          connectTimeoutMs: this.connectTimeoutMs,
+          onProgress: (bytes, total) => {
+            bytesDownloaded = bytes;
+            if (total > 0) totalBytes = total;
+          },
+        });
+      } finally {
+        clearInterval(progressInterval);
       }
+
+      if (result.sha256 !== expectedSha) {
+        throw new Error(CHECKSUM_MISMATCH_MESSAGE);
+      }
+
+      // Atomic publish: the final name only ever holds a complete, verified file,
+      // and the .sha256 (written last) marks it as such.
+      fs.renameSync(partPath, tarballPath);
+      const shaTmp = `${tarballPath}.sha256.part`;
+      fs.writeFileSync(shaTmp, `${expectedSha}\n`);
+      fs.renameSync(shaTmp, `${tarballPath}.sha256`);
 
       this.downloadedTarball = tarballPath;
       this.status.downloadReady = true;
-      this.status.downloadProgress.phase = 'complete';
+      this.status.error = undefined;
+      this.setProgress({
+        phase: 'complete',
+        bytesDownloaded: result.bytes,
+        totalBytes: result.bytes,
+        percent: 100,
+        speed: 0,
+        eta: 0,
+      });
 
-      console.log('Update downloaded successfully');
+      console.log('Update downloaded and verified');
       this.emit('downloadComplete', this.status);
 
       return { success: true, message: 'Update downloaded successfully' };
@@ -526,7 +631,14 @@ class UpdateService extends EventEmitter {
       const message = error instanceof Error ? error.message : 'Download failed';
       console.error('Download failed:', message);
 
-      this.status.downloadProgress = {
+      fs.rmSync(partPath, { force: true });
+      fs.rmSync(`${tarballPath}.sha256.part`, { force: true });
+      this.removeDownloaded(tarballPath);
+      this.downloadedTarball = null;
+      this.status.downloadReady = false;
+      this.status.error = message;
+
+      this.setProgress({
         phase: 'error',
         bytesDownloaded: 0,
         totalBytes: 0,
@@ -534,14 +646,11 @@ class UpdateService extends EventEmitter {
         speed: 0,
         eta: 0,
         error: message,
-      };
-      this.emit('downloadProgress', this.status.downloadProgress);
-
-      if (fs.existsSync(tarballPath)) {
-        fs.unlinkSync(tarballPath);
-      }
+      });
 
       return { success: false, message };
+    } finally {
+      this.downloading = false;
     }
   }
 
@@ -568,74 +677,74 @@ class UpdateService extends EventEmitter {
     const version = this.latestRelease?.version || '';
     const tarballPath = this.downloadedTarball!;
 
-    if (!fs.existsSync(UPDATE_SCRIPT)) {
-      return { success: false, message: `Update script not found at ${UPDATE_SCRIPT}` };
+    if (!fs.existsSync(this.updateScript)) {
+      return { success: false, message: `Update script not found at ${this.updateScript}` };
     }
-    if (!fs.existsSync(tarballPath)) {
+
+    // Re-verify right before installing: the file may have been damaged on disk
+    // (SD card) since it was downloaded.
+    this.updateInProgress = true;
+    const sha256 = version ? await this.verifyDownloaded(version) : null;
+    if (!sha256 || tarballPath !== this.tarballPathFor(version)) {
+      this.updateInProgress = false;
       this.downloadedTarball = null;
       this.status.downloadReady = false;
-      return { success: false, message: 'Downloaded update is missing, please download again' };
+      this.status.error = VERIFY_FAILED_MESSAGE;
+      this.setProgress({
+        phase: 'error',
+        bytesDownloaded: 0,
+        totalBytes: 0,
+        percent: 0,
+        speed: 0,
+        eta: 0,
+        error: VERIFY_FAILED_MESSAGE,
+      });
+      return { success: false, message: VERIFY_FAILED_MESSAGE };
     }
 
-    this.updateInProgress = true;
-    console.log(`Applying update to v${version || 'unknown'}...`);
+    console.log(`Applying update to v${version}...`);
 
     try {
-      this.status.downloadProgress = {
+      this.setProgress({
         phase: 'installing',
         bytesDownloaded: this.status.downloadSize,
         totalBytes: this.status.downloadSize,
         percent: 100,
         speed: 0,
         eta: 0,
-      };
-      this.emit('downloadProgress', this.status.downloadProgress);
+      });
 
       // The install (stop services, copy files, npm install, restart, health
       // check, rollback on failure) is done by scripts/update.sh so that the
       // shell and in-app update paths share one implementation that preserves
       // runtime state (venv, face_data, node_modules, data/, config.yaml).
-      //
-      // It must run outside this process: it stops and restarts skyglass-backend,
-      // i.e. us. `bash -c '... &'` double-forks so the script is reparented
-      // away from this process and is not killed by PM2's tree-kill when the
-      // backend is stopped. --delay gives us time to send the HTTP response.
-      const logDir = path.join(PROJECT_ROOT, 'logs');
+      // update.sh re-verifies the tarball against --sha256 before extracting.
+      const logDir = path.join(this.projectRoot, 'logs');
       fs.mkdirSync(logDir, { recursive: true });
       const outLog = path.join(logDir, 'update-output.log');
-      const args = ['--apply-tarball', tarballPath, '--delay', '3'];
-      if (version) {
-        args.push('--version', version);
-      }
-      const child = spawn(
-        '/bin/bash',
-        ['-c', 'nohup "$0" "$@" >> "$UPDATE_OUT_LOG" 2>&1 < /dev/null &', UPDATE_SCRIPT, ...args],
-        {
-          cwd: PROJECT_ROOT,
-          detached: true,
-          stdio: 'ignore',
-          env: { ...process.env, UPDATE_OUT_LOG: outLog },
-        }
-      );
-      await new Promise<void>((resolve, reject) => {
-        child.once('error', reject);
-        child.once('exit', (code) =>
-          code === 0 ? resolve() : reject(new Error(`Failed to launch updater (exit ${code})`))
-        );
-      });
-      child.unref();
+      const args = [
+        '--apply-tarball',
+        tarballPath,
+        '--delay',
+        '3',
+        '--version',
+        version,
+        '--sha256',
+        sha256,
+      ];
+      await this.launcher(this.updateScript, args, { cwd: this.projectRoot, outLog });
 
       this.downloadedTarball = null;
       this.status.downloadReady = false;
 
-      const message = `Update to v${version || 'latest'} started; SkyGlass will restart shortly`;
+      const message = `Update to v${version} started; SkyGlass will restart shortly`;
       console.log(`${message} (log: ${outLog})`);
       this.emit('updateStarted', { version });
       return { success: true, message };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Update failed';
       console.error('Update failed to start:', message);
-      this.status.downloadProgress = {
+      this.setProgress({
         phase: 'error',
         bytesDownloaded: 0,
         totalBytes: 0,
@@ -643,8 +752,7 @@ class UpdateService extends EventEmitter {
         speed: 0,
         eta: 0,
         error: message,
-      };
-      this.emit('downloadProgress', this.status.downloadProgress);
+      });
       // Nothing was stopped or modified yet; the current version keeps running.
       this.updateInProgress = false;
       return { success: false, message };

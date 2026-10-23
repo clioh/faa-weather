@@ -88,11 +88,28 @@ start_normal() {
     log "Normal mode active"
 }
 
+# Roll back an update that was interrupted by power loss or a crash before
+# any SkyGlass app starts (scripts/update.sh --recover; docs/UPDATES.md).
+# Runs as the install user so restored files keep their owner. A no-op when
+# there is no .update-state. PM2's own resurrect unit may already have started
+# the apps on the half-installed tree; --recover stops them first.
+recover_interrupted_update() {
+    [ -f "$PROJECT_DIR/.update-state" ] || return 0
+    log "Interrupted update found, running update.sh --recover..."
+    if sudo -u "$INSTALL_USER" -H bash "$PROJECT_DIR/scripts/update.sh" --recover >> "$LOG_FILE" 2>&1; then
+        log "Update recovery finished (see logs/update.log)"
+    else
+        log "Update recovery FAILED (see logs/update.log)"
+    fi
+}
+
 # Main logic
 main() {
     log "=========================================="
     log "SkyGlass Boot Mode Detection"
     log "=========================================="
+
+    recover_interrupted_update || true
 
     if check_wifi; then
         log "WiFi is configured and connected"
