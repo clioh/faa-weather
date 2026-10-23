@@ -73,10 +73,6 @@ export function settlePairing(flowId: string | undefined, paired: boolean): void
   flow.resolve(paired);
 }
 
-export function isPairingOpen(): boolean {
-  return active !== null;
-}
-
 /**
  * Make sure this phone may talk to the current mirror, pairing first if
  * needed. Resolves true when it may. The setup hotspot's provisioning server

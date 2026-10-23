@@ -3,7 +3,6 @@
  *
  * Puts the app back to a fresh install without reinstalling Expo Go: every
  * `@skyglass:*` AsyncStorage key and every pairing token in SecureStore.
- * Cloud sign-in (Clerk) is handled by UserContext.resetAppData.
  *
  * `npm run dev:e2e -- --reset` adds `&reset=<nonce>` to the QR deep link;
  * app/connect.tsx resets once per nonce, so scanning the same QR again later

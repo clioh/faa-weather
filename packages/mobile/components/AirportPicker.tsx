@@ -67,7 +67,7 @@ export function AirportPicker({ visible, currentValue, onSelect, onClose }: Airp
       if (!exists) {
         filtered.unshift({
           icao: query,
-          name: 'Custom Airport',
+          name: 'Custom airport',
           city: 'Enter manually',
           country: '',
         });
@@ -117,7 +117,7 @@ export function AirportPicker({ visible, currentValue, onSelect, onClose }: Airp
     >
       <View style={styles.container}>
         {/* Header */}
-        <PageSheetHeader title="Select Airport" onClose={handleClose} />
+        <PageSheetHeader title="Select airport" onClose={handleClose} />
         {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
         <KeyboardAvoidingScreen avoidOnIOS={false}>
           <View style={styles.top}>

@@ -29,7 +29,7 @@ interface TimezonePickerModalProps {
 export function TimezonePickerModal({
   visible,
   currentValue,
-  title = 'Time Zone',
+  title = 'Time zone',
   onSelect,
   onClose,
 }: TimezonePickerModalProps) {

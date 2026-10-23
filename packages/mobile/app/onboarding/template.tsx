@@ -143,7 +143,7 @@ export default function TemplateScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Choose Your Layout</Text>
+        <Text style={styles.title}>Choose your layout</Text>
         <Text style={styles.subtitle}>
           Pick a template to get started. You can customize it later.
         </Text>

@@ -127,11 +127,6 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
   return `on ${new Date(then).toLocaleDateString()}`;
 }
 
-/** Ordinary sentence about an account, for accessibility labels. */
-export function accountSubtitle(account: CalendarAccount): string {
-  return account.email ?? PROVIDER_META[account.provider]?.name ?? account.provider;
-}
-
 /**
  * Message for a failed calendar request. A 404 from the calendar routes means
  * the mirror runs software from before calendar accounts existed.

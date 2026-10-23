@@ -250,7 +250,7 @@ export default function AirportSetupScreen() {
 
       {/* Save button */}
       <Footer>
-        <Button label="Save Airport" onPress={handleSave} disabled={!selected} loading={saving} />
+        <Button label="Save airport" onPress={handleSave} disabled={!selected} loading={saving} />
       </Footer>
     </KeyboardAvoidingScreen>
   );

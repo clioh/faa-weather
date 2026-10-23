@@ -180,9 +180,9 @@ export default function UpdatesScreen() {
 
   const phaseLabels: Record<string, string> = {
     idle: 'Ready',
-    downloading: 'Downloading Update',
-    extracting: 'Extracting Files',
-    installing: 'Installing Update',
+    downloading: 'Downloading update',
+    extracting: 'Extracting files',
+    installing: 'Installing update',
     complete: 'Complete',
     error: 'Error',
   };
@@ -196,7 +196,7 @@ export default function UpdatesScreen() {
   const currentVersionRow = (
     <View style={styles.rows}>
       <View style={styles.dataRow}>
-        <Text style={styles.dataLabel}>Current Version</Text>
+        <Text style={styles.dataLabel}>Current version</Text>
         <Text style={styles.dataValue}>v{status?.currentVersion || '0.0.0'}</Text>
       </View>
     </View>
@@ -263,7 +263,7 @@ export default function UpdatesScreen() {
             {/* Update available header */}
             <View style={styles.statusLabel}>
               <Ionicons name="arrow-up-circle-outline" size={18} color={colors.primary} />
-              <Text style={styles.statusLabelText}>Update Available</Text>
+              <Text style={styles.statusLabelText}>Update available</Text>
             </View>
 
             {/* Version comparison */}
@@ -294,7 +294,7 @@ export default function UpdatesScreen() {
             {status.downloadReady && (
               <View style={styles.statusLabel}>
                 <Ionicons name="checkmark" size={18} color={colors.success} />
-                <Text style={styles.readyText}>Downloaded - Ready to install</Text>
+                <Text style={styles.readyText}>Downloaded - ready to install</Text>
               </View>
             )}
 
@@ -319,7 +319,7 @@ export default function UpdatesScreen() {
                 <Ionicons name="checkmark" size={32} color={colors.primary} />
               </View>
               <View style={styles.upToDateText}>
-                <Text style={styles.upToDateTitle}>You're Up to Date</Text>
+                <Text style={styles.upToDateTitle}>You're up to date</Text>
                 <Text style={styles.body}>Your SkyGlass is running the latest version</Text>
               </View>
             </View>
@@ -337,19 +337,19 @@ export default function UpdatesScreen() {
         {updateAvailable && status && !isActive ? (
           <>
             {status.downloadReady ? (
-              <Button label="Install Now" icon="rocket-outline" onPress={installUpdate} />
+              <Button label="Install now" icon="rocket-outline" onPress={installUpdate} />
             ) : (
               <Button
-                label="Download Update"
+                label="Download update"
                 icon="cloud-download-outline"
                 onPress={downloadUpdate}
               />
             )}
-            <TextButton label="Check for Updates" onPress={checkForUpdates} disabled={checking} />
+            <TextButton label="Check for updates" onPress={checkForUpdates} disabled={checking} />
           </>
         ) : (
           <Button
-            label="Check for Updates"
+            label="Check for updates"
             variant="secondary"
             icon="refresh"
             onPress={checkForUpdates}

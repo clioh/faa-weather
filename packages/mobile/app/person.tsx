@@ -108,7 +108,7 @@ export default function PersonScreen() {
             <RowGroup>
               <Row
                 icon="paper-plane-outline"
-                title={person.inviteExpiresAt ? 'Send a New Invite' : `Invite ${name}`}
+                title={person.inviteExpiresAt ? 'Send a new invite' : `Invite ${name}`}
                 caption="QR code or a link to share"
                 onPress={() =>
                   router.push({ pathname: '/invite-person', params: { userId: id, name } })
@@ -116,7 +116,7 @@ export default function PersonScreen() {
               />
               <Row
                 icon="grid-outline"
-                title={`Edit ${name}’s Layout`}
+                title={`Edit ${name}’s layout`}
                 caption="What the mirror shows when it recognizes them"
                 onPress={() =>
                   router.push({ pathname: '/editor', params: { personId: id, personName: name } })
@@ -124,7 +124,7 @@ export default function PersonScreen() {
               />
               <Row
                 icon="scan-outline"
-                title={hasFace ? 'Register Face Again' : 'Register Face'}
+                title={hasFace ? 'Register face again' : 'Register face'}
                 onPress={() =>
                   router.push({
                     pathname: '/setup/face',

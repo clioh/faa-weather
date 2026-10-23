@@ -517,7 +517,7 @@ export function ListField({
       {isTimezone && (
         <TimezonePickerModal
           visible={tzPickerOpen}
-          title="Add Time Zone"
+          title="Add time zone"
           onClose={() => setTzPickerOpen(false)}
           onSelect={(tz) => {
             setTzPickerOpen(false);

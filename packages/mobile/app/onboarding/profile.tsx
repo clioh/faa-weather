@@ -73,7 +73,7 @@ export default function ProfileScreen() {
       >
         {/* Title */}
         <View style={styles.heading}>
-          <Text style={styles.title}>Create Your Profile</Text>
+          <Text style={styles.title}>Create your profile</Text>
           <Text style={styles.subtitle}>
             Your profile lets the mirror recognize you and show your personalized layout.
           </Text>

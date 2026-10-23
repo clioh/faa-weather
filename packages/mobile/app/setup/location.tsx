@@ -52,7 +52,7 @@ export default function LocationSetupScreen() {
 
       if (status !== 'granted') {
         Alert.alert(
-          'Permission Required',
+          'Permission required',
           'Location permission is needed to automatically detect your position. You can also enter coordinates manually.',
           [{ text: 'OK' }]
         );
@@ -120,7 +120,7 @@ export default function LocationSetupScreen() {
           <View style={styles.locationSet}>
             <View style={styles.locationHeader}>
               <Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />
-              <Text style={styles.locationTitle}>Location Set</Text>
+              <Text style={styles.locationTitle}>Location set</Text>
             </View>
 
             <View style={styles.rows}>
@@ -139,7 +139,7 @@ export default function LocationSetupScreen() {
             </View>
 
             <Button
-              label="Update Location"
+              label="Update location"
               variant="secondary"
               size="small"
               icon="refresh"
@@ -150,12 +150,12 @@ export default function LocationSetupScreen() {
           </View>
         ) : (
           <View style={styles.detect}>
-            <Text style={styles.detectTitle}>Detect Your Location</Text>
+            <Text style={styles.detectTitle}>Detect your location</Text>
             <Text style={styles.detectSubtitle}>
               Tap below to automatically detect your current location using your phone's GPS
             </Text>
             <Button
-              label="Detect Location"
+              label="Detect location"
               variant="secondary"
               icon="locate-outline"
               onPress={detectLocation}
@@ -179,7 +179,7 @@ export default function LocationSetupScreen() {
 
       {/* Save button */}
       <Footer>
-        <Button label="Save Location" onPress={handleSave} disabled={!location} loading={saving} />
+        <Button label="Save location" onPress={handleSave} disabled={!location} loading={saving} />
       </Footer>
     </View>
   );

@@ -35,21 +35,21 @@ export default function OnboardingLayout() {
       <Stack.Screen
         name="profile"
         options={{
-          title: 'Create Profile',
+          title: 'Create profile',
           headerShown: false,
         }}
       />
       <Stack.Screen
         name="discover"
         options={{
-          title: 'Find Mirror',
+          title: 'Find mirror',
           headerShown: false,
         }}
       />
       <Stack.Screen
         name="template"
         options={{
-          title: 'Choose Layout',
+          title: 'Choose layout',
           headerShown: false,
         }}
       />

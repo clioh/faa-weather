@@ -42,7 +42,7 @@ export default function SetupLayout() {
       <Stack.Screen
         name="wifi"
         options={{
-          title: 'WiFi Setup',
+          title: 'WiFi setup',
         }}
       />
       <Stack.Screen
@@ -60,7 +60,7 @@ export default function SetupLayout() {
       <Stack.Screen
         name="airport"
         options={{
-          title: 'Home Airport',
+          title: 'Home airport',
         }}
       />
       <Stack.Screen
@@ -72,13 +72,13 @@ export default function SetupLayout() {
       <Stack.Screen
         name="face"
         options={{
-          title: 'Face Registration',
+          title: 'Face registration',
         }}
       />
       <Stack.Screen
         name="complete"
         options={{
-          title: 'Setup Complete',
+          title: 'Setup complete',
           headerShown: false,
           gestureEnabled: false,
         }}

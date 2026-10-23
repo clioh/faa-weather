@@ -160,7 +160,7 @@ export default function SettingsScreen() {
 
   const disconnectMirror = () => {
     Alert.alert(
-      'Disconnect Mirror',
+      'Disconnect mirror',
       'This will disconnect from the current mirror. You can reconnect anytime.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -179,7 +179,7 @@ export default function SettingsScreen() {
   // Dev builds only: start over from registration without reinstalling Expo Go.
   const confirmResetAppData = () => {
     Alert.alert(
-      'Reset App Data',
+      'Reset app data',
       'Deletes your profile, linked mirrors and pairing tokens on this phone. The mirror is not changed (npm run setup:dev -- reset does that).',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -223,7 +223,7 @@ export default function SettingsScreen() {
         <SectionLabel>MIRROR</SectionLabel>
         <RowGroup>
           <Row
-            title="Home Airport"
+            title="Home airport"
             caption={airport ? undefined : 'Change your primary airport'}
             value={airport ?? undefined}
             valueMono
@@ -241,7 +241,7 @@ export default function SettingsScreen() {
             onPress={() => router.push('/setup/location')}
           />
           <Row
-            title="WiFi Network"
+            title="WiFi network"
             caption="Change WiFi connection"
             onPress={() => router.push('/setup/wifi')}
           />
@@ -283,7 +283,7 @@ export default function SettingsScreen() {
           )}
           <Row
             icon="person-add-outline"
-            title="Add Person"
+            title="Add person"
             tone="accent"
             onPress={() => router.push({ pathname: '/setup/face', params: { person: 'new' } })}
           />
@@ -299,29 +299,29 @@ export default function SettingsScreen() {
         <SectionLabel>SOFTWARE UPDATES</SectionLabel>
         <RowGroup>
           <Row
-            title="Auto-Download Updates"
+            title="Auto-download updates"
             caption="Download updates automatically in the background"
             trailing={
               <Switch
                 value={updateConfig?.autoDownload ?? true}
                 onValueChange={(value) => updateSetting('autoDownload', value)}
-                accessibilityLabel="Auto-Download Updates"
+                accessibilityLabel="Auto-download updates"
               />
             }
           />
           <Row
-            title="Auto-Install Updates"
+            title="Auto-install updates"
             caption="Automatically install updates when downloaded (requires restart)"
             trailing={
               <Switch
                 value={updateConfig?.autoUpdate ?? false}
                 onValueChange={(value) => updateSetting('autoUpdate', value)}
-                accessibilityLabel="Auto-Install Updates"
+                accessibilityLabel="Auto-install updates"
               />
             }
           />
           <Row
-            title="Check for Updates"
+            title="Check for updates"
             caption="View available updates and install manually"
             onPress={() => router.push('/updates')}
           />
@@ -372,11 +372,11 @@ export default function SettingsScreen() {
         <SectionLabel>ABOUT</SectionLabel>
         <View style={styles.rows}>
           <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>App Version</Text>
+            <Text style={styles.dataLabel}>App version</Text>
             <Text style={styles.dataValue}>1.0.0</Text>
           </View>
           <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Connected To</Text>
+            <Text style={styles.dataLabel}>Connected to</Text>
             <Text style={[styles.dataValue, styles.dataValueSmall]} numberOfLines={1}>
               {api.getBaseUrl() || 'Not connected'}
             </Text>
@@ -387,7 +387,7 @@ export default function SettingsScreen() {
       {/* Disconnect */}
       <View style={styles.dangerZone}>
         <Button
-          label="Disconnect Mirror"
+          label="Disconnect mirror"
           variant="danger"
           icon="log-out-outline"
           onPress={disconnectMirror}
@@ -395,7 +395,7 @@ export default function SettingsScreen() {
 
         {isDevBuild && (
           <Button
-            label="Reset App Data (dev)"
+            label="Reset app data (dev)"
             variant="danger"
             size="small"
             icon="refresh-outline"

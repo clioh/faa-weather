@@ -9,7 +9,6 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
-import * as SecureStore from 'expo-secure-store';
 import { useFonts } from 'expo-font';
 // Per-weight imports so only these faces are bundled (the package index pulls
 // in every weight and italic).
@@ -20,40 +19,11 @@ import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono/400Regular';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono/500Medium';
-import { ClerkProvider, ClerkLoaded } from '@clerk/expo';
 import { UserProvider } from '@/context/UserContext';
 import { HeaderBackButton } from '@/components/ScreenHeader';
 import { goBack } from '@/lib/navigation';
 import { usePairingRedirect } from '@/lib/pairing';
 import { colors, fonts } from '@/lib/theme';
-
-// Clerk publishable key from environment
-const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
-// Token cache for Clerk using SecureStore
-const tokenCache = {
-  async getToken(key: string): Promise<string | null> {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch {
-      return null;
-    }
-  },
-  async saveToken(key: string, value: string): Promise<void> {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch {
-      // SecureStore not available, ignore
-    }
-  },
-  async clearToken(key: string): Promise<void> {
-    try {
-      await SecureStore.deleteItemAsync(key);
-    } catch {
-      // SecureStore not available, ignore
-    }
-  },
-};
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -119,7 +89,7 @@ function RootLayoutNav() {
       */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       {/* Pushed (not modal); same back control as every other screen. */}
-      <Stack.Screen name="updates" options={{ title: 'Software Updates', ...pushedHeader }} />
+      <Stack.Screen name="updates" options={{ title: 'Software updates', ...pushedHeader }} />
       {/* These screens draw their own ScreenHeader. */}
       <Stack.Screen name="profile" options={{ headerShown: false }} />
       <Stack.Screen name="mirrors" options={{ headerShown: false }} />
@@ -136,12 +106,6 @@ function RootLayoutNav() {
       <Stack.Screen name="paired-phones" options={{ headerShown: false }} />
       {/* Deep-link target for Google sign-in; pops itself straight away. */}
       <Stack.Screen name="oauth/google" options={{ headerShown: false, animation: 'none' }} />
-      <Stack.Screen
-        name="(auth)"
-        options={{
-          headerShown: false,
-        }}
-      />
     </Stack>
   );
 }
@@ -168,29 +132,13 @@ export default function RootLayout() {
 
   // GestureHandlerRootView must wrap everything that uses gesture-handler
   // gestures (the layout editor canvas).
-  // If Clerk key is not set, render without Clerk (for local-only usage)
-  if (!CLERK_PUBLISHABLE_KEY) {
-    return (
-      <UserProvider>
-        <GestureHandlerRootView style={styles.container}>
-          <StatusBar style="light" />
-          <RootLayoutNav />
-        </GestureHandlerRootView>
-      </UserProvider>
-    );
-  }
-
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
-      <ClerkLoaded>
-        <UserProvider>
-          <GestureHandlerRootView style={styles.container}>
-            <StatusBar style="light" />
-            <RootLayoutNav />
-          </GestureHandlerRootView>
-        </UserProvider>
-      </ClerkLoaded>
-    </ClerkProvider>
+    <UserProvider>
+      <GestureHandlerRootView style={styles.container}>
+        <StatusBar style="light" />
+        <RootLayoutNav />
+      </GestureHandlerRootView>
+    </UserProvider>
   );
 }
 

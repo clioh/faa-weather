@@ -25,7 +25,7 @@ export default function MirrorsScreen() {
 
   const handleRemoveMirror = async (mirror: LinkedMirror) => {
     Alert.alert(
-      'Remove Mirror',
+      'Remove mirror',
       `Are you sure you want to remove "${mirror.mirrorName}"? Your face data on this mirror will not be deleted.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -102,7 +102,7 @@ export default function MirrorsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="My Mirrors" fallbackHref="/" />
+      <ScreenHeader title="My mirrors" fallbackHref="/" />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Mirror Count */}
@@ -117,7 +117,7 @@ export default function MirrorsScreen() {
             <Text style={styles.statValue}>
               {linkedMirrors.filter((m) => m.faceEnrolled).length}
             </Text>
-            <Text style={styles.statLabel}>Face Enrolled</Text>
+            <Text style={styles.statLabel}>Face enrolled</Text>
           </View>
         </View>
 
@@ -125,11 +125,11 @@ export default function MirrorsScreen() {
         {linkedMirrors.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="tv-outline" size={32} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>No Mirrors Linked</Text>
+            <Text style={styles.emptyTitle}>No mirrors linked</Text>
             <Text style={styles.emptyText}>
               Link a mirror to control it from your phone and enable personalized features.
             </Text>
-            <Button label="Find a Mirror" icon="add" onPress={goHome} />
+            <Button label="Find a mirror" icon="add" onPress={goHome} />
           </View>
         ) : (
           <View style={styles.mirrorsList}>
@@ -160,7 +160,7 @@ export default function MirrorsScreen() {
                         label={
                           mirror.enrolledAt
                             ? `Enrolled ${formatEnrollmentDate(mirror.enrolledAt)}`
-                            : 'Face Enrolled'
+                            : 'Face enrolled'
                         }
                       />
                     ) : (
@@ -206,7 +206,7 @@ export default function MirrorsScreen() {
         {/* Add Another Mirror */}
         {linkedMirrors.length > 0 && (
           <TextButton
-            label="Add Another Mirror"
+            label="Add another mirror"
             icon="add"
             onPress={goHome}
             style={styles.addAnother}

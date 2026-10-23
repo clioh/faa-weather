@@ -240,7 +240,7 @@ export default function WifiSetupScreen() {
               <Ionicons name="wifi-outline" size={40} color={colors.textMuted} />
               <Text style={styles.emptyText}>No networks found</Text>
               <Button
-                label="Scan Again"
+                label="Scan again"
                 variant="secondary"
                 size="small"
                 icon="refresh"

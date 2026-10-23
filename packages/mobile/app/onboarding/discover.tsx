@@ -272,7 +272,7 @@ export default function DiscoverScreen() {
       >
         {/* Header (the empty state's message takes its place) */}
         <View style={styles.header}>
-          <Text style={styles.title}>{emptyState ? 'No mirrors found' : 'Find Your Mirror'}</Text>
+          <Text style={styles.title}>{emptyState ? 'No mirrors found' : 'Find your mirror'}</Text>
           <Text style={styles.subtitle}>
             {emptyState
               ? 'Make sure your SkyGlass is powered on and connected to the same network.'
@@ -399,7 +399,7 @@ export default function DiscoverScreen() {
       {/* Footer */}
       <Footer>
         <Button
-          label="Scan Again"
+          label="Scan again"
           variant="secondary"
           icon="refresh"
           onPress={startScan}

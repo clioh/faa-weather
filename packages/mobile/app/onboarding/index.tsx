@@ -12,9 +12,9 @@ import { Button, Footer, LogoMark, Notice, Row, RowGroup, Text } from '@/compone
 import { colors, spacing, typography } from '@/lib/theme';
 
 const FEATURES = [
-  { icon: 'cloudy-outline', title: 'Aviation Weather', desc: 'METAR, TAF, and NOTAMs at a glance' },
-  { icon: 'person-outline', title: 'Face Detection', desc: 'Personalized display for each user' },
-  { icon: 'grid-outline', title: 'Customizable Layout', desc: 'Arrange widgets your way' },
+  { icon: 'cloudy-outline', title: 'Aviation weather', desc: 'METAR, TAF, and NOTAMs at a glance' },
+  { icon: 'person-outline', title: 'Face detection', desc: 'Personalized display for each user' },
+  { icon: 'grid-outline', title: 'Customizable layout', desc: 'Arrange widgets your way' },
 ] as const;
 
 export default function WelcomeScreen() {
@@ -64,7 +64,7 @@ export default function WelcomeScreen() {
 
       {/* Get Started Button */}
       <Footer>
-        <Button label="Get Started" trailingIcon="arrow-forward" onPress={handleGetStarted} />
+        <Button label="Get started" trailingIcon="arrow-forward" onPress={handleGetStarted} />
         <Text style={styles.footerNote}>Takes about 5 minutes to set up</Text>
       </Footer>
     </View>

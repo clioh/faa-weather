@@ -88,7 +88,7 @@ export function LibrarySheet({ visible, onClose, onAdd, noRoomIds }: LibraryShee
                 label="All"
                 selected={filter === 'all'}
                 onPress={() => setFilter('all')}
-                accessibilityLabel="Show All"
+                accessibilityLabel="Show all"
               />
               {CATEGORY_ORDER.map((c) => (
                 <Chip

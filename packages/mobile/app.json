@@ -12,10 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.skyglass.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "SkyGlass uses your camera to register your face for presence detection.",
         "NSLocationWhenInUseUsageDescription": "SkyGlass uses your location to provide accurate sunrise/sunset times and local weather.",
         "NSLocalNetworkUsageDescription": "SkyGlass needs to discover your mirror on the local network.",
-        "NSBonjourServices": ["_skyglass._tcp", "_http._tcp"]
+        "NSBonjourServices": ["_skyglass._tcp"]
       }
     },
     "android": {
@@ -24,12 +23,7 @@
         "backgroundColor": "#000000"
       },
       "package": "com.skyglass.app",
-      "permissions": [
-        "CAMERA",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_NETWORK_STATE"
-      ]
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "ACCESS_NETWORK_STATE"]
     },
     "web": {
       "bundler": "metro",
@@ -39,15 +33,34 @@
     "plugins": [
       "expo-router",
       [
-        "expo-camera",
+        "expo-location",
         {
-          "cameraPermission": "SkyGlass uses your camera for face registration and QR code scanning."
+          "locationWhenInUsePermission": "SkyGlass uses your location to provide accurate sunrise/sunset times and local weather.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "locationFullAccuracyPermission": false,
+          "motionUsagePermission": false,
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
         }
       ],
-      "expo-location",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SkyGlass uses your photos so you can choose pictures for the mirror's photo frame.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
       "expo-font",
       "expo-web-browser",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-status-bar",
       [
         "expo-splash-screen",
@@ -56,6 +69,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#000000",
           "imageWidth": 200
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],

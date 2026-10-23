@@ -148,7 +148,7 @@ export default function ProfileScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="tv-outline" size={32} color={colors.textMuted} />
               <Text style={styles.emptyText}>No mirrors linked yet</Text>
-              <TextButton label="Find a Mirror" onPress={goHome} />
+              <TextButton label="Find a mirror" onPress={goHome} />
             </View>
           ) : (
             <RowGroup>
@@ -182,7 +182,7 @@ export default function ProfileScreen() {
       {/* Save Button */}
       {isEditing && (
         <Footer>
-          <Button label="Save Changes" onPress={handleSave} loading={isSaving} />
+          <Button label="Save changes" onPress={handleSave} loading={isSaving} />
         </Footer>
       )}
     </KeyboardAvoidingScreen>

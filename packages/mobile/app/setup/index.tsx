@@ -29,7 +29,7 @@ interface SetupStep {
 const SETUP_STEPS: SetupStep[] = [
   {
     id: 'wifi',
-    title: 'WiFi Network',
+    title: 'WiFi network',
     description: 'Connect your mirror to your home network',
     icon: 'wifi-outline',
     route: { pathname: '/setup/wifi', params: { flow: 'setup' } },
@@ -61,7 +61,7 @@ const SETUP_STEPS: SetupStep[] = [
   },
   {
     id: 'airport',
-    title: 'Home Airport',
+    title: 'Home airport',
     description: 'Pick from airports near you, or search',
     icon: 'airplane-outline',
     route: '/setup/airport',
@@ -69,7 +69,7 @@ const SETUP_STEPS: SetupStep[] = [
   },
   {
     id: 'face',
-    title: 'Face Registration',
+    title: 'Face registration',
     description: 'Register your face for presence detection',
     icon: 'person-circle-outline',
     route: '/setup/face',
@@ -207,7 +207,7 @@ export default function SetupIndex() {
       <View style={styles.centerContainer}>
         <Ionicons name="warning-outline" size={40} color={colors.warning} />
         <View style={[styles.errorBackButton, { top: insets.top + spacing.xs }]}>{backButton}</View>
-        <Text style={styles.errorTitle}>Connection Error</Text>
+        <Text style={styles.errorTitle}>Connection error</Text>
         <Text style={styles.errorText}>{error}</Text>
         {unreachable ? (
           <MirrorNotFound visible onFound={loadStatus} />
@@ -225,7 +225,7 @@ export default function SetupIndex() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Setup Your Mirror</Text>
+          <Text style={styles.title}>Setup your mirror</Text>
           <Text style={styles.subtitle}>Complete these steps to get your SkyGlass ready</Text>
         </View>
 

@@ -99,6 +99,9 @@ export default function HomeScreen() {
   }, [manual]);
   const [manualHost, setManualHost] = useState('');
   const [connecting, setConnecting] = useState<string | null>(null);
+  // Shown when tapping a mirror fails (unreachable, or it stopped answering
+  // part-way through connecting).
+  const [connectError, setConnectError] = useState<string | null>(null);
   // Spinner instead of the list while deciding whether to open the last mirror.
   const [openingLast, setOpeningLast] = useState(!openedLastMirror);
 
@@ -167,7 +170,10 @@ export default function HomeScreen() {
     if (!user) return;
 
     const isLinked = 'lastConnected' in mirror;
+    const displayName = isLinked ? mirror.mirrorName : mirror.name;
+    const unreachable = `Couldn’t reach ${displayName}. Check that your phone is on the same WiFi as the mirror.`;
     setConnecting(isLinked ? mirror.mirrorId : mirror.id);
+    setConnectError(null);
 
     try {
       // Connect to the mirror
@@ -189,6 +195,7 @@ export default function HomeScreen() {
 
       if (!connected) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setConnectError(unreachable);
         setConnecting(null);
         return;
       }
@@ -196,8 +203,7 @@ export default function HomeScreen() {
       // Register user with mirror and get mirror info
       const provisioning = !isLinked && mirror.provisioning === true;
       // Pair before anything else (the setup hotspot has no pairing).
-      const mirrorName = isLinked ? mirror.mirrorName : mirror.name;
-      if (!provisioning && !(await ensurePaired({ mirrorName }))) {
+      if (!provisioning && !(await ensurePaired({ mirrorName: displayName }))) {
         return;
       }
       const result = await registerUserWithMirror(user, provisioning);
@@ -231,6 +237,7 @@ export default function HomeScreen() {
     } catch (err) {
       console.error('Connection failed:', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setConnectError(unreachable);
     } finally {
       setConnecting(null);
     }
@@ -337,7 +344,7 @@ export default function HomeScreen() {
 
         {/* Title */}
         <View style={styles.header}>
-          <Text style={styles.title}>Connect to Mirror</Text>
+          <Text style={styles.title}>Connect to mirror</Text>
           <Text style={styles.subtitle}>
             {linkedMirrors.length > 0
               ? 'Select a mirror to connect'
@@ -348,6 +355,9 @@ export default function HomeScreen() {
         {/* Error message */}
         {error && !scanning && linkedMirrors.length === 0 && (
           <Notice tone="warning" message={error} />
+        )}
+        {connectError && (
+          <Notice tone="error" message={connectError} onDismiss={() => setConnectError(null)} />
         )}
 
         {/* Linked Mirrors (saved) */}
@@ -484,7 +494,7 @@ export default function HomeScreen() {
       {/* Action buttons */}
       <Footer style={styles.footer}>
         <Button
-          label="Scan Again"
+          label="Scan again"
           variant="secondary"
           icon="refresh"
           onPress={startScan}
@@ -493,7 +503,7 @@ export default function HomeScreen() {
         />
         {linkedMirrors.length > 0 && (
           <Button
-            label="Manage Mirrors"
+            label="Manage mirrors"
             variant="secondary"
             icon="layers-outline"
             onPress={() => router.push('/mirrors')}

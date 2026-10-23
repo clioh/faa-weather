@@ -99,7 +99,7 @@ export default function TemplatesScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Choose a Template" fallbackHref="/editor" />
+      <ScreenHeader title="Choose a template" fallbackHref="/editor" />
 
       <View>
         <ScrollView

@@ -71,8 +71,6 @@ const STORAGE_KEYS = {
   LINKED_MIRRORS: '@skyglass:linkedMirrors',
   ONBOARDING_STATE: '@skyglass:onboardingState',
   PENDING_MIRROR: '@skyglass:pendingMirror',
-  // Cloud sync keys
-  CLOUD_SYNC_ENABLED: '@skyglass:cloudSyncEnabled',
 } as const;
 
 export interface UserProfile {
@@ -346,21 +344,5 @@ export const storage = {
   async isOnboardingComplete(): Promise<boolean> {
     const state = await this.getOnboardingState();
     return state?.phase === 'complete';
-  },
-
-  // Cloud Sync Methods
-
-  async getCloudSyncEnabled(): Promise<boolean> {
-    try {
-      const data = await AsyncStorage.getItem(STORAGE_KEYS.CLOUD_SYNC_ENABLED);
-      return data === 'true';
-    } catch {
-      return false;
-    }
-  },
-
-  async setCloudSyncEnabled(enabled: boolean): Promise<void> {
-    await AsyncStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_ENABLED, String(enabled));
-    console.log('[Storage] Cloud sync enabled:', enabled);
   },
 };

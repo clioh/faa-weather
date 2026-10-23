@@ -48,31 +48,13 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_skyglass._tcp</string>
-		<string>_http._tcp</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>SkyGlass uses your camera for face registration and QR code scanning.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>SkyGlass needs to discover your mirror on the local network.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your location</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your location</string>
-	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
-	<dict>
-		<key>ExpoLocationFullAccuracy</key>
-		<string>Allow $(PRODUCT_NAME) to access your precise location</string>
-	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SkyGlass uses your location to provide accurate sunrise/sunset times and local weather.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your microphone</string>
-	<key>NSMotionUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to detect your current motion activity</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your photos</string>
+	<string>SkyGlass uses your photos so you can choose pictures for the mirror's photo frame.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

@@ -347,7 +347,7 @@ export default function FaceRegistrationScreen() {
 
         <Footer>
           <Button
-            label="Start Registration"
+            label="Start registration"
             trailingIcon="arrow-forward"
             onPress={startRegistration}
             disabled={!name.trim()}
@@ -506,7 +506,7 @@ export default function FaceRegistrationScreen() {
             <TextButton label="Not now" onPress={() => goBack('/settings')} />
           </>
         ) : (
-          <Button label="Continue Setup" trailingIcon="arrow-forward" onPress={handleComplete} />
+          <Button label="Continue setup" trailingIcon="arrow-forward" onPress={handleComplete} />
         )}
       </Footer>
     </View>

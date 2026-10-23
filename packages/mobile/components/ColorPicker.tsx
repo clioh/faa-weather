@@ -25,9 +25,9 @@ import { CALENDAR_PALETTE, colorName } from './calendar/meta';
 const COLOR_PRESETS = [
   ...CALENDAR_PALETTE.map((value) => ({ name: colorName(value), value })),
   { name: 'White', value: '#ffffff' },
-  { name: 'Light Gray', value: '#bdc3c7' },
+  { name: 'Light gray', value: '#bdc3c7' },
   { name: 'Gray', value: '#7f8c8d' },
-  { name: 'Dark Gray', value: '#34495e' },
+  { name: 'Dark gray', value: '#34495e' },
 ];
 
 interface ColorPickerProps {
@@ -110,7 +110,7 @@ export function ColorPicker({ visible, currentValue, onSelect, onClose }: ColorP
     >
       <View style={styles.container}>
         {/* Header */}
-        <PageSheetHeader title="Choose Color" onClose={handleClose} />
+        <PageSheetHeader title="Choose color" onClose={handleClose} />
         {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
         <KeyboardAvoidingScreen avoidOnIOS={false}>
           <ScrollView
@@ -220,7 +220,7 @@ export function ColorPicker({ visible, currentValue, onSelect, onClose }: ColorP
 
           {/* Footer */}
           <Footer>
-            <Button label="Use This Color" onPress={handleConfirm} />
+            <Button label="Use this color" onPress={handleConfirm} />
           </Footer>
         </KeyboardAvoidingScreen>
       </View>

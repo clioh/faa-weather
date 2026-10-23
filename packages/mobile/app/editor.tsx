@@ -556,7 +556,7 @@ export default function EditorScreen() {
       const base = mirrorLayout.current;
       return {
         id: base?.id ?? 'custom',
-        name: base?.name ?? 'Custom Layout',
+        name: base?.name ?? 'Custom layout',
         createdAt: base?.createdAt ?? now,
         modules: snapshot,
         shelf: shelfSnapshot,

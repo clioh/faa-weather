@@ -109,17 +109,17 @@ export function LocationPicker({ visible, currentValue, onSelect, onClose }: Loc
     const lon = parse(manualLon);
 
     if (isNaN(lat) || isNaN(lon)) {
-      Alert.alert('Invalid Coordinates', 'Please enter valid latitude and longitude values.');
+      Alert.alert('Invalid coordinates', 'Please enter valid latitude and longitude values.');
       return;
     }
 
     if (lat < -90 || lat > 90) {
-      Alert.alert('Invalid Latitude', 'Latitude must be between -90 and 90.');
+      Alert.alert('Invalid latitude', 'Latitude must be between -90 and 90.');
       return;
     }
 
     if (lon < -180 || lon > 180) {
-      Alert.alert('Invalid Longitude', 'Longitude must be between -180 and 180.');
+      Alert.alert('Invalid longitude', 'Longitude must be between -180 and 180.');
       return;
     }
 
@@ -157,7 +157,7 @@ export function LocationPicker({ visible, currentValue, onSelect, onClose }: Loc
     >
       <View style={styles.container}>
         {/* Header */}
-        <PageSheetHeader title="Set Location" onClose={handleClose} />
+        <PageSheetHeader title="Set location" onClose={handleClose} />
         {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
         <KeyboardAvoidingScreen avoidOnIOS={false}>
           <ScrollView
@@ -177,7 +177,7 @@ export function LocationPicker({ visible, currentValue, onSelect, onClose }: Loc
                     <Ionicons name="locate-outline" size={22} color={colors.primary} />
                   )
                 }
-                title={detecting ? 'Detecting...' : 'Detect My Location'}
+                title={detecting ? 'Detecting...' : 'Detect my location'}
                 caption="Use GPS to find your location"
                 onPress={detectLocation}
                 disabled={detecting}
@@ -226,7 +226,7 @@ export function LocationPicker({ visible, currentValue, onSelect, onClose }: Loc
                   />
                 </View>
                 <Button
-                  label="Apply Coordinates"
+                  label="Apply coordinates"
                   variant="secondary"
                   onPress={handleManualSave}
                   style={styles.apply}
@@ -242,7 +242,7 @@ export function LocationPicker({ visible, currentValue, onSelect, onClose }: Loc
               <View style={styles.locationDisplay}>
                 <View style={styles.locationHeader}>
                   <Ionicons name="location-outline" size={18} color={colors.primary} />
-                  <Text style={styles.locationTitle}>{location.city || 'Location Set'}</Text>
+                  <Text style={styles.locationTitle}>{location.city || 'Location set'}</Text>
                 </View>
                 <Text style={styles.coordinates}>
                   {location.latitude}, {location.longitude}
@@ -254,7 +254,7 @@ export function LocationPicker({ visible, currentValue, onSelect, onClose }: Loc
           {/* Footer */}
           <Footer>
             <Button
-              label={location ? 'Use This Location' : 'Select a Location'}
+              label={location ? 'Use this location' : 'Select a location'}
               onPress={handleConfirm}
               disabled={!location}
             />

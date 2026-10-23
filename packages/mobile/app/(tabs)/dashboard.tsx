@@ -172,7 +172,7 @@ export default function DashboardScreen() {
               onPress={() => router.push('/editor')}
               style={({ pressed }) => [styles.layout, pressed && styles.pressed]}
               accessibilityRole="button"
-              accessibilityLabel="Edit Layout"
+              accessibilityLabel="Edit layout"
             >
               <View style={styles.thumbnailFrame}>
                 <LayoutThumbnail modules={modules ?? []} style={styles.thumbnail} />
@@ -188,20 +188,20 @@ export default function DashboardScreen() {
                       : 'Drag & drop widgets on your mirror'}
                   </Text>
                 </View>
-                <Button label="Edit Layout" size="small" onPress={() => router.push('/editor')} />
+                <Button label="Edit layout" size="small" onPress={() => router.push('/editor')} />
               </View>
             </Pressable>
 
             <RowGroup>
               <Row
-                title="Home Airport"
+                title="Home airport"
                 value={summary.airport ?? undefined}
                 valueMono
                 onPress={() => router.push('/setup/airport')}
               />
               {/* Each person registers from their own phone, so this is always your face. */}
               <Row
-                title="Your Face"
+                title="Your face"
                 value={currentMirror?.faceEnrolled ? 'Registered' : 'Not registered'}
                 onPress={() => router.push('/setup/face')}
                 accessibilityHint={
@@ -211,7 +211,7 @@ export default function DashboardScreen() {
                 }
               />
               <Row
-                title="Software Updates"
+                title="Software updates"
                 badge={
                   summary.latestVersion ? <Badge label={`v${summary.latestVersion}`} /> : undefined
                 }
@@ -219,7 +219,7 @@ export default function DashboardScreen() {
                 onPress={() => router.push('/updates')}
               />
               <Row
-                title="Setup Wizard"
+                title="Setup wizard"
                 value="WiFi, license, location, airport and face registration"
                 onPress={() => router.push('/setup')}
               />

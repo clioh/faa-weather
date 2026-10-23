@@ -1,5 +1,7 @@
 # Implementation plan: Glass Cockpit redesign
 
+**Status: phases 1–5 are done (2026-10).** The plan is kept as a record of what changed and why.
+
 For a coding agent (Claude Code) or a developer. Read `DESIGN_SYSTEM.md` and `SCREENS.md` first. The mockups in `mockups/` are the visual source of truth; `mockups/app.css` lists the exact sizes, colours and radii.
 
 ## Ground rules
@@ -9,14 +11,14 @@ For a coding agent (Claude Code) or a developer. Read `DESIGN_SYSTEM.md` and `SC
 - Keep everything in `lib/theme.ts` tokens. No raw hex values in screens.
 - Before you finish, nothing in `packages/mobile` should match `#00ff88`, `0, 255, 136`, `#0066ff` or `#ff4444`.
 
-## Phase 1: Tokens and fonts
+## Phase 1: Tokens and fonts (done 2026-10)
 
 1. `lib/theme.ts` already has the new values (this commit). Check that it type-checks.
 2. Add `@expo-google-fonts/inter` and `@expo-google-fonts/jetbrains-mono`. Load Inter 200/300/400/500/600 and JetBrains Mono 400/500 in `app/_layout.tsx` (hold the splash screen until they load).
 3. Set the default `Text` and `TextInput` font to Inter through a small wrapper or `fonts.ui` in typography. Use `fonts.mono` wherever `fontFamily: 'monospace'` appears today.
 4. `app.json`: keep `userInterfaceStyle: dark`; set `android.adaptiveIcon.backgroundColor` to `#000000` (already).
 
-## Phase 2: UI primitives (`components/ui/`)
+## Phase 2: UI primitives (`components/ui/`) (done 2026-10)
 
 Build `Button`, `TextButton`, `RowGroup`/`Row`, `SectionLabel`, `Field`, `Notice`, `Toast`, `Chip`, `Badge`, `BottomSheet`, `PageSheetHeader`, `StepProgress`, `TabBar` and `Spinner` per `DESIGN_SYSTEM.md`.
 
@@ -32,7 +34,7 @@ Then re-point the existing ones at them:
 
 Optionally add a hidden dev route (`/dev/ui`) that renders every primitive and state, so you can compare it against `mockups/Foundations.dc.html`.
 
-## Phase 3: Flows, in this order
+## Phase 3: Flows, in this order (done 2026-10)
 
 Follow `SCREENS.md` row by row and check each screen against its mockup.
 
@@ -43,7 +45,7 @@ Follow `SCREENS.md` row by row and check each screen against its mockup.
 5. Settings, paired phones, calendars (`A-Settings`, `P-*`, `C-*`)
 6. Editor, sheets and pickers (`A-Editor`, `E-*`). This includes dropping category colours from tiles, library cards and template thumbnails (`ModuleTile`, `LibrarySheet`, `LayoutThumbnail`).
 
-## Phase 4: Website (`packages/website`)
+## Phase 4: Website (`packages/website`) (done 2026-10)
 
 Rebuild `Home` to match `mockups/A-Site.dc.html` using the same tokens in `index.css` `@theme`:
 
@@ -51,7 +53,7 @@ Rebuild `Home` to match `mockups/A-Site.dc.html` using the same tokens in `index
 - Brand assets are in `docs/design/brand/`: use `favicon.svg` as the favicon and the horizontal lockup (`logo-lockup-horizontal.svg`) in the header.
 - Keep the existing data (FAQ, features, Stripe products, waitlist modal) and wire prices from `config/stripe.ts` instead of `[PRICE]`.
 
-## Phase 5: Mirror onboarding and orientation
+## Phase 5: Mirror onboarding and orientation (done 2026-10)
 
 Follow `MIRROR_AND_ORIENTATION.md`:
 
@@ -60,7 +62,7 @@ Follow `MIRROR_AND_ORIENTATION.md`:
 
 ## Not in scope
 
-- App icon (the cartoon F-35C) still needs replacing. That's a separate design task.
+- App icon. The cartoon F-35C was replaced separately by the SkyGlass mirror mark (`packages/mobile/assets/app-icon.png`).
 - Mirror dashboard widgets (`packages/frontend` modules). They already use this language.
 
 ## Done when

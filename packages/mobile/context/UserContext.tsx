@@ -3,11 +3,9 @@
  *
  * Provides user profile and linked mirrors state throughout the app.
  * Handles initial loading, profile creation, and updates.
- * Integrates with Clerk for cloud authentication.
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { useAuth, useUser as useClerkUser } from '@clerk/expo';
 import { storage, UserProfile, LinkedMirror } from '@/lib/storage';
 import { api } from '@/lib/api';
 import { logError } from '@/lib/errors';
@@ -26,12 +24,6 @@ interface UserContextValue {
   linkedMirrors: LinkedMirror[];
   currentMirror: LinkedMirror | null;
 
-  // Cloud auth state
-  isCloudAuthenticated: boolean;
-  clerkUserId: string | null;
-  clerkUserEmail: string | null;
-  cloudSyncEnabled: boolean;
-
   // Actions
   /** `id` only when accepting an invite (the mirror already knows the person). */
   createProfile: (name: string, id?: string) => Promise<UserProfile>;
@@ -43,11 +35,7 @@ interface UserContextValue {
   setCurrentMirror: (mirror: LinkedMirror | null) => void;
   markFaceEnrolled: (mirrorId: string) => Promise<void>;
 
-  // Cloud actions
-  setCloudSyncEnabled: (enabled: boolean) => Promise<void>;
-  signOut: () => Promise<void>;
-
-  /** Dev only: wipe profile, mirrors, pairing tokens and cloud sign-in (lib/devReset). */
+  /** Dev only: wipe profile, mirrors and pairing tokens (lib/devReset). */
   resetAppData: () => Promise<void>;
 
   // Reload data
@@ -75,43 +63,24 @@ export function UserProvider({ children }: UserProviderProps) {
   const [currentMirror, setCurrentMirror] = useState<LinkedMirror | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [cloudSyncEnabled, setCloudSyncEnabledState] = useState(false);
-
-  // Clerk hooks - wrapped in try/catch for when Clerk is not available
-  let clerkAuth: ReturnType<typeof useAuth> | null = null;
-  let clerkUser: ReturnType<typeof useClerkUser> | null = null;
-
-  try {
-    clerkAuth = useAuth();
-    clerkUser = useClerkUser();
-  } catch {
-    // Clerk not available (no provider), continue without cloud auth
-  }
-
-  const isCloudAuthenticated = clerkAuth?.isSignedIn ?? false;
-  const clerkUserId = clerkAuth?.userId ?? null;
-  const clerkUserEmail = clerkUser?.user?.primaryEmailAddress?.emailAddress ?? null;
 
   // Load initial data
   const loadData = useCallback(async () => {
     setError(null);
 
     try {
-      const [profile, mirrors, syncEnabled] = await Promise.all([
+      const [profile, mirrors] = await Promise.all([
         storage.getUserProfile(),
         storage.getLinkedMirrors(),
-        storage.getCloudSyncEnabled(),
       ]);
 
       setUser(profile);
       setLinkedMirrors(mirrors);
-      setCloudSyncEnabledState(syncEnabled);
 
       console.log(
         '[UserContext] Loaded:',
         profile ? `User ${profile.name}` : 'No user',
-        `${mirrors.length} mirrors`,
-        `cloudSync: ${syncEnabled}`
+        `${mirrors.length} mirrors`
       );
     } catch (err) {
       logError('UserContext.loadData', err);
@@ -232,42 +201,15 @@ export function UserProvider({ children }: UserProviderProps) {
     [currentMirror]
   );
 
-  // Cloud sync toggle
-  const setCloudSyncEnabled = useCallback(async (enabled: boolean) => {
-    try {
-      await storage.setCloudSyncEnabled(enabled);
-      setCloudSyncEnabledState(enabled);
-    } catch (err) {
-      logError('UserContext.setCloudSyncEnabled', err);
-      throw err;
-    }
-  }, []);
-
-  // Sign out of cloud
-  const signOut = useCallback(async () => {
-    try {
-      if (clerkAuth?.signOut) {
-        await clerkAuth.signOut();
-      }
-      await storage.setCloudSyncEnabled(false);
-      setCloudSyncEnabledState(false);
-    } catch (err) {
-      logError('UserContext.signOut', err);
-      throw err;
-    }
-  }, [clerkAuth]);
-
   const resetAppData = useCallback(async () => {
     try {
-      if (clerkAuth?.isSignedIn) await clerkAuth.signOut().catch(() => {});
       await wipeAppData();
     } finally {
       setUser(null);
       setLinkedMirrors([]);
       setCurrentMirror(null);
-      setCloudSyncEnabledState(false);
     }
-  }, [clerkAuth]);
+  }, []);
 
   const value: UserContextValue = {
     user,
@@ -276,11 +218,6 @@ export function UserProvider({ children }: UserProviderProps) {
     error,
     linkedMirrors,
     currentMirror,
-    // Cloud auth
-    isCloudAuthenticated,
-    clerkUserId,
-    clerkUserEmail,
-    cloudSyncEnabled,
     // Actions
     createProfile,
     updateProfile,
@@ -288,8 +225,6 @@ export function UserProvider({ children }: UserProviderProps) {
     removeMirror,
     setCurrentMirror,
     markFaceEnrolled,
-    setCloudSyncEnabled,
-    signOut,
     resetAppData,
     refresh: loadData,
     retryLoad,
