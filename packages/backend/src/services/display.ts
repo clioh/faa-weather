@@ -3,10 +3,13 @@
  * Controls display power based on presence detection
  *
  * Mac: Uses brightness CLI or caffeinate for sleep prevention
- * Linux/Pi: Uses HDMI CEC (cec-client) or DPMS
+ * Linux/Pi: HDMI-CEC when the display answers it (TVs), otherwise turns the
+ * HDMI output off so the monitor sleeps: wlr-randr on Wayland (current
+ * Raspberry Pi OS), xset DPMS on X11. See probeLinuxDisplay().
  */
 
 import { exec, spawn, ChildProcess } from 'child_process';
+import { readdir } from 'fs/promises';
 import { promisify } from 'util';
 import { loadConfig } from '../config/index.js';
 
@@ -19,35 +22,6 @@ interface DisplayController {
   turnOff(): Promise<void>;
   dim(level: number): Promise<void>;
   getState(): DisplayState;
-}
-
-/**
- * Detect the current platform and available display control methods
- */
-async function detectPlatform(): Promise<'mac' | 'linux-cec' | 'linux-dpms' | 'unknown'> {
-  const platform = process.platform;
-
-  if (platform === 'darwin') {
-    return 'mac';
-  }
-
-  if (platform === 'linux') {
-    // Check for CEC support (Raspberry Pi)
-    try {
-      await execAsync('which cec-client');
-      return 'linux-cec';
-    } catch {
-      // Fall back to DPMS
-      try {
-        await execAsync('which xset');
-        return 'linux-dpms';
-      } catch {
-        return 'unknown';
-      }
-    }
-  }
-
-  return 'unknown';
 }
 
 /**
@@ -141,89 +115,223 @@ class MacDisplayController implements DisplayController {
   }
 }
 
+/** Runs a program without a shell; resolves its stdout, rejects on a non-zero exit or timeout. */
+export type Runner = (
+  file: string,
+  args: string[],
+  options?: { input?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number },
+) => Promise<string>;
+
+export const runCommand: Runner = (file, args, options = {}) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(file, args, { env: options.env ?? process.env });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error(`${file} timed out`));
+    }, options.timeoutMs ?? 10_000);
+    child.stdout.on('data', (chunk) => (stdout += chunk));
+    child.stderr.on('data', (chunk) => (stderr += chunk));
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolve(stdout);
+      else reject(new Error(`${file} exited with ${code}: ${stderr.trim()}`));
+    });
+    child.stdin.on('error', () => {}); // EPIPE when the program exits before reading
+    child.stdin.end(options.input ?? '');
+  });
+
+export type LinuxDisplayMethod =
+  | { kind: 'cec' }
+  | { kind: 'wayland'; output: string; env: NodeJS.ProcessEnv }
+  | { kind: 'x11'; env: NodeJS.ProcessEnv };
+
+const CEC_ARGS = ['-s', '-d', '1'];
+const CEC_TIMEOUT_MS = 15_000;
+
+/** Output names from `wlr-randr` (unindented lines start an output, e.g. `HDMI-A-1 "Dell ..."`). */
+export function parseWlrOutputs(text: string): string[] {
+  return text
+    .split('\n')
+    .filter((line) => /^\S/.test(line))
+    .map((line) => line.split(/\s+/)[0]);
+}
+
+export interface ProbeOptions {
+  run?: Runner;
+  env?: NodeJS.ProcessEnv;
+  /** Where the Wayland socket lives. Default: $XDG_RUNTIME_DIR, else /run/user/<uid>. */
+  runtimeDir?: string;
+  listDir?: (dir: string) => Promise<string[]>;
+}
+
 /**
- * Linux CEC Display Controller (Raspberry Pi)
- * Uses cec-client to control HDMI display
+ * How to switch the mirror's display on and off, or null if nothing works yet.
+ *
+ * 1. HDMI-CEC, only if the display answers a power query. cec-client is
+ *    installed on every mirror, and most computer monitors ignore CEC.
+ * 2. Wayland: turn the HDMI output off with wlr-randr; the monitor sleeps on
+ *    loss of signal. The backend runs under PM2, outside the desktop session,
+ *    so the session's socket is found in the runtime directory.
+ * 3. X11: DPMS with xset on display :0.
  */
-class LinuxCecController implements DisplayController {
-  private state: DisplayState = 'on';
+export async function probeLinuxDisplay(options: ProbeOptions = {}): Promise<LinuxDisplayMethod | null> {
+  const run = options.run ?? runCommand;
+  const env = options.env ?? process.env;
+  const listDir = options.listDir ?? ((dir: string) => readdir(dir));
 
-  async turnOn(): Promise<void> {
-    if (this.state === 'on') return;
+  try {
+    const answer = await run('cec-client', CEC_ARGS, { input: 'pow 0\n', timeoutMs: CEC_TIMEOUT_MS });
+    if (/power status:\s*(on|standby|in transition)/i.test(answer)) return { kind: 'cec' };
+  } catch {
+    // cec-client missing or no CEC adapter
+  }
 
+  const runtimeDir = options.runtimeDir ?? env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 1000}`;
+  let socket = env.WAYLAND_DISPLAY;
+  if (!socket) {
     try {
-      // CEC command to turn on TV (on 0 = TV)
-      await execAsync('echo "on 0" | cec-client -s -d 1');
-      // Also set as active source
-      await execAsync('echo "as" | cec-client -s -d 1');
-      this.state = 'on';
-      console.log('Display turned ON via CEC');
-    } catch (error) {
-      console.error('Failed to turn on display via CEC:', error);
+      socket = (await listDir(runtimeDir)).filter((name) => /^wayland-\d+$/.test(name)).sort()[0];
+    } catch {
+      // no runtime directory: no desktop session
+    }
+  }
+  if (socket) {
+    const waylandEnv = { ...env, XDG_RUNTIME_DIR: runtimeDir, WAYLAND_DISPLAY: socket };
+    try {
+      const outputs = parseWlrOutputs(await run('wlr-randr', [], { env: waylandEnv }));
+      const output = outputs.find((name) => name.startsWith('HDMI')) ?? outputs[0];
+      if (output) return { kind: 'wayland', output, env: waylandEnv };
+    } catch {
+      // wlr-randr missing, or not a wlroots compositor
     }
   }
 
-  async turnOff(): Promise<void> {
-    if (this.state === 'off') return;
+  const x11Env = { ...env, DISPLAY: env.DISPLAY || ':0' };
+  try {
+    await run('xset', ['q'], { env: x11Env });
+    return { kind: 'x11', env: x11Env };
+  } catch {
+    return null;
+  }
+}
 
-    try {
-      // CEC command to set TV to standby
-      await execAsync('echo "standby 0" | cec-client -s -d 1');
-      this.state = 'off';
-      console.log('Display turned OFF via CEC');
-    } catch (error) {
-      console.error('Failed to turn off display via CEC:', error);
+type Command = [file: string, args: string[], options?: Parameters<Runner>[2]];
+
+function describe(method: LinuxDisplayMethod): string {
+  switch (method.kind) {
+    case 'cec':
+      return 'HDMI-CEC';
+    case 'wayland':
+      return `Wayland output ${method.output} (wlr-randr)`;
+    case 'x11':
+      return 'X11 DPMS (xset)';
+  }
+}
+
+function commandsFor(method: LinuxDisplayMethod, target: 'on' | 'off'): Command[] {
+  switch (method.kind) {
+    case 'cec': {
+      const cec = (input: string): Command => ['cec-client', CEC_ARGS, { input, timeoutMs: CEC_TIMEOUT_MS }];
+      // "as" makes the Pi the active source, so the TV switches to its input.
+      return target === 'on' ? [cec('on 0\n'), cec('as\n')] : [cec('standby 0\n')];
     }
-  }
-
-  async dim(_level: number): Promise<void> {
-    // CEC doesn't support dimming - ignore
-    console.log('CEC does not support brightness control');
-  }
-
-  getState(): DisplayState {
-    return this.state;
+    case 'wayland':
+      return [['wlr-randr', ['--output', method.output, target === 'on' ? '--on' : '--off'], { env: method.env }]];
+    case 'x11':
+      // Older X11 images: keep DPMS off except to force the display off, so
+      // X never blanks the mirror on its own timer.
+      return target === 'on'
+        ? [['xset', ['dpms', 'force', 'on'], { env: method.env }], ['xset', ['-dpms'], { env: method.env }]]
+        : [['xset', ['+dpms', 'dpms', 'force', 'off'], { env: method.env }]];
   }
 }
 
 /**
- * Linux DPMS Display Controller
- * Uses xset for display power management
+ * Linux / Raspberry Pi display controller (see probeLinuxDisplay). The backend
+ * can start before the desktop session, so when no method is found it probes
+ * again on a later on/off request, at most every PROBE_RETRY_MS. A failed
+ * command also triggers a new probe (e.g. the session restarted).
  */
-class LinuxDpmsController implements DisplayController {
+export class LinuxDisplayController implements DisplayController {
+  static readonly PROBE_RETRY_MS = 30_000;
+
   private state: DisplayState = 'on';
+  private method: LinuxDisplayMethod | null = null;
+  private lastProbe = -Infinity;
+  private probing: Promise<void> | null = null;
+
+  constructor(
+    private readonly probe: () => Promise<LinuxDisplayMethod | null> = () => probeLinuxDisplay(),
+    private readonly run: Runner = runCommand,
+    private readonly now: () => number = Date.now,
+  ) {}
+
+  async init(): Promise<void> {
+    await this.reprobe();
+  }
 
   async turnOn(): Promise<void> {
     if (this.state === 'on') return;
-
-    try {
-      await execAsync('xset dpms force on');
-      this.state = 'on';
-      console.log('Display turned ON via DPMS');
-    } catch (error) {
-      console.error('Failed to turn on display via DPMS:', error);
-    }
+    await this.apply('on');
   }
 
   async turnOff(): Promise<void> {
     if (this.state === 'off') return;
-
-    try {
-      await execAsync('xset dpms force off');
-      this.state = 'off';
-      console.log('Display turned OFF via DPMS');
-    } catch (error) {
-      console.error('Failed to turn off display via DPMS:', error);
-    }
+    await this.apply('off');
   }
 
   async dim(_level: number): Promise<void> {
-    // DPMS doesn't support dimming
-    console.log('DPMS does not support brightness control');
+    // None of the Linux methods can dim; the mirror UI handles brightness.
   }
 
   getState(): DisplayState {
     return this.state;
+  }
+
+  /** One probe at a time; callers during a probe wait for it. */
+  private reprobe(): Promise<void> {
+    this.probing ??= (async () => {
+      this.lastProbe = this.now();
+      this.method = await this.probe();
+      console.log(
+        this.method
+          ? `Display control: ${describe(this.method)}`
+          : 'Display control: none yet (no CEC display answered, no Wayland or X11 session); will retry',
+      );
+    })().finally(() => {
+      this.probing = null;
+    });
+    return this.probing;
+  }
+
+  private async apply(target: 'on' | 'off'): Promise<void> {
+    if (this.probing) {
+      await this.probing;
+    } else if (!this.method && this.now() - this.lastProbe >= LinuxDisplayController.PROBE_RETRY_MS) {
+      await this.reprobe();
+    }
+    const method = this.method;
+    if (!method) {
+      this.state = target;
+      console.log(`Display ${target.toUpperCase()} (no display control available)`);
+      return;
+    }
+    try {
+      for (const [file, args, options] of commandsFor(method, target)) {
+        await this.run(file, args, options);
+      }
+      this.state = target;
+      console.log(`Display turned ${target.toUpperCase()} via ${describe(method)}`);
+    } catch (error) {
+      this.method = null;
+      console.error(`Failed to turn display ${target} via ${describe(method)}:`, error);
+    }
   }
 }
 
@@ -273,20 +381,21 @@ export class DisplayManager {
   async init(): Promise<void> {
     if (this.initialized) return;
 
-    const platform = await detectPlatform();
-    console.log(`Detected display platform: ${platform}`);
-
-    switch (platform) {
-      case 'mac':
-        this.controller = new MacDisplayController();
-        await (this.controller as MacDisplayController).init();
+    switch (process.platform) {
+      case 'darwin': {
+        const controller = new MacDisplayController();
+        await controller.init();
+        this.controller = controller;
         break;
-      case 'linux-cec':
-        this.controller = new LinuxCecController();
+      }
+      case 'linux': {
+        // Asking a CEC display for its power state takes seconds; probe in
+        // the background. Requests made meanwhile wait for the probe.
+        const controller = new LinuxDisplayController();
+        void controller.init();
+        this.controller = controller;
         break;
-      case 'linux-dpms':
-        this.controller = new LinuxDpmsController();
-        break;
+      }
       default:
         console.log('No display control available - using stub');
         this.controller = new StubDisplayController();

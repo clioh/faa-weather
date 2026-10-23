@@ -120,6 +120,11 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       `Camera back from face registration` follows when the session ends or expires. Check that
       `/api/registration/start` answers within the backend's 5 s timeout, and that killing
       skyglass-admin mid-session gives the camera back (stale claim in `data/camera-claim.json`).
+- [ ] **Display sleep** (`packages/backend/src/services/display.ts`): `pm2 logs skyglass-backend`
+      shows `Display control: Wayland output HDMI-A-1 (wlr-randr)` with a monitor, or `HDMI-CEC`
+      with a TV. Walk away: the monitor goes to sleep and wakes when you come back, and the Chromium
+      kiosk is still full screen afterwards. Also test with the backend started before the desktop
+      session (it re-probes every 30 s).
 - [ ] Rendering performance with a busy layout: radar animation, photo crossfade, clocks.
 - [ ] Live data through the deployed cloud service: NOTAMs, stocks via Finnhub, and stocks with the
       service unreachable (Yahoo fallback; Yahoo throttles per IP and the widget then shows
