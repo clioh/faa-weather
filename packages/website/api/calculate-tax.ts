@@ -6,7 +6,9 @@ import {
   priceCart,
   resolveTaxAddress,
 } from './_lib/checkout.js'
+import { getDb, rateLimit } from './_lib/db.js'
 import { readJsonObject } from './_lib/http.js'
+import { clientIp } from './_lib/license.js'
 import { stripe } from './_lib/stripe.js'
 
 /**
@@ -17,19 +19,23 @@ import { stripe } from './_lib/stripe.js'
  *
  * Display only: create-payment-intent recomputes tax itself with the same
  * helper (after the discount) and ignores any calculationId the client sends.
+ *
+ * Rate-limited per IP (TAX_ESTIMATES_PER_HOUR, Postgres) because every call is
+ * a Stripe Tax calculation. Over the limit it answers 429 with `fallback: true`,
+ * so checkout shows the fallback-rate estimate and carries on (the real tax is
+ * computed at payment). Without DATABASE_URL only the Vercel WAF rule applies.
  */
+
+/** Tax estimates per IP per hour: one per address change at checkout. */
+const TAX_ESTIMATES_PER_HOUR = 60
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  const sql = getDb()
+  if (sql && !(await rateLimit(sql, `tax:${clientIp(req.headers)}`, TAX_ESTIMATES_PER_HOUR))) {
+    return res.status(429).json({ error: 'Too many tax estimates', fallback: true })
   }
 
   const body = readJsonObject(req)

@@ -1,20 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { SEO, PageHeader, SiteFooter } from '../components'
 import { useCart, cartRequiresShipping } from '../store/cart'
 import { isPreorderMode } from '../config/features'
+import { BOM_PDF_URL, BUILD_GUIDE_URL, KIT_SHIP_LEAD_TIME } from '../../shared/catalog'
 
-const LICENSE_STEPS = [
+const externalLink = (href: string, label: string) => (
+  <a href={href} className="link" target="_blank" rel="noreferrer">
+    {label}
+  </a>
+)
+
+const LICENSE_STEPS: { title: string; detail: ReactNode }[] = [
   { title: 'Check your email', detail: 'Your license key is in the confirmation email' },
-  { title: 'Build & flash', detail: 'Follow the DIY build guide and flash the SkyGlass OS image' },
+  {
+    title: 'Build your mirror',
+    detail: (
+      <>
+        Follow the {externalLink(BUILD_GUIDE_URL, 'build guide')} and{' '}
+        {externalLink(BOM_PDF_URL, 'parts list')}: flash Raspberry Pi OS with Raspberry Pi Imager,
+        then run the SkyGlass setup script
+      </>
+    ),
+  },
   { title: 'Activate in the app', detail: 'Enter your key in the SkyGlass app during setup' },
 ]
 
-const KIT_STEPS = [
+const KIT_STEPS: { title: string; detail: ReactNode }[] = [
   { title: "We'll prepare your kit", detail: 'Testing, assembly, and quality check' },
-  { title: 'Shipping notification', detail: "You'll get tracking info via email" },
-  { title: 'Setup & enjoy', detail: 'Mount, configure, and start your mornings right' },
+  {
+    title: 'Shipping email',
+    detail: "When your kit ships, we'll send a separate email with the tracking number",
+  },
+  { title: 'Set up', detail: 'Mount it, then follow setup in the SkyGlass app' },
 ]
 
 // Stripe's redirect_status values that mean no money moved
@@ -56,6 +75,7 @@ export function CheckoutSuccess() {
       <SEO
         title={isProcessing ? 'Payment Processing' : 'Order Confirmed'}
         description="Thank you for your SkyGlass order"
+        noindex
       />
 
       <PageHeader />
@@ -132,7 +152,9 @@ export function CheckoutSuccess() {
                 <div className="flex justify-between gap-4 py-3 border-b border-line">
                   <dt className="text-fg-2">Estimated ship date</dt>
                   <dd className="font-mono text-fg text-right">
-                    {isPreorderMode() ? 'Pre-order, emailed when it ships' : '2-3 weeks'}
+                    {isPreorderMode()
+                      ? "Pre-order, we'll email you when it ships"
+                      : KIT_SHIP_LEAD_TIME}
                   </dd>
                 </div>
               )}
@@ -143,8 +165,8 @@ export function CheckoutSuccess() {
                 {isProcessing
                   ? "We'll send a confirmation email once your payment clears."
                   : hasKit
-                    ? 'A confirmation email has been sent to your email address with tracking information and setup instructions.'
-                    : 'A confirmation email has been sent to your email address with your license key and setup instructions.'}
+                    ? "A confirmation email with your order details is on its way. We'll send tracking in a separate email when your kit ships."
+                    : 'A confirmation email with your license key and setup steps is on its way.'}
               </p>
               {hasSoftwareLicense && (
                 <p className="text-sm text-fg-2">
@@ -207,7 +229,11 @@ export function CheckoutSuccess() {
 function PaymentFailed() {
   return (
     <div className="min-h-screen bg-bg flex flex-col">
-      <SEO title="Payment Not Completed" description="Your SkyGlass payment didn't go through" />
+      <SEO
+        title="Payment Not Completed"
+        description="Your SkyGlass payment didn't go through"
+        noindex
+      />
 
       <PageHeader />
 

@@ -10,11 +10,8 @@ export { PrivacyBand } from './PrivacyBand'
 export { Waitlist } from './Waitlist'
 export { CartDrawer } from './CartDrawer'
 
-// Checkout components
-export { EmailForm, ShippingForm, OrderSummary, PromoCodeInput } from './checkout'
-
 // Error handling
-export { ErrorBoundary, ErrorFallback, PageErrorBoundary } from './ErrorBoundary'
+export { ErrorBoundary, ErrorFallback } from './ErrorBoundary'
 
 // Site chrome shared by every page
 export { Logo, PageHeader, SiteFooter } from './site'

@@ -12,7 +12,8 @@ export const MANAGE_URL = 'https://skyglass.dev/license'
 
 let client: Resend | null = null
 
-function resend(): Resend | null {
+/** The Resend client, or null when RESEND_API_KEY is not configured. */
+export function getResend(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null
   if (!client) client = new Resend(process.env.RESEND_API_KEY)
   return client
@@ -25,7 +26,7 @@ export async function sendEmail(opts: {
   subject: string
   html: string
 }): Promise<boolean> {
-  const r = resend()
+  const r = getResend()
   if (!r) {
     console.error('[Email] RESEND_API_KEY not configured, not sending:', opts.subject)
     return false
@@ -57,7 +58,24 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-/** Dark SkyGlass email shell: logo header, content, footer. */
+/**
+ * Glass Cockpit email palette (docs/design/DESIGN_SYSTEM.md). Email clients
+ * need inline styles, and some (older Outlook) drop rgba(), so every colour is
+ * a solid hex: the site's translucent whites composited on black.
+ */
+export const EMAIL = {
+  bg: '#000000',
+  fg: '#ffffff',
+  fg2: '#adadad', // rgba(255,255,255,0.68) on black
+  fg3: '#949494', // rgba(255,255,255,0.58) on black
+  line: '#242424', // rgba(255,255,255,0.14) on black
+  accent: '#7ad7ff',
+  onAccent: '#00141f',
+  sans: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  mono: "'JetBrains Mono', ui-monospace, Menlo, Consolas, 'Courier New', monospace",
+} as const
+
+/** Black SkyGlass email shell: wordmark, content, support line, footer. */
 export function emailLayout(title: string, contentHtml: string): string {
   const currentYear = new Date().getFullYear()
   return `
@@ -66,33 +84,34 @@ export function emailLayout(title: string, contentHtml: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
   <title>${escapeHtml(title)} - SkyGlass</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #0a0a0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+<body style="margin: 0; padding: 0; background-color: ${EMAIL.bg}; color: ${EMAIL.fg}; font-family: ${EMAIL.sans};">
+  <table role="presentation" width="100%" bgcolor="${EMAIL.bg}" style="width: 100%; border-collapse: collapse; background-color: ${EMAIL.bg};">
     <tr>
       <td style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 560px; margin: 0 auto; background-color: #12121a; border: 1px solid #2a2a3a; border-radius: 12px;">
+        <table role="presentation" width="100%" style="max-width: 560px; margin: 0 auto; border-collapse: collapse;">
           <tr>
-            <td style="padding: 40px 40px 20px; text-align: center; border-bottom: 1px solid #2a2a3a;">
-              <div style="font-size: 24px; font-weight: bold; letter-spacing: 1px;">
-                <span style="color: #e8e8ec;">Sky</span><span style="color: #f5a623;">Glass</span>
-              </div>
+            <td style="padding: 0 0 24px; border-bottom: 1px solid ${EMAIL.line};">
+              <span style="color: ${EMAIL.fg}; font-family: ${EMAIL.sans}; font-size: 18px; font-weight: 500; letter-spacing: 0.02em;">SkyGlass</span>
             </td>
           </tr>
           <tr>
-            <td style="padding: 40px;">
+            <td style="padding: 32px 0;">
               ${contentHtml}
-              <div style="margin-top: 24px; text-align: center;">
-                <p style="color: #8a8a9a; font-size: 14px; margin: 0 0 12px;">Questions?</p>
-                <a href="mailto:${SUPPORT_EMAIL}" style="color: #f5a623; text-decoration: none; font-size: 14px;">${SUPPORT_EMAIL}</a>
-              </div>
+              <p style="margin: 32px 0 0; color: ${EMAIL.fg2}; font-family: ${EMAIL.sans}; font-size: 14px; line-height: 1.6;">
+                Questions? <a href="mailto:${SUPPORT_EMAIL}" style="color: ${EMAIL.accent}; text-decoration: none;">${SUPPORT_EMAIL}</a>
+              </p>
             </td>
           </tr>
           <tr>
-            <td style="padding: 24px 40px; border-top: 1px solid #2a2a3a; text-align: center;">
-              <p style="margin: 0 0 8px; color: #5a5a6a; font-size: 12px;">Built by a pilot, for pilots.</p>
-              <p style="margin: 0; color: #5a5a6a; font-size: 12px;">&copy; ${currentYear} SkyGlass. All rights reserved.</p>
+            <td style="padding: 24px 0 0; border-top: 1px solid ${EMAIL.line}; color: ${EMAIL.fg3}; font-family: ${EMAIL.sans}; font-size: 12px; line-height: 1.6;">
+              Built by a pilot, for pilots. &copy; ${currentYear} SkyGlass.<br>
+              <a href="https://skyglass.dev/privacy" style="color: ${EMAIL.fg3}; text-decoration: underline;">Privacy</a>
+              &nbsp;&middot;&nbsp;
+              <a href="https://skyglass.dev/terms" style="color: ${EMAIL.fg3}; text-decoration: underline;">Terms</a>
             </td>
           </tr>
         </table>
@@ -104,36 +123,59 @@ export function emailLayout(title: string, contentHtml: string): string {
 `
 }
 
-const sectionLabel = (text: string) =>
-  `<div style="color: #f5a623; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">${escapeHtml(text)}</div>`
+/** Large light heading. */
+export const emailHeading = (text: string) =>
+  `<h1 style="margin: 0 0 12px; color: ${EMAIL.fg}; font-family: ${EMAIL.sans}; font-size: 28px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2;">${escapeHtml(text)}</h1>`
+
+/** Body paragraph (`html` is inserted as is; escape any user input first). */
+export const emailParagraph = (html: string) =>
+  `<p style="margin: 0 0 16px; color: ${EMAIL.fg2}; font-family: ${EMAIL.sans}; font-size: 15px; line-height: 1.6;">${html}</p>`
+
+/** Small accent label above a section. */
+export const sectionLabel = (text: string) =>
+  `<div style="color: ${EMAIL.accent}; font-family: ${EMAIL.sans}; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 8px;">${escapeHtml(text)}</div>`
+
+/** Pill button in the accent colour. */
+export const emailButton = (href: string, label: string) => `
+    <table role="presentation" style="border-collapse: collapse; margin: 8px 0 16px;">
+      <tr>
+        <td bgcolor="${EMAIL.accent}" style="background-color: ${EMAIL.accent}; border-radius: 26px;">
+          <a href="${escapeHtml(href)}" style="display: inline-block; padding: 14px 26px; color: ${EMAIL.onAccent}; font-family: ${EMAIL.sans}; font-size: 15px; font-weight: 500; text-decoration: none;">${escapeHtml(label)}</a>
+        </td>
+      </tr>
+    </table>`
+
+/** Hairline-bordered box. */
+export const emailPanel = (innerHtml: string) => `
+      <table role="presentation" width="100%" style="width: 100%; border-collapse: separate; border: 1px solid ${EMAIL.line}; border-radius: 14px;">
+        <tr>
+          <td style="padding: 20px;">
+            ${innerHtml}
+          </td>
+        </tr>
+      </table>`
 
 /** A boxed, monospace list of license keys. */
 export function licenseKeysHtml(keys: string[]): string {
   const rows = keys
     .map(
       (key) => `
-        <div style="color: #f5a623; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 2px; padding: 6px 0;">
-          ${escapeHtml(key)}
-        </div>`
+            <div style="color: ${EMAIL.fg}; font-family: ${EMAIL.mono}; font-size: 20px; font-weight: 500; letter-spacing: 0.08em; padding: 6px 0;">
+              ${escapeHtml(key)}
+            </div>`
     )
     .join('')
   return `
     <div style="margin-top: 24px;">
-      ${sectionLabel(keys.length > 1 ? 'Your License Keys' : 'Your License Key')}
-      <table role="presentation" style="width: 100%; background-color: #1a1a24; border: 1px solid #2a2a3a; border-radius: 8px;">
-        <tr>
-          <td style="padding: 20px; text-align: center;">
-            ${rows}
-            <div style="color: #8a8a9a; font-size: 12px; margin-top: 8px;">
+      ${sectionLabel(keys.length > 1 ? 'Your license keys' : 'Your license key')}
+      ${emailPanel(`${rows}
+            <div style="color: ${EMAIL.fg2}; font-family: ${EMAIL.sans}; font-size: 13px; line-height: 1.6; margin-top: 8px;">
               Enter ${keys.length > 1 ? 'a key' : 'this key'} in the SkyGlass app when you set up your mirror.
               Each key runs one mirror at a time.
-            </div>
-          </td>
-        </tr>
-      </table>
-      <div style="color: #5a5a6a; font-size: 11px; margin-top: 8px; text-align: center;">
+            </div>`)}
+      <div style="color: ${EMAIL.fg3}; font-family: ${EMAIL.sans}; font-size: 12px; line-height: 1.6; margin-top: 8px;">
         Keep ${keys.length > 1 ? 'these keys' : 'this key'} safe. You can move a license to another mirror at
-        <a href="${MANAGE_URL}" style="color: #5a5a6a; text-decoration: underline;">skyglass.dev/license</a>.
+        <a href="${MANAGE_URL}" style="color: ${EMAIL.fg3}; text-decoration: underline;">skyglass.dev/license</a>.
       </div>
     </div>`
 }
@@ -142,19 +184,15 @@ export function licenseKeysHtml(keys: string[]): string {
 export function preinstalledLicenseHtml(kitCount: number): string {
   return `
     <div style="margin-top: 24px;">
-      ${sectionLabel(kitCount > 1 ? 'Your Licenses' : 'Your License')}
-      <table role="presentation" style="width: 100%; background-color: #1a1a24; border: 1px solid #2a2a3a; border-radius: 8px;">
-        <tr>
-          <td style="padding: 20px; color: #8a8a9a; font-size: 14px; line-height: 1.6; text-align: center;">
+      ${sectionLabel(kitCount > 1 ? 'Your licenses' : 'Your license')}
+      ${emailPanel(`<div style="color: ${EMAIL.fg2}; font-family: ${EMAIL.sans}; font-size: 14px; line-height: 1.6;">
             ${
               kitCount > 1
                 ? 'Your SkyGlass licenses come pre-installed on the SD cards in your kits.'
                 : 'Your SkyGlass license comes pre-installed on the SD card in your kit.'
             }
             The mirror activates it automatically the first time it connects to WiFi. There is no key to type.
-          </td>
-        </tr>
-      </table>
+          </div>`)}
     </div>`
 }
 
@@ -162,21 +200,10 @@ export function manageSignInEmailHtml(link: string): string {
   return emailLayout(
     'Manage your licenses',
     `
-    <h1 style="margin: 0 0 8px; color: #e8e8ec; font-size: 24px; font-weight: bold; text-align: center;">Manage your licenses</h1>
-    <p style="margin: 0 0 24px; color: #8a8a9a; font-size: 15px; text-align: center; line-height: 1.6;">
-      Use this link to see your SkyGlass licenses, move one to another mirror, or get a new key.
-      The link works for 30 minutes.
-    </p>
-    <table role="presentation" style="width: 100%;">
-      <tr>
-        <td style="text-align: center;">
-          <a href="${escapeHtml(link)}" style="display: inline-block; padding: 14px 28px; background-color: rgba(245, 166, 35, 0.1); border: 1px solid rgba(245, 166, 35, 0.5); color: #f5a623; text-decoration: none; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
-            Manage licenses
-          </a>
-        </td>
-      </tr>
-    </table>
-    <p style="margin: 24px 0 0; color: #5a5a6a; font-size: 12px; text-align: center;">
+    ${emailHeading('Manage your licenses')}
+    ${emailParagraph('Use this link to see your SkyGlass licenses, move one to another mirror, or get a new key. The link works for 30 minutes.')}
+    ${emailButton(link, 'Manage licenses')}
+    <p style="margin: 0; color: ${EMAIL.fg3}; font-family: ${EMAIL.sans}; font-size: 12px;">
       If you didn't ask for this, you can ignore this email.
     </p>`
   )
@@ -186,10 +213,8 @@ export function reissuedKeyEmailHtml(key: string): string {
   return emailLayout(
     'Your new license key',
     `
-    <h1 style="margin: 0 0 8px; color: #e8e8ec; font-size: 24px; font-weight: bold; text-align: center;">Your new license key</h1>
-    <p style="margin: 0; color: #8a8a9a; font-size: 15px; text-align: center; line-height: 1.6;">
-      You asked for a new SkyGlass license key. Your previous key no longer works.
-    </p>
+    ${emailHeading('Your new license key')}
+    ${emailParagraph('You asked for a new SkyGlass license key. Your previous key no longer works.')}
     ${licenseKeysHtml([key])}`
   )
 }

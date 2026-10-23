@@ -73,7 +73,11 @@ export function Hero() {
       <motion.div className="flex flex-col gap-7" {...fadeIn(0)}>
         <div className="flex items-center gap-2.5 font-mono text-xs tracking-[0.12em] text-white/62 uppercase">
           <span className="h-[7px] w-[7px] rounded-full bg-accent" aria-hidden="true" />
-          {isPreorderMode() ? 'Pre-orders open' : 'Pre-orders opening soon'}
+          {isPreorderMode()
+            ? 'Pre-orders open'
+            : ecommerceEnabled
+              ? 'Now available'
+              : 'Pre-orders opening soon'}
         </div>
         <h1 className="display-1 m-0">Bring the flight deck home.</h1>
         <p className="m-0 max-w-[520px] text-[19px] leading-[1.55] text-pretty text-fg-2">

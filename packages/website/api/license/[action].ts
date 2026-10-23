@@ -38,7 +38,7 @@ import {
 
 /**
  * SkyGlass license API: POST /api/license/:action (docs/LICENSING.md).
- * One function for every action (Vercel Hobby caps the number of functions).
+ * One function serves every action, so they share one cold start and one set of helpers.
  */
 
 const ACTIVATION_LIMIT_PER_HOUR = 30
@@ -362,13 +362,19 @@ async function manageReissue(ctx: Ctx) {
     subject: 'Your new SkyGlass license key',
     html: reissuedKeyEmailHtml(key),
   })
-  if (sent) {
-    // This email carries the license's live key, so an order confirmation
-    // still pending for it must not rotate the key again.
-    await ctx.sql`UPDATE licenses SET emailed_at = COALESCE(emailed_at, now()) WHERE id = ${license.id}`
-  } else {
+  if (!sent) {
+    // The old key is already dead and only the new key's hash is stored, so
+    // the customer must ask again: another reissue rotates it and re-sends.
     console.error(`[License] Reissued key for ${license.id} but the email failed`)
+    throw new ApiError(
+      502,
+      'email_failed',
+      "Your old key no longer works, but we couldn't email the new one. Request a new key again, or contact support@skyglass.dev."
+    )
   }
+  // This email carries the license's live key, so an order confirmation
+  // still pending for it must not rotate the key again.
+  await ctx.sql`UPDATE licenses SET emailed_at = COALESCE(emailed_at, now()) WHERE id = ${license.id}`
   console.log(`[License] Reissued key for ${license.id}`)
   return { ok: true }
 }
@@ -395,21 +401,13 @@ function parseBody(req: VercelRequest): Body {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store')
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end()
-  }
-
   const action = String(req.query.action ?? '')
   const run = ACTIONS[action]
   if (!run) {
     return res.status(404).json({ status: 'unknown_action', message: 'Unknown license action.' })
   }
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS')
+    res.setHeader('Allow', 'POST')
     return res.status(405).json({ status: 'method_not_allowed', message: 'Use POST.' })
   }
 

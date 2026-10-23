@@ -48,10 +48,14 @@ const features: Feature[] = [
     icon: <path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 6v3M5.6 10.6l1.8 1.8M18.4 10.6l-1.8 1.8" />,
   },
   {
-    title: 'Gesture control',
-    body: 'Wave to dismiss or sleep the display. No buttons, no touch, no voice commands.',
+    title: 'A layout for everyone',
+    body: 'Each person in the house gets their own widgets, arranged their way from their phone. The mirror shows yours when it recognizes you.',
     icon: (
-      <path d="M8 13V5a1.5 1.5 0 0 1 3 0v6M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V5.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-.5A6.5 6.5 0 0 1 4 16l-1-3a1.5 1.5 0 0 1 2.7-1.2L8 15" />
+      <>
+        <circle cx="9" cy="8" r="3.5" />
+        <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+        <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3a6.5 6.5 0 0 1 3.5 5.7" />
+      </>
     ),
   },
 ]

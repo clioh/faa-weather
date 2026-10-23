@@ -1,256 +1,86 @@
-# SkyGlass Website
+# SkyGlass website
 
-Marketing website and e-commerce platform for SkyGlass - a smart mirror for pilots.
+The marketing site and store at [skyglass.dev](https://skyglass.dev), plus the SkyGlass cloud
+service: the license API, checkout, and the keyed proxies mirrors use for calendar sign-in,
+NOTAMs and stock quotes. Deployed to Vercel.
 
-## Tech Stack
+- **Site:** Vite, React 19, TypeScript, Tailwind CSS v4 (Glass Cockpit tokens and components in
+  `src/index.css`, design reference in `docs/design/`), Motion, Zustand, React Router,
+  react-helmet-async
+- **API:** Vercel functions in `api/` (Node.js), Neon Postgres, Stripe (Payment Element, Tax,
+  promotion codes), Resend
+- **Analytics:** Vercel Web Analytics (sign-in and invite tokens are stripped first, `src/App.tsx`)
 
-- **Framework**: React 18 + TypeScript
-- **Styling**: Tailwind CSS
-- **Animation**: Motion (Framer Motion)
-- **State**: Zustand
-- **Payments**: Stripe (Elements, Tax, Coupons)
-- **Email**: Resend
-- **Hosting**: Vercel
-- **Analytics**: Vercel Analytics
+## Development
 
-## Getting Started
+Dependencies are installed from the repo root (`npm install`). Then, from the root:
 
-### Prerequisites
+```bash
+npm run dev --workspace=packages/website    # site only, http://localhost:5174
+```
 
-- Node.js 24+
-- Stripe account (test mode for development)
-- Resend account (for emails)
-
-### Installation
+`npm run dev` runs Vite only, so `/api/*` is not served (the waitlist pretends to succeed in
+development). To run the functions too, use the Vercel CLI from this directory (linked with
+`vercel link`; `vercel env pull` fetches development variables):
 
 ```bash
 cd packages/website
-npm install
+vercel dev                                   # site + api/, http://localhost:3000
+stripe listen --forward-to localhost:3000/api/webhook
 ```
 
-### Environment Setup
+Other scripts: `npm run build` (type-checks the site, `api/` and `shared/`, then builds),
+`npm run lint`, `npm run db:migrate` (applies `db/schema.sql` to `DATABASE_URL`).
 
-Copy the example environment file and configure:
-
-```bash
-cp .env.example .env
-```
-
-Required variables:
-
-| Variable                      | Description                                |
-| ----------------------------- | ------------------------------------------ |
-| `VITE_FEATURE_ECOMMERCE`      | Enable e-commerce mode (`true`/`false`)    |
-| `STRIPE_SECRET_KEY`           | Stripe secret key (starts with `sk_`)      |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (starts with `pk_`) |
-| `STRIPE_WEBHOOK_SECRET`       | Stripe webhook signing secret              |
-| `RESEND_API_KEY`              | Resend API key                             |
-| `RESEND_AUDIENCE_ID`          | Resend audience for waitlist               |
-| `ADMIN_PASSWORD`              | Password for admin dashboard               |
-
-### Development
-
-```bash
-npm run dev
-```
-
-Open http://localhost:5174 (port set in `vite.config.ts`; 5173 belongs to the mirror UI)
-
-### Local Stripe Webhook Testing
-
-```bash
-# Install Stripe CLI
-brew install stripe/stripe-cli/stripe
-
-# Forward webhooks to local server
-stripe listen --forward-to localhost:5173/api/webhook
-```
-
-## Project Structure
+## Layout
 
 ```
-packages/website/
-├── api/                        # Vercel serverless functions
-│   ├── create-payment-intent.ts  # Stripe payment creation
-│   ├── calculate-tax.ts          # Stripe Tax calculation
-│   ├── validate-promo.ts         # Promo code validation
-│   ├── webhook.ts                # Stripe webhook handler
-│   ├── waitlist.ts               # Waitlist signup
-│   └── admin/
-│       └── orders.ts             # Admin orders API
-├── src/
-│   ├── components/             # React components
-│   │   ├── Navigation.tsx
-│   │   ├── Hero.tsx
-│   │   ├── Features.tsx
-│   │   ├── HowItWorks.tsx
-│   │   ├── InteractiveDemo.tsx
-│   │   ├── Pricing.tsx
-│   │   ├── FAQ.tsx
-│   │   ├── Footer.tsx
-│   │   ├── CartDrawer.tsx
-│   │   ├── WaitlistModal.tsx
-│   │   └── SEO.tsx
-│   ├── pages/                  # Page components
-│   │   ├── Home.tsx
-│   │   ├── Checkout.tsx
-│   │   ├── CheckoutSuccess.tsx
-│   │   ├── Admin.tsx
-│   │   ├── Privacy.tsx
-│   │   ├── Terms.tsx
-│   │   └── NotFound.tsx
-│   ├── config/
-│   │   ├── features.ts         # Feature flags
-│   │   └── stripe.ts           # Stripe appearance config
-│   ├── store/
-│   │   └── cart.ts             # Zustand cart store
-│   ├── App.tsx
-│   └── main.tsx
-└── .env.example                # Environment template
+api/                    Vercel functions (one per file; api/_lib/ is shared code, not deployed)
+  create-payment-intent.ts, calculate-tax.ts, validate-promo.ts, webhook.ts   checkout
+  waitlist.ts           pre-order waitlist (Resend audience)
+  license/[action].ts   license API for mirrors and the /license page
+  admin/                orders and licenses for the admin page
+  oauth/, data/         cloud service for mirrors (calendar sign-in, NOTAMs, stocks)
+db/schema.sql           Postgres schema (licenses, releases, rate limits, promo redemptions)
+firewall/               Vercel WAF rate-limit rules (scripts/firewall-rules.mjs stages them)
+shared/catalog.ts       products, prices, shipping, lead time: used by the site and the API
+public/                 static files, including the Google OAuth bounce page (oauth/google.html)
+src/                    the site: pages/, components/, store/ (cart, waitlist), config/
 ```
 
-## Features
+Feature flags (`src/config/features.ts`): `VITE_FEATURE_ECOMMERCE` turns on the cart and checkout
+(otherwise every call to action is the waitlist); `VITE_FEATURE_PREORDERS` marks purchases as
+pre-orders.
 
-### Marketing Website
+## API
 
-- Hero with product visualization
-- Feature showcase with aviation visual language
-- Interactive demo (METAR display simulation)
-- Hardware kit pricing cards
-- FAQ section
-- SEO optimized with meta tags and structured data
+| Endpoint                                                      | Purpose                                                   | Docs                    |
+| ------------------------------------------------------------- | --------------------------------------------------------- | ----------------------- |
+| `POST /api/waitlist`                                          | Add an address to the waitlist audience; sends no email   | `api/waitlist.ts`       |
+| `POST /api/calculate-tax`, `/api/validate-promo`              | Tax estimate and promo check for the checkout UI          | `docs/LICENSING.md`     |
+| `POST /api/create-payment-intent`                             | Prices the cart and creates the PaymentIntent             | `docs/LICENSING.md`     |
+| `POST /api/webhook`                                           | Stripe events: licenses, confirmation email, refunds      | `docs/LICENSING.md`     |
+| `POST /api/license/:action`                                   | Activate/refresh (mirrors), manage-\* (the /license page) | `docs/LICENSING.md`     |
+| `GET\|POST /api/admin/licenses`, `GET /api/admin/orders`      | Admin page (`Authorization: Bearer $ADMIN_PASSWORD`)      | `docs/LICENSING.md`     |
+| `GET /api/oauth/config`, `POST /api/oauth/google/token`       | Calendar sign-in broker for mirrors                       | `docs/CALENDAR.md`      |
+| `GET /api/data/notams`, `/api/data/stocks`, `/stock-profiles` | Keyed, CDN-cached data proxies for mirrors                | `docs/CLOUD_SERVICE.md` |
 
-### E-commerce (Feature Flagged)
+None of these send CORS headers: the site calls them same-origin and mirrors call them
+server to server. Rate limits (per IP in Postgres, plus Vercel WAF rules) are described in
+`docs/CLOUD_SERVICE.md` and `docs/LICENSING.md`.
 
-Enable with `VITE_FEATURE_ECOMMERCE=true`
+## Environment variables
 
-#### Cart System
+Every variable is listed, with comments, in `.env.example`. In short:
 
-- Zustand store with localStorage persistence
-- CartDrawer component with quantity controls
-- Products: Software License ($99), Hardware Kit ($349), Complete Kit ($549). Ids, names,
-  prices and shipping rules live in `shared/catalog.ts`, used by both `src/` and `api/`
-
-#### Checkout Flow
-
-1. **Information** - Email collection (license-only carts also collect a US billing ZIP for sales tax)
-2. **Shipping** - Address entry with validation (only when the cart contains a kit)
-3. **Payment** - Stripe Elements with custom styling
-
-#### Stripe Integration
-
-| Feature   | Implementation                                                                    |
-| --------- | --------------------------------------------------------------------------------- |
-| Payment   | PaymentIntent with Elements                                                       |
-| Tax       | Stripe Tax (location-based) with fallback                                         |
-| Discounts | Promotion Codes via Coupons API                                                   |
-| Webhooks  | payment_intent.succeeded, charge.refunded, refund.updated, charge.dispute.created |
-
-#### Promo Codes
-
-- Validates against Stripe Promotion Codes
-- Supports percent off and fixed amount discounts
-- Checks usage limits, expiration, minimum amounts
-- Server-side validation prevents manipulation
-
-#### Order Emails
-
-- Confirmation email on successful payment
-- License key (software) or pre-installed note (kits) in the confirmation; declines are shown inline by Stripe Elements, no email
-- Styled to match brand (dark theme, amber accents)
-
-### Admin Dashboard (`/admin`)
-
-Password-protected dashboard showing:
-
-- Order statistics (total orders, revenue, pending)
-- Filterable orders table
-- Order detail modal with Stripe link
-- Customer email action
-
-### Waitlist Mode
-
-When `VITE_FEATURE_ECOMMERCE=false`:
-
-- "Join Waitlist" instead of "Add to Cart"
-- Waitlist modal collects email + home airport
-- Adds contact to Resend audience
-- Sends welcome email
-
-## API Endpoints
-
-| Endpoint                     | Method | Description                  |
-| ---------------------------- | ------ | ---------------------------- |
-| `/api/create-payment-intent` | POST   | Create Stripe PaymentIntent  |
-| `/api/calculate-tax`         | POST   | Calculate tax via Stripe Tax |
-| `/api/validate-promo`        | POST   | Validate promotion code      |
-| `/api/webhook`               | POST   | Stripe webhook handler       |
-| `/api/waitlist`              | POST   | Add to waitlist              |
-| `/api/admin/orders`          | GET    | List orders (auth required)  |
-
-## Deployment
-
-### Vercel
-
-1. Connect repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy
-
-### Stripe Webhook Setup
-
-1. Go to [Stripe Dashboard > Webhooks](https://dashboard.stripe.com/webhooks)
-2. Add endpoint: `https://your-domain.com/api/webhook`
-3. Select events:
-   - `payment_intent.succeeded`
-   - `payment_intent.payment_failed` (logged only)
-   - `charge.refunded`, `refund.updated`, `charge.dispute.created` (license revocation; see `docs/LICENSING.md`)
-4. Copy signing secret to `STRIPE_WEBHOOK_SECRET`
-
-### Stripe Tax Setup
-
-1. Go to [Stripe Dashboard > Tax](https://dashboard.stripe.com/tax/registrations)
-2. Add your business address
-3. Register for tax collection in applicable jurisdictions
-4. Tax is automatically calculated based on customer location
-
-### Creating Promo Codes
-
-1. Go to [Stripe Dashboard > Coupons](https://dashboard.stripe.com/coupons)
-2. Create coupon (e.g., 15% off)
-3. Add promotion code (e.g., "EARLYBIRD")
-4. Set restrictions as needed
-
-## Scripts
-
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run preview  # Preview production build
-npm run lint     # Run ESLint
-```
-
-## Design System
-
-### Colors (from tailwind.config.js)
-
-| Name       | Hex     | Usage             |
-| ---------- | ------- | ----------------- |
-| void       | #0a0a0f | Dark background   |
-| panel      | #12121a | Card background   |
-| instrument | #1a1a24 | Input background  |
-| border     | #2a2a3a | Borders           |
-| amber      | #f5a623 | Primary accent    |
-| light      | #e8e8ec | Primary text      |
-| muted      | #8a8a9a | Secondary text    |
-| vfr        | #4ade80 | Success/VFR green |
-| ifr        | #ef4444 | Error/IFR red     |
-
-### Typography
-
-- Display: "Instrument Serif" (headings)
-- Body: "Inter" (body text)
-- Mono: "JetBrains Mono" (data, code, prices)
+| Area                      | Variables                                                                        | More                     |
+| ------------------------- | -------------------------------------------------------------------------------- | ------------------------ |
+| Store mode                | `VITE_FEATURE_ECOMMERCE`, `VITE_FEATURE_PREORDERS`                               | `src/config/features.ts` |
+| Stripe                    | `STRIPE_SECRET_KEY`, `VITE_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`      | `docs/LICENSING.md`      |
+| Email and waitlist        | `RESEND_API_KEY`, `RESEND_AUDIENCE_ID`                                           | `docs/LICENSING.md`      |
+| Licensing and rate limits | `DATABASE_URL`, `LICENSE_SIGNING_KEY`, `LICENSE_MANAGE_SECRET`, `ADMIN_PASSWORD` | `docs/LICENSING.md`      |
+| Cloud service             | `GOOGLE_*`, `MICROSOFT_*`, `FAA_NOTAM_*`, `FINNHUB_API_KEY`                      | `docs/CLOUD_SERVICE.md`  |
 
 ## License
 
-MIT - See LICENSE file
+See LICENSE at the repository root.

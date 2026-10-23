@@ -89,23 +89,3 @@ export function ErrorFallback({
     </div>
   )
 }
-
-// Page-level error boundary with full-screen layout
-export function PageErrorBoundary({ children }: { children: ReactNode }) {
-  return (
-    <ErrorBoundary
-      fallback={
-        <div className="min-h-screen bg-bg text-fg flex items-center justify-center">
-          <ErrorFallback
-            error={null}
-            title="Page Error"
-            description="This page encountered an error. Please refresh or return to the home page."
-            onRetry={() => window.location.reload()}
-          />
-        </div>
-      }
-    >
-      {children}
-    </ErrorBoundary>
-  )
-}

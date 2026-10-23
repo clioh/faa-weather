@@ -27,16 +27,10 @@ interface Order {
   createdAt: string
 }
 
+/** Most PaymentIntents the summary stats page through (10 Stripe list calls). */
+const STATS_MAX_INTENTS = 1000
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -106,19 +100,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     })
 
-    // Get summary stats
-    const allSucceeded = await stripe.paymentIntents.list({
-      limit: 100,
-    })
+    // Summary stats over every PaymentIntent (auto-paginated), up to STATS_MAX_INTENTS.
+    // `statsComplete` is false when there were more than that, so the page can say so.
+    let succeeded = 0
+    let revenue = 0
+    let unpaid = 0
+    let counted = 0
+    let statsComplete = true
+    for await (const pi of stripe.paymentIntents.list({ limit: 100 })) {
+      if (counted >= STATS_MAX_INTENTS) {
+        statsComplete = false
+        break
+      }
+      counted++
+      if (pi.status === 'succeeded') {
+        succeeded++
+        revenue += pi.amount
+      } else if (pi.status === 'requires_payment_method' || pi.status === 'requires_confirmation') {
+        unpaid++
+      }
+    }
 
     const stats = {
-      totalOrders: allSucceeded.data.filter((pi) => pi.status === 'succeeded').length,
-      totalRevenue: allSucceeded.data
-        .filter((pi) => pi.status === 'succeeded')
-        .reduce((sum, pi) => sum + pi.amount, 0),
-      pendingOrders: allSucceeded.data.filter(
-        (pi) => pi.status === 'requires_payment_method' || pi.status === 'requires_confirmation'
-      ).length,
+      /** Paid orders (succeeded PaymentIntents). */
+      totalOrders: succeeded,
+      /** Gross amount of paid orders, before refunds, in cents. */
+      totalRevenue: revenue,
+      /** Checkouts started but never paid. */
+      pendingOrders: unpaid,
+      /** PaymentIntents counted, and whether that was all of them. */
+      counted,
+      statsComplete,
     }
 
     return res.status(200).json({

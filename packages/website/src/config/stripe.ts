@@ -6,7 +6,7 @@ import { loadStripe, type Appearance } from '@stripe/stripe-js'
 // loading state rather than crashing.
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined
 
-export const stripeConfigured = Boolean(stripePublishableKey)
+const stripeConfigured = Boolean(stripePublishableKey)
 
 export const stripePromise = stripePublishableKey
   ? loadStripe(stripePublishableKey)
@@ -142,10 +142,3 @@ export const stripeAppearance: Appearance = {
 export const stripeFonts = [
   { cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' },
 ]
-
-// Elements options
-export const stripeElementsOptions = {
-  appearance: stripeAppearance,
-  fonts: stripeFonts,
-  loader: 'auto' as const,
-}

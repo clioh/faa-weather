@@ -1,8 +1,10 @@
 import { Helmet } from 'react-helmet-async'
+import { useLocation } from 'react-router-dom'
 
 interface SEOProps {
   title?: string
   description?: string
+  /** Path of the canonical URL, e.g. "/privacy". Defaults to the current path. */
   canonical?: string
   type?: 'website' | 'article'
   image?: string
@@ -29,7 +31,9 @@ export function SEO({
 }: SEOProps) {
   const pageTitle = title ? `${title} | SkyGlass` : defaultMeta.title
 
-  const url = canonical ? `${defaultMeta.siteUrl}${canonical}` : defaultMeta.siteUrl
+  // The page's own URL (no query or hash: tokens and invite codes live there).
+  const { pathname } = useLocation()
+  const url = `${defaultMeta.siteUrl}${canonical ?? pathname}`
 
   return (
     <Helmet>
@@ -38,7 +42,7 @@ export function SEO({
       <meta name="title" content={pageTitle} />
       <meta name="description" content={description} />
       <link rel="canonical" href={url} />
-      {noindex && <meta name="robots" content="noindex" />}
+      <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={type} />

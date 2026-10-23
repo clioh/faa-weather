@@ -32,9 +32,9 @@ out after 10 s.
 
 ## Common behaviour
 
-- **No CORS.** These routes are for mirrors (server to server). `vercel.json` excludes
-  `/api/oauth/*` and `/api/data/*` from the `Access-Control-Allow-Origin: *` rule, and the
-  functions never set CORS headers.
+- **No CORS.** These routes are for mirrors (server to server). No function under `api/` sets
+  CORS headers and `vercel.json` adds none: the site calls its own API same-origin, and
+  mirrors and the phone app never call skyglass.dev from a browser.
 - **Headers:** `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow`,
   `X-Content-Type-Options: nosniff`.
 - **Errors** are JSON `{ "error": string, "error_description"?: string }`:
@@ -106,6 +106,10 @@ are shared across every mirror's CDN cache rather than keyed by each user's own 
 
 ## Global rate limits (Vercel WAF)
 
+The same mechanism also covers the store and license endpoints (`/api/license/*`,
+`/api/create-payment-intent`, `/api/calculate-tax`, `/api/validate-promo`, `/api/waitlist`); see
+the second table below.
+
 The cross-instance cap is a set of Vercel Firewall (WAF) custom rules with a rate-limit
 action, counted per client IP at Vercel's edge, before the CDN cache and before any function
 runs. Requests over the limit never reach a function or an upstream and are not billed.
@@ -130,12 +134,17 @@ same name exists, so re-running after editing the JSON updates the rules). Publi
 separate, manual step. Edits made in the dashboard are overwritten the next time the script
 runs; change the JSON instead.
 
-| Rule                              | Paths (prefix)                                 | Limit per IP | Over the limit |
-| --------------------------------- | ---------------------------------------------- | ------------ | -------------- |
-| `skyglass-ratelimit-notams`       | `/api/data/notams`                             | 60 / 10 min  | 429            |
-| `skyglass-ratelimit-stocks`       | `/api/data/stock` (`stocks`, `stock-profiles`) | 300 / 10 min | 429            |
-| `skyglass-ratelimit-oauth-config` | `/api/oauth/config`                            | 60 / 10 min  | 429            |
-| `skyglass-ratelimit-oauth-token`  | `/api/oauth/google/token`                      | 60 / 10 min  | 429            |
+| Rule                                | Paths (prefix)                                 | Limit per IP | Over the limit |
+| ----------------------------------- | ---------------------------------------------- | ------------ | -------------- |
+| `skyglass-ratelimit-notams`         | `/api/data/notams`                             | 60 / 10 min  | 429            |
+| `skyglass-ratelimit-stocks`         | `/api/data/stock` (`stocks`, `stock-profiles`) | 300 / 10 min | 429            |
+| `skyglass-ratelimit-oauth-config`   | `/api/oauth/config`                            | 60 / 10 min  | 429            |
+| `skyglass-ratelimit-oauth-token`    | `/api/oauth/google/token`                      | 60 / 10 min  | 429            |
+| `skyglass-ratelimit-license`        | `/api/license/` (every action)                 | 120 / 10 min | 429            |
+| `skyglass-ratelimit-payment-intent` | `/api/create-payment-intent`                   | 20 / 10 min  | 429            |
+| `skyglass-ratelimit-tax`            | `/api/calculate-tax`                           | 30 / 10 min  | 429            |
+| `skyglass-ratelimit-promo`          | `/api/validate-promo`                          | 10 / 10 min  | 429            |
+| `skyglass-ratelimit-waitlist`       | `/api/waitlist`                                | 10 / 10 min  | 429            |
 
 All rules: key `ip`, fixed window of 600 s (the Pro maximum), every method counted.
 
@@ -152,6 +161,19 @@ put several mirrors and several face profiles behind one IP, and the WAF counts 
 A mirror that does get a 429 serves its cached data and retries later, as for any upstream
 failure.
 
+The store and license rules sit in front of per-IP hourly limits the functions keep in Postgres
+(`rateLimit` in `api/_lib/db.ts`; skipped when `DATABASE_URL` is unset, which leaves the WAF
+rule as the only cap). The WAF rule stops bursts before a function runs; the hourly limit caps
+a slow, steady caller.
+
+| Endpoint                | Normal use                                                                                                                                                                                                                                                 | WAF (per 10 min)                                                                 | In the function (per hour)                                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `/api/license/*`        | A mirror refreshes once a day (`REFRESH_INTERVAL_MS`, `packages/backend/src/license/manager.ts`), retries hourly after a failure, and in the 10 minutes after boot retries a key file every 30 s (20 calls). The /license page makes a few calls per visit | 120: 6 mirrors behind one IP all booting at once, with room for the license page | activate/refresh 30, manage-request 5                                                                                   |
+| `create-payment-intent` | One per visit to the payment step; changing a promo code or address makes another                                                                                                                                                                          | 20                                                                               | 20                                                                                                                      |
+| `calculate-tax`         | One per address (or ZIP) entered at checkout. Every call is a Stripe Tax calculation                                                                                                                                                                       | 30                                                                               | 60; over it, checkout shows the fallback-rate estimate (`fallback: true`) and the real tax is still computed at payment |
+| `validate-promo`        | A code or two per checkout. Each call is a Stripe lookup, and a low cap stops guessing codes                                                                                                                                                               | 10                                                                               | 20                                                                                                                      |
+| `waitlist`              | One signup per visitor. It sends no email, so it can't be used to flood an inbox                                                                                                                                                                           | 10                                                                               | 10 per IP and 3 per address                                                                                             |
+
 **Caveats.**
 
 - Counters are per Vercel region. A single client always lands in the same region, so a
@@ -163,11 +185,11 @@ failure.
 - Rate limiting is usage-billed on Pro (blocked requests are not billed as function or
   bandwidth usage). Pro allows 40 rate-limit rules per project, windows 10 s to 10 min.
 
-**Alternative considered: a shared counter in Neon Postgres** (`DATABASE_URL`, already
-planned for licensing). It would be exact across regions and could count per symbol, but it
-adds a database round trip to every function call, keeps the function (and its cost) running
-for abusive traffic, makes the data endpoints depend on the database being up, and needs code
-plus a table and cleanup. The WAF rejects abuse before any of that and needs no code. The
+**Alternative considered: a shared counter in Neon Postgres** (`DATABASE_URL`, already used
+for licensing and for the store endpoints' hourly limits above). It would be exact across
+regions and could count per symbol, but it adds a database round trip to every function call,
+keeps the function (and its cost) running for abusive traffic, makes the data endpoints depend
+on the database being up, and needs code plus a table and cleanup. The WAF rejects abuse before any of that and needs no code. The
 in-function limiter stays as a second line for anything the WAF lets through.
 
 ## Endpoints

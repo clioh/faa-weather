@@ -13,7 +13,7 @@ export function Terms() {
 
       <main className="page-container pt-10 pb-24 sm:pt-16">
         <h1 className="display-3">Terms of Service</h1>
-        <p className="mt-3 text-sm text-fg-3">Last updated: October 21, 2026</p>
+        <p className="mt-3 text-sm text-fg-3">Last updated: October 23, 2026</p>
 
         <div className="prose-site mt-4 [&_ul+p]:mt-3">
           <section>
@@ -51,8 +51,7 @@ export function Terms() {
                 display, two-way mirror glass, and frame)
               </li>
               <li>SkyGlass software and a license for one mirror</li>
-              <li>Companion mobile app</li>
-              <li>Web-based configuration interface</li>
+              <li>Companion mobile app, where you set up and arrange the mirror</li>
             </ul>
           </section>
 
@@ -63,7 +62,7 @@ export function Terms() {
               constitute a purchase or guarantee availability. When pre-orders open:
             </p>
             <ul>
-              <li>Waitlist members will be notified in order of signup</li>
+              <li>Everyone on the waitlist gets one email when pre-orders open</li>
               <li>Pricing and specifications may change before final release</li>
               <li>
                 Pre-orders are refundable in full until the product ships (see{' '}

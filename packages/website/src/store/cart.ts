@@ -12,8 +12,8 @@ export interface Product {
   features: string[]
   /** True when the product is a physical shipment. A cart with no physical items needs no address. */
   physical: boolean
-  badge?: string
-  popular?: boolean
+  /** The card the storefront highlights as the one to get. A recommendation, not a sales ranking. */
+  recommended?: boolean
 }
 
 export interface CartItem {
@@ -54,10 +54,10 @@ export const products: Product[] = [
     description: 'For makers with their own Pi, display, and mirror',
     features: [
       'License for one mirror',
-      'SkyGlass OS image',
+      'Setup script for Raspberry Pi OS',
+      'Build guide and parts list',
       'Companion app',
       'Email support',
-      'DIY build guide',
     ],
   }),
   storefront('hardware-kit', {
@@ -84,8 +84,7 @@ export const products: Product[] = [
       'Wall mount hardware',
       'Priority support',
     ],
-    popular: true,
-    badge: 'Most Popular',
+    recommended: true,
   }),
 ]
 

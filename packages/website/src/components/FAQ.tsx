@@ -1,4 +1,7 @@
+import { Helmet } from 'react-helmet-async'
 import { Link } from 'react-router-dom'
+
+const SITE_URL = 'https://skyglass.dev'
 
 const faqs: { question: string; answer: string; link?: { to: string; label: string } }[] = [
   {
@@ -34,7 +37,7 @@ const faqs: { question: string; answer: string; link?: { to: string; label: stri
   {
     question: 'Can multiple people use it?',
     answer:
-      'Yes. SkyGlass supports multiple face profiles, each with their own home airports, calendar connections, and widget preferences. It automatically shows the right dashboard when it recognizes you.',
+      'Yes. Each person gets their own face profile and layout: which widgets appear, where, and how they are set up, such as which airport a weather widget shows. Calendar accounts are connected once and shared by the whole mirror. It switches to your layout when it recognizes you.',
   },
   {
     question: 'How does licensing work?',
@@ -54,6 +57,20 @@ const faqs: { question: string; answer: string; link?: { to: string; label: stri
   },
 ]
 
+/** FAQPage structured data, built from the same list the page shows so the two can't drift. */
+const faqJsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.link ? `${faq.answer} Full policy: ${SITE_URL}${faq.link.to}` : faq.answer,
+    },
+  })),
+})
+
 export function FAQ() {
   return (
     <section
@@ -61,6 +78,9 @@ export function FAQ() {
       aria-labelledby="faq-heading"
       className="grid scroll-mt-24 grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-12 pb-[120px]"
     >
+      <Helmet>
+        <script type="application/ld+json">{faqJsonLd}</script>
+      </Helmet>
       <h2 id="faq-heading" className="display-2 m-0">
         Questions
       </h2>

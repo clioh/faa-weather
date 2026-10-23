@@ -2,86 +2,62 @@ import { create } from 'zustand'
 
 interface WaitlistState {
   email: string
-  airport: string
-  position: number | null
   isSubmitted: boolean
   isSubmitting: boolean
   error: string | null
   setEmail: (email: string) => void
-  setAirport: (airport: string) => void
   submit: () => Promise<void>
-  reset: () => void
 }
 
 export const useWaitlist = create<WaitlistState>((set, get) => ({
   email: '',
-  airport: '',
-  position: null,
   isSubmitted: false,
   isSubmitting: false,
   error: null,
 
   setEmail: (email) => set({ email, error: null }),
-  setAirport: (airport) => set({ airport: airport.toUpperCase() }),
 
   submit: async () => {
-    const { email, airport } = get()
+    const email = get().email.trim()
 
     if (!email || !email.includes('@')) {
-      set({ error: 'Please enter a valid email address' })
+      set({ error: 'Enter a valid email address' })
       return
     }
 
     set({ isSubmitting: true, error: null })
 
+    let response: Response
     try {
-      const response = await fetch('/api/waitlist', {
+      response = await fetch('/api/waitlist', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, airport: airport || undefined }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to join waitlist')
-      }
-
+    } catch {
       set({
-        isSubmitted: true,
-        isSubmitting: false,
-        position: data.position || null,
-      })
-    } catch (error) {
-      // Fallback to localStorage for local development without API
-      if (import.meta.env.DEV) {
-        const waitlist = JSON.parse(localStorage.getItem('skyglass-waitlist') || '[]')
-        waitlist.push({ email, airport, timestamp: Date.now() })
-        localStorage.setItem('skyglass-waitlist', JSON.stringify(waitlist))
-        set({
-          isSubmitted: true,
-          isSubmitting: false,
-          position: waitlist.length,
-        })
-        return
-      }
-
-      set({
-        error: error instanceof Error ? error.message : 'Something went wrong',
+        error: "Couldn't reach SkyGlass. Check your connection and try again.",
         isSubmitting: false,
       })
+      return
     }
-  },
 
-  reset: () =>
-    set({
-      email: '',
-      airport: '',
-      position: null,
-      isSubmitted: false,
-      isSubmitting: false,
-      error: null,
-    }),
+    // `vite` alone doesn't serve /api (that needs `vercel dev`): pretend it worked in development.
+    if (import.meta.env.DEV && response.status === 404) {
+      console.warn('[SkyGlass] /api/waitlist is not running; run `vercel dev` to test it.')
+      set({ isSubmitted: true, isSubmitting: false })
+      return
+    }
+
+    const data = (await response.json().catch(() => null)) as { error?: string } | null
+    if (!response.ok) {
+      set({
+        error: data?.error || 'Something went wrong. Please try again.',
+        isSubmitting: false,
+      })
+      return
+    }
+
+    set({ isSubmitted: true, isSubmitting: false })
+  },
 }))

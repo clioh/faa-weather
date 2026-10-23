@@ -10,14 +10,9 @@
     <meta name="description" content="SkyGlass is a smart mirror that displays live METAR, TFRs, NOTAMs, and your flight schedule. Looks like a regular mirror until you walk up. Built by a pilot, for pilots." />
     <meta name="keywords" content="smart mirror, aviation weather, METAR, pilot, flight schedule, TFR, NOTAM, Raspberry Pi, aviation display, flight deck" />
     <meta name="author" content="SkyGlass" />
-    <meta name="robots" content="index, follow" />
-
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://skyglass.dev/" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://skyglass.dev/" />
     <meta property="og:site_name" content="SkyGlass" />
     <meta property="og:title" content="SkyGlass | Smart Mirror for Pilots" />
     <meta property="og:description" content="A smart mirror that displays live METAR, TFRs, and your flight schedule. Looks like a regular mirror until you walk up. Built by a pilot, for pilots." />
@@ -28,7 +23,6 @@
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://skyglass.dev/" />
     <meta name="twitter:title" content="SkyGlass | Smart Mirror for Pilots" />
     <meta name="twitter:description" content="A smart mirror that displays live METAR, TFRs, and your flight schedule. Looks like a regular mirror until you walk up." />
     <meta name="twitter:image" content="https://skyglass.dev/og-image.png" />
@@ -73,105 +67,11 @@
     }
     </script>
 
-    <!-- Structured Data: Product -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      "name": "SkyGlass Complete Kit",
-      "description": "A complete smart mirror kit for pilots featuring aviation weather (METAR/TAF), TFRs, NOTAMs, flight schedules, presence detection, and gesture control. Includes Raspberry Pi 5, 24-inch display, two-way mirror, and all hardware.",
-      "brand": {
-        "@type": "Brand",
-        "name": "SkyGlass"
-      },
-      "offers": {
-        "@type": "Offer",
-        "price": "{{CATALOG_PRICE_USD:complete-kit}}",
-        "priceCurrency": "USD",
-        "availability": "https://schema.org/PreOrder",
-        "url": "https://skyglass.dev/#pricing"
-      },
-      "category": "Aviation Electronics",
-      "audience": {
-        "@type": "Audience",
-        "audienceType": "Pilots"
-      }
-    }
-    </script>
-
-    <!-- Structured Data: FAQPage -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "What exactly is SkyGlass?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "SkyGlass is a smart mirror that looks like a regular mirror when idle. When you walk up to it, it detects your presence and displays aviation weather (METAR/TAF), TFRs, NOTAMs, your flight schedule, and more. Step away, and it returns to being just a mirror."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Where does the weather data come from?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Weather data comes from the Aviation Weather Center (aviationweather.gov), the official source for US aviation weather. Data refreshes automatically and is typically less than 5 minutes old."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How does the face recognition work? Is it private?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Face recognition runs entirely on-device using the Raspberry Pi. Your face embeddings are stored locally and never leave your home—not to our servers, not to any cloud. You can delete your data anytime through the companion app."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Can I use this for flight planning?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "No. SkyGlass is for awareness and convenience only—it's not a replacement for proper flight planning. Always use official sources like 1800wxbrief.com or ForeFlight for actual flight planning and pre-flight briefings."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How hard is it to set up?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "The Complete Kit takes about 30 minutes to assemble—just mount the mirror, connect the Pi, and run through the app setup. The Hardware Kit requires sourcing your own mirror and frame but includes detailed instructions. Software-only is for experienced DIYers."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Can multiple people use it?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. SkyGlass supports multiple face profiles, each with their own home airports, calendar connections, and widget preferences. It automatically shows the right dashboard when it recognizes you."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What's your refund policy?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "The Software License is fully refundable within 30 days of purchase, no questions asked. Kits can be returned within 30 days of delivery for a full refund of the product price (no restocking fee; return shipping is on us if the kit arrived damaged or defective, or we sent the wrong item). Pre-orders are refundable in full until they ship. Kits also carry a 1-year hardware warranty. A refund revokes the license that came with the purchase. Full policy: https://skyglass.dev/terms#refunds"
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Does it work without internet?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Basic features like time, date, and cached weather work offline. Live weather updates, TFRs, and calendar sync require an internet connection. The mirror itself will always function."
-          }
-        }
-      ]
-    }
-    </script>
+    <!--
+      Per-page tags (canonical, og:url, twitter:url, robots) come from src/components/SEO.tsx.
+      Product and FAQPage structured data are rendered on the home page (src/pages/Home.tsx,
+      src/components/FAQ.tsx) so they follow the store mode and the visible FAQ.
+    -->
   </head>
   <body>
     <div id="root"></div>

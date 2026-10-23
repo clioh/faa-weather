@@ -659,7 +659,7 @@ export function Checkout() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-bg flex flex-col">
-        <SEO title="Checkout" description="Complete your SkyGlass order" />
+        <SEO title="Checkout" description="Complete your SkyGlass order" noindex />
         <PageHeader />
         <main className="page-container flex-1 flex items-center justify-center py-16">
           <div className="text-center">
@@ -706,7 +706,7 @@ export function Checkout() {
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
-      <SEO title="Checkout" description="Complete your SkyGlass order" />
+      <SEO title="Checkout" description="Complete your SkyGlass order" noindex />
 
       <PageHeader
         right={

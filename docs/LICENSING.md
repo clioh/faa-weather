@@ -71,11 +71,20 @@ All bodies are JSON. Errors are `{ "status": "<code>", "message": "<human text>"
 | `POST manage-request` | `{ email }`                                                                                             | Always `200 { ok: true }`, and always after at least 1.5 s, so neither the answer nor its timing reveals whether the address has licenses. If licenses exist for that email, sends a sign-in link `https://skyglass.dev/license?token=…` valid for 30 minutes (HMAC with `LICENSE_MANAGE_SECRET`) | -                                                                               |
 | `POST manage-list`    | `{ token }`                                                                                             | `200 { email, licenses: [{ id, keyLast4, productId, status, mirrorId, activatedAt, lastSeenAt }], releasesRemaining }`                                                                                                                                                                            | `401 invalid_token`                                                             |
 | `POST manage-release` | `{ token, licenseId }`                                                                                  | `200 { ok: true }`. Unbinds (status → `pending`) and records a release                                                                                                                                                                                                                            | `401`, `404`, `429 transfer_limit`                                              |
-| `POST manage-reissue` | `{ token, licenseId }`                                                                                  | `200 { ok: true }`. Only for `pending` licenses: new key, old key dead, new key emailed                                                                                                                                                                                                           | `401`, `404`, `409 bound`                                                       |
+| `POST manage-reissue` | `{ token, licenseId }`                                                                                  | `200 { ok: true }`. Only for `pending` licenses: new key, old key dead, new key emailed                                                                                                                                                                                                           | `401`, `404`, `409 bound`, `502 email_failed`                                   |
 
 Rate limits are per IP: activate/refresh 30 per hour, manage-request 5 per hour (plus 5 sign-in
-emails per address per hour), create-payment-intent 20 per hour, failed admin sign-ins 10 per
-hour. They're best-effort, kept in Postgres.
+emails per address per hour), create-payment-intent 20 per hour, calculate-tax 60 per hour,
+validate-promo 20 per hour, waitlist 10 per hour (plus 3 per address), failed admin sign-ins 10
+per hour. They're best-effort, kept in Postgres (the store endpoints skip them when
+`DATABASE_URL` is unset). Vercel WAF rules cap bursts per 10 minutes in front of them
+(`packages/website/firewall/rate-limits.json`, sizing in
+[CLOUD_SERVICE.md](CLOUD_SERVICE.md#global-rate-limits-vercel-waf)).
+
+`manage-reissue` rotates the key before emailing it. If the email fails it answers
+`502 email_failed`: the old key is already dead and only the new key's hash is stored, so the
+/license page tells the customer to request a new key again (which rotates and re-sends) or to
+contact support.
 
 `activate` and `refresh` guard every write with the key hash they looked the license up by, so a
 key reissued (or a license released or revoked) between the lookup and the write can't bind or
@@ -113,6 +122,32 @@ it gets `429` until the hour is over.
 `npm run db:migrate --workspace=packages/website` applies the schema. It is idempotent
 (`CREATE … IF NOT EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`), so it also upgrades an
 existing database.
+
+## Configuration (Vercel environment)
+
+All in `packages/website/.env.example`.
+
+| Variable                                                                    | Used for                                                                                                   |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                              | Neon Postgres: licenses, releases, promo redemptions, rate limits. Unset: license API `503 not_configured` |
+| `LICENSE_SIGNING_KEY`                                                       | Signs activation tokens. Unset: license API `503 not_configured`                                           |
+| `LICENSE_MANAGE_SECRET`                                                     | HMAC for the 30-minute /license sign-in links. Unset: manage-\* `503 not_configured`                       |
+| `ADMIN_PASSWORD`                                                            | Admin API bearer password. Unset: `503`                                                                    |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `VITE_STRIPE_PUBLISHABLE_KEY` | Checkout and the webhook                                                                                   |
+| `RESEND_API_KEY`                                                            | Every email. Unset: nothing is sent, and the webhook returns `500` so Stripe retries the confirmation      |
+| `RESEND_AUDIENCE_ID`                                                        | The waitlist audience (`api/waitlist.ts`). Unset: the waitlist answers `503`                               |
+
+Senders (`packages/website/api/_lib/email.ts`; the domain must be verified in Resend):
+
+| From                    | Emails                                                        |
+| ----------------------- | ------------------------------------------------------------- |
+| `orders@skyglass.dev`   | Order confirmation, with software license keys (`webhook.ts`) |
+| `licenses@skyglass.dev` | License sign-in link (manage-request), reissued key           |
+
+The waitlist sends nothing when someone signs up: the address is stored as a contact in the
+Resend audience, and the one "pre-orders are open" email is a Resend broadcast to that audience,
+sent by hand from whichever sender you choose. Every email names `support@skyglass.dev` for
+questions.
 
 ## Purchase → license
 
@@ -201,6 +236,10 @@ and sales tax.
 
 ## Fulfilment (pre-flashed kits)
 
+Kit cards are written from a golden image with `scripts/flash-sd.sh` ([KIT_CARDS.md](KIT_CARDS.md)).
+Its `--license-id <licenseId>` runs `provision-sd.sh` (below) on the freshly written card;
+`--license-key` / `--license-key-file` write a key you already have.
+
 `scripts/provision-sd.sh <licenseId> [bootVolume] [--force] [--rekey]` calls `provision` and
 writes the key to `skyglass-license.txt` on the card's boot partition. The default volume is
 `/Volumes/bootfs` on macOS. On the Pi that partition is `/boot/firmware`. The request times out
@@ -208,8 +247,8 @@ after 30 seconds. If it timed out or the response was lost after the key was iss
 gets `already_keyed`; run it again with `--rekey` (pending licenses only) to replace that key.
 
 A kit built for a portrait mount can also carry its orientation, so the first setup screen is
-the right way up: `echo portrait-cw > /Volumes/bootfs/skyglass-orientation.txt` (or
-`portrait-ccw`). The app's Orientation step still asks, starting on that value.
+the right way up: `flash-sd.sh --orientation portrait-cw` (or `portrait-ccw`) writes
+`skyglass-orientation.txt` next to the key. The app's Orientation step still asks, starting on that value.
 
 ## Mirror (`packages/backend`)
 

@@ -1,33 +1,122 @@
 {
-  "$comment": "Vercel WAF rate-limit rules for the cloud-service endpoints. Source of truth for docs/CLOUD_SERVICE.md#global-rate-limits-vercel-waf. Apply with scripts/firewall-rules.mjs (stages drafts only; the owner reviews and publishes). Limits are per client IP, per Vercel region, fixed window; window is in seconds (Pro allows 10-600).",
+  "$comment": "Vercel WAF rate-limit rules for the cloud-service, store and license endpoints. Source of truth for docs/CLOUD_SERVICE.md#global-rate-limits-vercel-waf. Apply with scripts/firewall-rules.mjs (stages drafts only; the owner reviews and publishes). Limits are per client IP, per Vercel region, fixed window; window is in seconds (Pro allows 10-600).",
   "rules": [
     {
       "name": "skyglass-ratelimit-notams",
       "description": "GET /api/data/notams per IP (FAA NOTAM quota). Mirror: 1 req per airport per 30 min.",
-      "conditions": [{ "type": "path", "op": "pre", "value": "/api/data/notams" }],
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/data/notams"
+        }
+      ],
       "window": 600,
       "requests": 60
     },
     {
       "name": "skyglass-ratelimit-stocks",
       "description": "GET /api/data/stocks and /api/data/stock-profiles per IP (Finnhub quota). Mirror: 1 req per symbol per 5 min.",
-      "conditions": [{ "type": "path", "op": "pre", "value": "/api/data/stock" }],
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/data/stock"
+        }
+      ],
       "window": 600,
       "requests": 300
     },
     {
       "name": "skyglass-ratelimit-oauth-config",
       "description": "GET /api/oauth/config per IP. Mirror caches it 10 min (1 min after a failure).",
-      "conditions": [{ "type": "path", "op": "pre", "value": "/api/oauth/config" }],
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/oauth/config"
+        }
+      ],
       "window": 600,
       "requests": 60
     },
     {
       "name": "skyglass-ratelimit-oauth-token",
       "description": "POST /api/oauth/google/token per IP (code exchange + hourly refresh per Google account).",
-      "conditions": [{ "type": "path", "op": "pre", "value": "/api/oauth/google/token" }],
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/oauth/google/token"
+        }
+      ],
       "window": 600,
       "requests": 60
+    },
+    {
+      "name": "skyglass-ratelimit-license",
+      "description": "POST /api/license/* per IP (mirror activate/refresh + license page). Mirror: refresh daily, hourly retry; at boot a key file is retried every 30 s for 10 min (20 calls).",
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/license/"
+        }
+      ],
+      "window": 600,
+      "requests": 120
+    },
+    {
+      "name": "skyglass-ratelimit-payment-intent",
+      "description": "POST /api/create-payment-intent per IP (card-testing brake; the function also allows 20/hour). Checkout creates one per visit to the payment step.",
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/create-payment-intent"
+        }
+      ],
+      "window": 600,
+      "requests": 20
+    },
+    {
+      "name": "skyglass-ratelimit-tax",
+      "description": "POST /api/calculate-tax per IP (each call is a Stripe Tax calculation; function allows 60/hour). One per address change at checkout.",
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/calculate-tax"
+        }
+      ],
+      "window": 600,
+      "requests": 30
+    },
+    {
+      "name": "skyglass-ratelimit-promo",
+      "description": "POST /api/validate-promo per IP (stops promo-code guessing; function allows 20/hour). A buyer tries a code or two.",
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/validate-promo"
+        }
+      ],
+      "window": 600,
+      "requests": 10
+    },
+    {
+      "name": "skyglass-ratelimit-waitlist",
+      "description": "POST /api/waitlist per IP (function allows 10/hour per IP, 3/hour per address). One signup per visitor.",
+      "conditions": [
+        {
+          "type": "path",
+          "op": "pre",
+          "value": "/api/waitlist"
+        }
+      ],
+      "window": 600,
+      "requests": 10
     }
   ]
 }

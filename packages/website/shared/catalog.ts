@@ -1,7 +1,7 @@
 /**
  * Product catalog: the single source of truth for product ids, names, prices
- * and shipping rules. Imported by the site UI (src/), the Vercel functions
- * (api/) and vite.config.ts (index.html structured data).
+ * and shipping rules. Imported by the site UI (src/) and the Vercel functions
+ * (api/).
  *
  * Keep this file dependency-free and runtime-neutral (no DOM, no Node APIs):
  * it is compiled by Vite for the browser and by @vercel/node for functions.
@@ -49,6 +49,18 @@ export const CATALOG: Readonly<Record<ProductId, CatalogProduct>> = {
 export const SHIPPING_COST_CENTS = 2500 // $25
 /** Merchandise subtotal (cents, before discounts) at which shipping becomes free. */
 export const FREE_SHIPPING_THRESHOLD_CENTS = 50000 // $500
+/**
+ * How long a kit takes to ship once ordered (outside pre-order mode). The one
+ * place this promise lives: Pricing, the checkout success page and the order
+ * confirmation email all read it.
+ */
+export const KIT_SHIP_LEAD_TIME = '2–3 weeks'
+
+/** DIY build guide (assembly + setup script) and the bill of materials, in the public repo. */
+export const BUILD_GUIDE_URL = 'https://github.com/clioh/skyglass/blob/main/docs/HARDWARE.md'
+export const BOM_PDF_URL =
+  'https://github.com/clioh/skyglass/blob/main/docs/build-guide/SkyGlass-Bill-of-Materials.pdf'
+
 /** Tax rate used only when Stripe Tax is unavailable or errors. */
 export const FALLBACK_TAX_RATE = 0.0875 // 8.75%
 

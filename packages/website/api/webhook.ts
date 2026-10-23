@@ -13,16 +13,28 @@ import {
   type Sql,
 } from './_lib/db.js'
 import {
+  EMAIL,
   ORDERS_FROM,
+  emailHeading,
+  emailLayout,
+  emailPanel,
+  emailParagraph,
   escapeHtml,
   licenseKeysHtml,
   preinstalledLicenseHtml,
+  sectionLabel,
   sendEmail,
 } from './_lib/email.js'
 import { readRawBody } from './_lib/http.js'
 import { KEYED_AT_PURCHASE, expandOrderLicenses } from './_lib/license.js'
 import { stripe } from './_lib/stripe.js'
-import { fullProductName, isProductId } from '../shared/catalog.js'
+import {
+  BOM_PDF_URL,
+  BUILD_GUIDE_URL,
+  KIT_SHIP_LEAD_TIME,
+  fullProductName,
+  isProductId,
+} from '../shared/catalog.js'
 
 /**
  * Stripe webhook (docs/LICENSING.md, "Purchase → license" and "Refunds").
@@ -288,7 +300,7 @@ async function sendConfirmation(sql: Sql, order: OrderDetails, plaintext: Map<st
     const sent = await sendEmail({
       from: ORDERS_FROM,
       to: order.email,
-      subject: `Order Confirmed - ${order.paymentIntentId.slice(-8).toUpperCase()}`,
+      subject: `SkyGlass order confirmed #${order.paymentIntentId.slice(-8).toUpperCase()}`,
       html: getOrderConfirmationEmailHtml(order, licenses),
     })
     if (!sent) throw new Error(`Confirmation email for ${order.paymentIntentId} failed to send`)
@@ -435,206 +447,104 @@ function formatCurrency(cents: number): string {
   }).format(cents / 100)
 }
 
+/** Pre-order mode, read from the same flags the site is built with (src/config/features.ts). */
+const isPreorderMode = () =>
+  process.env.VITE_FEATURE_ECOMMERCE === 'true' && process.env.VITE_FEATURE_PREORDERS === 'true'
+
 function getOrderConfirmationEmailHtml(order: OrderDetails, licenses: OrderLicenses): string {
-  const currentYear = new Date().getFullYear()
   const orderNumber = order.paymentIntentId.slice(-8).toUpperCase()
+  const cell = `font-family: ${EMAIL.sans}; font-size: 14px; color: ${EMAIL.fg2}; padding: 8px 0;`
+  const amountCell = `font-family: ${EMAIL.mono}; font-size: 14px; color: ${EMAIL.fg2}; padding: 8px 0; text-align: right;`
 
   const itemsHtml = order.items
     .map(
       (item) => `
     <tr>
-      <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3a;">
-        <div style="color: #e8e8ec; font-size: 14px; font-weight: 500;">
+      <td style="padding: 12px 0; border-bottom: 1px solid ${EMAIL.line}; font-family: ${EMAIL.sans};">
+        <div style="color: ${EMAIL.fg}; font-size: 14px; font-weight: 500;">
           ${escapeHtml(isProductId(item.productId) ? fullProductName(item.productId) : String(item.productId))}
         </div>
-        <div style="color: #8a8a9a; font-size: 12px; margin-top: 4px;">
-          Qty: ${item.quantity}
-        </div>
+        <div style="color: ${EMAIL.fg3}; font-size: 12px; margin-top: 4px;">Qty ${item.quantity}</div>
       </td>
-      <td style="padding: 12px 0; border-bottom: 1px solid #2a2a3a; text-align: right; color: #e8e8ec; font-family: monospace;">
+      <td style="padding: 12px 0; border-bottom: 1px solid ${EMAIL.line}; text-align: right; color: ${EMAIL.fg}; font-family: ${EMAIL.mono}; font-size: 14px;">
         ${formatCurrency(item.unitPrice * item.quantity)}
       </td>
-    </tr>
-  `
+    </tr>`
     )
     .join('')
 
-  const shippingHtml = order.shippingAddress
+  const address = order.shippingAddress
+  const shippingHtml = address
     ? `
     <div style="margin-top: 24px;">
-      <div style="color: #f5a623; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
-        Shipping To
+      ${sectionLabel('Shipping to')}
+      <div style="color: ${EMAIL.fg}; font-family: ${EMAIL.sans}; font-size: 14px; line-height: 1.6;">
+        ${escapeHtml(address.name)}<br>
+        ${escapeHtml(address.line1)}<br>
+        ${address.line2 ? `${escapeHtml(address.line2)}<br>` : ''}
+        ${escapeHtml(address.city)}, ${escapeHtml(address.state)} ${escapeHtml(address.postal_code)}<br>
+        ${escapeHtml(address.country)}
       </div>
-      <div style="color: #e8e8ec; font-size: 14px; line-height: 1.6;">
-        ${escapeHtml(order.shippingAddress.name)}<br>
-        ${escapeHtml(order.shippingAddress.line1)}<br>
-        ${order.shippingAddress.line2 ? `${escapeHtml(order.shippingAddress.line2)}<br>` : ''}
-        ${escapeHtml(order.shippingAddress.city)}, ${escapeHtml(order.shippingAddress.state)} ${escapeHtml(order.shippingAddress.postal_code)}<br>
-        ${escapeHtml(order.shippingAddress.country)}
-      </div>
-    </div>
-  `
+    </div>`
     : ''
 
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Order Confirmation - SkyGlass</title>
-</head>
-<body style="margin: 0; padding: 0; background-color: #0a0a0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
-    <tr>
-      <td style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 560px; margin: 0 auto; background-color: #12121a; border: 1px solid #2a2a3a; border-radius: 12px;">
+  const hasKit = address !== null
+  const hasLicense = order.items.some((item) => item.productId === 'software-license')
+  const link = (href: string, text: string) =>
+    `<a href="${href}" style="color: ${EMAIL.accent}; text-decoration: none;">${text}</a>`
+  const nextSteps = [
+    ...(hasKit
+      ? [
+          isPreorderMode()
+            ? 'Your kit is a pre-order. It is refundable in full until it ships.'
+            : `Your kit ships within ${KIT_SHIP_LEAD_TIME}.`,
+          "When it ships, we'll send a separate email with the tracking number.",
+          'Assembly instructions come in the box.',
+        ]
+      : []),
+    ...(hasLicense
+      ? [
+          `Build your mirror with the ${link(BUILD_GUIDE_URL, 'build guide')} and ${link(BOM_PDF_URL, 'parts list')}: flash Raspberry Pi OS with Raspberry Pi Imager, then run the SkyGlass setup script.`,
+          'Open the SkyGlass app and follow setup on your mirror.',
+          'Enter your license key when the app asks for it.',
+        ]
+      : []),
+  ]
 
-          <!-- Header -->
-          <tr>
-            <td style="padding: 40px 40px 20px; text-align: center; border-bottom: 1px solid #2a2a3a;">
-              <div style="font-size: 24px; font-weight: bold; letter-spacing: 1px;">
-                <span style="color: #e8e8ec;">Sky</span><span style="color: #f5a623;">Glass</span>
-              </div>
-            </td>
-          </tr>
+  return emailLayout(
+    'Order confirmed',
+    `
+    ${emailHeading('Order confirmed')}
+    ${emailParagraph('Thank you for your purchase.')}
 
-          <!-- Main Content -->
-          <tr>
-            <td style="padding: 40px;">
-              <!-- Success Icon -->
-              <div style="text-align: center; margin-bottom: 24px;">
-                <div style="display: inline-block; width: 64px; height: 64px; background-color: rgba(74, 222, 128, 0.1); border: 2px solid #4ade80; border-radius: 50%; line-height: 60px; font-size: 28px;">
-                  ✓
-                </div>
-              </div>
+    ${emailPanel(`
+            <div style="color: ${EMAIL.fg3}; font-family: ${EMAIL.sans}; font-size: 12px;">Order number</div>
+            <div style="color: ${EMAIL.fg}; font-family: ${EMAIL.mono}; font-size: 18px; margin-top: 4px;">#${orderNumber}</div>`)}
 
-              <h1 style="margin: 0 0 8px; color: #e8e8ec; font-size: 28px; font-weight: bold; text-align: center;">
-                Order Confirmed
-              </h1>
-              <p style="margin: 0 0 24px; color: #8a8a9a; font-size: 16px; text-align: center;">
-                Thank you for your purchase. Your order is being processed.
-              </p>
+    <div style="margin-top: 24px;">
+      ${sectionLabel('Order summary')}
+      <table role="presentation" width="100%" style="width: 100%; border-collapse: collapse;">
+        ${itemsHtml}
+        <tr><td style="${cell}">Subtotal</td><td style="${amountCell}">${formatCurrency(order.subtotal)}</td></tr>
+        <tr><td style="${cell}">Shipping</td><td style="${amountCell}">${order.shipping === 0 ? 'Free' : formatCurrency(order.shipping)}</td></tr>
+        <tr><td style="${cell}">Tax</td><td style="${amountCell}">${formatCurrency(order.tax)}</td></tr>
+        <tr>
+          <td style="padding: 12px 0 0; border-top: 1px solid ${EMAIL.line}; color: ${EMAIL.fg}; font-family: ${EMAIL.sans}; font-size: 16px; font-weight: 500;">Total</td>
+          <td style="padding: 12px 0 0; border-top: 1px solid ${EMAIL.line}; text-align: right; color: ${EMAIL.fg}; font-family: ${EMAIL.mono}; font-size: 18px;">${formatCurrency(order.amount)}</td>
+        </tr>
+      </table>
+    </div>
 
-              <!-- Order Number Card -->
-              <table role="presentation" style="width: 100%; background-color: #1a1a24; border: 1px solid #2a2a3a; border-radius: 8px; margin-bottom: 24px;">
-                <tr>
-                  <td style="padding: 20px;">
-                    <table role="presentation" style="width: 100%;">
-                      <tr>
-                        <td>
-                          <span style="color: #8a8a9a; font-size: 12px;">Order Number</span>
-                          <div style="color: #f5a623; font-family: monospace; font-size: 18px; font-weight: bold; margin-top: 4px;">
-                            #${orderNumber}
-                          </div>
-                        </td>
-                        <td style="text-align: right;">
-                          <span style="color: #8a8a9a; font-size: 12px;">Status</span>
-                          <div style="margin-top: 4px;">
-                            <span style="display: inline-block; padding: 4px 12px; background-color: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 4px; color: #4ade80; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
-                              Processing
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
+    ${shippingHtml}
 
-              <!-- Order Items -->
-              <div style="margin-bottom: 24px;">
-                <div style="color: #f5a623; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
-                  Order Summary
-                </div>
-                <table role="presentation" style="width: 100%;">
-                  ${itemsHtml}
-                  <tr>
-                    <td style="padding: 8px 0; color: #8a8a9a; font-size: 14px;">Subtotal</td>
-                    <td style="padding: 8px 0; text-align: right; color: #8a8a9a; font-family: monospace; font-size: 14px;">
-                      ${formatCurrency(order.subtotal)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #8a8a9a; font-size: 14px;">Shipping</td>
-                    <td style="padding: 8px 0; text-align: right; color: #8a8a9a; font-family: monospace; font-size: 14px;">
-                      ${order.shipping === 0 ? 'FREE' : formatCurrency(order.shipping)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; color: #8a8a9a; font-size: 14px;">Tax</td>
-                    <td style="padding: 8px 0; text-align: right; color: #8a8a9a; font-family: monospace; font-size: 14px;">
-                      ${formatCurrency(order.tax)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0 0; color: #e8e8ec; font-size: 16px; font-weight: bold; border-top: 1px solid #2a2a3a;">
-                      Total
-                    </td>
-                    <td style="padding: 12px 0 0; text-align: right; color: #f5a623; font-family: monospace; font-size: 18px; font-weight: bold; border-top: 1px solid #2a2a3a;">
-                      ${formatCurrency(order.amount)}
-                    </td>
-                  </tr>
-                </table>
-              </div>
+    ${licenses.keys.length > 0 ? licenseKeysHtml(licenses.keys) : ''}
+    ${licenses.kitCount > 0 ? preinstalledLicenseHtml(licenses.kitCount) : ''}
 
-              ${shippingHtml}
-
-              ${licenses.keys.length > 0 ? licenseKeysHtml(licenses.keys) : ''}
-              ${licenses.kitCount > 0 ? preinstalledLicenseHtml(licenses.kitCount) : ''}
-
-              <!-- What's Next -->
-              <div style="margin-top: 32px; padding: 20px; background-color: #1a1a24; border: 1px solid #2a2a3a; border-radius: 8px;">
-                <div style="color: #f5a623; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
-                  What's Next
-                </div>
-                <ul style="margin: 0; padding-left: 20px; color: #8a8a9a; font-size: 14px; line-height: 1.8;">
-                  ${
-                    order.shippingAddress
-                      ? `<li>We'll send tracking info when your order ships</li>
-                  <li>Estimated delivery: 5-7 business days</li>
-                  <li>Assembly guide included in your kit</li>`
-                      : `<li>Flash SkyGlass onto your Raspberry Pi's SD card</li>
-                  <li>Open the SkyGlass app and follow setup on your mirror</li>
-                  <li>Enter your license key when the app asks for it</li>`
-                  }
-                </ul>
-              </div>
-
-              <!-- Support -->
-              <div style="margin-top: 24px; text-align: center;">
-                <p style="color: #8a8a9a; font-size: 14px; margin: 0 0 12px;">
-                  Questions about your order?
-                </p>
-                <a href="mailto:support@skyglass.dev" style="color: #f5a623; text-decoration: none; font-size: 14px;">
-                  support@skyglass.dev
-                </a>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding: 24px 40px; border-top: 1px solid #2a2a3a; text-align: center;">
-              <p style="margin: 0 0 8px; color: #5a5a6a; font-size: 12px;">
-                Built by a pilot, for pilots.
-              </p>
-              <p style="margin: 0; color: #5a5a6a; font-size: 12px;">
-                &copy; ${currentYear} SkyGlass. All rights reserved.
-              </p>
-              <p style="margin: 16px 0 0; color: #5a5a6a; font-size: 11px;">
-                <a href="https://skyglass.dev/privacy" style="color: #5a5a6a; text-decoration: underline;">Privacy Policy</a>
-                &nbsp;&middot;&nbsp;
-                <a href="https://skyglass.dev/terms" style="color: #5a5a6a; text-decoration: underline;">Terms</a>
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-`
+    <div style="margin-top: 32px;">
+      ${sectionLabel("What's next")}
+      <ul style="margin: 0; padding-left: 20px; color: ${EMAIL.fg2}; font-family: ${EMAIL.sans}; font-size: 14px; line-height: 1.8;">
+        ${nextSteps.map((step) => `<li>${step}</li>`).join('\n        ')}
+      </ul>
+    </div>`
+  )
 }

@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
 import { evaluatePromotion, findPromotionCode } from './_lib/checkout.js'
-import { getDb } from './_lib/db.js'
+import { getDb, rateLimit } from './_lib/db.js'
 import { readJsonObject } from './_lib/http.js'
-import { normalizeEmail } from './_lib/license.js'
+import { clientIp, normalizeEmail } from './_lib/license.js'
 import { stripe } from './_lib/stripe.js'
 
 /**
@@ -14,7 +14,14 @@ import { stripe } from './_lib/stripe.js'
  * Display only: create-payment-intent re-runs the same checks against its own
  * subtotal. `email` is optional; without it a code restricted to one customer
  * is accepted here and checked against the order email at payment.
+ *
+ * Rate-limited per IP (PROMO_CHECKS_PER_HOUR, Postgres) so codes can't be
+ * guessed by brute force and each guess doesn't cost a Stripe call. Without
+ * DATABASE_URL only the Vercel WAF rule (firewall/rate-limits.json) applies.
  */
+
+/** Promo checks per IP per hour. A buyer tries a code or two; this leaves room for typos. */
+const PROMO_CHECKS_PER_HOUR = 20
 
 interface PromoResult {
   valid: boolean
@@ -30,17 +37,16 @@ interface PromoResult {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  const sql = getDb()
+  if (sql && !(await rateLimit(sql, `promo:${clientIp(req.headers)}`, PROMO_CHECKS_PER_HOUR))) {
+    return res.status(429).json({
+      valid: false,
+      error: 'Too many promo code attempts. Please try again in an hour.',
+    } as PromoResult)
   }
 
   const body = readJsonObject(req)
@@ -64,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = await evaluatePromotion(await findPromotionCode(stripe, normalizedCode), {
       subtotal,
       email,
-      sql: getDb(),
+      sql,
     })
 
     if (!result.ok) {

@@ -1,10 +1,15 @@
 import { Link } from 'react-router-dom'
 import { products, useCart, formatPrice, type Product } from '../store/cart'
 import { canPurchase, isPreorderMode } from '../config/features'
-import { FREE_SHIPPING_THRESHOLD_CENTS, centsToDollars } from '../../shared/catalog'
+import {
+  BUILD_GUIDE_URL,
+  FREE_SHIPPING_THRESHOLD_CENTS,
+  KIT_SHIP_LEAD_TIME,
+  centsToDollars,
+} from '../../shared/catalog'
 
 // Card order and short copy, from the site mockup.
-const cards: { id: Product['id']; blurb: string }[] = [
+const cards: { id: Product['id']; blurb: string; guide?: boolean }[] = [
   {
     id: 'complete-kit',
     blurb:
@@ -17,6 +22,7 @@ const cards: { id: Product['id']; blurb: string }[] = [
   {
     id: 'software-license',
     blurb: 'For DIYers bringing their own Pi, display and mirror. Refundable within 30 days.',
+    guide: true,
   },
 ]
 
@@ -34,10 +40,10 @@ export function Pricing() {
         Three ways aboard.
       </h2>
       <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-5 p-0">
-        {cards.map(({ id, blurb }) => {
+        {cards.map(({ id, blurb, guide }) => {
           const product = products.find((p) => p.id === id)
           if (!product) return null
-          const highlighted = Boolean(product.popular)
+          const highlighted = Boolean(product.recommended)
           const buttonClass = `btn ${highlighted ? 'btn-primary' : 'btn-secondary'} h-12 w-full text-[15px]`
 
           return (
@@ -51,7 +57,7 @@ export function Pricing() {
                 <h3 className="m-0 text-xl font-medium">{product.name}</h3>
                 {highlighted && (
                   <div className="font-mono text-[11px] tracking-[0.1em] text-accent uppercase">
-                    Most popular
+                    Recommended
                   </div>
                 )}
               </div>
@@ -63,11 +69,22 @@ export function Pricing() {
                   {product.physical
                     ? isPreorderMode()
                       ? 'Pre-order, refundable until it ships'
-                      : 'Ships in 2–3 weeks'
+                      : `Ships in ${KIT_SHIP_LEAD_TIME}`
                     : 'Key delivered by email'}
                 </div>
               </div>
-              <p className="m-0 text-[15px] leading-[1.6] text-fg-2">{blurb}</p>
+              <p className="m-0 text-[15px] leading-[1.6] text-fg-2">
+                {blurb}
+                {guide && (
+                  <>
+                    {' '}
+                    <a href={BUILD_GUIDE_URL} className="link" target="_blank" rel="noreferrer">
+                      Read the build guide
+                    </a>
+                    .
+                  </>
+                )}
+              </p>
               <ul className="m-0 flex flex-1 list-none flex-col gap-2 p-0">
                 {product.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2.5 text-sm text-fg-2">

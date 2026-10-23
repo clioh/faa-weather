@@ -1,11 +1,12 @@
-# SkyGlass Robots.txt
+# SkyGlass robots.txt
 # https://skyglass.dev
 
 User-agent: *
 Allow: /
+# Private pages: admin, checkout, license sign-in links, invite links
+Disallow: /admin
+Disallow: /checkout
+Disallow: /license
+Disallow: /invite
 
-# Sitemap location
 Sitemap: https://skyglass.dev/sitemap.xml
-
-# Crawl-delay (optional, be polite to crawlers)
-Crawl-delay: 1

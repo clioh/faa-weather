@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { PageHeader } from '../components'
+import { PageHeader, SEO } from '../components'
 
 interface OrderItem {
   name: string
@@ -22,9 +22,15 @@ interface Order {
 }
 
 interface Stats {
+  /** Paid orders. */
   totalOrders: number
+  /** Gross amount of paid orders, before refunds (cents). */
   totalRevenue: number
+  /** Checkouts started but never paid. */
   pendingOrders: number
+  /** PaymentIntents the stats were computed from, and whether that was all of them. */
+  counted: number
+  statsComplete: boolean
 }
 
 interface OrdersResponse {
@@ -187,6 +193,7 @@ export default function Admin() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-bg flex flex-col">
+        <SEO title="Admin" noindex />
         <PageHeader />
         <main className="flex-1 flex items-center justify-center px-4 pb-24">
           <motion.div
@@ -231,6 +238,7 @@ export default function Admin() {
   // Dashboard
   return (
     <div className="min-h-screen bg-bg">
+      <SEO title="Admin" noindex />
       <PageHeader
         right={
           <div className="flex items-center gap-4">
@@ -254,17 +262,17 @@ export default function Admin() {
             className="grid grid-cols-1 sm:grid-cols-3 border-b border-line mb-10"
           >
             <div className="border-t border-line py-5 sm:pr-6">
-              <dt className="section-label mb-2">Total orders</dt>
+              <dt className="section-label mb-2">Paid orders</dt>
               <dd className="text-4xl font-extralight text-fg font-mono">{stats.totalOrders}</dd>
             </div>
             <div className="border-t border-line py-5 sm:px-6 sm:border-l">
-              <dt className="section-label mb-2">Revenue</dt>
+              <dt className="section-label mb-2">Gross revenue</dt>
               <dd className="text-4xl font-extralight text-fg font-mono">
                 {formatCurrency(stats.totalRevenue)}
               </dd>
             </div>
             <div className="border-t border-line py-5 sm:pl-6 sm:border-l">
-              <dt className="section-label mb-2">Pending</dt>
+              <dt className="section-label mb-2">Unpaid checkouts</dt>
               <dd
                 className={`text-4xl font-extralight font-mono ${stats.pendingOrders > 0 ? 'text-warning' : 'text-fg'}`}
               >
@@ -272,6 +280,11 @@ export default function Admin() {
               </dd>
             </div>
           </motion.dl>
+        )}
+        {stats && !stats.statsComplete && (
+          <p className="-mt-6 mb-10 text-sm text-fg-3">
+            Totals cover the latest {stats.counted} payments only. Stripe has the full history.
+          </p>
         )}
 
         {/* Filters */}

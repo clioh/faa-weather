@@ -424,6 +424,16 @@ function LicenseList({ token, onExpired, onSignOut }: LicenseListProps) {
             and we'll help you move it.
           </>
         )
+      } else if (err.code === 'email_failed') {
+        // The key was rotated but the email with the new one didn't go out: the old key is dead.
+        setActionError(
+          <>
+            Your old key no longer works, but we couldn't email the new one. Request a new key
+            again, or contact {supportLink}.
+          </>
+        )
+        setConfirming(null)
+        await load()
       } else if (err.httpStatus === 404) {
         setActionError('That license could not be found. The list has been refreshed.')
         setConfirming(null)
