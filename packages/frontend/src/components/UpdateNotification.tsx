@@ -96,7 +96,7 @@ function CircularProgress({ percent, size = 60, strokeWidth = 4 }: { percent: nu
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgba(255, 255, 255, 0.2)"
+          stroke="var(--color-hairline)"
           strokeWidth={strokeWidth}
         />
         {/* Progress circle */}
@@ -105,7 +105,7 @@ function CircularProgress({ percent, size = 60, strokeWidth = 4 }: { percent: nu
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#00ff88"
+          stroke="var(--color-accent)"
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -122,8 +122,9 @@ function CircularProgress({ percent, size = 60, strokeWidth = 4 }: { percent: nu
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '12px',
-        fontWeight: '600',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '13px',
+        fontWeight: 500,
       }}>
         {percent}%
       </div>
@@ -186,14 +187,14 @@ function PhaseIcon({ phase }: { phase: DownloadProgress['phase'] }) {
   }
   if (phase === 'complete') {
     return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2">
         <path d="M20 6L9 17l-5-5" />
       </svg>
     );
   }
   if (phase === 'error') {
     return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4444" strokeWidth="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-negative)" strokeWidth="2">
         <circle cx="12" cy="12" r="10" />
         <line x1="15" y1="9" x2="9" y2="15" />
         <line x1="9" y1="9" x2="15" y2="15" />
@@ -366,7 +367,7 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
             <PhaseIcon phase={isActive ? downloadProgress.phase : 'idle'} />
           </span>
           <span style={styles.title}>
-            {isActive ? phaseLabels[downloadProgress.phase] : 'Update Available'}
+            {isActive ? phaseLabels[downloadProgress.phase] : 'Update available'}
           </span>
           {!isActive && (
             <button
@@ -448,7 +449,7 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
-                Downloaded - Ready to install
+                Downloaded, ready to install
               </div>
             )}
           </>
@@ -458,7 +459,7 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
         {showDetails && !isActive && releaseLines.length > 0 && (
           <div style={styles.changes}>
             <div style={styles.changesTitle}>
-              Release Notes
+              Release notes
               {updateStatus.publishedAt && (
                 <span style={styles.releaseDate}>
                   {formatDate(updateStatus.publishedAt)}
@@ -490,7 +491,7 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
                 style={styles.updateButton}
                 onClick={applyUpdate}
               >
-                Install Now
+                Install now
               </button>
             ) : (
               <button
@@ -508,80 +509,85 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
   );
 }
 
+// Glass Cockpit: black panel with a hairline edge (it floats over widgets, so
+// it is opaque), sky blue for progress and the primary action, mono for data.
 const styles: Record<string, React.CSSProperties> = {
   container: {
     position: 'fixed',
-    top: '20px',
-    right: '20px',
+    top: '24px',
+    right: '24px',
     zIndex: 9999,
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily: 'var(--font-primary)',
   },
   notification: {
-    background: 'rgba(15, 25, 45, 0.98)',
+    background: 'var(--color-background)',
+    border: '1px solid var(--color-hairline)',
     borderRadius: '16px',
-    padding: '16px',
-    minWidth: '300px',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(10px)',
-    color: '#fff',
-    transition: 'all 0.3s ease',
+    padding: '20px',
+    minWidth: '320px',
+    color: 'var(--color-text)',
+    transition: 'max-width 0.3s ease',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    marginBottom: '12px',
+    marginBottom: '14px',
   },
   icon: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    color: 'var(--color-accent)',
   },
   title: {
-    fontSize: '14px',
-    fontWeight: '600',
+    fontSize: '17px',
+    fontWeight: 500,
     flex: 1,
   },
   closeButton: {
     background: 'none',
     border: 'none',
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: '22px',
+    color: 'var(--color-text-dim)',
+    fontSize: '24px',
     cursor: 'pointer',
     padding: '0 4px',
     lineHeight: 1,
-    transition: 'color 0.2s',
+    minWidth: '44px',
+    minHeight: '44px',
+    margin: '-12px -12px -12px 0',
   },
   progressSection: {
-    marginBottom: '12px',
+    marginBottom: '14px',
   },
   progressRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
-    marginBottom: '12px',
+    marginBottom: '14px',
   },
   progressInfo: {
     flex: 1,
   },
   progressText: {
-    fontSize: '13px',
-    fontWeight: '500',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '14px',
     marginBottom: '4px',
   },
   progressMeta: {
-    fontSize: '11px',
-    color: 'rgba(255, 255, 255, 0.6)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '13px',
+    color: 'var(--color-text-dim)',
   },
   progressBarContainer: {
-    height: '4px',
-    background: 'rgba(255, 255, 255, 0.1)',
+    height: '3px',
+    background: 'var(--color-hairline)',
     borderRadius: '2px',
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
-    background: 'linear-gradient(90deg, #00ff88, #00cc6a)',
+    background: 'var(--color-accent)',
     borderRadius: '2px',
     transition: 'width 0.3s ease',
   },
@@ -589,95 +595,90 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    padding: '10px 12px',
-    background: 'rgba(255, 68, 68, 0.15)',
-    borderRadius: '8px',
-    fontSize: '12px',
-    color: '#ff6666',
-    marginBottom: '12px',
+    padding: '12px 14px',
+    border: '1px solid rgba(255, 82, 82, 0.4)',
+    borderRadius: '12px',
+    fontSize: '14px',
+    color: 'var(--color-negative)',
+    marginBottom: '14px',
   },
   info: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '8px',
+    marginBottom: '10px',
   },
   version: {
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    background: 'rgba(0, 255, 136, 0.15)',
-    color: '#00ff88',
-    padding: '4px 10px',
-    borderRadius: '6px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '15px',
   },
   releaseInfo: {
-    fontSize: '11px',
-    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '13px',
+    color: 'var(--color-text-dim)',
   },
   releaseName: {
-    fontSize: '13px',
-    fontWeight: '500',
-    marginBottom: '12px',
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: '15px',
+    lineHeight: 1.5,
+    marginBottom: '14px',
+    color: 'rgba(255, 255, 255, 0.68)',
   },
   readyBadge: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    padding: '8px 12px',
-    background: 'rgba(0, 255, 136, 0.15)',
-    borderRadius: '8px',
-    fontSize: '12px',
-    color: '#00ff88',
-    marginBottom: '12px',
+    fontSize: '14px',
+    color: 'var(--color-accent)',
+    marginBottom: '14px',
   },
   changes: {
-    background: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '10px',
-    padding: '12px',
-    marginBottom: '12px',
+    borderTop: '1px solid var(--color-hairline)',
+    paddingTop: '14px',
+    marginBottom: '14px',
   },
   changesTitle: {
     fontSize: '11px',
-    fontWeight: '600',
+    fontWeight: 500,
     marginBottom: '8px',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    color: 'rgba(255, 255, 255, 0.5)',
+    letterSpacing: '0.14em',
+    color: 'var(--color-text-dim)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   releaseDate: {
-    fontWeight: '400',
+    fontFamily: 'var(--font-mono)',
     textTransform: 'none',
-    fontSize: '10px',
+    letterSpacing: 0,
+    fontSize: '12px',
   },
   changesList: {
     margin: 0,
-    paddingLeft: '16px',
-    fontSize: '11px',
+    paddingLeft: '18px',
+    fontSize: '14px',
     lineHeight: 1.6,
   },
   changeItem: {
     marginBottom: '4px',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.68)',
   },
   actions: {
     display: 'flex',
-    gap: '8px',
+    gap: '10px',
   },
   detailsButton: {
     flex: 1,
-    padding: '10px 14px',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    borderRadius: '8px',
+    height: '44px',
+    padding: '0 18px',
+    border: '1px solid rgba(255, 255, 255, 0.24)',
+    borderRadius: '22px',
     background: 'transparent',
-    color: '#fff',
-    fontSize: '12px',
-    fontWeight: '500',
+    color: 'var(--color-text)',
+    fontFamily: 'inherit',
+    fontSize: '15px',
+    fontWeight: 500,
     cursor: 'pointer',
-    transition: 'all 0.2s',
   },
   downloadButton: {
     flex: 1,
@@ -685,26 +686,28 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '6px',
-    padding: '10px 14px',
+    height: '44px',
+    padding: '0 18px',
     border: 'none',
-    borderRadius: '8px',
-    background: 'linear-gradient(135deg, #0066ff 0%, #0044cc 100%)',
-    color: '#fff',
-    fontSize: '12px',
-    fontWeight: '600',
+    borderRadius: '22px',
+    background: 'var(--color-accent)',
+    color: '#00141f',
+    fontFamily: 'inherit',
+    fontSize: '15px',
+    fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 0.2s',
   },
   updateButton: {
     flex: 1,
-    padding: '10px 14px',
+    height: '44px',
+    padding: '0 18px',
     border: 'none',
-    borderRadius: '8px',
-    background: 'linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)',
-    color: '#000',
-    fontSize: '12px',
-    fontWeight: '600',
+    borderRadius: '22px',
+    background: 'var(--color-accent)',
+    color: '#00141f',
+    fontFamily: 'inherit',
+    fontSize: '15px',
+    fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 0.2s',
   },
 };

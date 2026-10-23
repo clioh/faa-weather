@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { SetupFrame } from './setup/SetupFrame';
 import './FaceCapture.css';
 
@@ -37,6 +37,21 @@ interface FaceCaptureProps {
  * (portrait), photo dots top right. The feed is flipped so it reads as a
  * mirror.
  */
+/** The MJPEG feed; hidden if it fails to load, so no broken-image glyph shows on the glass. */
+function CameraFeed({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img
+      src={src}
+      alt="Camera feed"
+      className="face-capture__video"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export function FaceCapture({
   instruction,
   userName,
@@ -73,15 +88,7 @@ export function FaceCapture({
       {overlay}
       <div className="sg-main sg-main--top face-capture__main">
         <div className="sg-feed face-capture__feed">
-          {videoStreamUrl && (
-            <img
-              key={videoStreamUrl}
-              src={videoStreamUrl}
-              alt="Camera feed"
-              className="face-capture__video"
-              referrerPolicy="no-referrer"
-            />
-          )}
+          {videoStreamUrl && <CameraFeed key={videoStreamUrl} src={videoStreamUrl} />}
           <div
             className={`sg-oval face-capture__oval${ring ? ' is-hold' : ''}${pulse ? ' is-pulse' : ''}`}
           >

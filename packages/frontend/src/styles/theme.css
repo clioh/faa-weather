@@ -213,14 +213,17 @@ body {
 }
 
 /* User greeting overlay */
+/* Recognition greeting: the name alone on black, then the black fades away
+   to reveal the layout. 2.8 s in all (GREETING_MS in App.tsx). */
 .user-greeting {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
   z-index: 100;
-  text-align: center;
-  animation: greetingFadeInOut 5s ease-in-out forwards;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  animation: greetingBackdrop 2.8s ease-in-out forwards;
   pointer-events: none;
 }
 
@@ -229,14 +232,19 @@ body {
   font-weight: 200;
   letter-spacing: 0.02em;
   color: var(--color-text);
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
+  animation: greetingText 2.8s ease-in-out forwards;
 }
 
-@keyframes greetingFadeInOut {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
-  15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.02); }
+@keyframes greetingBackdrop {
+  0%, 72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes greetingText {
+  0% { opacity: 0; transform: scale(0.97); }
+  18% { opacity: 1; transform: scale(1); }
+  58% { opacity: 1; transform: scale(1); }
+  72%, 100% { opacity: 0; transform: scale(1.01); }
 }
 
 /* Mirror kiosk on the Pi (see main.tsx): no mouse pointer over the glass. */

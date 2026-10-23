@@ -170,7 +170,8 @@ export function RegistrationOverlay() {
             setPhase('captured');
             setTimeout(() => {
               setShowFlash(false);
-              setPhase('capturing');
+              // The last photo's 'completed' lands inside this window; keep its welcome.
+              setPhase((p) => (p === 'captured' ? 'capturing' : p));
             }, 500);
           } else if (data.action === 'completed') {
             setPhase('complete');

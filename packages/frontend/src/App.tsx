@@ -77,6 +77,9 @@ async function fetchLicenseStatus(): Promise<LicenseStatus | null> {
 
 /** While the license screen is up, re-check this often in case a WS event was missed. */
 const LICENSE_RECHECK_MS = 60_000;
+/** Greeting on recognition; matches the .user-greeting animations in theme.css. */
+const GREETING_MS = 2800;
+
 /** How long the registration welcome screen stays up after the last photo. */
 const WELCOME_MS = 6000;
 
@@ -108,10 +111,12 @@ function App() {
 
   // The wake/sleep fade length comes from config.yaml; the CSS default (1 s)
   // applies until the config arrives.
+  const fadeMs = useRef(1000);
   useEffect(() => {
     const ms = config?.display?.fade_duration;
     if (typeof ms === 'number' && ms > 0) {
       document.documentElement.style.setProperty('--transition-fade', `${ms}ms ease-in-out`);
+      fadeMs.current = ms;
     }
   }, [config?.display?.fade_duration]);
   const [layout, setLayout] = useState<MirrorLayout | null>(null);
@@ -132,6 +137,11 @@ function App() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [showGreeting, setShowGreeting] = useState(false);
+  // Switching to the shared layout after someone leaves waits for the sleep
+  // fade, so their layout fades out instead of flashing the shared one.
+  // Bumped on every user change so a late switch never replaces a newcomer's layout.
+  const leaveTimer = useRef<number | undefined>(undefined);
+  const userChange = useRef(0);
 
   // Latest GET /api/license/status (or WS `license` payload); null until known.
   const [license, setLicense] = useState<LicenseStatus | null>(null);
@@ -291,6 +301,20 @@ function App() {
       .then((data) => {
         setIsPresent(data.present || Boolean(data.hold));
         setPresenceState(data.present ? 'present' : 'absent');
+        // Reloaded while someone is recognized: show their layout, not the shared one.
+        if (cancelled || !data.userId) return;
+        setCurrentUserId(data.userId);
+        setCurrentUserName(data.userName || null);
+        if (data.userLayout) {
+          setLayout({
+            id: data.userLayout.id,
+            name: data.userLayout.name,
+            modules: data.userLayout.modules,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          setLayoutLoaded(true);
+        }
       })
       .catch(console.error);
 
@@ -334,6 +358,8 @@ function App() {
       const previousUserId = currentUserId;
 
       if (newUserId !== previousUserId) {
+        window.clearTimeout(leaveTimer.current);
+        const change = ++userChange.current;
         setCurrentUserId(newUserId);
         setCurrentUserName(data.userName || null);
 
@@ -343,7 +369,7 @@ function App() {
 
           // Show greeting for new user
           setShowGreeting(true);
-          setTimeout(() => setShowGreeting(false), 5000);
+          setTimeout(() => setShowGreeting(false), GREETING_MS);
 
           // Load user's layout if provided
           if (data.userLayout) {
@@ -360,7 +386,16 @@ function App() {
           }
         } else if (!newUserId && previousUserId) {
           console.log('User left, loading default layout');
-          fetchDefaultLayout().then(setLayout);
+          const showDefault = () =>
+            fetchDefaultLayout().then((defaultLayout) => {
+              if (userChange.current === change) setLayout(defaultLayout);
+            });
+          const goingDark = !data.present && !data.hold;
+          if (goingDark) {
+            leaveTimer.current = window.setTimeout(showDefault, fadeMs.current + 200);
+          } else {
+            void showDefault();
+          }
         }
       }
     }
@@ -505,7 +540,8 @@ function App() {
     <div className={`mirror-container ${isPresent ? 'visible' : 'hidden'}`}>
       {renderContent()}
 
-      {/* Personalized greeting when user is recognized */}
+      {/* Personalized greeting when user is recognized: alone on black, then
+          the black fades away to reveal the layout. */}
       {showGreeting && currentUserName && (
         <div className="user-greeting">
           <span className="greeting-text">
