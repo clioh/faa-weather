@@ -47,7 +47,10 @@ async function fetchPairingQr(): Promise<PairingQr | null> {
   const data = (await res.json()) as { url?: unknown; expiresAt?: unknown };
   if (typeof data?.url !== 'string' || !data.url) return null;
   const expiresAt = toEpochMs(data.expiresAt);
-  return { url: data.url, expiresAt: Number.isFinite(expiresAt) ? expiresAt : Date.now() + 600_000 };
+  return {
+    url: data.url,
+    expiresAt: Number.isFinite(expiresAt) ? expiresAt : Date.now() + 600_000,
+  };
 }
 
 /**

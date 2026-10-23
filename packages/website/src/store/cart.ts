@@ -37,7 +37,10 @@ interface CartState {
 
 // Storefront copy for each product. Ids, names, prices and the physical flag
 // come from shared/catalog.ts, which the server charges from.
-const storefront = (id: ProductId, copy: Omit<Product, 'id' | 'name' | 'price' | 'physical'>): Product => ({
+const storefront = (
+  id: ProductId,
+  copy: Omit<Product, 'id' | 'name' | 'price' | 'physical'>
+): Product => ({
   id,
   name: CATALOG[id].name,
   price: centsToDollars(CATALOG[id].priceCents),
@@ -90,7 +93,8 @@ export const getProduct = (id: string | undefined) => products.find((p) => p.id 
 
 /** Most units of one product per order; the checkout API rejects more. */
 export const MAX_QUANTITY_PER_ITEM = 10
-const clampQuantity = (quantity: number) => Math.min(MAX_QUANTITY_PER_ITEM, Math.max(1, Math.floor(quantity)))
+const clampQuantity = (quantity: number) =>
+  Math.min(MAX_QUANTITY_PER_ITEM, Math.max(1, Math.floor(quantity)))
 
 export const useCart = create<CartState>()(
   persist(
@@ -100,9 +104,7 @@ export const useCart = create<CartState>()(
 
       addItem: (product) => {
         set((state) => {
-          const existingItem = state.items.find(
-            (item) => item.product.id === product.id
-          )
+          const existingItem = state.items.find((item) => item.product.id === product.id)
           if (existingItem) {
             return {
               items: state.items.map((item) =>
@@ -144,10 +146,7 @@ export const useCart = create<CartState>()(
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
 
       total: () => {
-        return get().items.reduce(
-          (sum, item) => sum + item.product.price * item.quantity,
-          0
-        )
+        return get().items.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
       },
 
       itemCount: () => {
@@ -176,7 +175,6 @@ export const useCart = create<CartState>()(
     }
   )
 )
-
 
 /** Whether any item in the cart has to be shipped. Software-only carts need no address or shipping charge. */
 export const cartRequiresShipping = (items: CartItem[]) =>

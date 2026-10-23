@@ -103,15 +103,22 @@ export async function pushLayoutChanges(
         `INSERT INTO user_layouts (id, clerk_id, name, modules, is_active, version, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
          RETURNING id, name, modules, is_active, version, created_at, updated_at`,
-        [layout.id, clerkId, layout.name, JSON.stringify(layout.modules), layout.isActive, layout.version]
+        [
+          layout.id,
+          clerkId,
+          layout.name,
+          JSON.stringify(layout.modules),
+          layout.isActive,
+          layout.version,
+        ]
       );
 
       // If this layout is active, deactivate others
       if (layout.isActive) {
-        await query(
-          'UPDATE user_layouts SET is_active = FALSE WHERE clerk_id = $1 AND id != $2',
-          [clerkId, layout.id]
-        );
+        await query('UPDATE user_layouts SET is_active = FALSE WHERE clerk_id = $1 AND id != $2', [
+          clerkId,
+          layout.id,
+        ]);
       }
 
       updated.push({
@@ -138,15 +145,22 @@ export async function pushLayoutChanges(
          SET name = $3, modules = $4, is_active = $5, version = $6, updated_at = NOW()
          WHERE id = $1 AND clerk_id = $2
          RETURNING id, name, modules, is_active, version, created_at, updated_at`,
-        [layout.id, clerkId, layout.name, JSON.stringify(layout.modules), layout.isActive, layout.version]
+        [
+          layout.id,
+          clerkId,
+          layout.name,
+          JSON.stringify(layout.modules),
+          layout.isActive,
+          layout.version,
+        ]
       );
 
       // If this layout is active, deactivate others
       if (layout.isActive) {
-        await query(
-          'UPDATE user_layouts SET is_active = FALSE WHERE clerk_id = $1 AND id != $2',
-          [clerkId, layout.id]
-        );
+        await query('UPDATE user_layouts SET is_active = FALSE WHERE clerk_id = $1 AND id != $2', [
+          clerkId,
+          layout.id,
+        ]);
       }
 
       updated.push({

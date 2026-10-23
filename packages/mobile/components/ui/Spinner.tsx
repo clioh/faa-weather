@@ -14,7 +14,13 @@ interface SpinnerProps {
   accessibilityLabel?: string;
 }
 
-export function Spinner({ size = 'small', onAccent, color, style, accessibilityLabel }: SpinnerProps) {
+export function Spinner({
+  size = 'small',
+  onAccent,
+  color,
+  style,
+  accessibilityLabel,
+}: SpinnerProps) {
   return (
     <ActivityIndicator
       size={size}

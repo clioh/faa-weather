@@ -46,7 +46,9 @@ function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
     emitter.emit({ type: 'tabLongPress', target: key });
   };
 
-  return <TabBar items={items} activeKey={active.key} onPress={onPress} onLongPress={onLongPress} />;
+  return (
+    <TabBar items={items} activeKey={active.key} onPress={onPress} onLongPress={onLongPress} />
+  );
 }
 
 export default function TabsLayout() {

@@ -17,7 +17,11 @@ export interface TokenPayload {
 
 export type TokenCheck =
   | { ok: true; payload: TokenPayload }
-  | { ok: false; reason: 'malformed' | 'bad_signature' | 'wrong_device' | 'expired'; payload?: TokenPayload };
+  | {
+      ok: false;
+      reason: 'malformed' | 'bad_signature' | 'wrong_device' | 'expired';
+      payload?: TokenPayload;
+    };
 
 let cachedKey: { pem: string; key: KeyObject } | null = null;
 
@@ -49,7 +53,11 @@ function parsePayload(bytes: Buffer): TokenPayload | null {
  * Verify a token for this device. `nowMs` is a JS timestamp (ms); the token's
  * `exp` is Unix seconds.
  */
-export function verifyToken(token: unknown, fingerprint: string, nowMs: number = Date.now()): TokenCheck {
+export function verifyToken(
+  token: unknown,
+  fingerprint: string,
+  nowMs: number = Date.now()
+): TokenCheck {
   if (typeof token !== 'string') return { ok: false, reason: 'malformed' };
   const parts = token.split('.');
   if (parts.length !== 2 || !parts[0] || !parts[1]) return { ok: false, reason: 'malformed' };

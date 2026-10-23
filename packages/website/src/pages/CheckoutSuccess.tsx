@@ -75,7 +75,13 @@ export function CheckoutSuccess() {
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             className="w-20 h-20 mx-auto mb-8 rounded-full bg-accent-muted border border-accent/50 flex items-center justify-center"
           >
-            <svg className="w-10 h-10 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg
+              className="w-10 h-10 text-accent"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <motion.path
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
@@ -137,19 +143,20 @@ export function CheckoutSuccess() {
                 {isProcessing
                   ? "We'll send a confirmation email once your payment clears."
                   : hasKit
-                  ? 'A confirmation email has been sent to your email address with tracking information and setup instructions.'
-                  : 'A confirmation email has been sent to your email address with your license key and setup instructions.'}
+                    ? 'A confirmation email has been sent to your email address with tracking information and setup instructions.'
+                    : 'A confirmation email has been sent to your email address with your license key and setup instructions.'}
               </p>
               {hasSoftwareLicense && (
                 <p className="text-sm text-fg-2">
-                  <span className="text-fg font-medium">Software License:</span> your license key is in the
-                  confirmation email. Enter it in the SkyGlass app when setting up your mirror.
+                  <span className="text-fg font-medium">Software License:</span> your license key is
+                  in the confirmation email. Enter it in the SkyGlass app when setting up your
+                  mirror.
                 </p>
               )}
               {hasKit && (
                 <p className="text-sm text-fg-2">
-                  <span className="text-fg font-medium">Kits:</span> the license comes pre-installed on the
-                  SD card. Your mirror activates it on first boot, so there's no key to type.
+                  <span className="text-fg font-medium">Kits:</span> the license comes pre-installed
+                  on the SD card. Your mirror activates it on first boot, so there's no key to type.
                 </p>
               )}
               <p className="text-sm text-fg-2">
@@ -207,14 +214,23 @@ function PaymentFailed() {
       <main className="page-container flex-1 flex items-center justify-center py-16">
         <div className="max-w-lg w-full text-center">
           <div className="w-20 h-20 mx-auto mb-8 rounded-full bg-danger/[0.08] border border-danger/40 flex items-center justify-center">
-            <svg className="w-10 h-10 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-10 h-10 text-danger"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
 
-          <h1 className="display-3 text-fg mb-3">
-            Payment didn't go through
-          </h1>
+          <h1 className="display-3 text-fg mb-3">Payment didn't go through</h1>
           <p className="text-[17px] leading-relaxed text-fg-2 mb-10">
             You haven't been charged. Your cart is saved, so you can try again with the same or a
             different payment method.

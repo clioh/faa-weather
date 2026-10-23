@@ -164,10 +164,18 @@ export function duplicateInstance(
 ): ModuleInstance | null {
   const config = JSON.parse(JSON.stringify(source.config ?? {})) as Record<string, unknown>;
   if (definition) {
-    const sourceSize = definition.sizes.includes(source.size) ? source.size : definition.defaultSize;
+    const sourceSize = definition.sizes.includes(source.size)
+      ? source.size
+      : definition.defaultSize;
     const spot = findPlacement(modules, definition, sourceSize);
     if (!spot) return null;
-    return { ...source, instanceId: generateInstanceId(), position: spot.position, size: spot.size, config };
+    return {
+      ...source,
+      instanceId: generateInstanceId(),
+      position: spot.position,
+      size: spot.size,
+      config,
+    };
   }
   const d = dimsOf(source.size);
   const position = findFreeSlot(toRects(modules), d.cols, d.rows);
@@ -202,7 +210,9 @@ export function placementForSize(
 ): Placement | null {
   const d = SIZE_DIMENSIONS[size];
   const p = clampToGrid(instance.position.x, instance.position.y, d.cols, d.rows);
-  return canPlace(toRects(modules), { ...p, cols: d.cols, rows: d.rows }, instance.instanceId) ? p : null;
+  return canPlace(toRects(modules), { ...p, cols: d.cols, rows: d.rows }, instance.instanceId)
+    ? p
+    : null;
 }
 
 export function resizeInstance(
@@ -224,7 +234,9 @@ export function resizeInstance(
  * (things only ever slide toward the top-left, never reshuffle).
  */
 export function tidyLayout(modules: ModuleInstance[]): ModuleInstance[] {
-  const order = [...modules].sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
+  const order = [...modules].sort(
+    (a, b) => a.position.y - b.position.y || a.position.x - b.position.x
+  );
   const rects = toRects(order);
   let moved = true;
   let guard = 0;
@@ -245,7 +257,9 @@ export function tidyLayout(modules: ModuleInstance[]): ModuleInstance[] {
   // Keep the original array order so undo/redo and saved diffs stay minimal.
   return modules.map((m) => {
     const r = byId.get(m.instanceId)!;
-    return r.x === m.position.x && r.y === m.position.y ? m : { ...m, position: { x: r.x, y: r.y } };
+    return r.x === m.position.x && r.y === m.position.y
+      ? m
+      : { ...m, position: { x: r.x, y: r.y } };
   });
 }
 
@@ -268,7 +282,8 @@ export function normalizeLayout(
     if (!raw || typeof raw !== 'object') continue;
     let m: ModuleInstance = {
       ...raw,
-      instanceId: raw.instanceId && !seen.has(raw.instanceId) ? raw.instanceId : generateInstanceId(),
+      instanceId:
+        raw.instanceId && !seen.has(raw.instanceId) ? raw.instanceId : generateInstanceId(),
       position: {
         x: Math.round(Number(raw.position?.x) || 0),
         y: Math.round(Number(raw.position?.y) || 0),
@@ -313,7 +328,10 @@ export function normalizeLayout(
  * shelf for free. The grid invariant only applies to the unshelved tiles.
  */
 
-export function splitShelf(all: ModuleInstance[]): { placed: ModuleInstance[]; shelf: ModuleInstance[] } {
+export function splitShelf(all: ModuleInstance[]): {
+  placed: ModuleInstance[];
+  shelf: ModuleInstance[];
+} {
   const placed: ModuleInstance[] = [];
   const shelf: ModuleInstance[] = [];
   for (const m of all) (m.shelved ? shelf : placed).push(m);

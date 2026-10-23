@@ -14,21 +14,11 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import {
-  AppState,
-  View,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+import { AppState, View, StyleSheet, ScrollView } from 'react-native';
 import { Button, Footer, Spinner, Text } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  findMirrors,
-  subnetOf,
-  SETUP_HOTSPOT_SSID,
-  type FoundMirror,
-} from '@/lib/mirrorLocator';
+import { findMirrors, subnetOf, SETUP_HOTSPOT_SSID, type FoundMirror } from '@/lib/mirrorLocator';
 import { storage } from '@/lib/storage';
 import { goToManualEntry } from './MirrorNotFound';
 import { colors, fonts, spacing, typography } from '@/lib/theme';
@@ -39,7 +29,14 @@ const HANDOFF_TIMEOUT_MS = 3 * 60 * 1000;
 const RETRY_DELAY_MS = 3000;
 /** When mDNS and skyglass.local haven't found it, sweep common home subnets once. */
 const COMMON_SWEEP_AFTER_MS = 45 * 1000;
-const COMMON_HOME_SUBNETS = ['192.168.1', '192.168.0', '10.0.0', '192.168.86', '192.168.68', '10.0.1'];
+const COMMON_HOME_SUBNETS = [
+  '192.168.1',
+  '192.168.0',
+  '10.0.0',
+  '192.168.86',
+  '192.168.68',
+  '10.0.1',
+];
 
 type Phase = 'searching' | 'failed' | 'timeout';
 
@@ -168,8 +165,8 @@ export function MirrorHandoff({
         {fromHotspot && (
           <View style={styles.steps}>
             <Step n={1}>
-              Your mirror is leaving the "<Text style={styles.mono}>{SETUP_HOTSPOT_SSID}</Text>" network and
-              joining {ssid}.
+              Your mirror is leaving the "<Text style={styles.mono}>{SETUP_HOTSPOT_SSID}</Text>"
+              network and joining {ssid}.
             </Step>
             <Step n={2}>
               Your phone should switch back to {ssid} on its own. If it doesn't, open Settings ›

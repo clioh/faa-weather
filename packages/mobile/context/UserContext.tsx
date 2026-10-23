@@ -6,14 +6,7 @@
  * Integrates with Clerk for cloud authentication.
  */
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  ReactNode,
-} from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth, useUser as useClerkUser } from '@clerk/expo';
 import { storage, UserProfile, LinkedMirror } from '@/lib/storage';
 import { api } from '@/lib/api';

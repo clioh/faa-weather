@@ -209,7 +209,12 @@ function ModuleTileImpl({
         panActive.value = 1;
         touchY.value = e.y;
         const g = grid.value;
-        dragStart.value = { left: left.value, top: top.value, width: width.value, height: height.value };
+        dragStart.value = {
+          left: left.value,
+          top: top.value,
+          width: width.value,
+          height: height.value,
+        };
         target.value = { x: g.x, y: g.y, cols: g.cols, rows: g.rows, size: target.value.size };
         lifted.value = withSpring(1, SPRING);
         showGhost(g.x, g.y, g.cols, g.rows, true);
@@ -240,7 +245,13 @@ function ModuleTileImpl({
         const t = target.value;
         if (nx !== t.x || ny !== t.y) {
           target.value = { ...t, x: nx, y: ny };
-          showGhost(nx, ny, g.cols, g.rows, canPlace(rects.value, { x: nx, y: ny, cols: g.cols, rows: g.rows }, id));
+          showGhost(
+            nx,
+            ny,
+            g.cols,
+            g.rows,
+            canPlace(rects.value, { x: nx, y: ny, cols: g.cols, rows: g.rows }, id)
+          );
           scheduleOnRN(tick);
         }
       })
@@ -288,7 +299,12 @@ function ModuleTileImpl({
         ghost.lock.value = resizeKey;
         resizeActive.value = 1;
         const g = grid.value;
-        dragStart.value = { left: left.value, top: top.value, width: width.value, height: height.value };
+        dragStart.value = {
+          left: left.value,
+          top: top.value,
+          width: width.value,
+          height: height.value,
+        };
         target.value = { x: g.x, y: g.y, cols: g.cols, rows: g.rows, size: target.value.size };
         lifted.value = withSpring(1, SPRING);
         showGhost(g.x, g.y, g.cols, g.rows, true);
@@ -326,7 +342,13 @@ function ModuleTileImpl({
         const t = target.value;
         if (o.cols !== t.cols || o.rows !== t.rows) {
           target.value = { x: g.x, y: g.y, cols: o.cols, rows: o.rows, size: o.size };
-          showGhost(g.x, g.y, o.cols, o.rows, canPlace(rects.value, { x: g.x, y: g.y, cols: o.cols, rows: o.rows }, id));
+          showGhost(
+            g.x,
+            g.y,
+            o.cols,
+            o.rows,
+            canPlace(rects.value, { x: g.x, y: g.y, cols: o.cols, rows: o.rows }, id)
+          );
           scheduleOnRN(tick);
         }
       })
@@ -399,7 +421,9 @@ function ModuleTileImpl({
   });
 
   const name = definition?.name ?? 'Unavailable widget';
-  const needsSetup = definition ? missingRequiredFields(definition, instance.config ?? {}).length > 0 : false;
+  const needsSetup = definition
+    ? missingRequiredFields(definition, instance.config ?? {}).length > 0
+    : false;
 
   // Layout decisions use the committed footprint; during a resize the content
   // simply reflows inside the stretching box.
@@ -447,7 +471,9 @@ function ModuleTileImpl({
         accessibilityActions={a11yActions}
         onAccessibilityAction={handleA11yAction}
       >
-        <View style={[styles.tile, selected && styles.tileSelected, iconOnly && styles.tileIconOnly]}>
+        <View
+          style={[styles.tile, selected && styles.tileSelected, iconOnly && styles.tileIconOnly]}
+        >
           {iconOnly ? (
             <Ionicons
               name={(definition?.icon ?? 'help-circle-outline') as keyof typeof Ionicons.glyphMap}
@@ -471,7 +497,12 @@ function ModuleTileImpl({
               accessibilityHint="Use the size buttons below the canvas to change size."
             >
               <View style={styles.handle}>
-                <Ionicons name="resize" size={10} color={colors.onPrimary} style={styles.handleIcon} />
+                <Ionicons
+                  name="resize"
+                  size={10}
+                  color={colors.onPrimary}
+                  style={styles.handleIcon}
+                />
               </View>
             </View>
           </GestureDetector>

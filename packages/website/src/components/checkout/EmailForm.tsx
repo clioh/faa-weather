@@ -23,7 +23,10 @@ export function EmailForm({ defaultEmail, onSubmit }: EmailFormProps) {
 
       <div>
         <label htmlFor="email" className="field-label">
-          Email <span className="text-fg-3" aria-hidden="true">*</span>
+          Email{' '}
+          <span className="text-fg-3" aria-hidden="true">
+            *
+          </span>
         </label>
         <input
           {...register('email')}

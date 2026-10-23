@@ -13,7 +13,13 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Circle } from 'react-native-svg';
-import { GRID_COLS, GRID_ROWS, getModuleById, type ModuleInstance, type ModuleSize } from '@/lib/modules';
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  getModuleById,
+  type ModuleInstance,
+  type ModuleSize,
+} from '@/lib/modules';
 import { colors } from '@/lib/theme';
 import { toRects, type GridRect } from './layoutUtils';
 import { ModuleTile, TILE_INSET, type GhostValues } from './ModuleTile';

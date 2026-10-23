@@ -20,7 +20,16 @@ interface ToolbarProps {
   canRedo: boolean;
 }
 
-export function Toolbar({ onAdd, onTemplates, onTidy, onUndo, onRedo, canTidy, canUndo, canRedo }: ToolbarProps) {
+export function Toolbar({
+  onAdd,
+  onTemplates,
+  onTidy,
+  onUndo,
+  onRedo,
+  canTidy,
+  canUndo,
+  canRedo,
+}: ToolbarProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
@@ -57,9 +66,7 @@ function ToolButton({
       accessibilityState={{ disabled }}
     >
       <Ionicons name={icon} size={22} color={color} />
-      <Text style={[styles.label, { color }]}>
-        {label}
-      </Text>
+      <Text style={[styles.label, { color }]}>{label}</Text>
     </TouchableOpacity>
   );
 }

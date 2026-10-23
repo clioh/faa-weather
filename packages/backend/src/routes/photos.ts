@@ -51,7 +51,8 @@ router.post('/', uploadLimiter, receivePhoto, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No photo uploaded (field "photo")' });
   try {
     const photo = store.save(req.file.buffer);
-    if (!photo) return res.status(415).json({ error: 'Only JPEG, PNG and WebP images are supported' });
+    if (!photo)
+      return res.status(415).json({ error: 'Only JPEG, PNG and WebP images are supported' });
     notify();
     res.status(201).json({ photo });
   } catch (error) {

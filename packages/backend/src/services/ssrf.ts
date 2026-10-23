@@ -62,7 +62,8 @@ function expandIPv6(ip: string): number[] | null {
   const v4Match = addr.match(/(\d+\.\d+\.\d+\.\d+)$/);
   if (v4Match) {
     const n = ipv4ToInt(v4Match[1]);
-    addr = addr.slice(0, -v4Match[1].length) + `${(n >>> 16).toString(16)}:${(n & 0xffff).toString(16)}`;
+    addr =
+      addr.slice(0, -v4Match[1].length) + `${(n >>> 16).toString(16)}:${(n & 0xffff).toString(16)}`;
   }
   const parts = addr.split('::');
   if (parts.length > 2) return null;
@@ -79,7 +80,11 @@ export function isBlockedIPv6(ip: string): boolean {
   if (!g) return true;
   const allZeroPrefix = g.slice(0, 5).every((x) => x === 0);
   // ::ffff:a.b.c.d (IPv4-mapped) and ::a.b.c.d (IPv4-compatible)
-  if (allZeroPrefix && (g[5] === 0xffff || g[5] === 0) && !(g[5] === 0 && g[6] === 0 && g[7] <= 1)) {
+  if (
+    allZeroPrefix &&
+    (g[5] === 0xffff || g[5] === 0) &&
+    !(g[5] === 0 && g[6] === 0 && g[7] <= 1)
+  ) {
     const v4 = `${g[6] >> 8}.${g[6] & 0xff}.${g[7] >> 8}.${g[7] & 0xff}`;
     return isBlockedIPv4(v4);
   }
@@ -115,7 +120,7 @@ const defaultResolver: Resolver = async (host) => {
 export async function assertPublicUrl(
   raw: string,
   resolve: Resolver = defaultResolver,
-  isBlocked: BlockCheck = isBlockedAddress,
+  isBlocked: BlockCheck = isBlockedAddress
 ): Promise<URL> {
   let url: URL;
   try {
@@ -156,7 +161,7 @@ export async function assertPublicUrl(
  */
 export function createGuardedLookup(
   resolve: Resolver = defaultResolver,
-  isBlocked: BlockCheck = isBlockedAddress,
+  isBlocked: BlockCheck = isBlockedAddress
 ): LookupFunction {
   return (hostname, options, callback) => {
     const host = hostname.replace(/^\[|\]$/g, '');
@@ -179,7 +184,7 @@ export function createGuardedLookup(
         if (options.all) callback(null, entries);
         else callback(null, entries[0].address, entries[0].family);
       },
-      () => callback(new UnsafeUrlError('Could not resolve host'), ''),
+      () => callback(new UnsafeUrlError('Could not resolve host'), '')
     );
   };
 }
@@ -238,8 +243,12 @@ export async function safeFetchText(raw: string, opts: SafeFetchOptions = {}): P
       } catch (error) {
         const unsafe = findUnsafeCause(error);
         if (unsafe) throw unsafe;
-        const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-        throw new UpstreamError(timedOut ? 'Upstream timed out' : 'Upstream unreachable', timedOut ? 504 : 502);
+        const timedOut =
+          error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+        throw new UpstreamError(
+          timedOut ? 'Upstream timed out' : 'Upstream unreachable',
+          timedOut ? 504 : 502
+        );
       }
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get('location');

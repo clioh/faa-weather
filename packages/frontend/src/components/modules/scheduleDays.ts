@@ -67,7 +67,10 @@ export function keyToUtcNoon(key: string): Date {
 }
 
 /** First and last (inclusive) days an all-day event covers, or null if unreadable. */
-export function allDaySpan(event: ScheduleEvent, tz?: string): { first: string; last: string } | null {
+export function allDaySpan(
+  event: ScheduleEvent,
+  tz?: string
+): { first: string; last: string } | null {
   if (event.startDate && DATE_RE.test(event.startDate)) {
     const first = event.startDate;
     const end = event.endDate && DATE_RE.test(event.endDate) ? event.endDate : null;

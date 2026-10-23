@@ -35,7 +35,12 @@ export function toPublicAccount(a: StoredAccount): CalendarAccount {
     error: a.error ?? null,
     lastSyncAt: a.lastSyncAt ?? null,
     createdAt: a.createdAt,
-    calendars: a.calendars.map((c) => ({ id: c.id, name: c.name, color: c.color, enabled: c.enabled })),
+    calendars: a.calendars.map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+      enabled: c.enabled,
+    })),
   };
 }
 

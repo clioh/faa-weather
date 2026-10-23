@@ -11,7 +11,12 @@ import { Text } from '@/components/ui/Text';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { SIZE_LABELS, type ModuleDefinition, type ModuleInstance, type ModuleSize } from '@/lib/modules';
+import {
+  SIZE_LABELS,
+  type ModuleDefinition,
+  type ModuleInstance,
+  type ModuleSize,
+} from '@/lib/modules';
 import { colors, borderRadius, spacing, typography, tones } from '@/lib/theme';
 import { SizeChips, type SizeOption } from './SizeChips';
 
@@ -42,12 +47,17 @@ export function SelectionBar(props: SelectionBarProps) {
       {instance ? (
         <SelectedContent key={instance.instanceId} {...props} instance={instance} />
       ) : (
-        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(100)} style={styles.hintWrap}>
+        <Animated.View
+          entering={FadeIn.duration(160)}
+          exiting={FadeOut.duration(100)}
+          style={styles.hintWrap}
+        >
           {!empty && (
             <>
               <Ionicons name="hand-left-outline" size={18} color={colors.textMuted} />
               <Text style={styles.hint}>
-                Tap a widget to edit it. Drag to move, drag its corner to resize, or drag it down to the shelf.
+                Tap a widget to edit it. Drag to move, drag its corner to resize, or drag it down to
+                the shelf.
               </Text>
             </>
           )}
@@ -95,7 +105,11 @@ function SelectedContent({
   };
 
   return (
-    <Animated.View entering={FadeInDown.duration(200)} exiting={FadeOut.duration(100)} style={styles.content}>
+    <Animated.View
+      entering={FadeInDown.duration(200)}
+      exiting={FadeOut.duration(100)}
+      style={styles.content}
+    >
       <View style={styles.titleRow}>
         <Ionicons
           name={(definition?.icon ?? 'help-circle-outline') as keyof typeof Ionicons.glyphMap}
@@ -132,7 +146,9 @@ function SelectedContent({
         />
       ) : (
         <Text style={styles.singleSize}>
-          {definition ? 'This widget has one size.' : 'This widget was removed from SkyGlass. Remove it from the layout.'}
+          {definition
+            ? 'This widget has one size.'
+            : 'This widget was removed from SkyGlass. Remove it from the layout.'}
         </Text>
       )}
 
@@ -147,7 +163,12 @@ function SelectedContent({
           <ActionButton icon="arrow-up-circle-outline" label="Put back" onPress={onUnshelve} />
         ) : (
           <>
-            <ActionButton icon="copy-outline" label="Duplicate" onPress={onDuplicate} disabled={!definition} />
+            <ActionButton
+              icon="copy-outline"
+              label="Duplicate"
+              onPress={onDuplicate}
+              disabled={!definition}
+            />
             <ActionButton icon="arrow-down-circle-outline" label="Shelf" onPress={onShelve} />
           </>
         )}
@@ -189,13 +210,22 @@ function ActionButton({
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
-      style={[styles.action, destructive && styles.actionDanger, confirming && styles.actionConfirm]}
+      style={[
+        styles.action,
+        destructive && styles.actionDanger,
+        confirming && styles.actionConfirm,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={confirming ? 'Confirm remove widget' : label}
       accessibilityState={{ disabled }}
     >
       <Ionicons name={icon} size={18} color={color} />
-      <Text style={[styles.actionLabel, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+      <Text
+        style={[styles.actionLabel, { color }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {label}
       </Text>
     </TouchableOpacity>

@@ -133,8 +133,18 @@ function parseExcelDate(value: unknown): Date | null {
   const dmmyMatch = str.match(/^(\d{1,2})-(\w{3})-(\d{2,4})$/i);
   if (dmmyMatch) {
     const months: Record<string, number> = {
-      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+      jan: 0,
+      feb: 1,
+      mar: 2,
+      apr: 3,
+      may: 4,
+      jun: 5,
+      jul: 6,
+      aug: 7,
+      sep: 8,
+      oct: 9,
+      nov: 10,
+      dec: 11,
     };
     const month = months[dmmyMatch[2].toLowerCase()];
     if (month !== undefined) {

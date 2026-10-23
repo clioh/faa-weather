@@ -4,7 +4,9 @@ import { registrationStartSchema } from './schemas.js';
 describe('registrationStartSchema', () => {
   it('requires userId when the app or CLI starts a session', () => {
     expect(registrationStartSchema.safeParse({ userName: 'Clio' }).success).toBe(false);
-    expect(registrationStartSchema.safeParse({ userId: 'pilot-1', userName: 'Clio' }).success).toBe(true);
+    expect(registrationStartSchema.safeParse({ userId: 'pilot-1', userName: 'Clio' }).success).toBe(
+      true
+    );
   });
 
   it('has no presence-server variant: only the backend opens camera sessions', () => {

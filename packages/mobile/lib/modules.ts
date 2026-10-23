@@ -258,7 +258,16 @@ export const MODULES: ModuleDefinition[] = [
     sizes: ['small', 'medium', 'tall', 'wide'],
     defaultSize: 'medium',
     configFields: [
-      { key: 'radiusNm', label: 'Radius', type: 'number', default: 100, min: 25, max: 500, step: 25, unit: 'nm' },
+      {
+        key: 'radiusNm',
+        label: 'Radius',
+        type: 'number',
+        default: 100,
+        min: 25,
+        max: 500,
+        step: 25,
+        unit: 'nm',
+      },
       { key: 'maxItems', label: 'Max items', type: 'number', default: 5, min: 1, max: 15 },
     ],
   },
@@ -416,7 +425,8 @@ export const MODULES: ModuleDefinition[] = [
   {
     id: 'calendar',
     name: 'Schedule',
-    description: 'Events from Google, Outlook, iCloud or a calendar link, plus imported crew schedules',
+    description:
+      'Events from Google, Outlook, iCloud or a calendar link, plus imported crew schedules',
     category: 'calendar',
     icon: 'calendar',
     sizes: ['medium', 'tall', 'large', 'wide'],
@@ -433,7 +443,15 @@ export const MODULES: ModuleDefinition[] = [
           { label: 'Flights only', value: 'flights' },
         ],
       },
-      { key: 'daysAhead', label: 'Days ahead', type: 'number', default: 7, min: 1, max: 30, unit: 'days' },
+      {
+        key: 'daysAhead',
+        label: 'Days ahead',
+        type: 'number',
+        default: 7,
+        min: 1,
+        max: 30,
+        unit: 'days',
+      },
       { key: 'maxEvents', label: 'Max events', type: 'number', default: 8, min: 1, max: 20 },
       { key: 'showLocation', label: 'Show locations', type: 'boolean', default: true },
     ],
@@ -592,7 +610,15 @@ export const MODULES: ModuleDefinition[] = [
     defaultSize: 'large',
     manages: 'photos',
     configFields: [
-      { key: 'interval', label: 'Change every', type: 'number', default: 30, min: 5, max: 600, unit: 's' },
+      {
+        key: 'interval',
+        label: 'Change every',
+        type: 'number',
+        default: 30,
+        min: 5,
+        max: 600,
+        unit: 's',
+      },
       {
         key: 'fit',
         label: 'Fit',
@@ -616,7 +642,13 @@ export const MODULES: ModuleDefinition[] = [
     sizes: ['small', 'medium'],
     defaultSize: 'small',
     configFields: [
-      { key: 'content', label: 'Content', type: 'text', required: true, placeholder: 'https://...' },
+      {
+        key: 'content',
+        label: 'Content',
+        type: 'text',
+        required: true,
+        placeholder: 'https://...',
+      },
       { key: 'label', label: 'Caption', type: 'text', placeholder: 'Guest Wi-Fi' },
     ],
   },
@@ -672,10 +704,13 @@ export function getModuleById(id: string): ModuleDefinition | undefined {
 
 /** Config populated with every field's default. */
 export function defaultConfigFor(definition: ModuleDefinition): Record<string, unknown> {
-  return definition.configFields.reduce((acc, field) => {
-    if (field.default !== undefined) acc[field.key] = field.default;
-    return acc;
-  }, {} as Record<string, unknown>);
+  return definition.configFields.reduce(
+    (acc, field) => {
+      if (field.default !== undefined) acc[field.key] = field.default;
+      return acc;
+    },
+    {} as Record<string, unknown>
+  );
 }
 
 /**

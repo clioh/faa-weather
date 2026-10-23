@@ -24,10 +24,15 @@ export function readCalendarSettings(config: Partial<Config>): CalendarSettings 
   const minutes = Number(cal.refresh_minutes);
   const tz = config.location?.timezone;
   const authService = skyglassServiceUrl(config);
-  if (!authService) console.warn('[calendar] skyglass_service is not a valid https:// URL; Google/Outlook sign-in disabled');
+  if (!authService)
+    console.warn(
+      '[calendar] skyglass_service is not a valid https:// URL; Google/Outlook sign-in disabled'
+    );
 
   return {
-    refreshMinutes: Number.isFinite(minutes) ? Math.min(1440, Math.max(1, Math.round(minutes))) : 10,
+    refreshMinutes: Number.isFinite(minutes)
+      ? Math.min(1440, Math.max(1, Math.round(minutes)))
+      : 10,
     timezone: tz && isValidTimeZone(tz) ? tz : systemTimeZone(),
     authService,
   };

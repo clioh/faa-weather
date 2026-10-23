@@ -49,7 +49,10 @@ export function priceCart(items: unknown): Result<PricedCart> {
   const lines: PricedLine[] = []
   let subtotal = 0
   for (const raw of items) {
-    const item = (raw && typeof raw === 'object' ? raw : {}) as { productId?: unknown; quantity?: unknown }
+    const item = (raw && typeof raw === 'object' ? raw : {}) as {
+      productId?: unknown
+      quantity?: unknown
+    }
     const product = getCatalogProduct(item.productId)
     if (!product || !Number.isInteger(item.quantity)) {
       return { ok: false, error: `Invalid product: ${String(item.productId)}` }
@@ -60,7 +63,10 @@ export function priceCart(items: unknown): Result<PricedCart> {
     lines.push({ productId: product.id, quantity, unitPrice: product.priceCents })
   }
   const ships = needsShipping(lines)
-  return { ok: true, value: { lines, subtotal, ships, shippingCost: shippingCostFor(lines, subtotal) } }
+  return {
+    ok: true,
+    value: { lines, subtotal, ships, shippingCost: shippingCostFor(lines, subtotal) },
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +116,11 @@ export interface TaxAddress {
  * The address sales tax is charged on: the shipping address when anything
  * ships, else the buyer's billing ZIP (license-only carts).
  */
-export function resolveTaxAddress(ships: boolean, shipping: unknown, billingAddress: unknown): Result<TaxAddress> {
+export function resolveTaxAddress(
+  ships: boolean,
+  shipping: unknown,
+  billingAddress: unknown
+): Result<TaxAddress> {
   if (ships) {
     const address = parsePostalAddress(shipping)
     if (!address) return { ok: false, error: 'Shipping address required' }
@@ -137,7 +147,9 @@ export function discountedLineAmounts(lines: PricedLine[], discount: number): nu
   const exact = totals.map((t) => (t * d) / subtotal)
   const shares = exact.map(Math.floor)
   let left = d - shares.reduce((a, b) => a + b, 0)
-  const order = exact.map((e, i) => ({ i, frac: e - Math.floor(e) })).sort((a, b) => b.frac - a.frac)
+  const order = exact
+    .map((e, i) => ({ i, frac: e - Math.floor(e) }))
+    .sort((a, b) => b.frac - a.frac)
   for (const { i } of order) {
     if (left <= 0) break
     shares[i] += 1
@@ -163,7 +175,7 @@ export async function calculateCartTax(
   stripe: Stripe,
   cart: PricedCart,
   discount: number,
-  taxAddress: TaxAddress,
+  taxAddress: TaxAddress
 ): Promise<TaxQuote> {
   const amounts = discountedLineAmounts(cart.lines, discount)
   const calculation = await stripe.tax.calculations.create({
@@ -176,7 +188,13 @@ export async function calculateCartTax(
       tax_behavior: 'exclusive',
     })),
     ...(cart.shippingCost > 0
-      ? { shipping_cost: { amount: cart.shippingCost, tax_code: TAX_CODE_SHIPPING, tax_behavior: 'exclusive' as const } }
+      ? {
+          shipping_cost: {
+            amount: cart.shippingCost,
+            tax_code: TAX_CODE_SHIPPING,
+            tax_behavior: 'exclusive' as const,
+          },
+        }
       : {}),
     customer_details: {
       address: taxAddress.address,
@@ -192,7 +210,9 @@ export async function calculateCartTax(
 
 /** Stripe Tax rejected the address itself: the buyer should correct it. */
 export function isTaxLocationError(error: unknown): boolean {
-  return error instanceof Stripe.errors.StripeError && error.code === 'customer_tax_location_invalid'
+  return (
+    error instanceof Stripe.errors.StripeError && error.code === 'customer_tax_location_invalid'
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -214,18 +234,30 @@ export interface PromoDiscount {
 }
 
 /** An active promotion code by its customer-facing code, or null. */
-export async function findPromotionCode(stripe: Stripe, code: string): Promise<Stripe.PromotionCode | null> {
-  const list = await stripe.promotionCodes.list({ code, active: true, limit: 1, expand: PROMO_EXPAND.map((p) => `data.${p}`) })
+export async function findPromotionCode(
+  stripe: Stripe,
+  code: string
+): Promise<Stripe.PromotionCode | null> {
+  const list = await stripe.promotionCodes.list({
+    code,
+    active: true,
+    limit: 1,
+    expand: PROMO_EXPAND.map((p) => `data.${p}`),
+  })
   return list.data[0] ?? null
 }
 
 /** A promotion code by id, or null when it doesn't exist. */
-export async function retrievePromotionCode(stripe: Stripe, id: string): Promise<Stripe.PromotionCode | null> {
+export async function retrievePromotionCode(
+  stripe: Stripe,
+  id: string
+): Promise<Stripe.PromotionCode | null> {
   if (!/^promo_[A-Za-z0-9]+$/.test(id)) return null
   try {
     return await stripe.promotionCodes.retrieve(id, { expand: PROMO_EXPAND })
   } catch (err) {
-    if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing') return null
+    if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing')
+      return null
     throw err
   }
 }
@@ -250,7 +282,7 @@ export interface PromoContext {
  */
 export async function evaluatePromotion(
   promotionCode: Stripe.PromotionCode | null,
-  ctx: PromoContext,
+  ctx: PromoContext
 ): Promise<Result<PromoDiscount>> {
   const invalid = (error: string): Result<PromoDiscount> => ({ ok: false, error })
   if (!promotionCode) return invalid('Invalid promo code')
@@ -258,8 +290,10 @@ export async function evaluatePromotion(
   const now = Math.floor(Date.now() / 1000)
 
   if (!promotionCode.active) return invalid('This promo code is no longer active')
-  if (!coupon || typeof coupon === 'string' || !coupon.valid) return invalid('This promo code has expired')
-  if (promotionCode.expires_at && promotionCode.expires_at <= now) return invalid('This promo code has expired')
+  if (!coupon || typeof coupon === 'string' || !coupon.valid)
+    return invalid('This promo code has expired')
+  if (promotionCode.expires_at && promotionCode.expires_at <= now)
+    return invalid('This promo code has expired')
 
   // Our products are not Stripe products, so a product-restricted coupon can't apply.
   if (coupon.applies_to && coupon.applies_to.products.length > 0) {
@@ -272,7 +306,8 @@ export async function evaluatePromotion(
     return invalid('This promo code is not valid for online orders')
   }
 
-  const { minimum_amount: minimum, minimum_amount_currency: minimumCurrency } = promotionCode.restrictions
+  const { minimum_amount: minimum, minimum_amount_currency: minimumCurrency } =
+    promotionCode.restrictions
   if (minimum) {
     if (minimumCurrency && minimumCurrency.toLowerCase() !== 'usd') {
       return invalid('This promo code is not valid for USD orders')
@@ -301,7 +336,10 @@ export async function evaluatePromotion(
       return invalid('This promo code is not available right now')
     }
     const used = await countPromoRedemptions(ctx.sql, promotionCode.id, coupon.id)
-    if (promotionCode.max_redemptions && promotionCode.times_redeemed + used.promotionCode >= promotionCode.max_redemptions) {
+    if (
+      promotionCode.max_redemptions &&
+      promotionCode.times_redeemed + used.promotionCode >= promotionCode.max_redemptions
+    ) {
       return invalid('This promo code has reached its usage limit')
     }
     if (coupon.max_redemptions && coupon.times_redeemed + used.coupon >= coupon.max_redemptions) {
@@ -315,7 +353,8 @@ export async function evaluatePromotion(
     discountType = 'percent'
     discountAmount = Math.round(ctx.subtotal * (coupon.percent_off / 100))
   } else if (coupon.amount_off) {
-    if ((coupon.currency ?? '').toLowerCase() !== 'usd') return invalid('This promo code is not valid for USD orders')
+    if ((coupon.currency ?? '').toLowerCase() !== 'usd')
+      return invalid('This promo code is not valid for USD orders')
     discountType = 'amount'
     discountAmount = coupon.amount_off
   } else {

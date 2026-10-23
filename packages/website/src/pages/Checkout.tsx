@@ -5,7 +5,12 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { SEO, PageHeader, SiteFooter } from '../components'
 import { useCart, formatPrice, cartRequiresShipping } from '../store/cart'
 import { stripePromise, stripeAppearance, stripeFonts } from '../config/stripe'
-import { FALLBACK_TAX_RATE, isUsZip, shippingCostFor, type BillingAddress } from '../../shared/catalog'
+import {
+  FALLBACK_TAX_RATE,
+  isUsZip,
+  shippingCostFor,
+  type BillingAddress,
+} from '../../shared/catalog'
 
 type CheckoutStep = 'information' | 'shipping' | 'payment'
 
@@ -110,7 +115,11 @@ function PaymentForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-[28px] font-light tracking-[-0.01em] text-fg">Payment</h2>
-        <button type="button" onClick={onBack} className="link min-h-11 inline-flex items-center text-sm">
+        <button
+          type="button"
+          onClick={onBack}
+          className="link min-h-11 inline-flex items-center text-sm"
+        >
           {needsShipping ? 'Edit shipping' : 'Edit contact'}
         </button>
       </div>
@@ -126,7 +135,8 @@ function PaymentForm({
             {shippingData.address}
             {shippingData.apartment && `, ${shippingData.apartment}`}
             <br />
-            {shippingData.city}, {shippingData.state} <span className="font-mono">{shippingData.zip}</span>
+            {shippingData.city}, {shippingData.state}{' '}
+            <span className="font-mono">{shippingData.zip}</span>
           </p>
         </div>
       ) : (
@@ -144,8 +154,19 @@ function PaymentForm({
       {/* Stripe Payment Element */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <svg className="w-5 h-5 text-fg-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          <svg
+            className="w-5 h-5 text-fg-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+            />
           </svg>
           <span className="section-label">Payment details</span>
         </div>
@@ -161,7 +182,10 @@ function PaymentForm({
               defaultValues: {
                 billingDetails: {
                   email: shippingData.email,
-                  address: { postal_code: billingAddress.postal_code, country: billingAddress.country },
+                  address: {
+                    postal_code: billingAddress.postal_code,
+                    country: billingAddress.country,
+                  },
                 },
               },
             }),
@@ -172,8 +196,19 @@ function PaymentForm({
       {/* Error message */}
       {error && (
         <div role="alert" className="notice notice-error flex items-start gap-3">
-          <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-5 h-5 flex-shrink-0 mt-0.5 text-danger"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           {error}
         </div>
@@ -199,16 +234,43 @@ function PaymentForm({
       >
         {isProcessing ? (
           <>
-            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            <svg
+              className="w-5 h-5 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
             </svg>
             Processing...
           </>
         ) : (
           <>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
             </svg>
             Pay now
           </>
@@ -276,7 +338,8 @@ export function Checkout() {
   const billingZip = shippingData.zip.trim()
   // Memoized: it is a dependency of the PaymentIntent effect below
   const billingAddress = useMemo<BillingAddress | null>(
-    () => (!needsShipping && isUsZip(billingZip) ? { postal_code: billingZip, country: 'US' } : null),
+    () =>
+      !needsShipping && isUsZip(billingZip) ? { postal_code: billingZip, country: 'US' } : null,
     [needsShipping, billingZip]
   )
 
@@ -292,9 +355,10 @@ export function Checkout() {
   const shipping = shippingCents / 100
 
   // Use calculated tax or estimate (on discounted amount)
-  const taxCents = taxData.taxSource === 'estimating'
-    ? Math.round(discountedSubtotalCents * FALLBACK_TAX_RATE) // Estimate until calculated
-    : Math.round(taxData.taxAmount * (discountedSubtotalCents / subtotalCents || 1)) // Proportional if discount applied
+  const taxCents =
+    taxData.taxSource === 'estimating'
+      ? Math.round(discountedSubtotalCents * FALLBACK_TAX_RATE) // Estimate until calculated
+      : Math.round(taxData.taxAmount * (discountedSubtotalCents / subtotalCents || 1)) // Proportional if discount applied
   const tax = taxCents / 100
 
   const orderTotalCents = discountedSubtotalCents + shippingCents + taxCents
@@ -542,7 +606,16 @@ export function Checkout() {
         cancelled = true
       }
     }
-  }, [step, clientSecret, items, needsShipping, shippingData, billingAddress, taxData.calculationId, promoData.promotionCodeId])
+  }, [
+    step,
+    clientSecret,
+    items,
+    needsShipping,
+    shippingData,
+    billingAddress,
+    taxData.calculationId,
+    promoData.promotionCodeId,
+  ])
 
   const handleInformationSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -591,8 +664,19 @@ export function Checkout() {
         <main className="page-container flex-1 flex items-center justify-center py-16">
           <div className="text-center">
             <div className="w-16 h-16 mx-auto mb-6 rounded-full border border-line flex items-center justify-center">
-              <svg className="w-8 h-8 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              <svg
+                className="w-8 h-8 text-fg-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                />
               </svg>
             </div>
             <h1 className="display-3 text-fg mb-3">Your cart is empty</h1>
@@ -609,7 +693,13 @@ export function Checkout() {
 
   const stepClass = (s: CheckoutStep) => (step === s ? 'text-fg' : 'text-fg-3')
   const chevron = (
-    <svg className="w-3.5 h-3.5 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      className="w-3.5 h-3.5 text-fg-3"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   )
@@ -623,25 +713,45 @@ export function Checkout() {
           <>
             {/* Progress indicator */}
             <div className="hidden md:flex items-center gap-2 text-sm">
-              <span className={stepClass('information')} aria-current={step === 'information' ? 'step' : undefined}>
+              <span
+                className={stepClass('information')}
+                aria-current={step === 'information' ? 'step' : undefined}
+              >
                 Information
               </span>
               {chevron}
               {needsShipping && (
                 <>
-                  <span className={stepClass('shipping')} aria-current={step === 'shipping' ? 'step' : undefined}>
+                  <span
+                    className={stepClass('shipping')}
+                    aria-current={step === 'shipping' ? 'step' : undefined}
+                  >
                     Shipping
                   </span>
                   {chevron}
                 </>
               )}
-              <span className={stepClass('payment')} aria-current={step === 'payment' ? 'step' : undefined}>
+              <span
+                className={stepClass('payment')}
+                aria-current={step === 'payment' ? 'step' : undefined}
+              >
                 Payment
               </span>
             </div>
             <div className="md:hidden flex items-center gap-2 text-sm text-fg-2 min-h-11">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
               </svg>
               Secure checkout
             </div>
@@ -701,8 +811,8 @@ export function Checkout() {
                       <p className="field-hint">Used to calculate sales tax. US only.</p>
                     </div>
                     <p className="text-sm text-fg-2">
-                      Nothing ships with a Software License. Your license key is emailed here
-                      after checkout.
+                      Nothing ships with a Software License. Your license key is emailed here after
+                      checkout.
                     </p>
                   </>
                 )}
@@ -875,20 +985,49 @@ export function Checkout() {
               <>
                 {isLoadingPayment ? (
                   <div className="flex flex-col items-center justify-center py-12" role="status">
-                    <svg className="w-8 h-8 animate-spin text-accent mb-4" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <svg
+                      className="w-8 h-8 animate-spin text-accent mb-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     <p className="text-fg-2">Preparing secure checkout...</p>
                   </div>
                 ) : error && !clientSecret ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full border border-danger/40 bg-danger/[0.08] flex items-center justify-center">
-                      <svg className="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        className="w-8 h-8 text-danger"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
                     </div>
-                    <p role="alert" className="text-danger mb-6">{error}</p>
+                    <p role="alert" className="text-danger mb-6">
+                      {error}
+                    </p>
                     <button
                       onClick={() => {
                         setError(null)
@@ -937,9 +1076,18 @@ export function Checkout() {
 
             <ul>
               {items.map((item) => (
-                <li key={item.product.id} className="flex gap-4 py-4 border-b border-line last:border-b-0">
+                <li
+                  key={item.product.id}
+                  className="flex gap-4 py-4 border-b border-line last:border-b-0"
+                >
                   <div className="relative w-14 h-14 rounded-xl border border-line bg-tint flex items-center justify-center flex-shrink-0">
-                    <svg className="w-7 h-7 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg
+                      className="w-7 h-7 text-fg-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <rect x="3" y="2" width="18" height="20" rx="2" strokeWidth={1.5} />
                       <circle cx="18" cy="5" r="1.5" fill="currentColor" />
                     </svg>
@@ -966,8 +1114,19 @@ export function Checkout() {
                 // Applied promo code
                 <div className="flex items-center justify-between gap-3 rounded-[14px] border border-accent/40 bg-accent-muted pl-4 pr-1 min-h-[52px]">
                   <div className="flex items-center gap-2 min-w-0">
-                    <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <svg
+                      className="w-5 h-5 text-accent flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
                     </svg>
                     <span className="font-mono text-sm text-fg truncate">{promoData.code}</span>
                     <span className="font-mono text-xs text-fg-2">
@@ -982,8 +1141,19 @@ export function Checkout() {
                     className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full text-fg-2 hover:text-fg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Remove promo code"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -1016,9 +1186,25 @@ export function Checkout() {
                       className="btn btn-secondary btn-sm h-[52px] rounded-[26px] flex-shrink-0"
                     >
                       {promoData.isValidating ? (
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-label="Checking code">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        <svg
+                          className="w-4 h-4 animate-spin"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          aria-label="Checking code"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
                         </svg>
                       ) : (
                         'Apply'
@@ -1026,7 +1212,9 @@ export function Checkout() {
                     </button>
                   </div>
                   {promoData.error && (
-                    <p role="alert" className="field-error">{promoData.error}</p>
+                    <p role="alert" className="field-error">
+                      {promoData.error}
+                    </p>
                   )}
                 </div>
               )}
@@ -1056,9 +1244,25 @@ export function Checkout() {
                 <dt className="text-fg-2 flex items-center gap-2">
                   Tax
                   {taxData.isCalculating && (
-                    <svg className="w-3 h-3 animate-spin text-accent" fill="none" viewBox="0 0 24 24" aria-label="Calculating tax">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    <svg
+                      className="w-3 h-3 animate-spin text-accent"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-label="Calculating tax"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
                     </svg>
                   )}
                   {taxData.taxSource === 'estimating' && !taxData.isCalculating && (
@@ -1077,29 +1281,83 @@ export function Checkout() {
             <div className="mt-6 pt-4 border-t border-line">
               <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 text-sm">
                 <div className="flex items-center gap-2 text-fg-2 min-h-11">
-                  <svg className="w-5 h-5 text-fg-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <svg
+                    className="w-5 h-5 text-fg-3 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
                   </svg>
                   <span>Secure checkout</span>
                 </div>
                 {/* The hardware warranty only applies to kits */}
                 {needsShipping && (
-                  <Link to="/terms#warranty" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-fg-2 hover:text-fg transition-colors min-h-11">
-                    <svg className="w-5 h-5 text-fg-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  <Link
+                    to="/terms#warranty"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-fg-2 hover:text-fg transition-colors min-h-11"
+                  >
+                    <svg
+                      className="w-5 h-5 text-fg-3 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                      />
                     </svg>
                     <span>1-year warranty</span>
                   </Link>
                 )}
                 <div className="flex items-center gap-2 text-fg-2 min-h-11">
-                  <svg className="w-5 h-5 text-fg-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  <svg
+                    className="w-5 h-5 text-fg-3 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                    />
                   </svg>
                   <span>Powered by Stripe</span>
                 </div>
-                <Link to="/terms#refunds" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-fg-2 hover:text-fg transition-colors min-h-11">
-                  <svg className="w-5 h-5 text-fg-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
+                <Link
+                  to="/terms#refunds"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-fg-2 hover:text-fg transition-colors min-h-11"
+                >
+                  <svg
+                    className="w-5 h-5 text-fg-3 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"
+                    />
                   </svg>
                   <span>{needsShipping ? '30-day returns' : '30-day hassle-free refund'}</span>
                 </Link>

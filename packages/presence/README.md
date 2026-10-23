@@ -21,11 +21,11 @@ python detector.py --method opencv --preview
 
 ## Detection Methods
 
-| Method | Accuracy | Speed | Installation | Notes |
-|--------|----------|-------|--------------|-------|
-| `face_recognition` | Best | ~10 analysed fps | `requirements.txt` | Default. Recognizes enrolled users only; reports who is present |
-| `opencv` | Basic | Fast | `requirements.txt` (YuNet model ships in `models/`) | Detects any face, no enrollment |
-| `auto` | - | - | - | Default value of `presence.detection_method`: `face_recognition` if installed, else `opencv` (with a warning) |
+| Method             | Accuracy | Speed            | Installation                                        | Notes                                                                                                         |
+| ------------------ | -------- | ---------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `face_recognition` | Best     | ~10 analysed fps | `requirements.txt`                                  | Default. Recognizes enrolled users only; reports who is present                                               |
+| `opencv`           | Basic    | Fast             | `requirements.txt` (YuNet model ships in `models/`) | Detects any face, no enrollment                                                                               |
+| `auto`             | -        | -                | -                                                   | Default value of `presence.detection_method`: `face_recognition` if installed, else `opencv` (with a warning) |
 
 `face_recognition` locates faces with the same YuNet model as `opencv` mode,
 encodes each one with dlib and compares it with every enrolled user's
@@ -39,14 +39,14 @@ within a couple of seconds without restarting the detector.
 `detector.py` reads the `presence:` block of `config/config.yaml`, layered over
 `config/default.yaml`. Command-line flags override individual values:
 
-| YAML key | Flag | Default |
-|----------|------|---------|
-| `detection_method` | `--method` | `auto` |
-| `camera_index` | `--camera` | `0` |
-| `camera_rotation` | | `auto` |
-| `tolerance` | `--tolerance` | `0.6` |
-| `min_detection_frames` | `--min-frames` | `3` |
-| `timeout` | `--timeout` | `5` (seconds) |
+| YAML key               | Flag           | Default       |
+| ---------------------- | -------------- | ------------- |
+| `detection_method`     | `--method`     | `auto`        |
+| `camera_index`         | `--camera`     | `0`           |
+| `camera_rotation`      |                | `auto`        |
+| `tolerance`            | `--tolerance`  | `0.6`         |
+| `min_detection_frames` | `--min-frames` | `3`           |
+| `timeout`              | `--timeout`    | `5` (seconds) |
 
 At startup it logs each effective value and where it came from
 (`Setting tolerance = 0.6 (from ...)`). Invalid values (unknown method,
@@ -88,6 +88,7 @@ python detector.py --help
 ## Dependencies
 
 ### Required (installed via requirements.txt)
+
 - `opencv-python` - Camera access, image processing and YuNet face detection
 - `face_recognition` (dlib) - Recognizes which enrolled user is in view
 - `numpy` - Array operations
@@ -189,7 +190,7 @@ Work down this list; each line of the detector log answers one question.
    12:01:20 INFO  10s: 296 frames (29.6 fps), face in 0 (0%), 118 with only too-small faces (largest 64px < 80px), detect 6.2 ms avg, 0 read failures, state absent, backend ok 0 / failed 0
    ```
 
-   That heartbeat already tells you the usual story: a face *was* found but
+   That heartbeat already tells you the usual story: a face _was_ found but
    is narrower than `--min-face-size` (default 80 px), so you are too far
    from the camera for the current threshold.
 
@@ -204,8 +205,9 @@ Work down this list; each line of the detector log answers one question.
    was done in different light or at a different distance: register again
    in front of the mirror, or raise `--tolerance` slightly (0.65 at most;
    higher values start to accept other people). `No enrolled faces with
-   encodings` or `has no face encodings` at startup means nobody can be
+encodings` or `has no face encodings` at startup means nobody can be
    recognised yet: register from the app.
+
 3. **Is the state machine moving?** Every transition is logged with its
    reason (`State -> detecting (face seen, need 3 consecutive frames)`,
    `State -> absent (no face for 5.2s)`). `min_detection_frames` and
@@ -237,9 +239,11 @@ In `face_recognition` mode `--dump-frames` saves frames with unknown faces
 offline (see `tests/fixtures/faces/README.md`).
 
 ### Camera not working on Mac
+
 Grant camera permission in: System Settings > Privacy & Security > Camera > Terminal
 
 ### Camera not working on Raspberry Pi
+
 ```bash
 pm2 logs skyglass-detector --lines 20   # "Camera 0 opened: ..." names the camera in use
 rpicam-hello --list-cameras             # does libcamera see the Pi camera?
@@ -247,13 +251,16 @@ pm2 stop skyglass-detector              # free the camera, then:
 venv/bin/python test_camera.py          # lists the cameras it found if none opens
 pm2 start skyglass-detector
 ```
+
 A Pi camera that `rpicam-hello` lists but SkyGlass ignores usually means the
 venv cannot see Picamera2: recreate it with
 `python3 -m venv --system-site-packages venv`. For a USB webcam, check that your
 user is in the `video` group (`sudo usermod -a -G video $USER`).
 
 ### face_recognition install fails
+
 This library requires dlib which compiles from source. Ensure you have:
+
 - CMake installed: `brew install cmake` (Mac) or `sudo apt install cmake` (Linux)
 - Xcode command line tools: `xcode-select --install` (Mac only)
 

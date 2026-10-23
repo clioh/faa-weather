@@ -94,7 +94,7 @@ The Pi install lives at `~/SkyGlass`; `setup-pi.sh` always installs there. The P
 Edit `config/config.yaml`:
 
 ```yaml
-airport: KJFK                    # Your home airport ICAO code
+airport: KJFK # Your home airport ICAO code
 
 # SkyGlass cloud service: calendar sign-in, NOTAMs, stock quotes. It holds all
 # third-party API keys, so the mirror needs none (docs/CLOUD_SERVICE.md)
@@ -106,15 +106,15 @@ location:
   timezone: America/New_York
 
 display:
-  presence_timeout: 120          # Seconds before sleep
-  brightness: 80                 # Default brightness %
+  presence_timeout: 120 # Seconds before sleep
+  brightness: 80 # Default brightness %
 
 presence:
   camera_index: 0
-  detection_method: auto         # face_recognition | opencv | auto
-  tolerance: 0.6                 # face_recognition match tolerance (lower = stricter)
-  min_detection_frames: 3        # consecutive detections before waking
-  timeout: 5                     # seconds without a face before absent
+  detection_method: auto # face_recognition | opencv | auto
+  tolerance: 0.6 # face_recognition match tolerance (lower = stricter)
+  min_detection_frames: 3 # consecutive detections before waking
+  timeout: 5 # seconds without a face before absent
 
 # Calendars are connected from the phone app. Google/Outlook sign-in goes
 # through skyglass_service; the mirror holds no OAuth app credentials
@@ -125,15 +125,15 @@ calendar:
 
 ## API Endpoints
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/aviation/metar/:icao` | Current METAR with flight rules |
-| `GET /api/aviation/taf/:icao` | Terminal aerodrome forecast |
-| `GET /api/aviation/tfrs` | Active TFRs in area |
-| `GET /api/aviation/astro` | Sun/moon times for today |
-| `GET /api/schedule?days=7` | Merged calendar-account events + XLSX flight duties |
-| `GET /api/calendar/accounts` | Connected calendar accounts (see [docs/CALENDAR.md](docs/CALENDAR.md)) |
-| `GET /api/health` | Service health check |
+| Endpoint                        | Description                                                            |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `GET /api/aviation/metar/:icao` | Current METAR with flight rules                                        |
+| `GET /api/aviation/taf/:icao`   | Terminal aerodrome forecast                                            |
+| `GET /api/aviation/tfrs`        | Active TFRs in area                                                    |
+| `GET /api/aviation/astro`       | Sun/moon times for today                                               |
+| `GET /api/schedule?days=7`      | Merged calendar-account events + XLSX flight duties                    |
+| `GET /api/calendar/accounts`    | Connected calendar accounts (see [docs/CALENDAR.md](docs/CALENDAR.md)) |
+| `GET /api/health`               | Service health check                                                   |
 
 ## Project Structure
 
@@ -177,6 +177,7 @@ rebuilt with `npm run docs:bom`). [docs/HARDWARE.md](docs/HARDWARE.md) covers th
 - Mounting instructions
 
 **Recommended setup:**
+
 - Raspberry Pi 5 (4GB)
 - Pi Camera Module 3
 - 24" IPS Monitor
@@ -199,11 +200,11 @@ npm run update       # Check and apply updates
 
 ## Presence Detection Methods
 
-| Method | Speed | Accuracy | Notes |
-|--------|-------|----------|-------|
-| `face_recognition` | Slowest | Best | YuNet finds faces, dlib encodings identify them; wakes only for enrolled users and reports who is present. Installed by `requirements.txt` (compiles dlib) |
-| `opencv` | Fastest | Basic | OpenCV's bundled YuNet model; detects any face |
-| `auto` | - | - | Default. `face_recognition` if installed, else `opencv`, and warns when it falls back to the any-face method |
+| Method             | Speed   | Accuracy | Notes                                                                                                                                                      |
+| ------------------ | ------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `face_recognition` | Slowest | Best     | YuNet finds faces, dlib encodings identify them; wakes only for enrolled users and reports who is present. Installed by `requirements.txt` (compiles dlib) |
+| `opencv`           | Fastest | Basic    | OpenCV's bundled YuNet model; detects any face                                                                                                             |
+| `auto`             | -       | -        | Default. `face_recognition` if installed, else `opencv`, and warns when it falls back to the any-face method                                               |
 
 The detector reads the `presence:` block of `config/config.yaml` (over `config/default.yaml`) at startup and logs the effective settings; its CLI flags (`--method`, `--camera`, `--tolerance`, `--min-frames`, `--timeout`) override the YAML. Restart it after editing (`pm2 restart skyglass-detector`). Faces registered from the phone app are picked up without a restart. Tuning and diagnostics: [packages/presence/README.md](packages/presence/README.md).
 
@@ -235,7 +236,7 @@ journalctl -u skyglass-watchdog -f
 
 Updates are installed from the `skyglass-vX.Y.Z.tar.gz` asset attached to each GitHub release (built by `.github/workflows/release.yml`; it contains the prebuilt `packages/backend/dist` and `packages/frontend/dist`). They come from `clioh/skyglass` by default; a fork sets `GITHUB_REPO=<owner>/<repo>` in the environment of the backend and of `scripts/update.sh`.
 
-- **In the display UI**: *Download* fetches the tarball, *Install Now* hands it to `scripts/update.sh --apply-tarball` and returns immediately. The display shows "Update started, restarting…" and reloads itself once the backend is back on the new version.
+- **In the display UI**: _Download_ fetches the tarball, _Install Now_ hands it to `scripts/update.sh --apply-tarball` and returns immediately. The display shows "Update started, restarting…" and reloads itself once the backend is back on the new version.
 - **From a shell**: `npm run update` (prompt), `./scripts/update.sh --check` (exit 0 if an update is available) or `./scripts/update.sh --apply` (no prompt). There is no automatic update timer.
 
 Either way `scripts/update.sh` backs up the install to `.backup/`, stops the PM2 apps, copies the release over the install with `rsync`, runs `npm install` (and `npm run build` only if the tarball has no `dist/`), updates the presence venv if `requirements.txt` changed, and restarts the apps with `pm2 startOrRestart config/pm2.config.cjs`. If `/api/health` is not up within 120 s, or any step fails, it restores the backup and restarts the previous version. Runtime state is never touched: `config/config.yaml`, `data/`, `logs/`, `.env` files, `node_modules`, Python venvs and `packages/presence/face_data`. Progress and errors are written to `logs/update.log`.
@@ -265,6 +266,7 @@ npm run format:check       # Check formatting
 ## Troubleshooting
 
 ### Camera not detected
+
 ```bash
 # Check camera connection
 libcamera-hello --list-cameras
@@ -277,16 +279,19 @@ python3 test_camera.py
 `test_camera.py` saves `snapshot_N.jpg` / `face_snapshot_N.jpg` files into `packages/presence/`. They are gitignored; delete them when you are done.
 
 ### Aviation data not loading
+
 - Verify internet connection
 - Check airport ICAO code is valid
 - View backend logs: `pm2 logs skyglass-backend`
 
 ### Display won't wake
+
 - Test presence detection: `npm run dev:detector` (runs `detector.py --preview`), or `cd packages/presence && venv/bin/python detector.py --log-level debug` for per-second diagnostics
 - Check face enrollment: `ls packages/presence/face_data/users/`
 - Verify camera permissions (Mac: System Settings > Privacy > Camera)
 
 ### High CPU usage
+
 - Use `detection_method: opencv` (in the `presence:` block) instead of `face_recognition`; it wakes for any face
 
 ## Contributing

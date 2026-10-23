@@ -4,14 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-  Alert,
-  ScrollView,
-} from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useSSO } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
@@ -115,7 +108,10 @@ export default function SignUpScreen() {
   if (pendingVerification) {
     return (
       <KeyboardAvoidingScreen style={styles.container}>
-        <ScrollView contentContainerStyle={[styles.content, styles.verifyContent]} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.content, styles.verifyContent]}
+          keyboardShouldPersistTaps="handled"
+        >
           <IconCircle icon="mail-outline" />
           <View style={styles.heading}>
             <Text style={styles.title}>Verify Your Email</Text>

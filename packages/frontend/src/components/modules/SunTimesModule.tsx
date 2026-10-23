@@ -30,12 +30,18 @@ export function SunTimesModule({ config, size, timezone }: ModuleProps) {
   const showMoon = config.showMoon !== false;
   const showZulu = config.showZulu === true;
   const now = useNow(60_000);
-  const { data, loading } = useModuleData<AstroResponse>('/api/aviation/astro', { refreshMs: 30 * 60_000 });
+  const { data, loading } = useModuleData<AstroResponse>('/api/aviation/astro', {
+    refreshMs: 30 * 60_000,
+  });
 
   if (loading || !data) {
     return (
       <ModuleFrame title="Sun & Moon" className={`sun sun-${size}`}>
-        {loading ? <ModuleLoading /> : <ModuleError title="Sun times unavailable" hint="Retrying automatically" />}
+        {loading ? (
+          <ModuleLoading />
+        ) : (
+          <ModuleError title="Sun times unavailable" hint="Retrying automatically" />
+        )}
       </ModuleFrame>
     );
   }
@@ -71,7 +77,9 @@ export function SunTimesModule({ config, size, timezone }: ModuleProps) {
   );
   const times = pair('Sunrise', sun.sunrise, sun.sunset, 'Sunset');
   const nextText =
-    data.upcoming && upcomingMin > 0 ? `${data.upcoming.event} in ${formatDuration(upcomingMin)}` : null;
+    data.upcoming && upcomingMin > 0
+      ? `${data.upcoming.event} in ${formatDuration(upcomingMin)}`
+      : null;
   const zuluSuffix = (e: SunEvent) => (showZulu ? ` ${zulu(e)}` : '');
 
   if (size === 'small') {
@@ -99,8 +107,14 @@ export function SunTimesModule({ config, size, timezone }: ModuleProps) {
     <div className="mf-metrics sun-metrics">
       {showTwilight && (
         <>
-          <Metric label="Civil dawn" value={`${local(sun.civilDawn)}${zuluSuffix(sun.civilDawn)}`} />
-          <Metric label="Civil dusk" value={`${local(sun.civilDusk)}${zuluSuffix(sun.civilDusk)}`} />
+          <Metric
+            label="Civil dawn"
+            value={`${local(sun.civilDawn)}${zuluSuffix(sun.civilDawn)}`}
+          />
+          <Metric
+            label="Civil dusk"
+            value={`${local(sun.civilDusk)}${zuluSuffix(sun.civilDusk)}`}
+          />
         </>
       )}
       {showMoon && (
@@ -181,7 +195,8 @@ function SunArc({
   const t0 = dawn - (sunrise - dawn);
   const t1 = dusk + (dusk - sunset);
   const x = (t: number) => PAD + ((t - t0) / (t1 - t0)) * (W - PAD * 2);
-  const y = (t: number) => HORIZON - (HORIZON - PEAK) * Math.sin((Math.PI * (t - sunrise)) / (sunset - sunrise));
+  const y = (t: number) =>
+    HORIZON - (HORIZON - PEAK) * Math.sin((Math.PI * (t - sunrise)) / (sunset - sunrise));
 
   const path = (from: number, to: number) => {
     const steps = 32;
@@ -197,12 +212,24 @@ function SunArc({
   const inTwilight = !isDay && now >= dawn && now <= dusk;
 
   return (
-    <svg className="sun-arc" viewBox={`0 0 ${W} 64`} preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+    <svg
+      className="sun-arc"
+      viewBox={`0 0 ${W} 64`}
+      preserveAspectRatio="xMidYMax meet"
+      aria-hidden="true"
+    >
       <line x1="0" y1={HORIZON} x2={W} y2={HORIZON} className="sun-horizon" />
       <path d={path(sunrise, sunset)} className="sun-track" />
       {isDay && <path d={path(sunrise, now)} className="sun-elapsed" />}
       {[dawn, dusk].map((tm) => (
-        <line key={tm} x1={x(tm)} y1={HORIZON - 3} x2={x(tm)} y2={HORIZON + 4} className="sun-tick" />
+        <line
+          key={tm}
+          x1={x(tm)}
+          y1={HORIZON - 3}
+          x2={x(tm)}
+          y2={HORIZON + 4}
+          className="sun-tick"
+        />
       ))}
       {[sunrise, sunset].map((tm) => (
         <circle key={tm} cx={x(tm)} cy={HORIZON} r="1.6" className="sun-node" />
@@ -231,7 +258,9 @@ function MoonGlyph({ phase }: { phase: number }) {
   return (
     <svg className="sun-moon-glyph" viewBox="-12 -12 24 24" aria-hidden="true">
       <circle r={r} className="sun-moon-disc" />
-      {lit && <path d={lit} className="sun-moon-lit" transform={waning ? 'scale(-1 1)' : undefined} />}
+      {lit && (
+        <path d={lit} className="sun-moon-lit" transform={waning ? 'scale(-1 1)' : undefined} />
+      )}
     </svg>
   );
 }

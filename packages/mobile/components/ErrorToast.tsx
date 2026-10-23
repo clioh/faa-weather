@@ -4,12 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Notice } from '@/components/ui/Notice';
 import { Toast } from '@/components/ui/Toast';
 import { Ionicons } from '@expo/vector-icons';

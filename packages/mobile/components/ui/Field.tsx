@@ -86,7 +86,11 @@ export function Field({
             accessibilityRole="button"
             accessibilityLabel={revealed ? `Hide ${name}` : `Show ${name}`}
           >
-            <Ionicons name={revealed ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textMuted} />
+            <Ionicons
+              name={revealed ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={colors.textMuted}
+            />
           </Pressable>
         ) : null}
         {trailing}

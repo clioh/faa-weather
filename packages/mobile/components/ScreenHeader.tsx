@@ -62,7 +62,11 @@ interface HeaderBackButtonProps {
  * Used by ScreenHeader and passed as `headerLeft` to native stack headers so
  * every screen's back button looks and behaves the same.
  */
-export function HeaderBackButton({ onPress, label = 'Back', color = colors.text }: HeaderBackButtonProps) {
+export function HeaderBackButton({
+  onPress,
+  label = 'Back',
+  color = colors.text,
+}: HeaderBackButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -87,7 +91,12 @@ interface HeaderTextButtonProps {
 }
 
 /** Text button (Edit, Save, Cancel…) with a full-height touch target. */
-export function HeaderTextButton({ label, onPress, color = colors.primary, disabled }: HeaderTextButtonProps) {
+export function HeaderTextButton({
+  label,
+  onPress,
+  color = colors.primary,
+  disabled,
+}: HeaderTextButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -96,7 +105,9 @@ export function HeaderTextButton({ label, onPress, color = colors.primary, disab
       accessibilityRole="button"
       style={styles.textButton}
     >
-      <Text style={[styles.textButtonLabel, { color: disabled ? colors.textDisabled : color }]}>{label}</Text>
+      <Text style={[styles.textButtonLabel, { color: disabled ? colors.textDisabled : color }]}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }

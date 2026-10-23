@@ -27,7 +27,17 @@ export interface NoticeProps {
 
 const HIT = { top: 6, bottom: 6, left: 6, right: 6 };
 
-export function Notice({ tone, message, title, children, icon, action, onRetry, onDismiss, style }: NoticeProps) {
+export function Notice({
+  tone,
+  message,
+  title,
+  children,
+  icon,
+  action,
+  onRetry,
+  onDismiss,
+  style,
+}: NoticeProps) {
   const t = tones[tone];
   const textColor = { color: t.text };
 
@@ -54,12 +64,24 @@ export function Notice({ tone, message, title, children, icon, action, onRetry, 
         ) : null}
       </View>
       {onRetry ? (
-        <Pressable onPress={onRetry} style={styles.iconButton} hitSlop={HIT} accessibilityRole="button" accessibilityLabel="Retry">
+        <Pressable
+          onPress={onRetry}
+          style={styles.iconButton}
+          hitSlop={HIT}
+          accessibilityRole="button"
+          accessibilityLabel="Retry"
+        >
           <Ionicons name="refresh" size={16} color={t.text} />
         </Pressable>
       ) : null}
       {onDismiss ? (
-        <Pressable onPress={onDismiss} style={styles.iconButton} hitSlop={HIT} accessibilityRole="button" accessibilityLabel="Dismiss">
+        <Pressable
+          onPress={onDismiss}
+          style={styles.iconButton}
+          hitSlop={HIT}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+        >
           <Ionicons name="close" size={16} color={t.text} />
         </Pressable>
       ) : null}

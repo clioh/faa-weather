@@ -43,11 +43,18 @@ function asProvider(value: string | undefined): CalendarProviderId | null {
 }
 
 export default function AddCalendarScreen() {
-  const params = useLocalSearchParams<{ provider?: string; reconnect?: string; username?: string; from?: string }>();
+  const params = useLocalSearchParams<{
+    provider?: string;
+    reconnect?: string;
+    username?: string;
+    from?: string;
+  }>();
   const fixedProvider = asProvider(params.provider);
   const reconnectId = params.reconnect || null;
 
-  const [step, setStep] = useState<Step>(fixedProvider ? { kind: 'connect', provider: fixedProvider } : { kind: 'pick' });
+  const [step, setStep] = useState<Step>(
+    fixedProvider ? { kind: 'connect', provider: fixedProvider } : { kind: 'pick' }
+  );
   const [providers, setProviders] = useState<CalendarProvider[] | null>(null);
   const [providersError, setProvidersError] = useState<string | null>(null);
   const previous = useRef<CalendarAccount | null>(null);
@@ -101,13 +108,16 @@ export default function AddCalendarScreen() {
     [reconnectId]
   );
 
-  const finish = () => (params.from === 'setup' ? goBack('/calendars') : router.dismissTo('/calendars'));
+  const finish = () =>
+    params.from === 'setup' ? goBack('/calendars') : router.dismissTo('/calendars');
 
   const providerName = (id: CalendarProviderId) =>
     providers?.find((p) => p.id === id)?.name || PROVIDER_META[id]?.name || 'Calendar';
 
   const fixedUnavailable =
-    step.kind === 'connect' ? providers?.find((p) => p.id === step.provider && !p.available) : undefined;
+    step.kind === 'connect'
+      ? providers?.find((p) => p.id === step.provider && !p.available)
+      : undefined;
 
   let title = 'Add a calendar';
   let content;
@@ -134,7 +144,13 @@ export default function AddCalendarScreen() {
     title = reconnectId ? `Reconnect ${providerName(step.provider)}` : providerName(step.provider);
     if (fixedUnavailable) {
       content = (
-        <Notice tone="warning" message={fixedUnavailable.reason ?? `${providerName(step.provider)} isn’t available on this mirror.`} />
+        <Notice
+          tone="warning"
+          message={
+            fixedUnavailable.reason ??
+            `${providerName(step.provider)} isn’t available on this mirror.`
+          }
+        />
       );
     } else if (step.provider === 'google') {
       content = <GoogleConnect onConnected={onConnected} onCancel={toPicker} />;

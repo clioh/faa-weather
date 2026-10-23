@@ -17,11 +17,23 @@ import { Text } from './Text';
 import type { IconName } from './Button';
 import { colors, fonts, sizes, spacing, typography } from '@/lib/theme';
 
-export function RowGroup({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function RowGroup({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   return <View style={[styles.group, style]}>{children}</View>;
 }
 
-export function SectionLabel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function SectionLabel({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
     <View style={[styles.labelWrap, style]}>
       <Text style={styles.label} accessibilityRole="header">
@@ -88,10 +100,15 @@ export function Row({
 
   const content = (
     <>
-      {leading ?? (icon ? <Ionicons name={icon} size={22} color={tone === 'default' ? colors.text : tint} /> : null)}
+      {leading ??
+        (icon ? (
+          <Ionicons name={icon} size={22} color={tone === 'default' ? colors.text : tint} />
+        ) : null)}
       <View style={styles.text}>
         <Text style={[styles.title, { color: tint }]}>{title}</Text>
-        {caption ? <Text style={[styles.caption, captionMono && styles.mono]}>{caption}</Text> : null}
+        {caption ? (
+          <Text style={[styles.caption, captionMono && styles.mono]}>{caption}</Text>
+        ) : null}
       </View>
       {value ? (
         <Text style={[styles.value, valueMono && styles.mono]} numberOfLines={1}>

@@ -6,11 +6,7 @@ export { AirportPicker } from './AirportPicker';
 export { LocationPicker, type LocationData } from './LocationPicker';
 export { ColorPicker } from './ColorPicker';
 export { OnboardingProgress, type OnboardingPhase } from './OnboardingProgress';
-export {
-  ErrorToast,
-  InlineError,
-  type ToastType,
-} from './ErrorToast';
+export { ErrorToast, InlineError, type ToastType } from './ErrorToast';
 export { KeyboardAvoidingScreen } from './KeyboardAvoidingScreen';
 export { MirrorNotFound, useMirrorConnection, goToManualEntry } from './MirrorNotFound';
 export { MirrorHandoff } from './MirrorHandoff';

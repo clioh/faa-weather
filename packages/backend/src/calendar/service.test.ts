@@ -18,7 +18,11 @@ import {
 } from './auth-service.js';
 import { CalendarService, decodeState, normalizeIcsUrl } from './service.js';
 import { CalendarError, type ScheduleEvent } from './types.js';
-import { mergeScheduleEvents, flightToScheduleEvent, scheduleWindow } from '../services/schedule.js';
+import {
+  mergeScheduleEvents,
+  flightToScheduleEvent,
+  scheduleWindow,
+} from '../services/schedule.js';
 
 // ---------------------------------------------------------------- fetch mock
 
@@ -34,7 +38,10 @@ let calls: Call[] = [];
 let handlers: Handler[] = [];
 
 function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 function xml(body: string, status = 207): Response {
   return new Response(body, { status, headers: { 'Content-Type': 'application/xml' } });
@@ -53,7 +60,12 @@ beforeEach(() => {
   vi.stubGlobal('fetch', async (input: string | URL, init: RequestInit = {}) => {
     const headers: Record<string, string> = {};
     new Headers(init.headers).forEach((v, k) => (headers[k] = v));
-    const call: Call = { url: String(input), method: init.method ?? 'GET', headers, body: String(init.body ?? '') };
+    const call: Call = {
+      url: String(input),
+      method: init.method ?? 'GET',
+      headers,
+      body: String(init.body ?? ''),
+    };
     calls.push(call);
     for (const h of handlers) {
       const r = await h(call);
@@ -85,12 +97,20 @@ const GOOGLE_CFG = {
   redirectUri: 'https://skyglass.dev/oauth/google',
   scopes: ['openid', 'email', 'https://www.googleapis.com/auth/calendar.readonly'],
 };
-const MS_CFG = { clientId: 'ms-client', tenant: 'common', scopes: ['offline_access', 'User.Read', 'Calendars.Read'] };
+const MS_CFG = {
+  clientId: 'ms-client',
+  tenant: 'common',
+  scopes: ['offline_access', 'User.Read', 'Calendars.Read'],
+};
 
 /** Mock GET /api/oauth/config on the sign-in service. */
 function mockBrokerConfig(cfg: { google?: unknown; microsoft?: unknown } = {}) {
   on('GET', BROKER_CONFIG_URL, () =>
-    json({ version: 1, google: 'google' in cfg ? cfg.google : GOOGLE_CFG, microsoft: 'microsoft' in cfg ? cfg.microsoft : MS_CFG }),
+    json({
+      version: 1,
+      google: 'google' in cfg ? cfg.google : GOOGLE_CFG,
+      microsoft: 'microsoft' in cfg ? cfg.microsoft : MS_CFG,
+    })
   );
 }
 
@@ -99,7 +119,12 @@ function mockBrokerToken() {
   on('POST', BROKER_TOKEN_URL, (c) => {
     const b = JSON.parse(c.body) as Record<string, string>;
     if (b.grant_type === 'authorization_code') {
-      return json({ access_token: 'ya29.access', refresh_token: '1//refresh', expires_in: 3599, token_type: 'Bearer' });
+      return json({
+        access_token: 'ya29.access',
+        refresh_token: '1//refresh',
+        expires_in: 3599,
+        token_type: 'Bearer',
+      });
     }
     return json({ access_token: 'ya29.refreshed', expires_in: 3599 });
   });
@@ -112,13 +137,18 @@ function expectNoClientCredentials() {
     expect(c.body).not.toMatch(/gsecret/);
     if (c.url === BROKER_TOKEN_URL) {
       const keys = Object.keys(JSON.parse(c.body) as object).sort();
-      expect(keys.every((k) => ['code', 'code_verifier', 'grant_type', 'refresh_token'].includes(k))).toBe(true);
+      expect(
+        keys.every((k) => ['code', 'code_verifier', 'grant_type', 'refresh_token'].includes(k))
+      ).toBe(true);
     }
   }
   expect(calls.some((c) => c.url.startsWith('https://oauth2.googleapis.com/token'))).toBe(false);
 }
 
-async function startUrl(service: CalendarService, returnUrl = 'skyglass://oauth/google'): Promise<URL> {
+async function startUrl(
+  service: CalendarService,
+  returnUrl = 'skyglass://oauth/google'
+): Promise<URL> {
   return new URL((await service.googleStart(returnUrl)).authUrl);
 }
 async function startState(service: CalendarService): Promise<string> {
@@ -168,7 +198,9 @@ describe('readCalendarSettings', () => {
     const s = readCalendarSettings({});
     expect(s.authService).toBe('https://skyglass.dev');
     expect(s.refreshMinutes).toBe(10);
-    expect(readCalendarSettings({ skyglass_service: '  ' }).authService).toBe('https://skyglass.dev');
+    expect(readCalendarSettings({ skyglass_service: '  ' }).authService).toBe(
+      'https://skyglass.dev'
+    );
   });
 
   it('reads refresh_minutes, timezone and a custom https skyglass_service', () => {
@@ -177,30 +209,60 @@ describe('readCalendarSettings', () => {
       calendar: { refresh_minutes: 5 },
       skyglass_service: 'https://auth.example.org/',
     });
-    expect(s).toEqual({ refreshMinutes: 5, timezone: 'Europe/Berlin', authService: 'https://auth.example.org' });
+    expect(s).toEqual({
+      refreshMinutes: 5,
+      timezone: 'Europe/Berlin',
+      authService: 'https://auth.example.org',
+    });
   });
 
   it('requires https except for localhost/127.0.0.1', () => {
     expect(normalizeAuthServiceUrl('http://localhost:5174')).toBe('http://localhost:5174');
     expect(normalizeAuthServiceUrl('http://127.0.0.1:3000/')).toBe('http://127.0.0.1:3000');
-    expect(normalizeAuthServiceUrl('https://example.org/prefix/')).toBe('https://example.org/prefix');
-    for (const bad of ['http://skyglass.dev', 'http://192.168.1.2', 'ftp://x', 'skyglass.dev', 'https://u:p@x.org', 'https://x.org/?a=1', '${AUTH}']) {
+    expect(normalizeAuthServiceUrl('https://example.org/prefix/')).toBe(
+      'https://example.org/prefix'
+    );
+    for (const bad of [
+      'http://skyglass.dev',
+      'http://192.168.1.2',
+      'ftp://x',
+      'skyglass.dev',
+      'https://u:p@x.org',
+      'https://x.org/?a=1',
+      '${AUTH}',
+    ]) {
       expect(normalizeAuthServiceUrl(bad)).toBeNull();
     }
-    expect(readCalendarSettings({ skyglass_service: 'http://skyglass.dev' }).authService).toBeNull();
+    expect(
+      readCalendarSettings({ skyglass_service: 'http://skyglass.dev' }).authService
+    ).toBeNull();
   });
 
   it('ignores the removed calendar.auth_service key (clean break)', () => {
-    const legacy = { calendar: { refresh_minutes: 5, auth_service: 'https://old.example.org' } } as unknown as Parameters<typeof readCalendarSettings>[0];
+    const legacy = {
+      calendar: { refresh_minutes: 5, auth_service: 'https://old.example.org' },
+    } as unknown as Parameters<typeof readCalendarSettings>[0];
     expect(readCalendarSettings(legacy).authService).toBe('https://skyglass.dev');
   });
 });
 
 describe('sign-in service config', () => {
   it('parses the config and drops malformed providers', () => {
-    expect(parseAuthServiceConfig({ version: 1, google: GOOGLE_CFG, microsoft: MS_CFG })).toEqual({ google: GOOGLE_CFG, microsoft: MS_CFG });
-    expect(parseAuthServiceConfig({ version: 1, google: null, microsoft: null })).toEqual({ google: null, microsoft: null });
-    expect(parseAuthServiceConfig({ version: 1, google: { clientId: 'x', redirectUri: 'http://insecure', scopes: ['a'] }, microsoft: { clientId: 'm', scopes: [] } })).toEqual({
+    expect(parseAuthServiceConfig({ version: 1, google: GOOGLE_CFG, microsoft: MS_CFG })).toEqual({
+      google: GOOGLE_CFG,
+      microsoft: MS_CFG,
+    });
+    expect(parseAuthServiceConfig({ version: 1, google: null, microsoft: null })).toEqual({
+      google: null,
+      microsoft: null,
+    });
+    expect(
+      parseAuthServiceConfig({
+        version: 1,
+        google: { clientId: 'x', redirectUri: 'http://insecure', scopes: ['a'] },
+        microsoft: { clientId: 'm', scopes: [] },
+      })
+    ).toEqual({
       google: null,
       microsoft: null,
     });
@@ -239,7 +301,10 @@ describe('sign-in service config', () => {
     now += 30 * 1000;
     await expect(client.getConfig()).rejects.toMatchObject({ message: AUTH_SERVICE_UNREACHABLE });
     expect(calls).toHaveLength(2); // failure cached
-    expect(await client.getConfig({ allowStale: true })).toEqual({ google: GOOGLE_CFG, microsoft: MS_CFG });
+    expect(await client.getConfig({ allowStale: true })).toEqual({
+      google: GOOGLE_CFG,
+      microsoft: MS_CFG,
+    });
     up = true;
     now += 31 * 1000;
     expect(await client.getConfig()).toEqual({ google: GOOGLE_CFG, microsoft: MS_CFG });
@@ -271,8 +336,16 @@ describe('providers', () => {
     mockBrokerConfig({ google: null, microsoft: null });
     const { service } = makeService();
     const providers = await service.providers();
-    expect(providers[0]).toMatchObject({ id: 'google', available: false, reason: GOOGLE_UNAVAILABLE });
-    expect(providers[1]).toMatchObject({ id: 'microsoft', available: false, reason: MICROSOFT_UNAVAILABLE });
+    expect(providers[0]).toMatchObject({
+      id: 'google',
+      available: false,
+      reason: GOOGLE_UNAVAILABLE,
+    });
+    expect(providers[1]).toMatchObject({
+      id: 'microsoft',
+      available: false,
+      reason: MICROSOFT_UNAVAILABLE,
+    });
     expect(GOOGLE_UNAVAILABLE).toBe("Google sign-in isn't available right now.");
     expect(providers.slice(2).every((p) => p.available)).toBe(true);
   });
@@ -311,27 +384,70 @@ describe('providers', () => {
 function mockGoogle(email = 'Pilot@Example.com') {
   mockBrokerConfig();
   mockBrokerToken();
-  on('GET', 'https://openidconnect.googleapis.com/v1/userinfo', () => json({ email, email_verified: true }));
+  on('GET', 'https://openidconnect.googleapis.com/v1/userinfo', () =>
+    json({ email, email_verified: true })
+  );
   on('GET', 'https://www.googleapis.com/calendar/v3/users/me/calendarList', () =>
     json({
       items: [
-        { id: 'pilot@example.com', summary: 'pilot@example.com', backgroundColor: '#9FE1E7', primary: true },
-        { id: 'en.usa#holiday@group.v.calendar.google.com', summary: 'Holidays in United States', backgroundColor: '#16a765' },
+        {
+          id: 'pilot@example.com',
+          summary: 'pilot@example.com',
+          backgroundColor: '#9FE1E7',
+          primary: true,
+        },
+        {
+          id: 'en.usa#holiday@group.v.calendar.google.com',
+          summary: 'Holidays in United States',
+          backgroundColor: '#16a765',
+        },
         { id: 'family123@group.calendar.google.com', summary: 'Family' },
       ],
-    }),
+    })
   );
   on('GET', /calendar\/v3\/calendars\/.+\/events/, (c) => {
     expect(c.url).toContain('singleEvents=true');
     if (c.url.includes('family123')) {
-      return json({ items: [{ id: 'fam1', summary: 'Dinner', start: { dateTime: '2026-10-21T18:00:00-04:00' }, end: { dateTime: '2026-10-21T20:00:00-04:00' } }] });
+      return json({
+        items: [
+          {
+            id: 'fam1',
+            summary: 'Dinner',
+            start: { dateTime: '2026-10-21T18:00:00-04:00' },
+            end: { dateTime: '2026-10-21T20:00:00-04:00' },
+          },
+        ],
+      });
     }
     return json({
       items: [
-        { id: 'e1', summary: 'Recurrent training', location: 'Sim bldg', start: { dateTime: '2026-10-22T09:00:00-04:00' }, end: { dateTime: '2026-10-22T17:00:00-04:00' } },
-        { id: 'e2', summary: 'Day off', start: { date: '2026-10-23' }, end: { date: '2026-10-24' } },
-        { id: 'e3', summary: 'Cancelled', status: 'cancelled', start: { dateTime: '2026-10-22T09:00:00Z' }, end: { dateTime: '2026-10-22T10:00:00Z' } },
-        { id: 'e4', summary: 'Declined', attendees: [{ self: true, responseStatus: 'declined' }], start: { dateTime: '2026-10-22T11:00:00Z' }, end: { dateTime: '2026-10-22T12:00:00Z' } },
+        {
+          id: 'e1',
+          summary: 'Recurrent training',
+          location: 'Sim bldg',
+          start: { dateTime: '2026-10-22T09:00:00-04:00' },
+          end: { dateTime: '2026-10-22T17:00:00-04:00' },
+        },
+        {
+          id: 'e2',
+          summary: 'Day off',
+          start: { date: '2026-10-23' },
+          end: { date: '2026-10-24' },
+        },
+        {
+          id: 'e3',
+          summary: 'Cancelled',
+          status: 'cancelled',
+          start: { dateTime: '2026-10-22T09:00:00Z' },
+          end: { dateTime: '2026-10-22T10:00:00Z' },
+        },
+        {
+          id: 'e4',
+          summary: 'Declined',
+          attendees: [{ self: true, responseStatus: 'declined' }],
+          start: { dateTime: '2026-10-22T11:00:00Z' },
+          end: { dateTime: '2026-10-22T12:00:00Z' },
+        },
       ],
     });
   });
@@ -344,15 +460,24 @@ describe('Google sign-in', () => {
     for (const bad of ['https://evil.example/cb', 'javascript://x', 'skyglassx://oauth', '']) {
       await expect(service.googleStart(bad)).rejects.toThrow(CalendarError);
     }
-    for (const good of ['skyglass://oauth/google', 'exp://192.168.1.5:8081/--/oauth/google', 'exp+skyglass://oauth/google']) {
-      expect((await service.googleStart(good)).authUrl).toMatch(/^https:\/\/accounts\.google\.com\//);
+    for (const good of [
+      'skyglass://oauth/google',
+      'exp://192.168.1.5:8081/--/oauth/google',
+      'exp+skyglass://oauth/google',
+    ]) {
+      expect((await service.googleStart(good)).authUrl).toMatch(
+        /^https:\/\/accounts\.google\.com\//
+      );
     }
   });
 
   it('fails clearly when the service has no Google config or is unreachable', async () => {
     mockBrokerConfig({ google: null });
     const { service } = makeService();
-    await expect(service.googleStart('skyglass://oauth/google')).rejects.toMatchObject({ status: 400, message: GOOGLE_UNAVAILABLE });
+    await expect(service.googleStart('skyglass://oauth/google')).rejects.toMatchObject({
+      status: 400,
+      message: GOOGLE_UNAVAILABLE,
+    });
 
     handlers = [
       () => {
@@ -360,11 +485,19 @@ describe('Google sign-in', () => {
       },
     ];
     const { service: offline } = makeService();
-    await expect(offline.googleStart('skyglass://oauth/google')).rejects.toMatchObject({ message: AUTH_SERVICE_UNREACHABLE });
+    await expect(offline.googleStart('skyglass://oauth/google')).rejects.toMatchObject({
+      message: AUTH_SERVICE_UNREACHABLE,
+    });
   });
 
   it('builds the auth URL from the service config (custom client/scopes)', async () => {
-    mockBrokerConfig({ google: { clientId: 'other-id.apps.googleusercontent.com', redirectUri: 'https://auth.example.org/oauth/google', scopes: ['openid', 'email', 'x'] } });
+    mockBrokerConfig({
+      google: {
+        clientId: 'other-id.apps.googleusercontent.com',
+        redirectUri: 'https://auth.example.org/oauth/google',
+        scopes: ['openid', 'email', 'x'],
+      },
+    });
     const { service } = makeService();
     const u = await startUrl(service);
     expect(u.searchParams.get('client_id')).toBe('other-id.apps.googleusercontent.com');
@@ -379,7 +512,9 @@ describe('Google sign-in', () => {
     const u = await startUrl(service);
     expect(u.searchParams.get('client_id')).toBe('gid.apps.googleusercontent.com');
     expect(u.searchParams.get('redirect_uri')).toBe('https://skyglass.dev/oauth/google');
-    expect(u.searchParams.get('scope')).toBe('openid email https://www.googleapis.com/auth/calendar.readonly');
+    expect(u.searchParams.get('scope')).toBe(
+      'openid email https://www.googleapis.com/auth/calendar.readonly'
+    );
     expect(u.searchParams.get('access_type')).toBe('offline');
     expect(u.searchParams.get('prompt')).toBe('consent');
     expect(u.searchParams.get('code_challenge_method')).toBe('S256');
@@ -407,8 +542,18 @@ describe('Google sign-in', () => {
     expect(account.provider).toBe('google');
     expect(account.calendars).toEqual([
       { id: 'pilot@example.com', name: 'pilot@example.com', color: '#9fe1e7', enabled: true },
-      { id: 'en.usa#holiday@group.v.calendar.google.com', name: 'Holidays in United States', color: '#16a765', enabled: false },
-      { id: 'family123@group.calendar.google.com', name: 'Family', color: expect.stringMatching(/^#[0-9a-f]{6}$/), enabled: true },
+      {
+        id: 'en.usa#holiday@group.v.calendar.google.com',
+        name: 'Holidays in United States',
+        color: '#16a765',
+        enabled: false,
+      },
+      {
+        id: 'family123@group.calendar.google.com',
+        name: 'Family',
+        color: expect.stringMatching(/^#[0-9a-f]{6}$/),
+        enabled: true,
+      },
     ]);
     expectNoSecrets(account, 'ya29', '1//refresh', verifier);
     expect(store.get(account.id)?.secrets.refreshToken).toBe('1//refresh');
@@ -444,7 +589,9 @@ describe('Google sign-in', () => {
 
   it('returns 502 when the code exchange fails', async () => {
     mockBrokerConfig();
-    on('POST', BROKER_TOKEN_URL, () => json({ error: 'invalid_grant', error_description: 'Bad Request' }, 400));
+    on('POST', BROKER_TOKEN_URL, () =>
+      json({ error: 'invalid_grant', error_description: 'Bad Request' }, 400)
+    );
     const { service } = makeService();
     await expect(service.googleComplete('c', await startState(service))).rejects.toMatchObject({
       status: 502,
@@ -468,29 +615,56 @@ describe('Google sign-in', () => {
 
   it('follows one 307/308 hop to the www. host only; never elsewhere', async () => {
     mockBrokerConfig();
-    on('POST', BROKER_TOKEN_URL, () => new Response('', { status: 308, headers: { Location: 'https://elsewhere.example/token' } }));
+    on(
+      'POST',
+      BROKER_TOKEN_URL,
+      () =>
+        new Response('', { status: 308, headers: { Location: 'https://elsewhere.example/token' } })
+    );
     const { service } = makeService();
-    await expect(service.googleComplete('c', await startState(service))).rejects.toMatchObject({ message: AUTH_SERVICE_UNREACHABLE });
+    await expect(service.googleComplete('c', await startState(service))).rejects.toMatchObject({
+      message: AUTH_SERVICE_UNREACHABLE,
+    });
     expect(calls.some((c) => c.url.includes('elsewhere'))).toBe(false);
 
-    expect(sameSiteRedirect('https://skyglass.dev/api/oauth/google/token', 307, 'https://www.skyglass.dev/api/oauth/google/token')).toBe(
-      'https://www.skyglass.dev/api/oauth/google/token',
-    );
-    expect(sameSiteRedirect('https://skyglass.dev/x', 302, 'https://www.skyglass.dev/x')).toBeNull(); // 302 may drop the body
+    expect(
+      sameSiteRedirect(
+        'https://skyglass.dev/api/oauth/google/token',
+        307,
+        'https://www.skyglass.dev/api/oauth/google/token'
+      )
+    ).toBe('https://www.skyglass.dev/api/oauth/google/token');
+    expect(
+      sameSiteRedirect('https://skyglass.dev/x', 302, 'https://www.skyglass.dev/x')
+    ).toBeNull(); // 302 may drop the body
     expect(sameSiteRedirect('https://skyglass.dev/x', 307, 'http://www.skyglass.dev/x')).toBeNull();
-    expect(sameSiteRedirect('https://skyglass.dev/x', 307, 'https://skyglass.dev.evil.example/x')).toBeNull();
+    expect(
+      sameSiteRedirect('https://skyglass.dev/x', 307, 'https://skyglass.dev.evil.example/x')
+    ).toBeNull();
   });
 
   it('exchanges through an apex -> www redirect', async () => {
     const apex = 'https://skyglass.test';
-    on('GET', `${apex}/api/oauth/config`, () => json({ version: 1, google: GOOGLE_CFG, microsoft: null }));
-    on('POST', `${apex}/api/oauth/google/token`, () => new Response('', { status: 307, headers: { Location: 'https://www.skyglass.test/api/oauth/google/token' } }));
+    on('GET', `${apex}/api/oauth/config`, () =>
+      json({ version: 1, google: GOOGLE_CFG, microsoft: null })
+    );
+    on(
+      'POST',
+      `${apex}/api/oauth/google/token`,
+      () =>
+        new Response('', {
+          status: 307,
+          headers: { Location: 'https://www.skyglass.test/api/oauth/google/token' },
+        })
+    );
     on('POST', 'https://www.skyglass.test/api/oauth/google/token', (c) => {
       expect(JSON.parse(c.body)).toMatchObject({ grant_type: 'authorization_code', code: 'c' });
       return json({ access_token: 'ya29.access', refresh_token: '1//refresh', expires_in: 3599 });
     });
     on('GET', 'https://openidconnect.googleapis.com/v1/userinfo', () => json({ email: 'a@b.c' }));
-    on('GET', 'https://www.googleapis.com/calendar/v3/users/me/calendarList', () => json({ items: [] }));
+    on('GET', 'https://www.googleapis.com/calendar/v3/users/me/calendarList', () =>
+      json({ items: [] })
+    );
     const { service } = makeService(settings({ authService: apex }));
     const { created } = await service.googleComplete('c', await startState(service));
     expect(created).toBe(true);
@@ -505,7 +679,12 @@ describe('Google sign-in', () => {
     const { events, accounts } = await service.getEvents(scheduleWindow('7', TZ, now));
     expect(events.map((e) => e.title)).toEqual(['Dinner', 'Recurrent training', 'Day off']);
     const dayOff = events.find((e) => e.title === 'Day off')!;
-    expect(dayOff).toMatchObject({ allDay: true, startDate: '2026-10-23', endDate: '2026-10-24', startTime: '2026-10-23T04:00:00.000Z' });
+    expect(dayOff).toMatchObject({
+      allDay: true,
+      startDate: '2026-10-23',
+      endDate: '2026-10-24',
+      startTime: '2026-10-23T04:00:00.000Z',
+    });
     const training = events.find((e) => e.title === 'Recurrent training')!;
     expect(training).toMatchObject({
       source: 'google',
@@ -518,7 +697,9 @@ describe('Google sign-in', () => {
       isFlightDuty: false,
     });
     expect(training.id.startsWith(`${account.id}:`)).toBe(true);
-    expect(accounts).toEqual([{ id: account.id, label: 'Google', provider: 'google', status: 'ok' }]);
+    expect(accounts).toEqual([
+      { id: account.id, label: 'Google', provider: 'google', status: 'ok' },
+    ]);
     // the holiday calendar is disabled, so it is never fetched
     expect(calls.some((c) => c.url.includes('holiday'))).toBe(false);
 
@@ -527,18 +708,26 @@ describe('Google sign-in', () => {
     calls = [];
     await service.syncAccount(account.id);
     const refresh = calls.find((c) => c.url === BROKER_TOKEN_URL)!;
-    expect(JSON.parse(refresh.body)).toEqual({ grant_type: 'refresh_token', refresh_token: '1//refresh' });
+    expect(JSON.parse(refresh.body)).toEqual({
+      grant_type: 'refresh_token',
+      refresh_token: '1//refresh',
+    });
     expect(store.get(account.id)?.secrets.accessToken).toBe('ya29.refreshed');
     expectNoClientCredentials();
 
     // Refresh token revoked → reauth, cached events still served
-    handlers.unshift((c) => (c.url === BROKER_TOKEN_URL ? json({ error: 'invalid_grant' }, 400) : undefined));
+    handlers.unshift((c) =>
+      c.url === BROKER_TOKEN_URL ? json({ error: 'invalid_grant' }, 400) : undefined
+    );
     now += 2 * 60 * 60 * 1000;
     await service.syncAccount(account.id);
     const after = service.getAccount(account.id);
     expect(after.status).toBe('reauth');
     expect(after.error).toMatch(/Reconnect/);
-    const stillThere = await service.getEvents({ start: Date.parse('2026-10-21T00:00:00Z'), end: Date.parse('2026-10-25T00:00:00Z') });
+    const stillThere = await service.getEvents({
+      start: Date.parse('2026-10-21T00:00:00Z'),
+      end: Date.parse('2026-10-25T00:00:00Z'),
+    });
     expect(stillThere.events.length).toBe(3);
   });
 
@@ -552,31 +741,39 @@ describe('Google sign-in', () => {
       },
       /Can't reach the SkyGlass sign-in service/,
     ],
-  ])('a refresh failure (%s) sets status error and keeps cached events', async (_name, respond, message) => {
-    mockGoogle();
-    const { service } = makeService();
-    const { account } = await service.googleComplete('code', await startState(service));
-    await service.syncAccount(account.id);
-    const before = await service.getEvents(scheduleWindow('7', TZ, now));
-    expect(before.events).toHaveLength(3);
+  ])(
+    'a refresh failure (%s) sets status error and keeps cached events',
+    async (_name, respond, message) => {
+      mockGoogle();
+      const { service } = makeService();
+      const { account } = await service.googleComplete('code', await startState(service));
+      await service.syncAccount(account.id);
+      const before = await service.getEvents(scheduleWindow('7', TZ, now));
+      expect(before.events).toHaveLength(3);
 
-    handlers.unshift((c) => (c.url === BROKER_TOKEN_URL ? respond() : undefined));
-    now += 2 * 60 * 60 * 1000; // access token expired → refresh needed
-    await service.syncAccount(account.id);
-    const after = service.getAccount(account.id);
-    expect(after.status).toBe('error');
-    expect(after.error).toMatch(message);
-    const { events, accounts } = await service.getEvents({ start: Date.parse('2026-10-21T00:00:00Z'), end: Date.parse('2026-10-25T00:00:00Z') });
-    expect(events.map((e) => e.title)).toEqual(before.events.map((e) => e.title));
-    expect(accounts[0].status).toBe('error');
-  });
+      handlers.unshift((c) => (c.url === BROKER_TOKEN_URL ? respond() : undefined));
+      now += 2 * 60 * 60 * 1000; // access token expired → refresh needed
+      await service.syncAccount(account.id);
+      const after = service.getAccount(account.id);
+      expect(after.status).toBe('error');
+      expect(after.error).toMatch(message);
+      const { events, accounts } = await service.getEvents({
+        start: Date.parse('2026-10-21T00:00:00Z'),
+        end: Date.parse('2026-10-25T00:00:00Z'),
+      });
+      expect(events.map((e) => e.title)).toEqual(before.events.map((e) => e.title));
+      expect(accounts[0].status).toBe('error');
+    }
+  );
 
   it('a 401 after refresh sets reauth', async () => {
     mockGoogle();
     const { service } = makeService();
     const { account } = await service.googleComplete('code', await startState(service));
     await service.syncAccount(account.id);
-    handlers.unshift((c) => (c.url.includes('/calendar/v3/calendars/') ? new Response('', { status: 401 }) : undefined));
+    handlers.unshift((c) =>
+      c.url.includes('/calendar/v3/calendars/') ? new Response('', { status: 401 }) : undefined
+    );
     await service.syncAccount(account.id);
     expect(service.getAccount(account.id).status).toBe('reauth');
   });
@@ -605,9 +802,13 @@ describe('Google sign-in', () => {
     await service.syncNow(account.id);
     const synced = service.getAccount(account.id);
     expect(synced.calendars.find((c) => c.id === 'pilot@example.com')?.color).toBe('#ff0000');
-    expect(synced.calendars.find((c) => c.id === 'family123@group.calendar.google.com')?.enabled).toBe(false);
+    expect(
+      synced.calendars.find((c) => c.id === 'family123@group.calendar.google.com')?.enabled
+    ).toBe(false);
 
-    expect(() => service.patchAccount(account.id, { calendars: [{ id: 'nope', enabled: true }] })).toThrow(CalendarError);
+    expect(() =>
+      service.patchAccount(account.id, { calendars: [{ id: 'nope', enabled: true }] })
+    ).toThrow(CalendarError);
 
     await service.deleteAccount(account.id);
     const revoke = calls.find((c) => c.url.startsWith('https://oauth2.googleapis.com/revoke'))!;
@@ -621,22 +822,42 @@ describe('Google sign-in', () => {
 // ---------------------------------------------------------------- Microsoft
 
 function mockMicrosoftGraph() {
-  on('GET', 'https://graph.microsoft.com/v1.0/me', () => json({ mail: null, userPrincipalName: 'Pilot@Outlook.com' }));
+  on('GET', 'https://graph.microsoft.com/v1.0/me', () =>
+    json({ mail: null, userPrincipalName: 'Pilot@Outlook.com' })
+  );
   on('GET', 'https://graph.microsoft.com/v1.0/me/calendars', () =>
     json({
       value: [
         { id: 'AAMk-default', name: 'Calendar', hexColor: '', isDefaultCalendar: true },
         { id: 'AAMk-bday', name: 'Birthdays', hexColor: '#ff8c00', isDefaultCalendar: false },
       ],
-    }),
+    })
   );
   on('GET', /graph\.microsoft\.com\/v1\.0\/me\/calendars\/.+\/calendarView/, (c) => {
     expect(c.headers['prefer']).toBe('outlook.timezone="UTC"');
     return json({
       value: [
-        { id: 'm1', subject: 'Line check', start: { dateTime: '2026-10-22T15:00:00.0000000', timeZone: 'UTC' }, end: { dateTime: '2026-10-22T16:00:00.0000000', timeZone: 'UTC' }, location: { displayName: 'Ops' } },
-        { id: 'm2', subject: 'Holiday', isAllDay: true, start: { dateTime: '2026-10-24T00:00:00.0000000', timeZone: 'UTC' }, end: { dateTime: '2026-10-25T00:00:00.0000000', timeZone: 'UTC' } },
-        { id: 'm3', subject: 'Cancelled', isCancelled: true, start: { dateTime: '2026-10-22T15:00:00.0000000' }, end: { dateTime: '2026-10-22T16:00:00.0000000' } },
+        {
+          id: 'm1',
+          subject: 'Line check',
+          start: { dateTime: '2026-10-22T15:00:00.0000000', timeZone: 'UTC' },
+          end: { dateTime: '2026-10-22T16:00:00.0000000', timeZone: 'UTC' },
+          location: { displayName: 'Ops' },
+        },
+        {
+          id: 'm2',
+          subject: 'Holiday',
+          isAllDay: true,
+          start: { dateTime: '2026-10-24T00:00:00.0000000', timeZone: 'UTC' },
+          end: { dateTime: '2026-10-25T00:00:00.0000000', timeZone: 'UTC' },
+        },
+        {
+          id: 'm3',
+          subject: 'Cancelled',
+          isCancelled: true,
+          start: { dateTime: '2026-10-22T15:00:00.0000000' },
+          end: { dateTime: '2026-10-22T16:00:00.0000000' },
+        },
       ],
     });
   });
@@ -649,7 +870,13 @@ describe('Microsoft device code flow', () => {
       const p = new URLSearchParams(c.body);
       expect(p.get('client_id')).toBe('ms-client');
       expect(p.get('scope')).toBe('offline_access User.Read Calendars.Read');
-      return json({ device_code: 'DEVCODE', user_code: 'ABCD-1234', verification_uri: 'https://microsoft.com/devicelogin', expires_in: 900, interval: 5 });
+      return json({
+        device_code: 'DEVCODE',
+        user_code: 'ABCD-1234',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 5,
+      });
     });
   }
 
@@ -657,7 +884,8 @@ describe('Microsoft device code flow', () => {
     let i = 0;
     on('POST', 'https://login.microsoftonline.com/common/oauth2/v2.0/token', (c) => {
       const p = new URLSearchParams(c.body);
-      if (p.get('grant_type') === 'refresh_token') return json({ access_token: 'ms-refreshed', refresh_token: 'ms-rt-2', expires_in: 3600 });
+      if (p.get('grant_type') === 'refresh_token')
+        return json({ access_token: 'ms-refreshed', refresh_token: 'ms-rt-2', expires_in: 3600 });
       expect(p.get('device_code')).toBe('DEVCODE');
       return responses[Math.min(i++, responses.length - 1)];
     });
@@ -675,17 +903,31 @@ describe('Microsoft device code flow', () => {
     const sleeps: number[] = [];
     const { service } = makeService(settings(), { sleeps });
     const start = await service.microsoftStart();
-    expect(start).toMatchObject({ userCode: 'ABCD-1234', verificationUri: 'https://microsoft.com/devicelogin' });
+    expect(start).toMatchObject({
+      userCode: 'ABCD-1234',
+      verificationUri: 'https://microsoft.com/devicelogin',
+    });
     expect(Date.parse(start.expiresAt)).toBe(NOW + 900_000);
 
-    await vi.waitFor(() => expect(service.microsoftStatus(start.sessionId).status).toBe('complete'));
+    await vi.waitFor(() =>
+      expect(service.microsoftStatus(start.sessionId).status).toBe('complete')
+    );
     // interval honored, +5 s after slow_down
     expect(sleeps).toEqual([5000, 5000, 10000, 10000]);
     const status = service.microsoftStatus(start.sessionId);
     expect(status.error).toBeNull();
-    expect(status.account).toMatchObject({ provider: 'microsoft', email: 'pilot@outlook.com', label: 'Outlook' });
+    expect(status.account).toMatchObject({
+      provider: 'microsoft',
+      email: 'pilot@outlook.com',
+      label: 'Outlook',
+    });
     expect(status.account!.calendars).toEqual([
-      { id: 'AAMk-default', name: 'Calendar', color: expect.stringMatching(/^#[0-9a-f]{6}$/), enabled: true },
+      {
+        id: 'AAMk-default',
+        name: 'Calendar',
+        color: expect.stringMatching(/^#[0-9a-f]{6}$/),
+        enabled: true,
+      },
       { id: 'AAMk-bday', name: 'Birthdays', color: '#ff8c00', enabled: false },
     ]);
     expectNoSecrets(status, 'ms-access', 'ms-rt', 'DEVCODE');
@@ -727,28 +969,46 @@ describe('Microsoft device code flow', () => {
     mockBrokerConfig({ microsoft: null });
     const { service } = makeService();
     expect(() => service.microsoftStatus('nope')).toThrow(expect.objectContaining({ status: 404 }));
-    await expect(service.microsoftStart()).rejects.toMatchObject({ status: 400, message: MICROSOFT_UNAVAILABLE });
+    await expect(service.microsoftStart()).rejects.toMatchObject({
+      status: 400,
+      message: MICROSOFT_UNAVAILABLE,
+    });
   });
 
   it('uses the client id, tenant and scopes from the sign-in service, also for refresh', async () => {
-    mockBrokerConfig({ microsoft: { clientId: 'broker-ms-id', tenant: 'organizations', scopes: ['offline_access', 'User.Read', 'Calendars.Read'] } });
+    mockBrokerConfig({
+      microsoft: {
+        clientId: 'broker-ms-id',
+        tenant: 'organizations',
+        scopes: ['offline_access', 'User.Read', 'Calendars.Read'],
+      },
+    });
     on('POST', 'https://login.microsoftonline.com/organizations/oauth2/v2.0/devicecode', (c) => {
       const p = new URLSearchParams(c.body);
       expect(p.get('client_id')).toBe('broker-ms-id');
       expect(p.get('scope')).toBe('offline_access User.Read Calendars.Read');
-      return json({ device_code: 'DEVCODE', user_code: 'WXYZ-9876', verification_uri: 'https://microsoft.com/devicelogin', expires_in: 900, interval: 5 });
+      return json({
+        device_code: 'DEVCODE',
+        user_code: 'WXYZ-9876',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 5,
+      });
     });
     on('POST', 'https://login.microsoftonline.com/organizations/oauth2/v2.0/token', (c) => {
       const p = new URLSearchParams(c.body);
       expect(p.get('client_id')).toBe('broker-ms-id');
       expect(p.has('client_secret')).toBe(false);
-      if (p.get('grant_type') === 'refresh_token') return json({ access_token: 'ms-refreshed', expires_in: 3600 });
+      if (p.get('grant_type') === 'refresh_token')
+        return json({ access_token: 'ms-refreshed', expires_in: 3600 });
       return json({ access_token: 'ms-access', refresh_token: 'ms-rt', expires_in: 3600 });
     });
     mockMicrosoftGraph();
     const { service, store } = makeService();
     const start = await service.microsoftStart();
-    await vi.waitFor(() => expect(service.microsoftStatus(start.sessionId).status).toBe('complete'));
+    await vi.waitFor(() =>
+      expect(service.microsoftStatus(start.sessionId).status).toBe('complete')
+    );
     const id = service.microsoftStatus(start.sessionId).account!.id;
     await service.syncAccount(id);
 
@@ -793,9 +1053,12 @@ function reportXml(summary: string, start: string): string {
 
 function mockICloud(password = 'abcd-efgh-ijkl-mnop') {
   const expected = `Basic ${Buffer.from(`pilot@icloud.com:${password}`).toString('base64')}`;
-  const authed = (c: Call, r: () => Response) => (c.headers['authorization'] === expected ? r() : new Response('', { status: 401 }));
+  const authed = (c: Call, r: () => Response) =>
+    c.headers['authorization'] === expected ? r() : new Response('', { status: 401 });
   on('PROPFIND', 'https://caldav.icloud.com/', (c) => authed(c, () => xml(PRINCIPAL_XML)));
-  on('PROPFIND', 'https://caldav.icloud.com/123456/principal/', (c) => authed(c, () => xml(HOME_XML)));
+  on('PROPFIND', 'https://caldav.icloud.com/123456/principal/', (c) =>
+    authed(c, () => xml(HOME_XML))
+  );
   on('PROPFIND', 'https://p01-caldav.icloud.com/123456/calendars/', (c) => {
     expect(c.headers['depth']).toBe('1');
     return authed(c, () => xml(CALENDARS_XML));
@@ -805,7 +1068,7 @@ function mockICloud(password = 'abcd-efgh-ijkl-mnop') {
     return authed(c, () => xml(reportXml('Kids & soccer', '20261022T220000Z')));
   });
   on('REPORT', 'https://p01-caldav.icloud.com/123456/calendars/work/', (c) =>
-    authed(c, () => xml(reportXml('Standup', '20261022T130000Z'))),
+    authed(c, () => xml(reportXml('Standup', '20261022T130000Z')))
   );
 }
 
@@ -813,9 +1076,17 @@ describe('CalDAV (iCloud)', () => {
   it('discovers principal → home → event calendars and syncs enabled ones', async () => {
     mockICloud();
     const { service } = makeService();
-    const { account, created } = await service.addCalDav({ provider: 'icloud', username: 'pilot@icloud.com', password: 'abcd-efgh-ijkl-mnop' });
+    const { account, created } = await service.addCalDav({
+      provider: 'icloud',
+      username: 'pilot@icloud.com',
+      password: 'abcd-efgh-ijkl-mnop',
+    });
     expect(created).toBe(true);
-    expect(account).toMatchObject({ provider: 'icloud', label: 'iCloud', email: 'pilot@icloud.com' });
+    expect(account).toMatchObject({
+      provider: 'icloud',
+      label: 'iCloud',
+      email: 'pilot@icloud.com',
+    });
     expect(account.calendars.map((c) => [c.name, c.enabled])).toEqual([
       ['Home & Family', true],
       ['Work', true],
@@ -832,24 +1103,35 @@ describe('CalDAV (iCloud)', () => {
     ]);
 
     // Enabled-calendar filtering
-    service.patchAccount(account.id, { calendars: [{ id: account.calendars[1].id, enabled: false }] });
+    service.patchAccount(account.id, {
+      calendars: [{ id: account.calendars[1].id, enabled: false }],
+    });
     ({ events } = await service.getEvents(scheduleWindow('7', TZ, now)));
     expect(events.map((e) => e.title)).toEqual(['Kids & soccer']);
-    expect(events[0]).toMatchObject({ source: 'icloud', color: '#ff2968', endTime: '2026-10-22T23:00:00.000Z' });
+    expect(events[0]).toMatchObject({
+      source: 'icloud',
+      color: '#ff2968',
+      endTime: '2026-10-22T23:00:00.000Z',
+    });
   });
 
   it('rejects bad credentials with the contract message', async () => {
     mockICloud();
     const { service } = makeService();
     await expect(
-      service.addCalDav({ provider: 'icloud', username: 'pilot@icloud.com', password: 'wrong' }),
-    ).rejects.toMatchObject({ status: 400, message: 'Apple ID or app-specific password was rejected' });
+      service.addCalDav({ provider: 'icloud', username: 'pilot@icloud.com', password: 'wrong' })
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Apple ID or app-specific password was rejected',
+    });
     expect(service.listAccounts()).toEqual([]);
   });
 
   it('requires a server URL for generic CalDAV', async () => {
     const { service } = makeService();
-    await expect(service.addCalDav({ provider: 'caldav', username: 'u', password: 'p' })).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.addCalDav({ provider: 'caldav', username: 'u', password: 'p' })
+    ).rejects.toMatchObject({ status: 400 });
   });
 });
 
@@ -870,14 +1152,27 @@ describe('ICS links', () => {
   ].join('\r\n');
 
   it('normalizes webcal:// and creates a one-calendar account', async () => {
-    expect(normalizeIcsUrl('webcal://p01-calendars.icloud.com/published/2/abc')).toBe('https://p01-calendars.icloud.com/published/2/abc');
-    on('GET', 'https://calendar.example.com/secret/basic.ics', () => new Response(FEED, { status: 200 }));
+    expect(normalizeIcsUrl('webcal://p01-calendars.icloud.com/published/2/abc')).toBe(
+      'https://p01-calendars.icloud.com/published/2/abc'
+    );
+    on(
+      'GET',
+      'https://calendar.example.com/secret/basic.ics',
+      () => new Response(FEED, { status: 200 })
+    );
     const { service, store } = makeService();
     const account = await service.addIcs({ url: 'webcal://calendar.example.com/secret/basic.ics' });
-    expect(account).toMatchObject({ provider: 'ics', label: 'Crew roster', email: null, status: 'ok' });
+    expect(account).toMatchObject({
+      provider: 'ics',
+      label: 'Crew roster',
+      email: null,
+      status: 'ok',
+    });
     expect(account.calendars).toHaveLength(1);
     expectNoSecrets(account, 'secret/basic');
-    expect(store.get(account.id)?.secrets.icsUrl).toBe('https://calendar.example.com/secret/basic.ics');
+    expect(store.get(account.id)?.secrets.icsUrl).toBe(
+      'https://calendar.example.com/secret/basic.ics'
+    );
     const { events } = await service.getEvents(scheduleWindow('3', TZ, now));
     expect(events.map((e) => e.title)).toEqual(['Trip 4411']);
     expect(calls).toHaveLength(1); // served from the cache seeded at creation
@@ -886,8 +1181,13 @@ describe('ICS links', () => {
   it('rejects links that are not calendars or point at private hosts', async () => {
     on('GET', 'https://example.com/page', () => new Response('<html></html>', { status: 200 }));
     const { service } = makeService();
-    await expect(service.addIcs({ url: 'https://example.com/page' })).rejects.toMatchObject({ status: 400, message: "That link didn't return a calendar" });
-    await expect(service.addIcs({ url: 'http://192.168.1.10/cal.ics' })).rejects.toMatchObject({ status: 400 });
+    await expect(service.addIcs({ url: 'https://example.com/page' })).rejects.toMatchObject({
+      status: 400,
+      message: "That link didn't return a calendar",
+    });
+    await expect(service.addIcs({ url: 'http://192.168.1.10/cal.ics' })).rejects.toMatchObject({
+      status: 400,
+    });
     expect(service.listAccounts()).toEqual([]);
   });
 });
@@ -939,8 +1239,12 @@ describe('schedule merge', () => {
       startDate: null,
     });
     const merged = mergeScheduleEvents(
-      [ev('Late', '2026-10-22T18:00:00.000Z'), ev('B timed', '2026-10-22T04:00:00.000Z'), ev('A all day', '2026-10-22T04:00:00.000Z', { allDay: true })],
-      [flight],
+      [
+        ev('Late', '2026-10-22T18:00:00.000Z'),
+        ev('B timed', '2026-10-22T04:00:00.000Z'),
+        ev('A all day', '2026-10-22T04:00:00.000Z', { allDay: true }),
+      ],
+      [flight]
     );
     expect(merged.map((e) => e.title)).toEqual(['A all day', 'B timed', 'FLT 123 JFK-BOS', 'Late']);
   });

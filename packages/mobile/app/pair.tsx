@@ -42,7 +42,8 @@ function formatCountdown(ms: number): string {
 export default function PairScreen() {
   const params = useLocalSearchParams<{ flow?: string; mirrorName?: string; reason?: string }>();
   const flow = typeof params.flow === 'string' ? params.flow : undefined;
-  const mirrorName = typeof params.mirrorName === 'string' && params.mirrorName ? params.mirrorName : null;
+  const mirrorName =
+    typeof params.mirrorName === 'string' && params.mirrorName ? params.mirrorName : null;
   const expiredPairing = params.reason === 'expired';
 
   const [request, setRequest] = useState<PairingRequest | null>(null);
@@ -129,10 +130,17 @@ export default function PairScreen() {
           );
           setTimeout(() => inputRef.current?.focus(), 50);
         }
-      } else if (err instanceof ApiError && err.status !== undefined && err.status >= 400 && err.status < 500) {
+      } else if (
+        err instanceof ApiError &&
+        err.status !== undefined &&
+        err.status >= 400 &&
+        err.status < 500
+      ) {
         setVoided('This code is no longer valid. Show a new code on the mirror.');
       } else {
-        setCodeError(err instanceof Error && err.message ? err.message : 'Pairing failed. Try again.');
+        setCodeError(
+          err instanceof Error && err.message ? err.message : 'Pairing failed. Try again.'
+        );
       }
     } finally {
       setCompleting(false);
@@ -151,13 +159,16 @@ export default function PairScreen() {
             {title}
           </Text>
           <Text style={styles.body}>
-            Your mirror will show a 6-digit code. Enter it here so this phone can set up and control the
-            mirror. Only someone standing at the mirror can see the code.
+            Your mirror will show a 6-digit code. Enter it here so this phone can set up and control
+            the mirror. Only someone standing at the mirror can see the code.
           </Text>
         </View>
 
         {expiredPairing ? (
-          <Notice tone="info" message="This mirror no longer recognizes this phone, so it needs to be paired again." />
+          <Notice
+            tone="info"
+            message="This mirror no longer recognizes this phone, so it needs to be paired again."
+          />
         ) : null}
 
         {requesting ? (
@@ -170,7 +181,11 @@ export default function PairScreen() {
         ) : (
           <>
             <View style={styles.codeBlock}>
-              <Text style={styles.codeLabel} importantForAccessibility="no" accessibilityElementsHidden>
+              <Text
+                style={styles.codeLabel}
+                importantForAccessibility="no"
+                accessibilityElementsHidden
+              >
                 6-digit pairing code
               </Text>
               <CodeInput
@@ -202,7 +217,10 @@ export default function PairScreen() {
             {codeError ? <Notice tone="error" message={codeError} /> : null}
             {voided ? <Notice tone="warning" message={voided} /> : null}
             {expired && !voided ? (
-              <Notice tone="warning" message="That code has expired. Show a new one on the mirror." />
+              <Notice
+                tone="warning"
+                message="That code has expired. Show a new one on the mirror."
+              />
             ) : null}
           </>
         )}
@@ -210,8 +228,8 @@ export default function PairScreen() {
         <View style={styles.spacer} />
         {!requesting && !requestError ? (
           <Text style={styles.hint}>
-            Don’t see a code? Stand in front of the mirror to wake its display, and make sure this phone is
-            on the same WiFi network.
+            Don’t see a code? Stand in front of the mirror to wake its display, and make sure this
+            phone is on the same WiFi network.
           </Text>
         ) : null}
       </ScrollView>
@@ -237,11 +255,22 @@ export default function PairScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.lg, gap: 26 },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: 26,
+  },
   heading: { gap: 10 },
   title: { ...typography.h1, color: colors.text },
   body: { ...typography.body, color: colors.textSecondary },
-  waiting: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
+  waiting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
   waitingText: { ...typography.bodySmall, color: colors.textSecondary },
   codeBlock: { gap: 12 },
   codeLabel: { fontSize: 12, color: colors.textSecondary },

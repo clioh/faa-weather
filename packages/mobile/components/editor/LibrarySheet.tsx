@@ -52,7 +52,12 @@ export function LibrarySheet({ visible, onClose, onAdd, noRoomIds }: LibraryShee
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
       <View style={styles.container}>
         <PageSheetHeader title="Add widget" action={{ label: 'Done', onPress: onClose }} />
         {/* iOS: the ScrollView/FlatList insets itself (exact in a page sheet); Android: padding. */}
@@ -107,7 +112,11 @@ export function LibrarySheet({ visible, onClose, onAdd, noRoomIds }: LibraryShee
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             renderItem={({ item }) => (
-              <WidgetCard definition={item} noRoom={noRoomIds.has(item.id)} onPress={() => handleAdd(item)} />
+              <WidgetCard
+                definition={item}
+                noRoom={noRoomIds.has(item.id)}
+                onPress={() => handleAdd(item)}
+              />
             )}
             ListEmptyComponent={
               <View style={styles.empty}>
@@ -135,7 +144,11 @@ function WidgetCard({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, noRoom && styles.cardNoRoom, pressed && styles.cardPressed]}
+      style={({ pressed }) => [
+        styles.card,
+        noRoom && styles.cardNoRoom,
+        pressed && styles.cardPressed,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={`Add ${definition.name}. ${definition.description}`}
       accessibilityHint={noRoom ? 'There is no room on the canvas for this widget' : undefined}
@@ -151,7 +164,10 @@ function WidgetCard({
           <Text style={[styles.badge, styles.badgeNoRoom]}>No room</Text>
         ) : (
           definition.sizes.map((s) => (
-            <Text key={s} style={[styles.badge, s === definition.defaultSize && styles.badgeDefault]}>
+            <Text
+              key={s}
+              style={[styles.badge, s === definition.defaultSize && styles.badgeDefault]}
+            >
               {SIZE_LABELS[s]}
             </Text>
           ))

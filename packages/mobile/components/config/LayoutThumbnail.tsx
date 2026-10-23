@@ -61,7 +61,11 @@ export function LayoutThumbnail({
           >
             <View style={[styles.tile, flightRules && styles.flightRules]}>
               {showIcons && def ? (
-                <Ionicons name={def.icon as keyof typeof Ionicons.glyphMap} size={12} color={colors.textSecondary} />
+                <Ionicons
+                  name={def.icon as keyof typeof Ionicons.glyphMap}
+                  size={12}
+                  color={colors.textSecondary}
+                />
               ) : null}
             </View>
           </View>

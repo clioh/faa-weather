@@ -10,18 +10,17 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import { isDevBuild } from '@/lib/devBuild';
-import { type MirrorPerson, api, type LicenseStatus, type LicenseState, type MirrorOrientation, type UpdateConfig } from '@/lib/api';
+import {
+  type MirrorPerson,
+  api,
+  type LicenseStatus,
+  type LicenseState,
+  type MirrorOrientation,
+  type UpdateConfig,
+} from '@/lib/api';
 import { LICENSE_MANAGE_URL } from '@/lib/license';
 import { logError } from '@/lib/errors';
-import {
-  Button,
-  Row,
-  RowGroup,
-  SectionLabel,
-  Spinner,
-  Switch,
-  Text,
-} from '@/components/ui';
+import { Button, Row, RowGroup, SectionLabel, Spinner, Switch, Text } from '@/components/ui';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
 import { goHome } from '@/lib/navigation';
 import { useUser } from '@/context/UserContext';
@@ -74,10 +73,19 @@ export default function SettingsScreen() {
   // the status whenever this screen comes back into focus.
   useFocusEffect(
     useCallback(() => {
-      api.getLicenseStatus().then(setLicense).catch(() => {});
+      api
+        .getLicenseStatus()
+        .then(setLicense)
+        .catch(() => {});
       // People change on their own screens (add, invite, remove); refresh on return.
-      api.getPeople().then(setPeople).catch(() => {});
-      api.getRegisteredFaces().then(setFaces).catch(() => {});
+      api
+        .getPeople()
+        .then(setPeople)
+        .catch(() => {});
+      api
+        .getRegisteredFaces()
+        .then(setFaces)
+        .catch(() => {});
       // Shown next to Home airport and Orientation, which can be changed from here.
       api
         .getConfig()
@@ -133,7 +141,9 @@ export default function SettingsScreen() {
   const faceIds = new Set(faces.map((f) => f.id));
   const everyone = [
     ...people.map((p) => ({ id: p.id, name: p.name, person: p as MirrorPerson | null })),
-    ...faces.filter((f) => !people.some((p) => p.id === f.id)).map((f) => ({ id: f.id, name: f.name, person: null })),
+    ...faces
+      .filter((f) => !people.some((p) => p.id === f.id))
+      .map((f) => ({ id: f.id, name: f.name, person: null })),
   ].sort((a, b) => (a.id === user?.id ? -1 : b.id === user?.id ? 1 : a.name.localeCompare(b.name)));
 
   const personCaption = (id: string, person: MirrorPerson | null): string => {
@@ -261,7 +271,9 @@ export default function SettingsScreen() {
                 title={name}
                 caption={personCaption(id, person)}
                 onPress={() =>
-                  id === user?.id ? router.push('/setup/face') : router.push({ pathname: '/person', params: { id, name } })
+                  id === user?.id
+                    ? router.push('/setup/face')
+                    : router.push({ pathname: '/person', params: { id, name } })
                 }
                 accessibilityHint={id === user?.id ? 'Register your face again' : `Manage ${name}`}
               />
@@ -277,7 +289,8 @@ export default function SettingsScreen() {
           />
         </RowGroup>
         <Text style={styles.sectionNote}>
-          Add someone by registering their face, then invite them to set up their own layout on their phone.
+          Add someone by registering their face, then invite them to set up their own layout on
+          their phone.
         </Text>
       </View>
 
@@ -373,7 +386,12 @@ export default function SettingsScreen() {
 
       {/* Disconnect */}
       <View style={styles.dangerZone}>
-        <Button label="Disconnect Mirror" variant="danger" icon="log-out-outline" onPress={disconnectMirror} />
+        <Button
+          label="Disconnect Mirror"
+          variant="danger"
+          icon="log-out-outline"
+          onPress={disconnectMirror}
+        />
 
         {isDevBuild && (
           <Button

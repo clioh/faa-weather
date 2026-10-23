@@ -100,7 +100,13 @@ export interface PendingMirror {
   port: number;
 }
 
-export type OnboardingPhase = 'welcome' | 'profile' | 'discover' | 'setup' | 'template' | 'complete';
+export type OnboardingPhase =
+  | 'welcome'
+  | 'profile'
+  | 'discover'
+  | 'setup'
+  | 'template'
+  | 'complete';
 
 export interface OnboardingState {
   phase: OnboardingPhase;
@@ -152,10 +158,7 @@ export const storage = {
       preferences: {},
     };
 
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.USER_PROFILE,
-      JSON.stringify(profile)
-    );
+    await AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
 
     console.log('[Storage] Created user profile:', profile.id);
     return profile;
@@ -178,10 +181,7 @@ export const storage = {
       },
     };
 
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.USER_PROFILE,
-      JSON.stringify(updated)
-    );
+    await AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(updated));
 
     console.log('[Storage] Updated user profile');
     return updated;
@@ -212,10 +212,7 @@ export const storage = {
 
       // If we filtered any out, save the cleaned list
       if (validMirrors.length !== parsed.length) {
-        await AsyncStorage.setItem(
-          STORAGE_KEYS.LINKED_MIRRORS,
-          JSON.stringify(validMirrors)
-        );
+        await AsyncStorage.setItem(STORAGE_KEYS.LINKED_MIRRORS, JSON.stringify(validMirrors));
       }
 
       return validMirrors;
@@ -252,9 +249,7 @@ export const storage = {
     }
 
     // Check if mirror already exists, update if so
-    const existingIndex = mirrors.findIndex(
-      (m) => m.mirrorId === mirror.mirrorId
-    );
+    const existingIndex = mirrors.findIndex((m) => m.mirrorId === mirror.mirrorId);
 
     if (existingIndex >= 0) {
       mirrors[existingIndex] = {
@@ -269,18 +264,12 @@ export const storage = {
       });
     }
 
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.LINKED_MIRRORS,
-      JSON.stringify(mirrors)
-    );
+    await AsyncStorage.setItem(STORAGE_KEYS.LINKED_MIRRORS, JSON.stringify(mirrors));
 
     console.log('[Storage] Added/updated linked mirror:', mirror.mirrorName);
   },
 
-  async updateLinkedMirror(
-    mirrorId: string,
-    updates: Partial<LinkedMirror>
-  ): Promise<void> {
+  async updateLinkedMirror(mirrorId: string, updates: Partial<LinkedMirror>): Promise<void> {
     const mirrors = await this.getLinkedMirrors();
     const index = mirrors.findIndex((m) => m.mirrorId === mirrorId);
 
@@ -294,10 +283,7 @@ export const storage = {
       ...updates,
     };
 
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.LINKED_MIRRORS,
-      JSON.stringify(mirrors)
-    );
+    await AsyncStorage.setItem(STORAGE_KEYS.LINKED_MIRRORS, JSON.stringify(mirrors));
 
     console.log('[Storage] Updated linked mirror:', mirrorId);
   },
@@ -306,10 +292,7 @@ export const storage = {
     const mirrors = await this.getLinkedMirrors();
     const filtered = mirrors.filter((m) => m.mirrorId !== mirrorId);
 
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.LINKED_MIRRORS,
-      JSON.stringify(filtered)
-    );
+    await AsyncStorage.setItem(STORAGE_KEYS.LINKED_MIRRORS, JSON.stringify(filtered));
 
     console.log('[Storage] Removed linked mirror:', mirrorId);
   },
@@ -356,10 +339,7 @@ export const storage = {
   },
 
   async setOnboardingState(state: OnboardingState): Promise<void> {
-    await AsyncStorage.setItem(
-      STORAGE_KEYS.ONBOARDING_STATE,
-      JSON.stringify(state)
-    );
+    await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_STATE, JSON.stringify(state));
     console.log('[Storage] Set onboarding state:', state.phase);
   },
 

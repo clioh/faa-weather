@@ -25,7 +25,13 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Text';
-import { GRID_COLS, GRID_ROWS, SIZE_LABELS, getModuleById, type ModuleInstance } from '@/lib/modules';
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  SIZE_LABELS,
+  getModuleById,
+  type ModuleInstance,
+} from '@/lib/modules';
 import { colors } from '@/lib/theme';
 import { canPlace, dimsOf, type GridRect } from './layoutUtils';
 import type { GhostValues } from './ModuleTile';
@@ -84,7 +90,10 @@ export function Shelf({
   });
 
   return (
-    <Animated.View style={[styles.shelf, { width }, highlight]} accessibilityLabel={`Shelf, ${shelf.length} widget${shelf.length === 1 ? '' : 's'}`}>
+    <Animated.View
+      style={[styles.shelf, { width }, highlight]}
+      accessibilityLabel={`Shelf, ${shelf.length} widget${shelf.length === 1 ? '' : 's'}`}
+    >
       <View style={styles.header}>
         <Text style={styles.label}>SHELF</Text>
         <Text style={styles.caption}>Not shown on the mirror</Text>
@@ -92,10 +101,16 @@ export function Shelf({
       {shelf.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="arrow-down" size={14} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Drag a widget here to set it aside while you rearrange</Text>
+          <Text style={styles.emptyText}>
+            Drag a widget here to set it aside while you rearrange
+          </Text>
         </View>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+        >
           {shelf.map((m) => (
             <ShelfChip
               key={m.instanceId}
@@ -219,7 +234,22 @@ const ShelfChip = memo(function ShelfChip({
       });
 
     return Gesture.Race(pan, tap);
-  }, [id, cols, rows, cellW, cellH, origin, rects, ghost, active, overCanvas, lifted, target, onSelect, onUnshelve]);
+  }, [
+    id,
+    cols,
+    rows,
+    cellW,
+    cellH,
+    origin,
+    rects,
+    ghost,
+    active,
+    overCanvas,
+    lifted,
+    target,
+    onSelect,
+    onUnshelve,
+  ]);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + lifted.value * 0.06 }],

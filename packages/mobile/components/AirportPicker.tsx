@@ -42,12 +42,7 @@ interface AirportPickerProps {
   onClose: () => void;
 }
 
-export function AirportPicker({
-  visible,
-  currentValue,
-  onSelect,
-  onClose,
-}: AirportPickerProps) {
+export function AirportPicker({ visible, currentValue, onSelect, onClose }: AirportPickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<Airport[]>([]);
 
@@ -105,7 +100,9 @@ export function AirportPicker({
         selected={selected}
         onPress={() => handleSelect(item)}
         accessibilityLabel={`${item.icao}, ${item.name}`}
-        trailing={selected ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : undefined}
+        trailing={
+          selected ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : undefined
+        }
         chevron={false}
       />
     );

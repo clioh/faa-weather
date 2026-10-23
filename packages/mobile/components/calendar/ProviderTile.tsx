@@ -9,10 +9,20 @@ import type { CalendarProviderId } from '@/lib/api';
 import { colors } from '@/lib/theme';
 import { PROVIDER_META } from './meta';
 
-export function ProviderTile({ provider, style }: { provider: CalendarProviderId; style?: StyleProp<ViewStyle> }) {
+export function ProviderTile({
+  provider,
+  style,
+}: {
+  provider: CalendarProviderId;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
     <View style={[styles.tile, style]}>
-      <Ionicons name={PROVIDER_META[provider]?.icon ?? 'calendar-outline'} size={18} color={colors.text} />
+      <Ionicons
+        name={PROVIDER_META[provider]?.icon ?? 'calendar-outline'}
+        size={18}
+        color={colors.text}
+      />
     </View>
   );
 }

@@ -21,13 +21,17 @@ export interface InviteParams {
 
 // Display-only text from the link: drop control characters, collapse whitespace and cap the
 // length (by code point, so an emoji is never cut in half). Rendered as React text, never HTML.
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g
+
 function cleanLabel(value: string | null): string | null {
   if (!value) return null
-  // eslint-disable-next-line no-control-regex
-  const text = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
+  const text = value.replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').trim()
   if (!text) return null
   const chars = Array.from(text)
-  return chars.length > MAX_LABEL_LENGTH ? `${chars.slice(0, MAX_LABEL_LENGTH).join('').trimEnd()}…` : text
+  return chars.length > MAX_LABEL_LENGTH
+    ? `${chars.slice(0, MAX_LABEL_LENGTH).join('').trimEnd()}…`
+    : text
 }
 
 /**
@@ -78,10 +82,7 @@ function GetAppButton() {
     )
   }
   return (
-    <span
-      aria-disabled="true"
-      className="btn btn-secondary w-full sm:w-auto select-none"
-    >
+    <span aria-disabled="true" className="btn btn-secondary w-full sm:w-auto select-none">
       Coming soon to the App Store
     </span>
   )
@@ -118,7 +119,9 @@ function InviteDetails({ invite }: { invite: InviteParams }) {
         <dl className="border-b border-line">
           <div className="flex items-baseline justify-between gap-4 min-h-[52px] py-3.5 border-t border-line min-w-0">
             <dt className="text-fg-2 flex-shrink-0">Mirror</dt>
-            <dd className="text-fg text-right break-words min-w-0">{invite.mirrorName ?? 'SkyGlass'}</dd>
+            <dd className="text-fg text-right break-words min-w-0">
+              {invite.mirrorName ?? 'SkyGlass'}
+            </dd>
           </div>
           {invite.personName && (
             <div className="flex items-baseline justify-between gap-4 min-h-[52px] py-3.5 border-t border-line min-w-0">
@@ -129,8 +132,9 @@ function InviteDetails({ invite }: { invite: InviteParams }) {
         </dl>
 
         <p className="text-fg-2">
-          Your face is already set up on {mirror}. Open this invite in the SkyGlass app to choose what the mirror shows when it recognizes you: your weather,
-          calendar, airports and widgets.
+          Your face is already set up on {mirror}. Open this invite in the SkyGlass app to choose
+          what the mirror shows when it recognizes you: your weather, calendar, airports and
+          widgets.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -159,7 +163,8 @@ function InviteDetails({ invite }: { invite: InviteParams }) {
       </section>
 
       <p className="text-xs text-fg-3">
-        Invites expire after 7 days and work once. If this one has expired, ask whoever invited you to send a new one.
+        Invites expire after 7 days and work once. If this one has expired, ask whoever invited you
+        to send a new one.
       </p>
     </div>
   )
@@ -174,10 +179,13 @@ function IncompleteInvite() {
       </div>
       <h2 className="text-xl font-normal text-fg">This invite link is incomplete</h2>
       <p className="text-fg-2">
-        Part of the link is missing, which can happen when a link is copied or wraps across lines. Open the original
-        message and tap the whole link, or ask whoever invited you to send it again.
+        Part of the link is missing, which can happen when a link is copied or wraps across lines.
+        Open the original message and tap the whole link, or ask whoever invited you to send it
+        again.
       </p>
-      <p className="text-sm text-fg-3">Invites expire after 7 days and can be re-sent from the SkyGlass app.</p>
+      <p className="text-sm text-fg-3">
+        Invites expire after 7 days and can be re-sent from the SkyGlass app.
+      </p>
     </section>
   )
 }
@@ -189,7 +197,9 @@ function IncompleteInvite() {
 export function Invite() {
   // Read the fragment only in the browser. Never copy it into the query string, log it,
   // or send it anywhere: it carries a single-use token.
-  const [invite, setInvite] = useState<InviteParams | null>(() => parseInviteHash(window.location.hash))
+  const [invite, setInvite] = useState<InviteParams | null>(() =>
+    parseInviteHash(window.location.hash)
+  )
 
   useEffect(() => {
     const onHashChange = () => setInvite(parseInviteHash(window.location.hash))

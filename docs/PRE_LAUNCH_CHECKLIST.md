@@ -97,6 +97,7 @@ None of the work below has run on a phone or a Raspberry Pi yet. Everything type
 passes unit tests and was reviewed, and the mirror was rendered in headless Chrome.
 
 **Phone app** (do this first, on both iOS and Android, with a fresh dev build: `npx expo run:ios` / `run:android`)
+
 - [ ] Run `npm install` first. Dependencies changed: `expo-image-manipulator` was added,
       `expo-auth-session` and `@react-navigation/native` were removed.
 - [ ] Layout editor: drag, resize, collisions, undo/redo, the add-widget sheet, the discard prompt,
@@ -114,9 +115,11 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       every sheet has a visible close button.
 
 **Mirror on a Raspberry Pi**
+
 - [ ] **Camera Module 3 on a Pi 5** (`packages/presence/cameras.py`, Picamera2 through the venv's
-      `--system-site-packages`): `pm2 logs skyglass-detector` shows `Camera 0 opened: Raspberry Pi
-      camera imx708 via libcamera`, presence wakes the mirror, and autofocus settles at arm's length.
+      `--system-site-packages`): `pm2 logs skyglass-detector` shows
+      `Camera 0 opened: Raspberry Pi camera imx708 via libcamera`, presence wakes the mirror, and
+      autofocus settles at arm's length.
       Then repeat with only a USB webcam connected (`USB camera /dev/videoN via OpenCV`).
 - [ ] **Camera hand-off during face registration.** Register a face from the phone while the
       detector runs: the detector logs `Camera lent to face registration`, the preview streams, and
@@ -160,12 +163,13 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
 - [ ] Reset the local mirror layout. It was overwritten with a test layout during development.
 
 **Portrait mounts** (`display.orientation`, the app's Orientation step)
+
 - [ ] **Rotation direction.** Mount the panel turned right (clockwise, seen from the front), pick
       "Portrait · Turned right" in the app and check that the arrow points up; then turned left.
       If either is upside down, swap the angles in `packages/frontend/src/orientation.ts`
       (`uiRotation`) and `packages/presence/rotation.py` (`ORIENTATION_ROTATION`) together.
-- [ ] **Camera upright.** On each portrait mount, `pm2 logs skyglass-detector` shows `Camera frames
-      rotated …`, presence wakes the mirror, a face registers, and the live feed on the
+- [ ] **Camera upright.** On each portrait mount, `pm2 logs skyglass-detector` shows
+      `Camera frames rotated …`, presence wakes the mirror, a face registers, and the live feed on the
       registration screen is upright. A camera mounted apart from the panel needs
       `presence.camera_rotation` instead. Change the orientation from Settings › Mirror while the
       detector runs: it follows within about 5 s with no restart.
@@ -188,6 +192,7 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
 
 **Updates that fail** (`docs/UPDATES.md`; the simulated versions run in CI as `npm run test:update`,
 backend `updater.test.ts` and presence `test_watchdog_updates.py`)
+
 - [ ] Publish two test releases from a fork (`GITHUB_REPO`), install the older one on a Pi, then
       update from the display. Check `logs/update.log`, that faces, layouts, `config.yaml` and
       paired phones survive, and how long `npm install` takes when the lockfile changes.

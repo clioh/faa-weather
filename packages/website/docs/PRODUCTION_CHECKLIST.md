@@ -3,6 +3,7 @@
 This document tracks all remaining work needed before the website is 100% production-ready.
 
 ## Legend
+
 - [ ] Not started
 - [~] In progress
 - [x] Complete
@@ -12,6 +13,7 @@ This document tracks all remaining work needed before the website is 100% produc
 ## 1. Critical - Must Have for Launch
 
 ### Stripe Configuration
+
 - [ ] Switch from test keys to live keys
 - [ ] Set up production webhook endpoint
 - [ ] Configure Stripe Tax registrations for applicable states
@@ -20,6 +22,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Set up Stripe Radar rules for fraud prevention
 
 ### Domain & Hosting
+
 - [ ] Purchase/configure production domain (skyglass.dev or similar)
 - [ ] Set up SSL certificate (automatic with Vercel)
 - [ ] Configure DNS records
@@ -27,6 +30,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Enable Vercel Analytics for production
 
 ### Email Configuration
+
 - [ ] Verify sending domain in Resend (DNS records)
 - [ ] Set up proper "from" address (orders@skyglass.dev)
 - [ ] Test order confirmation emails end-to-end
@@ -34,6 +38,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Create Resend audience for customers (separate from waitlist)
 
 ### Legal & Compliance
+
 - [ ] Review and finalize Privacy Policy content
 - [ ] Review and finalize Terms of Service content
 - [ ] Add cookie consent banner (if using tracking cookies)
@@ -45,6 +50,7 @@ This document tracks all remaining work needed before the website is 100% produc
 ## 2. High Priority - Should Have for Launch
 
 ### Product & Pricing
+
 - [ ] Add actual product images/renders to replace placeholders
 - [ ] Create product gallery with multiple angles
 - [ ] Finalize pricing ($99 software license, $349 hardware kit, $549 complete kit; set in `shared/catalog.ts`)
@@ -52,6 +58,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Add product specs to pricing cards
 
 ### Shipping & Fulfillment
+
 - [ ] Determine actual shipping costs by zone
 - [ ] Set up shipping rate calculation (flat rate vs calculated)
 - [ ] Define shipping zones (US only? International?)
@@ -59,6 +66,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Create packing slip template
 
 ### Order Management
+
 - [ ] Set up order notification emails (to admin)
 - [ ] Create shipping notification email template
 - [ ] Add tracking number input to admin dashboard
@@ -66,6 +74,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Set up inventory tracking (or manual stock management)
 
 ### Error Handling & Monitoring
+
 - [ ] Add Sentry or similar error monitoring
 - [ ] Create error boundary components
 - [ ] Add proper error pages (500, etc.)
@@ -76,17 +85,20 @@ This document tracks all remaining work needed before the website is 100% produc
 ## 3. Medium Priority - Nice to Have for Launch
 
 ### User Experience
+
 - [ ] Add loading skeleton states for async content
 - [ ] Implement optimistic UI updates for cart
 - [ ] Improve mobile checkout experience
 - [ ] Add keyboard navigation for accessibility
 
 ### SEO & Marketing
+
 - [ ] Submit sitemap to Google Search Console
 - [ ] Create Open Graph images for social sharing
 - [ ] Add structured data for products (JSON-LD)
 
 ### Performance
+
 - [ ] Optimize images (WebP, proper sizing)
 - [ ] Implement lazy loading for below-fold content
 - [ ] Add resource hints (preconnect, prefetch)
@@ -94,6 +106,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Enable Vercel Edge caching where appropriate
 
 ### Testing
+
 - [ ] Write unit tests for cart functionality
 - [ ] Write integration tests for checkout flow
 - [ ] Test on multiple browsers (Chrome, Safari, Firefox)
@@ -105,6 +118,7 @@ This document tracks all remaining work needed before the website is 100% produc
 ## 4. Post-Launch Enhancements
 
 ### Customer Features
+
 - [ ] Order status lookup page (no login required)
 - [ ] Customer account system (optional)
 - [ ] Order history for returning customers
@@ -112,6 +126,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Product reviews and ratings
 
 ### Marketing Features
+
 - [ ] Blog / Content section for SEO
 - [ ] Referral program
 - [ ] Abandoned cart recovery emails
@@ -119,6 +134,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Social proof (customer count, testimonials)
 
 ### Admin Features
+
 - [ ] Proper authentication (OAuth, etc.)
 - [ ] Order export (CSV, PDF)
 - [ ] Sales analytics dashboard
@@ -126,6 +142,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Customer management
 
 ### International
+
 - [ ] Currency conversion display
 - [ ] International shipping rates
 - [ ] Multi-language support (i18n)
@@ -137,18 +154,19 @@ This document tracks all remaining work needed before the website is 100% produc
 ## 5. Technical Debt & Improvements
 
 ### Infrastructure
+
 - [ ] Set up staging environment
 - [ ] Implement CI/CD pipeline (GitHub Actions)
 - [ ] Add database for order persistence (currently Stripe-only)
 - [ ] Set up log aggregation
 - [ ] Create backup strategy for critical data
 
-
 ---
 
 ## Pre-Launch Checklist (Final Review)
 
 ### One Week Before Launch
+
 - [ ] All critical items complete
 - [ ] Test complete purchase flow with live Stripe
 - [ ] Verify all emails sending correctly
@@ -157,6 +175,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Prepare launch promo codes
 
 ### Day Before Launch
+
 - [ ] Final environment variable check
 - [ ] Verify DNS propagation
 - [ ] Test webhook endpoint
@@ -164,6 +183,7 @@ This document tracks all remaining work needed before the website is 100% produc
 - [ ] Prepare social media announcements
 
 ### Launch Day
+
 - [ ] Enable e-commerce feature flag (`VITE_FEATURE_ECOMMERCE=true`)
 - [ ] Monitor error logs
 - [ ] Watch first few orders come through
@@ -175,6 +195,7 @@ This document tracks all remaining work needed before the website is 100% produc
 ## Current Status Summary
 
 ### Completed ✅
+
 - Marketing website (Hero, Features, HowItWorks, Pricing, FAQ, Footer)
 - SEO optimization with meta tags
 - Waitlist functionality with Resend
@@ -190,11 +211,13 @@ This document tracks all remaining work needed before the website is 100% produc
 - Vercel Analytics integration
 
 ### In Progress 🔄
+
 - Product images (using placeholders)
 - Final copy review
 - Legal document review
 
 ### Not Started ❌
+
 - Live Stripe configuration
 - Domain setup
 - Email domain verification
@@ -206,12 +229,12 @@ This document tracks all remaining work needed before the website is 100% produc
 
 ## Estimated Effort
 
-| Category | Items | Est. Hours |
-|----------|-------|------------|
-| Critical | 10 | 8-12 |
-| High Priority | 12 | 16-24 |
-| Medium Priority | 16 | 20-30 |
-| Post-Launch | 16 | 40+ |
+| Category        | Items | Est. Hours |
+| --------------- | ----- | ---------- |
+| Critical        | 10    | 8-12       |
+| High Priority   | 12    | 16-24      |
+| Medium Priority | 16    | 20-30      |
+| Post-Launch     | 16    | 40+        |
 
 **Minimum viable launch**: Complete Critical + High Priority items
 **Estimated time to launch-ready**: 24-36 hours of focused work

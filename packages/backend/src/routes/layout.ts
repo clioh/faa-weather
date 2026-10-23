@@ -62,7 +62,14 @@ interface OAuthTokens {
 // Default layout for new installations: what the mirror shows until a layout
 // is saved, and what new users' layouts are copied from (routes/users.ts). No
 // airport is pinned, so the aviation widgets use the mirror's configured one.
-function tile(instanceId: string, moduleId: string, x: number, y: number, size: ModuleSize, config: Record<string, unknown> = {}): ModuleInstance {
+function tile(
+  instanceId: string,
+  moduleId: string,
+  x: number,
+  y: number,
+  size: ModuleSize,
+  config: Record<string, unknown> = {}
+): ModuleInstance {
   return { instanceId, moduleId, position: { x, y }, size, config };
 }
 
@@ -196,9 +203,7 @@ router.put('/', validateBody(layoutSchema), (req, res) => {
       }
 
       // Preserve OAuth tokens from existing modules
-      const existingModule = existingLayout.modules.find(
-        (m) => m.instanceId === module.instanceId
-      );
+      const existingModule = existingLayout.modules.find((m) => m.instanceId === module.instanceId);
       if (existingModule?.config.accessToken) {
         module.config.accessToken = existingModule.config.accessToken;
         module.config.refreshToken = existingModule.config.refreshToken;

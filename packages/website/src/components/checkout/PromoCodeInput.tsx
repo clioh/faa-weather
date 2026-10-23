@@ -25,7 +25,13 @@ export function PromoCodeInput({ onApply, isValidating, error }: PromoCodeInputP
         onClick={() => setIsExpanded(true)}
         className="link text-sm min-h-11 inline-flex items-center gap-2"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -57,8 +63,20 @@ export function PromoCodeInput({ onApply, isValidating, error }: PromoCodeInputP
           className="btn btn-secondary btn-sm h-[52px] rounded-[26px] flex-shrink-0"
         >
           {isValidating ? (
-            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-label="Checking code">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <svg
+              className="w-4 h-4 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-label="Checking code"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
               <path
                 className="opacity-75"
                 fill="currentColor"
@@ -70,7 +88,11 @@ export function PromoCodeInput({ onApply, isValidating, error }: PromoCodeInputP
           )}
         </button>
       </div>
-      {error && <p role="alert" className="field-error">{error}</p>}
+      {error && (
+        <p role="alert" className="field-error">
+          {error}
+        </p>
+      )}
     </form>
   )
 }

@@ -7,7 +7,16 @@ import { useState, useEffect } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Button, Footer, PageSheetHeader, Row, RowGroup, SectionLabel, Text, TextInput } from '@/components/ui';
+import {
+  Button,
+  Footer,
+  PageSheetHeader,
+  Row,
+  RowGroup,
+  SectionLabel,
+  Text,
+  TextInput,
+} from '@/components/ui';
 import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
 import { CALENDAR_PALETTE, colorName } from './calendar/meta';
@@ -28,12 +37,7 @@ interface ColorPickerProps {
   onClose: () => void;
 }
 
-export function ColorPicker({
-  visible,
-  currentValue,
-  onSelect,
-  onClose,
-}: ColorPickerProps) {
+export function ColorPicker({ visible, currentValue, onSelect, onClose }: ColorPickerProps) {
   const [selectedColor, setSelectedColor] = useState(currentValue || COLOR_PRESETS[0].value);
   const [customHex, setCustomHex] = useState('');
   const [hexError, setHexError] = useState<string | null>(null);
@@ -124,7 +128,11 @@ export function ColorPicker({
             {/* Preset Colors */}
             <View>
               <SectionLabel>Preset Colors</SectionLabel>
-              <View style={styles.presetsGrid} accessibilityRole="radiogroup" accessibilityLabel="Preset colors">
+              <View
+                style={styles.presetsGrid}
+                accessibilityRole="radiogroup"
+                accessibilityLabel="Preset colors"
+              >
                 {COLOR_PRESETS.map((preset) => {
                   const active = selectedColor.toLowerCase() === preset.value.toLowerCase();
                   return (
@@ -158,7 +166,11 @@ export function ColorPicker({
                 title="Enter custom hex color"
                 onPress={() => setShowCustom(!showCustom)}
                 trailing={
-                  <Ionicons name={showCustom ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+                  <Ionicons
+                    name={showCustom ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color={colors.chevron}
+                  />
                 }
               />
             </RowGroup>
@@ -186,14 +198,21 @@ export function ColorPicker({
                       accessibilityLabel="Custom hex color"
                     />
                   </View>
-                  <Button label="Apply" size="small" onPress={handleCustomSubmit} style={styles.applyButton} />
+                  <Button
+                    label="Apply"
+                    size="small"
+                    onPress={handleCustomSubmit}
+                    style={styles.applyButton}
+                  />
                 </View>
                 {hexError ? (
                   <Text style={styles.hexError} accessibilityRole="alert">
                     {hexError}
                   </Text>
                 ) : (
-                  <Text style={styles.hexHint}>Enter a 6-digit hex code (e.g., FF5500 for orange)</Text>
+                  <Text style={styles.hexHint}>
+                    Enter a 6-digit hex code (e.g., FF5500 for orange)
+                  </Text>
                 )}
               </View>
             )}

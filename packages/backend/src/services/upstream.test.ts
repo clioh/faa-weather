@@ -19,7 +19,9 @@ describe('TtlCache', () => {
 
   it('wraps raw errors when nothing is cached', async () => {
     const cache = new TtlCache<number>(1000);
-    const err = await cache.get('k', () => Promise.reject(new Error('ECONNRESET 10.0.0.1:443'))).catch((e) => e);
+    const err = await cache
+      .get('k', () => Promise.reject(new Error('ECONNRESET 10.0.0.1:443')))
+      .catch((e) => e);
     expect(err).toBeInstanceOf(UpstreamError);
     expect(err.message).not.toContain('10.0.0.1');
   });
@@ -45,7 +47,10 @@ describe('TtlCache', () => {
 
 describe('upstreamErrorResponse', () => {
   it('never exposes non-upstream error text', () => {
-    expect(upstreamErrorResponse(new Error('secret'), 'Failed')).toEqual({ status: 502, body: { error: 'Failed' } });
+    expect(upstreamErrorResponse(new Error('secret'), 'Failed')).toEqual({
+      status: 502,
+      body: { error: 'Failed' },
+    });
     expect(upstreamErrorResponse(new UpstreamError('Upstream timed out', 504), 'Failed')).toEqual({
       status: 504,
       body: { error: 'Failed: Upstream timed out' },

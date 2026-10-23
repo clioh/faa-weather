@@ -34,7 +34,8 @@ export const TOKEN_PREFIX = 'sgp_';
 
 export function pairedDevicesPath(): string {
   return (
-    process.env.SKYGLASS_PAIRED_DEVICES_FILE || path.resolve(__dirname, '../../../../data/paired-devices.json')
+    process.env.SKYGLASS_PAIRED_DEVICES_FILE ||
+    path.resolve(__dirname, '../../../../data/paired-devices.json')
   );
 }
 
@@ -77,7 +78,11 @@ export type PairingEvent =
   | { state: 'show'; code: string; deviceName: string; expiresAt: number }
   | { state: 'hide'; result: 'paired' | 'failed' | 'expired'; deviceName: string };
 
-export type PairingErrorCode = 'invalid_pairing_code' | 'too_many_devices' | 'pairing_locked' | 'not_found';
+export type PairingErrorCode =
+  | 'invalid_pairing_code'
+  | 'too_many_devices'
+  | 'pairing_locked'
+  | 'not_found';
 
 export class PairingError extends Error {
   constructor(
@@ -132,7 +137,9 @@ export class PairedDeviceStore {
     } catch (error) {
       // Keep the bad file for inspection; every phone has to pair again.
       const aside = `${this.filePath}.corrupt-${Date.now()}`;
-      console.error(`[Pairing] ${this.filePath} is unreadable (${String(error)}); moved to ${aside}`);
+      console.error(
+        `[Pairing] ${this.filePath} is unreadable (${String(error)}); moved to ${aside}`
+      );
       try {
         fs.renameSync(this.filePath, aside);
       } catch {
@@ -145,7 +152,10 @@ export class PairedDeviceStore {
   save(devices: PairedDeviceRecord[]): void {
     const dir = path.dirname(this.filePath);
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    const tmp = path.join(dir, `.${path.basename(this.filePath)}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`);
+    const tmp = path.join(
+      dir,
+      `.${path.basename(this.filePath)}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`
+    );
     const fd = fs.openSync(tmp, 'wx', 0o600);
     try {
       fs.writeSync(fd, `${JSON.stringify(devices, null, 2)}\n`);
@@ -210,7 +220,12 @@ export class PairingService extends EventEmitter {
   }
 
   listDevices(): PublicDevice[] {
-    return this.all().map(({ id, name, createdAt, lastSeenAt }) => ({ id, name, createdAt, lastSeenAt }));
+    return this.all().map(({ id, name, createdAt, lastSeenAt }) => ({
+      id,
+      name,
+      createdAt,
+      lastSeenAt,
+    }));
   }
 
   /** Paired device for this bearer token, or null. Updates lastSeenAt (at most once a minute). */
@@ -233,7 +248,12 @@ export class PairingService extends EventEmitter {
         console.error('[Pairing] Could not record lastSeenAt:', error);
       }
     }
-    return { id: found.id, name: found.name, createdAt: found.createdAt, lastSeenAt: found.lastSeenAt };
+    return {
+      id: found.id,
+      name: found.name,
+      createdAt: found.createdAt,
+      lastSeenAt: found.lastSeenAt,
+    };
   }
 
   renameDevice(id: string, name: string): PublicDevice {
@@ -241,7 +261,12 @@ export class PairingService extends EventEmitter {
     if (!device) throw new PairingError('not_found', 'No paired phone with that id.', 404);
     device.name = name;
     this.persist();
-    return { id: device.id, name: device.name, createdAt: device.createdAt, lastSeenAt: device.lastSeenAt };
+    return {
+      id: device.id,
+      name: device.name,
+      createdAt: device.createdAt,
+      lastSeenAt: device.lastSeenAt,
+    };
   }
 
   /** Unpair a phone. Its token stops working immediately and its sockets are closed ('revoked'). */
@@ -329,7 +354,8 @@ export class PairingService extends EventEmitter {
 
   claim(secret: string, deviceName: string): PairingResult {
     const current = this.qr;
-    const valid = current !== null && current.expiresAt > Date.now() && safeEqual(secret, current.secret);
+    const valid =
+      current !== null && current.expiresAt > Date.now() && safeEqual(secret, current.secret);
     if (!valid) {
       throw new PairingError(
         'invalid_pairing_code',
@@ -421,10 +447,15 @@ export class PairingService extends EventEmitter {
           { attemptsRemaining: 0, requestExpired: true }
         );
       }
-      throw new PairingError('invalid_pairing_code', "That code doesn't match the one on the mirror.", 400, {
-        attemptsRemaining,
-        requestExpired: false,
-      });
+      throw new PairingError(
+        'invalid_pairing_code',
+        "That code doesn't match the one on the mirror.",
+        400,
+        {
+          attemptsRemaining,
+          requestExpired: false,
+        }
+      );
     }
     let result: PairingResult;
     try {

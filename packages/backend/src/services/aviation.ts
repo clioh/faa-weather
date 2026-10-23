@@ -303,7 +303,9 @@ export async function fetchTfrs(): Promise<TfrData[]> {
  */
 export async function fetchTfrGeometry(): Promise<Map<string, TfrGeometry>> {
   try {
-    const response = await fetchWithTimeout(TFR_GEO_URL, { headers: { Accept: 'application/json' } });
+    const response = await fetchWithTimeout(TFR_GEO_URL, {
+      headers: { Accept: 'application/json' },
+    });
     if (!response.ok) {
       console.error(`TFR geometry fetch failed: ${response.status}`);
       return new Map();
@@ -335,7 +337,7 @@ export function filterTfrsByDistance(
   lat: number,
   lon: number,
   radiusNm: number,
-  geo: Map<string, TfrGeometry> = new Map(),
+  geo: Map<string, TfrGeometry> = new Map()
 ): TfrWithDistance[] {
   return tfrs
     .map((t): TfrWithDistance => {

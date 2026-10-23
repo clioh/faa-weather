@@ -119,7 +119,7 @@ export class TodoStore {
         text: t.text.trim(),
         done: t.done,
         createdAt: prev?.createdAt ?? now,
-        completedAt: t.done ? (prev?.done ? prev.completedAt : null) ?? now : null,
+        completedAt: t.done ? ((prev?.done ? prev.completedAt : null) ?? now) : null,
       });
     }
     this.save(items);

@@ -70,9 +70,15 @@ describe('TodoStore', () => {
   });
 
   it('enforces the item limit', () => {
-    const many = Array.from({ length: MAX_TODOS }, (_, i) => ({ id: `t${i}`, text: `t${i}`, done: false }));
+    const many = Array.from({ length: MAX_TODOS }, (_, i) => ({
+      id: `t${i}`,
+      text: `t${i}`,
+      done: false,
+    }));
     store.replace(many);
     expect(() => store.add('one too many')).toThrow(TodoLimitError);
-    expect(() => store.replace([...many, { id: 'x', text: 'x', done: false }])).toThrow(TodoLimitError);
+    expect(() => store.replace([...many, { id: 'x', text: 'x', done: false }])).toThrow(
+      TodoLimitError
+    );
   });
 });

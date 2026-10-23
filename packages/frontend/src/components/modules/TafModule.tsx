@@ -66,7 +66,12 @@ function buildSegments(periods: TafPeriod[], reference: Date): Segment[] {
       if (start === undefined || end === undefined) return null;
       // A validity crossing month end ("3018/0118") resolves end before start.
       const fixedEnd = end <= start ? end + 30 * 24 * HOUR : end;
-      return { period, start, end: fixedEnd, overlay: period.type !== 'BASE' && period.type !== 'FM' };
+      return {
+        period,
+        start,
+        end: fixedEnd,
+        overlay: period.type !== 'BASE' && period.type !== 'FM',
+      };
     })
     .filter((s): s is Segment => s !== null);
 
@@ -100,16 +105,25 @@ export function TafModule({ config, airport, size }: ModuleProps) {
   } else if (loading) {
     body = <ModuleLoading />;
   } else if (!data) {
-    body = <ModuleError title="TAF unavailable" hint={fetchErrorHint(error, `${icao} has no TAF`)} />;
+    body = (
+      <ModuleError title="TAF unavailable" hint={fetchErrorHint(error, `${icao} has no TAF`)} />
+    );
   } else {
-    const issued = data.parsed?.issueTime ? parseDayTime(data.parsed.issueTime, new Date(now)) : null;
+    const issued = data.parsed?.issueTime
+      ? parseDayTime(data.parsed.issueTime, new Date(now))
+      : null;
     const segments = buildSegments(data.parsed?.periods ?? [], issued ?? new Date(now));
     const windowStart = Math.floor(now / HOUR) * HOUR;
     const windowEnd = windowStart + hoursAhead * HOUR;
     const visible = segments.filter((s) => s.end > windowStart && s.start < windowEnd);
 
     if (visible.length === 0) {
-      body = <ModuleEmpty title="No forecast periods" hint={`${icao} TAF does not cover the next ${hoursAhead}h`} />;
+      body = (
+        <ModuleEmpty
+          title="No forecast periods"
+          hint={`${icao} TAF does not cover the next ${hoursAhead}h`}
+        />
+      );
     } else {
       const compact = size === 'medium' || size === 'wide';
       const current =
@@ -117,7 +131,9 @@ export function TafModule({ config, airport, size }: ModuleProps) {
       const listCap = size === 'full' ? 8 : 5;
       const list = compact
         ? [current]
-        : [...visible].sort((a, b) => a.start - b.start || Number(a.overlay) - Number(b.overlay)).slice(0, listCap);
+        : [...visible]
+            .sort((a, b) => a.start - b.start || Number(a.overlay) - Number(b.overlay))
+            .slice(0, listCap);
 
       body = (
         <div className="taf-body">
@@ -201,9 +217,13 @@ function PeriodRow({ segment, now }: { segment: Segment; now: number }) {
   const vis = formatVisibility(p.visibility, 6);
   return (
     <div className={`taf-row${segment.overlay ? ' overlay' : ''}${active ? ' active' : ''}`}>
-      <span className="taf-row-time mono">{formatTafRange(new Date(segment.start), new Date(segment.end))}</span>
+      <span className="taf-row-time mono">
+        {formatTafRange(new Date(segment.start), new Date(segment.end))}
+      </span>
       <span className="taf-row-type">{periodLabel(p)}</span>
-      <span className={`taf-row-rules ${flightRulesClass(p.flightRules)}`}>{p.flightRules ?? '—'}</span>
+      <span className={`taf-row-rules ${flightRulesClass(p.flightRules)}`}>
+        {p.flightRules ?? '—'}
+      </span>
       <span className="taf-row-data mono">
         {formatWind(p.wind)}
         {vis && ` · ${vis}`}

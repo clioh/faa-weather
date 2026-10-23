@@ -102,8 +102,7 @@ export function useFetch<T>(
       } catch (err) {
         if (!mountedRef.current) return;
 
-        const errorMessage =
-          err instanceof Error ? err.message : 'Failed to fetch data';
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch data';
 
         // If we have stale data and keepStaleData is true, keep showing it
         if (!keepStaleData || data === null) {

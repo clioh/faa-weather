@@ -57,7 +57,8 @@ export default function TemplatesScreen() {
     api
       .getConfig()
       .then((config) => {
-        if (!cancelled) setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
+        if (!cancelled)
+          setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
       })
       .catch(() => {
         // Unreachable mirror: keep the landscape templates.
@@ -127,13 +128,20 @@ export default function TemplatesScreen() {
           const category = TEMPLATE_CATEGORIES[template.category];
           const confirming = confirmingId === template.id;
           return (
-            <View key={template.id} style={[styles.templateCard, confirming && styles.templateCardConfirming]}>
+            <View
+              key={template.id}
+              style={[styles.templateCard, confirming && styles.templateCardConfirming]}
+            >
               <Pressable
                 onPress={() => handleApplyTemplate(template)}
                 style={({ pressed }) => [styles.cardBody, pressed && styles.pressed]}
                 accessibilityRole="button"
                 accessibilityLabel={`${template.name}. ${template.description}. ${template.modules.length} widgets: ${widgetNames(template)}`}
-                accessibilityHint={hasExistingModules ? 'Asks before replacing your layout' : 'Opens it in the editor'}
+                accessibilityHint={
+                  hasExistingModules
+                    ? 'Asks before replacing your layout'
+                    : 'Opens it in the editor'
+                }
               >
                 <LayoutThumbnail
                   modules={template.modules}

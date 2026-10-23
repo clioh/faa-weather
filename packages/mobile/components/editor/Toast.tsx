@@ -28,7 +28,10 @@ export function useEditorToast(durationMs = 2400) {
     (message: string, kind: EditorToastKind = 'info') => {
       if (timer.current) clearTimeout(timer.current);
       setToast({ id: Date.now(), message, kind });
-      timer.current = setTimeout(() => setToast(null), kind === 'error' ? durationMs * 1.6 : durationMs);
+      timer.current = setTimeout(
+        () => setToast(null),
+        kind === 'error' ? durationMs * 1.6 : durationMs
+      );
     },
     [durationMs]
   );

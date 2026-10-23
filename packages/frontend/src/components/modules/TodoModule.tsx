@@ -39,7 +39,8 @@ function CheckGlyph({ done }: { done: boolean }) {
 }
 
 export function TodoModule({ config, size }: ModuleProps) {
-  const title = typeof config.title === 'string' && config.title.trim() ? config.title.trim() : 'To-do';
+  const title =
+    typeof config.title === 'string' && config.title.trim() ? config.title.trim() : 'To-do';
   const showCompleted = config.showCompleted === true;
   const requested = Number(config.maxItems);
   const maxItems = Math.min(

@@ -37,7 +37,9 @@ describe('layout templates', () => {
   it('portrait templates use the bottom row (minimal is a centred stack)', () => {
     for (const t of PORTRAIT_TEMPLATES) {
       const bottom = Math.max(...t.modules.map((m) => m.position.y + SIZE_DIMENSIONS[m.size].rows));
-      expect(bottom, t.id).toBeGreaterThanOrEqual(t.id === 'minimal-portrait' ? GRID_ROWS - 1 : GRID_ROWS);
+      expect(bottom, t.id).toBeGreaterThanOrEqual(
+        t.id === 'minimal-portrait' ? GRID_ROWS - 1 : GRID_ROWS
+      );
     }
   });
 
@@ -64,7 +66,12 @@ describe('layout templates', () => {
       modules: [
         { moduleId: 'metar', position: { x: 0, y: 0 }, size: 'large' as const, config: {} },
         { moduleId: 'flight-rules', position: { x: 5, y: 3 }, size: 'small' as const, config: {} },
-        { moduleId: 'flight-rules', position: { x: GRID_COLS - 2, y: 0 }, size: 'small' as const, config: {} },
+        {
+          moduleId: 'flight-rules',
+          position: { x: GRID_COLS - 2, y: 0 },
+          size: 'small' as const,
+          config: {},
+        },
       ],
     };
     const problems = validateTemplate(bad);

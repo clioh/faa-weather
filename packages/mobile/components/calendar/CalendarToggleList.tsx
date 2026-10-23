@@ -24,7 +24,12 @@ interface CalendarToggleListProps {
   emptyText?: string;
 }
 
-export function CalendarToggleList({ calendars, onToggle, onColor, emptyText }: CalendarToggleListProps) {
+export function CalendarToggleList({
+  calendars,
+  onToggle,
+  onColor,
+  emptyText,
+}: CalendarToggleListProps) {
   const [picking, setPicking] = useState<AccountCalendar | null>(null);
 
   if (calendars.length === 0) {
@@ -46,7 +51,13 @@ export function CalendarToggleList({ calendars, onToggle, onColor, emptyText }: 
             accessibilityLabel={`Color for ${cal.name}: ${colorName(cal.color)}`}
             accessibilityHint="Choose a different color"
           >
-            <View style={[styles.swatch, { backgroundColor: cal.color }, !cal.enabled && styles.swatchOff]} />
+            <View
+              style={[
+                styles.swatch,
+                { backgroundColor: cal.color },
+                !cal.enabled && styles.swatchOff,
+              ]}
+            />
           </TouchableOpacity>
           <Text style={[styles.name, !cal.enabled && styles.nameOff]} numberOfLines={2}>
             {cal.name}
@@ -68,7 +79,11 @@ export function CalendarToggleList({ calendars, onToggle, onColor, emptyText }: 
         body="Events from this calendar use this color on the mirror."
         onClose={() => setPicking(null)}
       >
-        <View style={styles.palette} accessibilityRole="radiogroup" accessibilityLabel="Calendar color">
+        <View
+          style={styles.palette}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Calendar color"
+        >
           {paletteFor(picking?.color).map((hex) => {
             const active = picking?.color.toLowerCase() === hex.toLowerCase();
             return (
@@ -101,7 +116,8 @@ export function CalendarToggleList({ calendars, onToggle, onColor, emptyText }: 
 /** The palette, plus the calendar's own colour from its provider when that isn't one of them. */
 function paletteFor(current: string | undefined): string[] {
   const base: string[] = [...CALENDAR_PALETTE];
-  if (current && !base.some((c) => c.toLowerCase() === current.toLowerCase())) base.unshift(current);
+  if (current && !base.some((c) => c.toLowerCase() === current.toLowerCase()))
+    base.unshift(current);
   return base;
 }
 
@@ -115,7 +131,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.hairline,
   },
-  swatchButton: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center', marginLeft: -spacing.sm },
+  swatchButton: {
+    width: TOUCH,
+    height: TOUCH,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -spacing.sm,
+  },
   swatch: {
     width: 22,
     height: 22,

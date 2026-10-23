@@ -7,7 +7,12 @@
 import { Router } from 'express';
 import { validateQuery } from '../middleware/validate.js';
 import { cryptoQuerySchema, stocksQuerySchema } from '../validation/schemas.js';
-import { getCryptoQuotes, getStockQuotes, setSkyglassServiceUrl, type CryptoCurrency } from '../services/finance.js';
+import {
+  getCryptoQuotes,
+  getStockQuotes,
+  setSkyglassServiceUrl,
+  type CryptoCurrency,
+} from '../services/finance.js';
 import { skyglassServiceUrl } from '../services/skyglass-service.js';
 import { loadConfig, configEvents } from '../config/index.js';
 import { upstreamErrorResponse } from '../services/upstream.js';
@@ -18,10 +23,16 @@ const router = Router();
 function applyFinanceConfig(): void {
   try {
     const base = skyglassServiceUrl(loadConfig());
-    if (!base) console.warn('[finance] skyglass_service is not a valid https:// URL; using Yahoo for stock quotes');
+    if (!base)
+      console.warn(
+        '[finance] skyglass_service is not a valid https:// URL; using Yahoo for stock quotes'
+      );
     setSkyglassServiceUrl(base);
   } catch (error) {
-    console.error('[finance] Failed to read config:', error instanceof Error ? error.message : error);
+    console.error(
+      '[finance] Failed to read config:',
+      error instanceof Error ? error.message : error
+    );
   }
 }
 applyFinanceConfig();

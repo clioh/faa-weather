@@ -24,7 +24,9 @@ export function normalizeOrientation(value: unknown): MirrorOrientation {
   if (typeof value !== 'string') return 'landscape';
   const v = value.trim().toLowerCase();
   if (v === 'portrait') return 'portrait-cw';
-  return (MIRROR_ORIENTATIONS as readonly string[]).includes(v) ? (v as MirrorOrientation) : 'landscape';
+  return (MIRROR_ORIENTATIONS as readonly string[]).includes(v)
+    ? (v as MirrorOrientation)
+    : 'landscape';
 }
 
 /**
@@ -52,8 +54,13 @@ function isOrientation(value: unknown): value is string {
 }
 
 /** config.yaml's display.orientation, else the pre-flashed file's, else landscape. */
-export function resolveOrientation(configured: unknown, preflashed: string | null): MirrorOrientation {
-  return normalizeOrientation(!isOrientation(configured) && isOrientation(preflashed) ? preflashed : configured);
+export function resolveOrientation(
+  configured: unknown,
+  preflashed: string | null
+): MirrorOrientation {
+  return normalizeOrientation(
+    !isOrientation(configured) && isOrientation(preflashed) ? preflashed : configured
+  );
 }
 
 export interface Config {
@@ -156,7 +163,11 @@ export function loadConfig(): Config {
  * `bootOrientation` (the pre-flashed file's contents) stands in for
  * display.orientation while config.yaml doesn't set a valid one.
  */
-export function parseConfig(defaultYaml: string, userYaml: string | null, bootOrientation: string | null = null): Config {
+export function parseConfig(
+  defaultYaml: string,
+  userYaml: string | null,
+  bootOrientation: string | null = null
+): Config {
   let config = parse(defaultYaml) as Config;
   let userOrientation: unknown;
 

@@ -90,16 +90,34 @@ export function createPairingLimiters(): RequestHandler[] {
     error: 'too_many_requests',
     message: 'Too many pairing attempts. Wait a few minutes and try again.',
   };
-  const skip = (req: Parameters<RequestHandler>[0]) => isLoopbackIp(req.ip || req.socket.remoteAddress);
+  const skip = (req: Parameters<RequestHandler>[0]) =>
+    isLoopbackIp(req.ip || req.socket.remoteAddress);
   return [
-    rateLimit({ windowMs: 5 * 60 * 1000, max: 60, keyGenerator: () => 'global', standardHeaders: true, legacyHeaders: false, message, skip }),
-    rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message, skip }),
+    rateLimit({
+      windowMs: 5 * 60 * 1000,
+      max: 60,
+      keyGenerator: () => 'global',
+      standardHeaders: true,
+      legacyHeaders: false,
+      message,
+      skip,
+    }),
+    rateLimit({
+      windowMs: 5 * 60 * 1000,
+      max: 10,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message,
+      skip,
+    }),
   ];
 }
 
 function sendError(res: Response, error: unknown): void {
   if (error instanceof PairingError) {
-    res.status(error.httpStatus).json({ error: error.code, message: error.message, ...error.extra });
+    res
+      .status(error.httpStatus)
+      .json({ error: error.code, message: error.message, ...error.extra });
     return;
   }
   console.error('[Pairing] Unexpected error:', error);
@@ -113,7 +131,11 @@ export interface PairingRouterOptions {
   connectUrl?: () => string;
 }
 
-export function createPairingRouter({ service, limiters, connectUrl = defaultConnectUrl }: PairingRouterOptions): Router {
+export function createPairingRouter({
+  service,
+  limiters,
+  connectUrl = defaultConnectUrl,
+}: PairingRouterOptions): Router {
   const router = Router();
   const limit = limiters ?? createPairingLimiters();
 
@@ -170,7 +192,10 @@ export function createPairingRouter({ service, limiters, connectUrl = defaultCon
       return;
     }
     try {
-      const device = service.renameDevice(id, (req.body as z.infer<typeof pairingRenameSchema>).name);
+      const device = service.renameDevice(
+        id,
+        (req.body as z.infer<typeof pairingRenameSchema>).name
+      );
       res.json({ device: { ...device, current: device.id === getAuth(res).deviceId } });
     } catch (error) {
       sendError(res, error);
@@ -182,7 +207,9 @@ export function createPairingRouter({ service, limiters, connectUrl = defaultCon
   router.delete('/devices/self', (_req, res) => {
     const { kind, deviceId } = getAuth(res);
     if (kind !== 'device' || !deviceId) {
-      res.status(400).json({ error: 'not_a_paired_phone', message: 'Only a paired phone can unpair itself.' });
+      res
+        .status(400)
+        .json({ error: 'not_a_paired_phone', message: 'Only a paired phone can unpair itself.' });
       return;
     }
     try {

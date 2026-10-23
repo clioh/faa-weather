@@ -8,11 +8,7 @@
  */
 
 import { QRCodeSVG } from 'qrcode.react';
-import {
-  DEFAULT_MANAGE_URL,
-  DEFAULT_SUPPORT_EMAIL,
-  type LicenseStatus,
-} from '../license';
+import { DEFAULT_MANAGE_URL, DEFAULT_SUPPORT_EMAIL, type LicenseStatus } from '../license';
 import { SetupFrame } from './setup/SetupFrame';
 import { StepList } from './setup/StepList';
 import { useMirrorInfo } from './setup/useMirrorInfo';
@@ -39,8 +35,7 @@ function copyFor(status: LicenseStatus, manageHost: string): StateCopy {
         tone: 'warning',
         eyebrow: 'Offline for over 30 days',
         title: 'Reconnect to verify',
-        body:
-          "SkyGlass checks its license online at least once a month. This mirror hasn't been able to reach skyglass.dev in that time.",
+        body: "SkyGlass checks its license online at least once a month. This mirror hasn't been able to reach skyglass.dev in that time.",
         steps: [
           'Connect the mirror to the internet. It verifies on its own within a few minutes.',
           'To change networks, open the SkyGlass app on your phone and go to Settings › WiFi Network.',
@@ -51,8 +46,7 @@ function copyFor(status: LicenseStatus, manageHost: string): StateCopy {
         tone: 'neutral',
         eyebrow: 'License moved',
         title: 'This license was released',
-        body:
-          'The license on this mirror was released so it can run a different mirror. One license runs one mirror at a time.',
+        body: 'The license on this mirror was released so it can run a different mirror. One license runs one mirror at a time.',
         steps: [
           'To bring it back here, open the SkyGlass app and enter the key again in Settings › License.',
           `Or use a different key. Manage your licenses at ${manageHost}.`,

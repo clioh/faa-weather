@@ -42,7 +42,10 @@ describe('face enrollment detection', () => {
   it('is true when a user enrollment exists, even with an empty encodings list', () => {
     fs.mkdirSync(path.join(users, 'alice'), { recursive: true });
     // Empty-list pickle, what web_server.py writes without face_recognition
-    fs.writeFileSync(path.join(users, 'alice', 'encodings.pkl'), Buffer.from([0x80, 0x04, 0x5d, 0x94, 0x2e]));
+    fs.writeFileSync(
+      path.join(users, 'alice', 'encodings.pkl'),
+      Buffer.from([0x80, 0x04, 0x5d, 0x94, 0x2e])
+    );
     expect(hasEnrolledUsers(users)).toBe(true);
   });
 });
@@ -75,7 +78,12 @@ describe('setup step markers', () => {
 });
 
 describe('setup status', () => {
-  const ready = { configExists: true, faceEnrolled: false, wifiConfigured: true, licenseActivated: true };
+  const ready = {
+    configExists: true,
+    faceEnrolled: false,
+    wifiConfigured: true,
+    licenseActivated: true,
+  };
 
   it('ignores non-default values without a completion marker', () => {
     const status = computeSetupStatus(
@@ -106,7 +114,10 @@ describe('setup status', () => {
   });
 
   it('counts orientation as configured once saved', () => {
-    const saved = { display: { orientation: 'portrait-cw' }, setup: { completed: ['orientation'] } };
+    const saved = {
+      display: { orientation: 'portrait-cw' },
+      setup: { completed: ['orientation'] },
+    };
     const status = computeSetupStatus(saved, { ...ready, licenseActivated: false });
     expect(status.orientationConfigured).toBe(true);
     expect(status.step).toBe('license');
@@ -157,7 +168,10 @@ describe('POST /api/setup/orientation', () => {
     const app = express();
     app.set('trust proxy', 'loopback');
     app.use(express.json());
-    app.use('/api', apiAuthGate((t) => (t === TOKEN ? { id: 'phone-1' } : null)));
+    app.use(
+      '/api',
+      apiAuthGate((t) => (t === TOKEN ? { id: 'phone-1' } : null))
+    );
     app.use(
       '/api/setup/orientation',
       createOrientationRouter({
@@ -182,10 +196,19 @@ describe('POST /api/setup/orientation', () => {
 
   // Requests look like a phone on the LAN (forwarded by a loopback proxy), so
   // the pairing token is what lets them through.
-  async function call(method: string, p = '', body?: unknown, headers: Record<string, string> = PHONE) {
+  async function call(
+    method: string,
+    p = '',
+    body?: unknown,
+    headers: Record<string, string> = PHONE
+  ) {
     const res = await fetch(`${base}${p}`, {
       method,
-      headers: { 'X-Forwarded-For': '192.168.1.50', 'Content-Type': 'application/json', ...headers },
+      headers: {
+        'X-Forwarded-For': '192.168.1.50',
+        'Content-Type': 'application/json',
+        ...headers,
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: res.status, body: (await res.json()) as Record<string, unknown> };
@@ -209,7 +232,10 @@ describe('POST /api/setup/orientation', () => {
     const changes: unknown[] = [];
     preview.on('change', (v) => changes.push(v));
     const res = await call('POST', '', { orientation: 'portrait-ccw', preview: true });
-    expect(res).toMatchObject({ status: 200, body: { orientation: 'portrait-ccw', preview: true } });
+    expect(res).toMatchObject({
+      status: 200,
+      body: { orientation: 'portrait-ccw', preview: true },
+    });
     expect(preview.current()).toBe('portrait-ccw');
     expect(changes).toEqual(['portrait-ccw']);
     expect(writes).toBe(0);
@@ -219,7 +245,10 @@ describe('POST /api/setup/orientation', () => {
   it('saves, marks the step done and ends the preview', async () => {
     await call('POST', '', { orientation: 'portrait-cw', preview: true });
     const res = await call('POST', '', { orientation: 'portrait-cw' });
-    expect(res).toMatchObject({ status: 200, body: { orientation: 'portrait-cw', preview: false } });
+    expect(res).toMatchObject({
+      status: 200,
+      body: { orientation: 'portrait-cw', preview: false },
+    });
     expect(writes).toBe(1);
     expect(stored.display).toEqual({ presence_timeout: 120, orientation: 'portrait-cw' });
     expect(isStepCompleted(stored, 'orientation')).toBe(true);

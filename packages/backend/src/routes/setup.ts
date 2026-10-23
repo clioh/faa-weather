@@ -6,14 +6,22 @@ import { fileURLToPath } from 'url';
 import { configWriteLimiter } from '../middleware/rateLimiter.js';
 import { searchAirports, nearbyAirports } from '../services/airports.js';
 import { validateBody } from '../middleware/validate.js';
-import { setupAirportSchema, setupLocationSchema, setupOrientationSchema } from '../validation/schemas.js';
-import { notifyConfigChanged, readBootOrientation, resolveOrientation, type MirrorOrientation } from '../config/index.js';
+import {
+  setupAirportSchema,
+  setupLocationSchema,
+  setupOrientationSchema,
+} from '../validation/schemas.js';
+import {
+  notifyConfigChanged,
+  readBootOrientation,
+  resolveOrientation,
+  type MirrorOrientation,
+} from '../config/index.js';
 import { licenseManager } from '../license/index.js';
 import { orientationPreview, type OrientationPreview } from '../services/orientation.js';
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 
 // Paths
 const CONFIG_DIR = path.resolve(__dirname, '../../../../config');
@@ -136,7 +144,8 @@ export function computeSetupStatus(
 ): SetupStatus {
   const f: SetupFlags = {
     ...state,
-    orientationConfigured: state.configExists || (!!config && isStepCompleted(config, 'orientation')),
+    orientationConfigured:
+      state.configExists || (!!config && isStepCompleted(config, 'orientation')),
     airportConfigured: !!config && isStepCompleted(config, 'airport'),
     locationConfigured: !!config && isStepCompleted(config, 'location'),
   };
@@ -285,7 +294,8 @@ export function createOrientationRouter(deps: OrientationRouteDeps): express.Rou
     '/',
     validateBody(setupOrientationSchema),
     // Previews are taps on a radio card; only saves count as config writes.
-    (req, res, next) => ((req.body as { preview?: boolean }).preview ? next() : configWriteLimiter(req, res, next)),
+    (req, res, next) =>
+      (req.body as { preview?: boolean }).preview ? next() : configWriteLimiter(req, res, next),
     (req, res) => {
       const body = req.body as { orientation: MirrorOrientation; preview?: boolean };
       if (body.preview) {
@@ -318,7 +328,10 @@ export function createOrientationRouter(deps: OrientationRouteDeps): express.Rou
   return orientation;
 }
 
-router.use('/orientation', createOrientationRouter({ readConfig, writeConfig, preview: orientationPreview }));
+router.use(
+  '/orientation',
+  createOrientationRouter({ readConfig, writeConfig, preview: orientationPreview })
+);
 
 /**
  * Airport search/autocomplete endpoint (ICAO, IATA, name, city or keyword).

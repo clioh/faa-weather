@@ -120,8 +120,7 @@ export function Metric({ label, value, unit, className }: MetricProps) {
 export function Age({ at, stale }: { at: number | null; stale?: boolean }) {
   if (!at) return null;
   const minutes = Math.max(0, Math.round((Date.now() - at) / 60000));
-  const label =
-    minutes < 1 ? 'now' : minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 60)}h`;
+  const label = minutes < 1 ? 'now' : minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 60)}h`;
   return <span className={`mf-meta${stale ? ' stale' : ''}`}>{label}</span>;
 }
 

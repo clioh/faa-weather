@@ -29,13 +29,17 @@ export async function requireAdmin(req: VercelRequest, res: VercelResponse): Pro
   const sql = getDb()
   const bucket = `admin-auth-fail:${clientIp(req.headers)}`
   if (sql && (await rateLimitExceeded(sql, bucket, ADMIN_AUTH_FAILURES_PER_HOUR))) {
-    res.status(429).json({ status: 'rate_limited', error: 'Too many failed attempts. Try again in an hour.' })
+    res
+      .status(429)
+      .json({ status: 'rate_limited', error: 'Too many failed attempts. Try again in an hour.' })
     return false
   }
 
   const header = req.headers.authorization
   const ok =
-    typeof header === 'string' && header.startsWith('Bearer ') && secretsEqual(header.slice('Bearer '.length), password)
+    typeof header === 'string' &&
+    header.startsWith('Bearer ') &&
+    secretsEqual(header.slice('Bearer '.length), password)
   if (!ok) {
     if (sql) await rateLimit(sql, bucket, ADMIN_AUTH_FAILURES_PER_HOUR)
     res.status(401).json({ error: 'Unauthorized' })

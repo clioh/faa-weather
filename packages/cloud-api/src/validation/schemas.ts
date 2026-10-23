@@ -5,10 +5,19 @@ export const moduleConfigSchema = z.object({
   instanceId: z.string().uuid(),
   moduleType: z.string().min(1),
   position: z.enum([
-    'top_bar', 'top_left', 'top_center', 'top_right',
-    'upper_third', 'middle_center', 'lower_third',
-    'bottom_left', 'bottom_center', 'bottom_right', 'bottom_bar',
-    'fullscreen_above', 'fullscreen_below'
+    'top_bar',
+    'top_left',
+    'top_center',
+    'top_right',
+    'upper_third',
+    'middle_center',
+    'lower_third',
+    'bottom_left',
+    'bottom_center',
+    'bottom_right',
+    'bottom_bar',
+    'fullscreen_above',
+    'fullscreen_below',
   ]),
   config: z.record(z.string(), z.unknown()).optional(),
   disabled: z.boolean().optional(),
@@ -32,15 +41,17 @@ export const updateLayoutSchema = z.object({
 
 // Sync schemas
 export const syncPushSchema = z.object({
-  layouts: z.array(z.object({
-    id: z.string().uuid(),
-    name: z.string().min(1).max(100),
-    modules: modulesArraySchema,
-    isActive: z.boolean(),
-    version: z.number().int(),
-    updatedAt: z.string().datetime(),
-    deleted: z.boolean().optional(),
-  })),
+  layouts: z.array(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string().min(1).max(100),
+      modules: modulesArraySchema,
+      isActive: z.boolean(),
+      version: z.number().int(),
+      updatedAt: z.string().datetime(),
+      deleted: z.boolean().optional(),
+    })
+  ),
   lastSyncedAt: z.string().datetime().optional(),
 });
 
@@ -60,10 +71,12 @@ export const relayCommandSchema = z.object({
 export const userPreferencesSchema = z.object({
   theme: z.enum(['light', 'dark']).optional(),
   syncEnabled: z.boolean().optional(),
-  notifications: z.object({
-    mirrorOffline: z.boolean().optional(),
-    syncErrors: z.boolean().optional(),
-  }).optional(),
+  notifications: z
+    .object({
+      mirrorOffline: z.boolean().optional(),
+      syncErrors: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 // Type exports

@@ -7,14 +7,14 @@ with `npm run setup:dev`.
 
 ## What runs where
 
-| Service                                 | Port             | Started by             | Needed for                                   |
-| --------------------------------------- | ---------------- | ---------------------- | -------------------------------------------- |
-| Backend API + WebSocket                 | 3001             | `npm run dev`          | everything                                   |
-| Mirror UI (Vite)                        | 5173             | `npm run dev`          | watching the display                         |
-| Presence / admin server (Flask, camera) | 5000             | `npm run dev:admin`    | camera-based face enrollment, `/admin` page  |
-| Presence detector (OpenCV)              | -                | `npm run dev:e2e` / `npm run dev:detector` | real presence detection from the webcam; `dev:detector` adds a preview window |
-| Cloud API, website (incl. license API)  | 3003, 5174       | `npm run dev`          | optional; not part of mirror setup           |
-| Expo dev server (phone app, Metro)      | 8081             | `npm run dev:e2e`      | running the phone app from source in Expo Go |
+| Service                                 | Port       | Started by                                 | Needed for                                                                    |
+| --------------------------------------- | ---------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| Backend API + WebSocket                 | 3001       | `npm run dev`                              | everything                                                                    |
+| Mirror UI (Vite)                        | 5173       | `npm run dev`                              | watching the display                                                          |
+| Presence / admin server (Flask, camera) | 5000       | `npm run dev:admin`                        | camera-based face enrollment, `/admin` page                                   |
+| Presence detector (OpenCV)              | -          | `npm run dev:e2e` / `npm run dev:detector` | real presence detection from the webcam; `dev:detector` adds a preview window |
+| Cloud API, website (incl. license API)  | 3003, 5174 | `npm run dev`                              | optional; not part of mirror setup                                            |
+| Expo dev server (phone app, Metro)      | 8081       | `npm run dev:e2e`                          | running the phone app from source in Expo Go                                  |
 
 `npm run dev:mirror` starts only the backend and the mirror UI.
 `npm run dev:all` (`scripts/dev.sh`) starts the backend, UI, presence server
@@ -30,12 +30,12 @@ its database); the response is camelCase (`wifiConfigured`, `licenseActivated`,
 `locationConfigured`, `airportConfigured`, `faceEnrolled`, `setupComplete`,
 `step`). Steps in order:
 
-| Step     | Satisfied when                                                                                            | Written by (on a Pi)                           |
-| -------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| WiFi     | `packages/presence/face_data/.wifi_configured` exists                                                     | `wifi_provisioning.py` after joining a network |
-| License  | the license is activated (always, with `SKYGLASS_LICENSE=off`, which the `npm run dev*` scripts set)      | phone app via `POST /api/license/key`          |
-| Location | `config/config.yaml` lists `location` under `setup.completed`                                             | phone app via `POST /api/setup/location`       |
-| Airport  | `config/config.yaml` lists `airport` under `setup.completed`                                              | phone app via `POST /api/setup/airport`        |
+| Step     | Satisfied when                                                                                                    | Written by (on a Pi)                           |
+| -------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| WiFi     | `packages/presence/face_data/.wifi_configured` exists                                                             | `wifi_provisioning.py` after joining a network |
+| License  | the license is activated (always, with `SKYGLASS_LICENSE=off`, which the `npm run dev*` scripts set)              | phone app via `POST /api/license/key`          |
+| Location | `config/config.yaml` lists `location` under `setup.completed`                                                     | phone app via `POST /api/setup/location`       |
+| Airport  | `config/config.yaml` lists `airport` under `setup.completed`                                                      | phone app via `POST /api/setup/airport`        |
 | Face     | `face_data/users/<id>/encodings.pkl` (one encoding per sample; empty only if face_recognition was missing) exists | presence server after a capture session        |
 
 The display leaves the setup screen once `config/config.yaml` exists, the

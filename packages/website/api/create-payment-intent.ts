@@ -51,8 +51,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const sql = getDb()
-  if (sql && !(await rateLimit(sql, `payment-intent:${clientIp(req.headers)}`, PAYMENT_INTENTS_PER_HOUR))) {
-    return res.status(429).json({ error: 'Too many checkout attempts. Please try again in an hour.' })
+  if (
+    sql &&
+    !(await rateLimit(sql, `payment-intent:${clientIp(req.headers)}`, PAYMENT_INTENTS_PER_HOUR))
+  ) {
+    return res
+      .status(429)
+      .json({ error: 'Too many checkout attempts. Please try again in an hour.' })
   }
 
   const body = readJsonObject(req)
@@ -74,11 +79,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Tax is charged on the shipping address when anything ships, else on the billing ZIP.
-    const shippingBody = (body.shipping && typeof body.shipping === 'object' ? body.shipping : {}) as {
+    const shippingBody = (
+      body.shipping && typeof body.shipping === 'object' ? body.shipping : {}
+    ) as {
       name?: unknown
       address?: unknown
     }
-    const shippingName = typeof shippingBody.name === 'string' ? shippingBody.name.trim().slice(0, 200) : ''
+    const shippingName =
+      typeof shippingBody.name === 'string' ? shippingBody.name.trim().slice(0, 200) : ''
     const taxAddress = resolveTaxAddress(cart.ships, shippingBody.address, body.billingAddress)
     if (!taxAddress.ok) {
       return res.status(400).json({ error: taxAddress.error })
@@ -91,17 +99,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Promotion code: every restriction re-checked against the server subtotal.
     let promo: PromoDiscount | null = null
-    if (body.promotionCodeId !== undefined && body.promotionCodeId !== null && body.promotionCodeId !== '') {
+    if (
+      body.promotionCodeId !== undefined &&
+      body.promotionCodeId !== null &&
+      body.promotionCodeId !== ''
+    ) {
       if (typeof body.promotionCodeId !== 'string') {
         return res.status(400).json({ error: 'Invalid promo code' })
       }
-      const result = await evaluatePromotion(await retrievePromotionCode(stripe, body.promotionCodeId), {
-        subtotal: cart.subtotal,
-        email,
-        sql,
-      })
+      const result = await evaluatePromotion(
+        await retrievePromotionCode(stripe, body.promotionCodeId),
+        {
+          subtotal: cart.subtotal,
+          email,
+          sql,
+        }
+      )
       if (!result.ok) {
-        return res.status(400).json({ error: `${result.error}. Remove the code to continue.`, promoError: true })
+        return res
+          .status(400)
+          .json({ error: `${result.error}. Remove the code to continue.`, promoError: true })
       }
       promo = result.value
       console.log(`[Stripe] Applying promo "${promo.code}": -${formatUsd(promo.discountAmount)}`)
@@ -130,7 +147,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       taxSource = 'stripe_tax'
     } catch (taxError) {
       if (isTaxLocationError(taxError)) {
-        return res.status(400).json({ error: 'We could not verify that address for sales tax. Please check it.' })
+        return res
+          .status(400)
+          .json({ error: 'We could not verify that address for sales tax. Please check it.' })
       }
       console.error('[Stripe] Tax calculation failed, using fallback rate:', taxError)
       tax = Math.round(discountedSubtotal * FALLBACK_TAX_RATE)
@@ -139,7 +158,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const total = discountedSubtotal + cart.shippingCost + tax
     if (total < MIN_CHARGE_CENTS) {
-      return res.status(400).json({ error: `The order total must be at least ${formatUsd(MIN_CHARGE_CENTS)}.` })
+      return res
+        .status(400)
+        .json({ error: `The order total must be at least ${formatUsd(MIN_CHARGE_CENTS)}.` })
     }
 
     // Create or retrieve customer
@@ -186,7 +207,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     })
 
-    console.log(`[Stripe] PaymentIntent created: ${paymentIntent.id} for ${formatUsd(total)} (tax: ${taxSource})`)
+    console.log(
+      `[Stripe] PaymentIntent created: ${paymentIntent.id} for ${formatUsd(total)} (tax: ${taxSource})`
+    )
 
     return res.status(200).json({
       clientSecret: paymentIntent.client_secret,

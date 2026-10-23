@@ -106,14 +106,22 @@ router.post('/google/start', calendarConnectLimiter, body(googleStartSchema), as
   }
 });
 
-router.post('/google/complete', calendarConnectLimiter, body(googleCompleteSchema), async (req, res) => {
-  try {
-    const { account, created } = await calendarService.googleComplete(req.body.code, req.body.state);
-    res.status(created ? 201 : 200).json({ account });
-  } catch (error) {
-    sendError(res, error, 'Google sign-in failed');
+router.post(
+  '/google/complete',
+  calendarConnectLimiter,
+  body(googleCompleteSchema),
+  async (req, res) => {
+    try {
+      const { account, created } = await calendarService.googleComplete(
+        req.body.code,
+        req.body.state
+      );
+      res.status(created ? 201 : 200).json({ account });
+    } catch (error) {
+      sendError(res, error, 'Google sign-in failed');
+    }
   }
-});
+);
 
 // ---- Microsoft (device code; the backend polls in the background)
 

@@ -119,7 +119,7 @@ class MacDisplayController implements DisplayController {
 export type Runner = (
   file: string,
   args: string[],
-  options?: { input?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number },
+  options?: { input?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number }
 ) => Promise<string>;
 
 export const runCommand: Runner = (file, args, options = {}) =>
@@ -180,19 +180,25 @@ export interface ProbeOptions {
  *    so the session's socket is found in the runtime directory.
  * 3. X11: DPMS with xset on display :0.
  */
-export async function probeLinuxDisplay(options: ProbeOptions = {}): Promise<LinuxDisplayMethod | null> {
+export async function probeLinuxDisplay(
+  options: ProbeOptions = {}
+): Promise<LinuxDisplayMethod | null> {
   const run = options.run ?? runCommand;
   const env = options.env ?? process.env;
   const listDir = options.listDir ?? ((dir: string) => readdir(dir));
 
   try {
-    const answer = await run('cec-client', CEC_ARGS, { input: 'pow 0\n', timeoutMs: CEC_TIMEOUT_MS });
+    const answer = await run('cec-client', CEC_ARGS, {
+      input: 'pow 0\n',
+      timeoutMs: CEC_TIMEOUT_MS,
+    });
     if (/power status:\s*(on|standby|in transition)/i.test(answer)) return { kind: 'cec' };
   } catch {
     // cec-client missing or no CEC adapter
   }
 
-  const runtimeDir = options.runtimeDir ?? env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 1000}`;
+  const runtimeDir =
+    options.runtimeDir ?? env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 1000}`;
   let socket = env.WAYLAND_DISPLAY;
   if (!socket) {
     try {
@@ -237,17 +243,30 @@ function describe(method: LinuxDisplayMethod): string {
 function commandsFor(method: LinuxDisplayMethod, target: 'on' | 'off'): Command[] {
   switch (method.kind) {
     case 'cec': {
-      const cec = (input: string): Command => ['cec-client', CEC_ARGS, { input, timeoutMs: CEC_TIMEOUT_MS }];
+      const cec = (input: string): Command => [
+        'cec-client',
+        CEC_ARGS,
+        { input, timeoutMs: CEC_TIMEOUT_MS },
+      ];
       // "as" makes the Pi the active source, so the TV switches to its input.
       return target === 'on' ? [cec('on 0\n'), cec('as\n')] : [cec('standby 0\n')];
     }
     case 'wayland':
-      return [['wlr-randr', ['--output', method.output, target === 'on' ? '--on' : '--off'], { env: method.env }]];
+      return [
+        [
+          'wlr-randr',
+          ['--output', method.output, target === 'on' ? '--on' : '--off'],
+          { env: method.env },
+        ],
+      ];
     case 'x11':
       // Older X11 images: keep DPMS off except to force the display off, so
       // X never blanks the mirror on its own timer.
       return target === 'on'
-        ? [['xset', ['dpms', 'force', 'on'], { env: method.env }], ['xset', ['-dpms'], { env: method.env }]]
+        ? [
+            ['xset', ['dpms', 'force', 'on'], { env: method.env }],
+            ['xset', ['-dpms'], { env: method.env }],
+          ]
         : [['xset', ['+dpms', 'dpms', 'force', 'off'], { env: method.env }]];
   }
 }
@@ -269,7 +288,7 @@ export class LinuxDisplayController implements DisplayController {
   constructor(
     private readonly probe: () => Promise<LinuxDisplayMethod | null> = () => probeLinuxDisplay(),
     private readonly run: Runner = runCommand,
-    private readonly now: () => number = Date.now,
+    private readonly now: () => number = Date.now
   ) {}
 
   async init(): Promise<void> {
@@ -302,7 +321,7 @@ export class LinuxDisplayController implements DisplayController {
       console.log(
         this.method
           ? `Display control: ${describe(this.method)}`
-          : 'Display control: none yet (no CEC display answered, no Wayland or X11 session); will retry',
+          : 'Display control: none yet (no CEC display answered, no Wayland or X11 session); will retry'
       );
     })().finally(() => {
       this.probing = null;
@@ -313,7 +332,10 @@ export class LinuxDisplayController implements DisplayController {
   private async apply(target: 'on' | 'off'): Promise<void> {
     if (this.probing) {
       await this.probing;
-    } else if (!this.method && this.now() - this.lastProbe >= LinuxDisplayController.PROBE_RETRY_MS) {
+    } else if (
+      !this.method &&
+      this.now() - this.lastProbe >= LinuxDisplayController.PROBE_RETRY_MS
+    ) {
       await this.reprobe();
     }
     const method = this.method;

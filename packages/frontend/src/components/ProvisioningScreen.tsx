@@ -36,7 +36,7 @@ export function ProvisioningScreen({
     const checkStatus = async () => {
       try {
         const res = await fetch('/api/provisioning/status', {
-          signal: AbortSignal.timeout(3000)
+          signal: AbortSignal.timeout(3000),
         });
         const data = await res.json();
         if (data.wifiConfigured) {
@@ -72,7 +72,13 @@ export function ProvisioningScreen({
         <div className="sg-panel sg-first sg-hotspot__codes">
           <div className="sg-hotspot__code">
             <div className="sg-qr sg-qr--small" role="img" aria-label={`QR code to join ${ssid}`}>
-              <QRCodeSVG value={wifiQrValue} size={243} level="M" bgColor="#ffffff" fgColor="#000000" />
+              <QRCodeSVG
+                value={wifiQrValue}
+                size={243}
+                level="M"
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
             </div>
             <div className="sg-hotspot__text">
               <div className="sg-hotspot__step">01 · Connect to Wi-Fi</div>
@@ -85,7 +91,13 @@ export function ProvisioningScreen({
 
           <div className="sg-hotspot__code">
             <div className="sg-qr sg-qr--small" role="img" aria-label="QR code for the setup page">
-              <QRCodeSVG value={setupUrl} size={243} level="M" bgColor="#ffffff" fgColor="#000000" />
+              <QRCodeSVG
+                value={setupUrl}
+                size={243}
+                level="M"
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
             </div>
             <div className="sg-hotspot__text">
               <div className="sg-hotspot__step">02 · Open setup page</div>

@@ -130,10 +130,8 @@ describe('Astro Service', () => {
         const summer = manager.getForDate(new Date('2024-06-21'));
 
         // Summer days are longer (sunrise earlier, sunset later)
-        const winterDayLength =
-          winter.sun.sunset.getTime() - winter.sun.sunrise.getTime();
-        const summerDayLength =
-          summer.sun.sunset.getTime() - summer.sun.sunrise.getTime();
+        const winterDayLength = winter.sun.sunset.getTime() - winter.sun.sunrise.getTime();
+        const summerDayLength = summer.sun.sunset.getTime() - summer.sun.sunrise.getTime();
 
         expect(summerDayLength).toBeGreaterThan(winterDayLength);
       });

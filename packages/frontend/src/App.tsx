@@ -171,7 +171,7 @@ function App() {
       try {
         // Check if we're in provisioning mode (no WiFi)
         const provRes = await fetch('/api/provisioning/status', {
-          signal: AbortSignal.timeout(3000)
+          signal: AbortSignal.timeout(3000),
         });
         const provData = await provRes.json();
 
@@ -422,7 +422,10 @@ function App() {
       window.clearTimeout(registrationEndTimer.current);
       if (data.action === 'completed') {
         // `active` is already false: keep the overlay up for its welcome screen.
-        registrationEndTimer.current = window.setTimeout(() => setRegistrationMode(false), WELCOME_MS);
+        registrationEndTimer.current = window.setTimeout(
+          () => setRegistrationMode(false),
+          WELCOME_MS
+        );
       } else {
         setRegistrationMode(data.active);
       }
@@ -463,7 +466,6 @@ function App() {
     if (lastMessage.type === 'config') {
       setConfig(lastMessage.data as Config);
     }
-
   }, [lastMessage, currentUserId]);
 
   // Show loading while checking app mode
@@ -477,11 +479,7 @@ function App() {
 
   // Show provisioning screen (WiFi setup via QR code)
   if (appMode === 'provisioning') {
-    return (
-      <ProvisioningScreen
-        onConnected={() => setAppMode('setup')}
-      />
-    );
+    return <ProvisioningScreen onConnected={() => setAppMode('setup')} />;
   }
 
   // Registration takes over every screen past WiFi, setup included, so the
@@ -493,12 +491,7 @@ function App() {
   // Show setup progress screen if setup is needed
   // This shows on the mirror while user configures on phone
   if (appMode === 'setup') {
-    return (
-      <SetupProgressScreen
-        license={license}
-        onSetupComplete={handleSetupComplete}
-      />
-    );
+    return <SetupProgressScreen license={license} onSetupComplete={handleSetupComplete} />;
   }
 
   // Setup is done but the license isn't active: nothing else shows.
@@ -512,8 +505,8 @@ function App() {
         <div className="pairing-remote__content">
           <h1 className="pairing-remote__title">This display must run on the mirror itself</h1>
           <p className="pairing-remote__body">
-            The mirror only answers its own screen and paired phones. Open this page on the
-            mirror (http://localhost:3001), or use the SkyGlass app.
+            The mirror only answers its own screen and paired phones. Open this page on the mirror
+            (http://localhost:3001), or use the SkyGlass app.
           </p>
         </div>
       </div>

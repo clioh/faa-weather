@@ -105,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Stripe Elements already shows the decline in the checkout page, so
         // no email (it would also let card testers mail arbitrary addresses).
         console.log(
-          `[Webhook] Payment failed: ${event.data.object.id} (${event.data.object.last_payment_error?.code ?? 'unknown'})`,
+          `[Webhook] Payment failed: ${event.data.object.id} (${event.data.object.last_payment_error?.code ?? 'unknown'})`
         )
         break
 
@@ -210,7 +210,12 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
 
   // Count the promo code against its max_redemptions (PaymentIntents don't redeem codes).
   if (metadata.promotion_code_id) {
-    await recordPromoRedemption(sql, paymentIntent.id, metadata.promotion_code_id, metadata.coupon_id || null)
+    await recordPromoRedemption(
+      sql,
+      paymentIntent.id,
+      metadata.promotion_code_id,
+      metadata.coupon_id || null
+    )
   }
 
   // One license row per licensed unit. Idempotent on (order_id, order_seq):
@@ -220,9 +225,10 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     sql,
     paymentIntent.id,
     order.email,
-    planned.map((p) => ({ ...p, keyed: KEYED_AT_PURCHASE.includes(p.productId) })),
+    planned.map((p) => ({ ...p, keyed: KEYED_AT_PURCHASE.includes(p.productId) }))
   )
-  if (created.length > 0) console.log(`[Webhook] Created ${created.length} license(s) for ${paymentIntent.id}`)
+  if (created.length > 0)
+    console.log(`[Webhook] Created ${created.length} license(s) for ${paymentIntent.id}`)
   const plaintext = new Map(created.flatMap((c) => (c.key ? [[c.id, c.key] as const] : [])))
 
   // A refund or dispute may have been processed before this delivery
@@ -253,7 +259,9 @@ async function sendConfirmation(sql: Sql, order: OrderDetails, plaintext: Map<st
 
   const claimed = await claimUnemailedLicenses(sql, order.paymentIntentId)
   if (claimed.length === 0) {
-    console.log(`[Webhook] Nothing to email for ${order.paymentIntentId} (already sent, revoked, or being sent)`)
+    console.log(
+      `[Webhook] Nothing to email for ${order.paymentIntentId} (already sent, revoked, or being sent)`
+    )
     return
   }
 
@@ -269,7 +277,10 @@ async function sendConfirmation(sql: Sql, order: OrderDetails, plaintext: Map<st
       if (!key) {
         key = await assignNewKey(sql, row.id, row.key_hash ? 'pending-keyed' : 'unkeyed')
         if (key) console.log(`[Webhook] Rotated un-emailed key for ${row.id}`)
-        else console.warn(`[Webhook] Could not rotate key for ${row.id} (status ${row.status}); emailing without it`)
+        else
+          console.warn(
+            `[Webhook] Could not rotate key for ${row.id} (status ${row.status}); emailing without it`
+          )
       }
       if (key) licenses.keys.push(key)
     }
@@ -287,7 +298,9 @@ async function sendConfirmation(sql: Sql, order: OrderDetails, plaintext: Map<st
   }
 
   await markLicensesEmailed(sql, ids)
-  console.log(`[Webhook] Confirmation email sent for ${order.paymentIntentId} (${ids.length} license(s))`)
+  console.log(
+    `[Webhook] Confirmation email sent for ${order.paymentIntentId} (${ids.length} license(s))`
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -317,7 +330,12 @@ function revokeTargets(refunds: Stripe.Refund[]): { all: boolean; ids: string[] 
  * - otherwise revoke nothing and log a warning for support.
  * Idempotent: revoking only ever moves rows to 'revoked'.
  */
-async function applyChargeState(sql: Sql, charge: Stripe.Charge, orderId: string, metadata: Stripe.Metadata) {
+async function applyChargeState(
+  sql: Sql,
+  charge: Stripe.Charge,
+  orderId: string,
+  metadata: Stripe.Metadata
+) {
   if (charge.disputed) {
     const count = await revokeOrderLicenses(sql, orderId)
     console.log(`[Webhook] Dispute on ${charge.id}: revoked ${count} license(s) on ${orderId}`)
@@ -330,14 +348,18 @@ async function applyChargeState(sql: Sql, charge: Stripe.Charge, orderId: string
 
   if (targets.all) {
     const count = await revokeOrderLicenses(sql, orderId)
-    console.log(`[Webhook] Refund on ${charge.id} (revoke_licenses=all): revoked ${count} license(s) on ${orderId}`)
+    console.log(
+      `[Webhook] Refund on ${charge.id} (revoke_licenses=all): revoked ${count} license(s) on ${orderId}`
+    )
     return
   }
   if (targets.ids.length > 0) {
     const revoked = await revokeLicensesOnOrder(sql, orderId, targets.ids)
     console.log(
       `[Webhook] Refund on ${charge.id} (revoke_licenses=${targets.ids.join(',')}): revoked ${revoked.length} license(s) on ${orderId}` +
-        (revoked.length < targets.ids.length ? ' (others already revoked or not on this order)' : ''),
+        (revoked.length < targets.ids.length
+          ? ' (others already revoked or not on this order)'
+          : '')
     )
     return
   }
@@ -349,7 +371,7 @@ async function applyChargeState(sql: Sql, charge: Stripe.Charge, orderId: string
   if (charge.amount_refunded >= threshold) {
     const count = await revokeOrderLicenses(sql, orderId)
     console.log(
-      `[Webhook] Refund on ${charge.id} (${charge.amount_refunded}/${charge.amount}, shipping ${keptShipping} kept): revoked ${count} license(s) on ${orderId}`,
+      `[Webhook] Refund on ${charge.id} (${charge.amount_refunded}/${charge.amount}, shipping ${keptShipping} kept): revoked ${count} license(s) on ${orderId}`
     )
     return
   }
@@ -357,14 +379,16 @@ async function applyChargeState(sql: Sql, charge: Stripe.Charge, orderId: string
   console.warn(
     `[Webhook] Partial refund on order ${orderId} (charge ${charge.id}: ${charge.amount_refunded}/${charge.amount}): ` +
       'no licenses revoked. If a unit was returned, revoke its license with the admin API or set ' +
-      'revoke_licenses=<licenseId> on the refund (docs/LICENSING.md, "Refunds").',
+      'revoke_licenses=<licenseId> on the refund (docs/LICENSING.md, "Refunds").'
   )
 }
 
 async function applyChargeStateFor(charge: Stripe.Charge, reason: string) {
   const paymentIntentId = idOf(charge.payment_intent)
   if (!paymentIntentId) {
-    console.error(`[Webhook] ${reason}: no payment intent on charge ${charge.id}, cannot revoke licenses`)
+    console.error(
+      `[Webhook] ${reason}: no payment intent on charge ${charge.id}, cannot revoke licenses`
+    )
     return
   }
   const sql = requireDb()
@@ -565,13 +589,15 @@ function getOrderConfirmationEmailHtml(order: OrderDetails, licenses: OrderLicen
                   What's Next
                 </div>
                 <ul style="margin: 0; padding-left: 20px; color: #8a8a9a; font-size: 14px; line-height: 1.8;">
-                  ${order.shippingAddress
-                    ? `<li>We'll send tracking info when your order ships</li>
+                  ${
+                    order.shippingAddress
+                      ? `<li>We'll send tracking info when your order ships</li>
                   <li>Estimated delivery: 5-7 business days</li>
                   <li>Assembly guide included in your kit</li>`
-                    : `<li>Flash SkyGlass onto your Raspberry Pi's SD card</li>
+                      : `<li>Flash SkyGlass onto your Raspberry Pi's SD card</li>
                   <li>Open the SkyGlass app and follow setup on your mirror</li>
-                  <li>Enter your license key when the app asks for it</li>`}
+                  <li>Enter your license key when the app asks for it</li>`
+                  }
                 </ul>
               </div>
 

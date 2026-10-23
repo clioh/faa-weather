@@ -2,7 +2,18 @@ import { useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
 import { Navigation, CartDrawer, SiteFooter } from './components'
-import { Home, Privacy, Terms, Team, Checkout, CheckoutSuccess, NotFound, Admin, License, Invite } from './pages'
+import {
+  Home,
+  Privacy,
+  Terms,
+  Team,
+  Checkout,
+  CheckoutSuccess,
+  NotFound,
+  Admin,
+  License,
+  Invite,
+} from './pages'
 import { canPurchase } from './config/features'
 
 // /license?token=… is a sign-in link from email, and /invite#…&t=… carries a single-use

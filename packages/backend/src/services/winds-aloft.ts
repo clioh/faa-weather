@@ -74,12 +74,16 @@ export function resolveDayHourZ(token: string, now = new Date()): string | null 
   const [day, hour, minute] = [Number(m[1]), Number(m[2]), Number(m[3])];
   if (day < 1 || day > 31 || hour > 23 || minute > 59) return null;
   const candidates = [-1, 0, 1].map((offset) => {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, day, hour, minute));
+    const d = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, day, hour, minute)
+    );
     return d;
   });
   const valid = candidates.filter((d) => d.getUTCDate() === day);
   if (valid.length === 0) return null;
-  valid.sort((a, b) => Math.abs(a.getTime() - now.getTime()) - Math.abs(b.getTime() - now.getTime()));
+  valid.sort(
+    (a, b) => Math.abs(a.getTime() - now.getTime()) - Math.abs(b.getTime() - now.getTime())
+  );
   return valid[0].toISOString();
 }
 
@@ -132,11 +136,17 @@ export function distanceNm(lat1: number, lon1: number, lat2: number, lon2: numbe
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return 2 * 3440.065 * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-export function nearestStation(lat: number, lon: number, stations: FbStation[] = FB_STATIONS): FbStation {
+export function nearestStation(
+  lat: number,
+  lon: number,
+  stations: FbStation[] = FB_STATIONS
+): FbStation {
   let best = stations[0];
   let bestDist = Infinity;
   for (const s of stations) {
@@ -153,7 +163,10 @@ const AWC_REGION: Record<FbRegion, string> = { us: 'all', alaska: 'alaska', hawa
 
 const productCache = new TtlCache<string>(WINDS_CACHE_TTL_MS);
 
-async function getProduct(region: FbRegion, level: 'low' | 'high'): Promise<{ text: string; storedAt: number }> {
+async function getProduct(
+  region: FbRegion,
+  level: 'low' | 'high'
+): Promise<{ text: string; storedAt: number }> {
   const key = `${region}|${level}`;
   const result = await productCache.get(key, async () => {
     const url = `${AWC_WINDTEMP}?region=${AWC_REGION[region]}&level=${level}&fcst=06`;
@@ -173,7 +186,11 @@ export interface WindsAloftResult {
   fetchedAt: string;
 }
 
-export async function getWindsAloft(lat: number, lon: number, maxAltitude: number): Promise<WindsAloftResult> {
+export async function getWindsAloft(
+  lat: number,
+  lon: number,
+  maxAltitude: number
+): Promise<WindsAloftResult> {
   const station = nearestStation(lat, lon);
   const low = await getProduct(station.region, 'low');
   const lowParsed = parseFbProduct(low.text);

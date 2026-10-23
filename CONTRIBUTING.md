@@ -31,6 +31,7 @@ Thank you for your interest in contributing to SkyGlass! This document provides 
 ### Making Changes
 
 1. Create a new branch from `main`:
+
    ```bash
    git checkout -b feature/amazing-feature
    ```
@@ -38,22 +39,26 @@ Thank you for your interest in contributing to SkyGlass! This document provides 
 2. Make your changes
 
 3. Run tests:
+
    ```bash
    npm test
    ```
 
 4. Run linting:
+
    ```bash
    npm run lint
    npm run format
    ```
 
 5. Commit your changes:
+
    ```bash
    git commit -m 'Add amazing feature'
    ```
 
 6. Push to your fork:
+
    ```bash
    git push origin feature/amazing-feature
    ```
@@ -89,6 +94,7 @@ feat: add gesture recognition for display control
 ```
 
 Prefixes:
+
 - `feat:` - New feature
 - `fix:` - Bug fix
 - `docs:` - Documentation
@@ -138,6 +144,7 @@ npm test -- aviation
 - Mock external APIs
 
 Example:
+
 ```typescript
 describe('AviationService', () => {
   describe('getMetar', () => {
@@ -167,6 +174,7 @@ describe('AviationService', () => {
 ### PR Description
 
 Include:
+
 - What the change does
 - Why it's needed
 - How to test it
@@ -182,6 +190,7 @@ Include:
 ## Adding a New Widget
 
 1. Create the widget component and its styles (wrap it in `ModuleFrame` for the shared chrome):
+
    ```
    packages/frontend/src/components/modules/MyWidgetModule.tsx
    packages/frontend/src/components/modules/MyWidgetModule.css
@@ -193,6 +202,7 @@ Include:
    the phone's layout editor configures it from there
 
 4. Add backend service if needed:
+
    ```
    packages/backend/src/services/myservice.ts
    packages/backend/src/routes/myservice.ts
@@ -205,6 +215,7 @@ Include:
 ## Adding a New Backend Service
 
 1. Create the service:
+
    ```typescript
    // packages/backend/src/services/myservice.ts
    export async function getData(): Promise<MyData> {
@@ -213,6 +224,7 @@ Include:
    ```
 
 2. Create the route:
+
    ```typescript
    // packages/backend/src/routes/myservice.ts
    router.get('/', async (req, res) => {
@@ -230,6 +242,7 @@ Include:
 ### Bug Reports
 
 Include:
+
 - Clear description of the bug
 - Steps to reproduce
 - Expected vs actual behavior
@@ -239,6 +252,7 @@ Include:
 ### Feature Requests
 
 Include:
+
 - Clear description of the feature
 - Use case / why it's needed
 - Proposed implementation (if any)

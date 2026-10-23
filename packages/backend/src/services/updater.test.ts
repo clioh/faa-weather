@@ -18,7 +18,12 @@ import {
   CHECKSUM_MISMATCH_MESSAGE,
   VERIFY_FAILED_MESSAGE,
 } from './updater.js';
-import { STALL_MESSAGE, TRUNCATED_MESSAGE, parseChecksum, assertAllowedUrl } from './updateDownload.js';
+import {
+  STALL_MESSAGE,
+  TRUNCATED_MESSAGE,
+  parseChecksum,
+  assertAllowedUrl,
+} from './updateDownload.js';
 
 const VERSION = '2.0.0';
 const ASSET = `skyglass-v${VERSION}.tar.gz`;

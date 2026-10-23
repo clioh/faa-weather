@@ -1,0 +1,13 @@
+# Generated, vendored or data files: not formatted.
+package-lock.json
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/.expo/
+**/.turbo/
+packages/mobile/ios/
+packages/mobile/android/
+packages/website/storybook-static/
+packages/backend/data/
+data/

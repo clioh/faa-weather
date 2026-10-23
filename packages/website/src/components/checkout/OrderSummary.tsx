@@ -38,9 +38,18 @@ export function OrderSummary({
       {/* Items */}
       <ul className="pb-2">
         {items.map((item) => (
-          <li key={item.product.id} className="flex gap-4 py-4 border-b border-line last:border-b-0">
+          <li
+            key={item.product.id}
+            className="flex gap-4 py-4 border-b border-line last:border-b-0"
+          >
             <div className="w-14 h-14 rounded-xl border border-line bg-tint flex items-center justify-center flex-shrink-0">
-              <svg className="w-7 h-7 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <svg
+                className="w-7 h-7 text-fg-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
                 <rect x="3" y="2" width="18" height="20" rx="2" strokeWidth={1.5} />
                 <circle cx="18" cy="5" r="1.5" fill="currentColor" />
               </svg>
@@ -74,8 +83,19 @@ export function OrderSummary({
                   className="w-11 h-11 flex items-center justify-center rounded-full text-fg-3 hover:text-danger transition-colors"
                   aria-label="Remove promo code"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               )}

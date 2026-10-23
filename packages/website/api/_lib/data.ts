@@ -111,7 +111,12 @@ export interface DataDeps {
 
 const defaultLog: Logger = (category) => console.warn(`[data] ${category}`)
 
-function err(status: number, error: string, description?: string, headers: Record<string, string> = {}): HandlerResult {
+function err(
+  status: number,
+  error: string,
+  description?: string,
+  headers: Record<string, string> = {}
+): HandlerResult {
   return errorResult(status, error, description, { 'Cache-Control': CACHE.error, ...headers })
 }
 
@@ -129,7 +134,8 @@ function badRequest(description: string): { ok: false; result: HandlerResult } {
 
 /** Only `name` is allowed, exactly once. */
 function singleParam(params: URLSearchParams, name: string): string | { error: string } {
-  for (const key of params.keys()) if (key !== name) return { error: `Unknown parameter: only ${name} is accepted` }
+  for (const key of params.keys())
+    if (key !== name) return { error: `Unknown parameter: only ${name} is accepted` }
   const all = params.getAll(name)
   if (all.length === 0) return { error: `${name} is required` }
   if (all.length > 1) return { error: `${name} must be given once` }
@@ -150,12 +156,20 @@ export function parseSymbols(url: string | undefined): Parsed<string[]> {
   const { params } = parseQuery(url)
   const v = singleParam(params, 'symbols')
   if (typeof v !== 'string') return badRequest(v.error)
-  const parts = v.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean)
+  const parts = v
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean)
   if (parts.length === 0) return badRequest('symbols is required')
-  for (const s of parts) if (!SYMBOL_RE.test(s)) return badRequest('symbols contains an invalid symbol')
+  for (const s of parts)
+    if (!SYMBOL_RE.test(s)) return badRequest('symbols contains an invalid symbol')
   const symbols = [...new Set(parts)].sort()
   if (symbols.length > MAX_SYMBOLS) return badRequest(`At most ${MAX_SYMBOLS} symbols`)
-  return { ok: true, value: symbols, canonical: `symbols=${symbols.map(encodeURIComponent).join(',')}` }
+  return {
+    ok: true,
+    value: symbols,
+    canonical: `symbols=${symbols.map(encodeURIComponent).join(',')}`,
+  }
 }
 
 function redirectTo(path: string, canonical: string): HandlerResult {
@@ -173,7 +187,7 @@ function preflight<T>(
   parse: (url: string | undefined) => Parsed<T>,
   limiter: RateLimiter,
   log: Logger,
-  tag: string,
+  tag: string
 ): { ok: true; value: T } | { ok: false; result: HandlerResult } {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return { ok: false, result: err(405, 'method_not_allowed', undefined, { Allow: 'GET' }) }
@@ -181,11 +195,15 @@ function preflight<T>(
   const retry = limiter.hit(clientIp(req.headers, req.remoteAddress))
   if (retry) {
     log(`${tag} rate_limited`)
-    return { ok: false, result: err(429, 'rate_limited', 'Too many requests', { 'Retry-After': String(retry) }) }
+    return {
+      ok: false,
+      result: err(429, 'rate_limited', 'Too many requests', { 'Retry-After': String(retry) }),
+    }
   }
   const p = parse(req.url)
   if (!p.ok) return p
-  if (parseQuery(req.url).raw !== p.canonical) return { ok: false, result: redirectTo(path, p.canonical) }
+  if (parseQuery(req.url).raw !== p.canonical)
+    return { ok: false, result: redirectTo(path, p.canonical) }
   return { ok: true, value: p.value }
 }
 
@@ -223,7 +241,7 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
 async function upstreamJson(
   url: string,
   headers: Record<string, string>,
-  deps: DataDeps,
+  deps: DataDeps
 ): Promise<unknown> {
   const doFetch: FetchLike = deps.fetch ?? ((u, init) => fetch(u, init))
   const controller = new AbortController()
@@ -231,9 +249,16 @@ async function upstreamJson(
   try {
     let res: Response
     try {
-      res = await doFetch(url, { method: 'GET', headers: { Accept: 'application/json', ...headers }, signal: controller.signal, redirect: 'error' })
+      res = await doFetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json', ...headers },
+        signal: controller.signal,
+        redirect: 'error',
+      })
     } catch {
-      throw new UpstreamFailure(controller.signal.aborted ? 'upstream_timeout' : 'upstream_network_error')
+      throw new UpstreamFailure(
+        controller.signal.aborted ? 'upstream_timeout' : 'upstream_network_error'
+      )
     }
     if (res.status < 200 || res.status >= 300) {
       await res.body?.cancel().catch(() => undefined)
@@ -243,7 +268,11 @@ async function upstreamJson(
     try {
       text = await readCapped(res, MAX_UPSTREAM_BYTES)
     } catch (e) {
-      throw e instanceof UpstreamFailure ? e : new UpstreamFailure(controller.signal.aborted ? 'upstream_timeout' : 'upstream_read_error')
+      throw e instanceof UpstreamFailure
+        ? e
+        : new UpstreamFailure(
+            controller.signal.aborted ? 'upstream_timeout' : 'upstream_read_error'
+          )
     }
     try {
       return JSON.parse(text)
@@ -324,7 +353,9 @@ export function normalizeNotamItem(item: unknown, icao: string): NormalizedNotam
   if (!it) return null
   const core = obj(obj(it.properties)?.coreNOTAMData)
   const n = obj(core?.notam) ?? it
-  const translations = Array.isArray(core?.notamTranslation) ? (core!.notamTranslation as unknown[]).map(obj) : []
+  const translations = Array.isArray(core?.notamTranslation)
+    ? (core!.notamTranslation as unknown[]).map(obj)
+    : []
   const tr = (type: string, field: string) => {
     for (const t of translations) if (t && t.type === type) return s(t[field], MAX_NOTAM_TEXT)
     return null
@@ -370,7 +401,11 @@ export function buildFaaNotamUrl(faa: FaaEnv, icao: string): string {
 export const notamsLimiter = new RateLimiter(60, 60_000)
 
 /** Never let an unexpected throw escape a handler (and never log its message). */
-async function guard(tag: string, deps: DataDeps, fn: () => Promise<HandlerResult>): Promise<HandlerResult> {
+async function guard(
+  tag: string,
+  deps: DataDeps,
+  fn: () => Promise<HandlerResult>
+): Promise<HandlerResult> {
   try {
     return await fn()
   } catch {
@@ -379,13 +414,23 @@ async function guard(tag: string, deps: DataDeps, fn: () => Promise<HandlerResul
   }
 }
 
-export function handleNotamsRequest(req: DataRequestInput, deps: DataDeps = {}): Promise<HandlerResult> {
+export function handleNotamsRequest(
+  req: DataRequestInput,
+  deps: DataDeps = {}
+): Promise<HandlerResult> {
   return guard('notams', deps, () => notamsImpl(req, deps))
 }
 
 async function notamsImpl(req: DataRequestInput, deps: DataDeps): Promise<HandlerResult> {
   const log = deps.log ?? defaultLog
-  const pre = preflight(req, '/api/data/notams', parseIcao, deps.limiter ?? notamsLimiter, log, 'notams')
+  const pre = preflight(
+    req,
+    '/api/data/notams',
+    parseIcao,
+    deps.limiter ?? notamsLimiter,
+    log,
+    'notams'
+  )
   if (!pre.ok) return pre.result
   const icao = pre.value
 
@@ -397,7 +442,11 @@ async function notamsImpl(req: DataRequestInput, deps: DataDeps): Promise<Handle
 
   let raw: unknown
   try {
-    raw = await upstreamJson(buildFaaNotamUrl(faa, icao), { client_id: faa.clientId, client_secret: faa.clientSecret }, deps)
+    raw = await upstreamJson(
+      buildFaaNotamUrl(faa, icao),
+      { client_id: faa.clientId, client_secret: faa.clientSecret },
+      deps
+    )
   } catch (e) {
     log(`notams ${failureCategory(e)}`)
     return err(502, 'upstream_unavailable')
@@ -411,7 +460,10 @@ async function notamsImpl(req: DataRequestInput, deps: DataDeps): Promise<Handle
     .slice(0, NOTAM_PAGE_SIZE)
     .map((i) => normalizeNotamItem(i, icao))
     .filter((n): n is NormalizedNotam => n !== null)
-  const total = typeof root.totalCount === 'number' && Number.isFinite(root.totalCount) ? root.totalCount : notams.length
+  const total =
+    typeof root.totalCount === 'number' && Number.isFinite(root.totalCount)
+      ? root.totalCount
+      : notams.length
   const body: NotamsBody = {
     version: 1,
     icao,
@@ -419,7 +471,11 @@ async function notamsImpl(req: DataRequestInput, deps: DataDeps): Promise<Handle
     totalCount: total,
     notams,
   }
-  return { status: 200, body: body as unknown as Record<string, unknown>, headers: { 'Cache-Control': CACHE.notams } }
+  return {
+    status: 200,
+    body: body as unknown as Record<string, unknown>,
+    headers: { 'Cache-Control': CACHE.notams },
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -461,7 +517,15 @@ export function normalizeFinnhubQuote(symbol: string, body: unknown): Normalized
   const price = finite(b?.c)
   const prev = finite(b?.pc)
   if (!b || price === null || (price === 0 && (prev === null || prev === 0))) {
-    return { symbol, status: 'unknown_symbol', price: null, change: null, changePercent: null, previousClose: null, asOf: null }
+    return {
+      symbol,
+      status: 'unknown_symbol',
+      price: null,
+      change: null,
+      changePercent: null,
+      previousClose: null,
+      asOf: null,
+    }
   }
   let change = finite(b.d)
   if (change === null && prev !== null) change = price - prev
@@ -487,7 +551,11 @@ export function normalizeFinnhubProfile(symbol: string, body: unknown): Normaliz
   return { symbol, status: 'ok', name, currency: s(b?.currency, 8), exchange: s(b?.exchange, 120) }
 }
 
-async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
   const out: R[] = new Array(items.length)
   let next = 0
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -518,7 +586,7 @@ async function handleFinnhubBatch<T extends { status: ItemStatus }>(
     listKey: 'quotes' | 'profiles'
     cache: string
     cachePartial: string
-  },
+  }
 ): Promise<HandlerResult> {
   const log = deps.log ?? defaultLog
   const pre = preflight(req, opts.path, parseSymbols, opts.limiter, log, opts.tag)
@@ -534,7 +602,11 @@ async function handleFinnhubBatch<T extends { status: ItemStatus }>(
   const categories = new Set<string>()
   const items = await mapLimit(symbols, FINNHUB_CONCURRENCY, async (symbol) => {
     try {
-      const body = await upstreamJson(`${FINNHUB_BASE}${opts.upstreamPath(symbol)}`, finnhubHeaders(key), deps)
+      const body = await upstreamJson(
+        `${FINNHUB_BASE}${opts.upstreamPath(symbol)}`,
+        finnhubHeaders(key),
+        deps
+      )
       return opts.normalize(symbol, body)
     } catch (e) {
       categories.add(failureCategory(e))
@@ -546,7 +618,11 @@ async function handleFinnhubBatch<T extends { status: ItemStatus }>(
   if (failures === items.length) return err(502, 'upstream_unavailable')
   return {
     status: 200,
-    body: { version: 1, fetchedAt: (deps.now?.() ?? new Date()).toISOString(), [opts.listKey]: items },
+    body: {
+      version: 1,
+      fetchedAt: (deps.now?.() ?? new Date()).toISOString(),
+      [opts.listKey]: items,
+    },
     headers: { 'Cache-Control': failures > 0 ? opts.cachePartial : opts.cache },
   }
 }
@@ -554,32 +630,50 @@ async function handleFinnhubBatch<T extends { status: ItemStatus }>(
 export const stocksLimiter = new RateLimiter(120, 60_000)
 export const profilesLimiter = new RateLimiter(60, 60_000)
 
-export function handleStocksRequest(req: DataRequestInput, deps: DataDeps = {}): Promise<HandlerResult> {
-  return guard('stocks', deps, () => handleFinnhubBatch<NormalizedQuote>(req, deps, {
-    path: '/api/data/stocks',
-    tag: 'stocks',
-    limiter: deps.limiter ?? stocksLimiter,
-    upstreamPath: (sym) => `/quote?symbol=${encodeURIComponent(sym)}`,
-    normalize: normalizeFinnhubQuote,
-    failed: (symbol) => ({ symbol, status: 'error', price: null, change: null, changePercent: null, previousClose: null, asOf: null }),
-    listKey: 'quotes',
-    cache: CACHE.quotes,
-    cachePartial: CACHE.quotesPartial,
-  }))
+export function handleStocksRequest(
+  req: DataRequestInput,
+  deps: DataDeps = {}
+): Promise<HandlerResult> {
+  return guard('stocks', deps, () =>
+    handleFinnhubBatch<NormalizedQuote>(req, deps, {
+      path: '/api/data/stocks',
+      tag: 'stocks',
+      limiter: deps.limiter ?? stocksLimiter,
+      upstreamPath: (sym) => `/quote?symbol=${encodeURIComponent(sym)}`,
+      normalize: normalizeFinnhubQuote,
+      failed: (symbol) => ({
+        symbol,
+        status: 'error',
+        price: null,
+        change: null,
+        changePercent: null,
+        previousClose: null,
+        asOf: null,
+      }),
+      listKey: 'quotes',
+      cache: CACHE.quotes,
+      cachePartial: CACHE.quotesPartial,
+    })
+  )
 }
 
-export function handleStockProfilesRequest(req: DataRequestInput, deps: DataDeps = {}): Promise<HandlerResult> {
-  return guard('stock_profiles', deps, () => handleFinnhubBatch<NormalizedProfile>(req, deps, {
-    path: '/api/data/stock-profiles',
-    tag: 'stock_profiles',
-    limiter: deps.limiter ?? profilesLimiter,
-    upstreamPath: (sym) => `/stock/profile2?symbol=${encodeURIComponent(sym)}`,
-    normalize: normalizeFinnhubProfile,
-    failed: (symbol) => ({ symbol, status: 'error', name: null, currency: null, exchange: null }),
-    listKey: 'profiles',
-    cache: CACHE.profiles,
-    cachePartial: CACHE.quotesPartial,
-  }))
+export function handleStockProfilesRequest(
+  req: DataRequestInput,
+  deps: DataDeps = {}
+): Promise<HandlerResult> {
+  return guard('stock_profiles', deps, () =>
+    handleFinnhubBatch<NormalizedProfile>(req, deps, {
+      path: '/api/data/stock-profiles',
+      tag: 'stock_profiles',
+      limiter: deps.limiter ?? profilesLimiter,
+      upstreamPath: (sym) => `/stock/profile2?symbol=${encodeURIComponent(sym)}`,
+      normalize: normalizeFinnhubProfile,
+      failed: (symbol) => ({ symbol, status: 'error', name: null, currency: null, exchange: null }),
+      listKey: 'profiles',
+      cache: CACHE.profiles,
+      cachePartial: CACHE.quotesPartial,
+    })
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -594,7 +688,12 @@ export interface DataRequestLike {
 }
 
 export function toDataRequestInput(req: DataRequestLike): DataRequestInput {
-  return { method: req.method, url: req.url, headers: req.headers, remoteAddress: req.socket?.remoteAddress }
+  return {
+    method: req.method,
+    url: req.url,
+    headers: req.headers,
+    remoteAddress: req.socket?.remoteAddress,
+  }
 }
 
 /**

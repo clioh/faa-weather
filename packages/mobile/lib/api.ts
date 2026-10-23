@@ -97,7 +97,6 @@ export interface LicenseStatus {
   manageUrl: string;
 }
 
-
 export interface Airport {
   icao: string;
   name: string;
@@ -176,7 +175,14 @@ export interface RegistrationStatus {
   samplesNeeded: number;
   userName?: string | null;
   currentInstruction?: string;
-  action?: 'started' | 'guidance' | 'capture-start' | 'captured' | 'progress' | 'completed' | 'cancelled';
+  action?:
+    | 'started'
+    | 'guidance'
+    | 'capture-start'
+    | 'captured'
+    | 'progress'
+    | 'completed'
+    | 'cancelled';
   /** Latest hint from the presence server; null when idle and at the start of a session. */
   guidance?: { reason: RegistrationGuidanceReason; holdMs: number } | null;
 }
@@ -545,7 +551,10 @@ class MirrorAPI {
         }
       }
       if (mirrorId) await pairingStore.rememberAddress(host, port, mirrorId);
-      const entry: MirrorAuth = { mirrorId, token: await pairingStore.getToken(mirrorId, host, port) };
+      const entry: MirrorAuth = {
+        mirrorId,
+        token: await pairingStore.getToken(mirrorId, host, port),
+      };
       // An unreachable mirror is asked again on the next request.
       if (identified || entry.token) this.auth.set(key, entry);
       return entry;
@@ -572,7 +581,10 @@ class MirrorAPI {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  private async savePairingToken(reportedId: string | null | undefined, token: string): Promise<void> {
+  private async savePairingToken(
+    reportedId: string | null | undefined,
+    token: string
+  ): Promise<void> {
     const mirrorId = usableMirrorId(reportedId) ?? this.mirrorId;
     await pairingStore.setToken(mirrorId, this.host, this.port, token);
     const entry: MirrorAuth = { mirrorId, token };
@@ -596,7 +608,11 @@ class MirrorAPI {
    * the mirror may be offline), then drop the stored token whatever happened.
    * Works for any linked mirror, not just the current one, and never throws.
    */
-  async unpairMirror(mirror: { mirrorId: string | null; host: string; port: number }): Promise<void> {
+  async unpairMirror(mirror: {
+    mirrorId: string | null;
+    host: string;
+    port: number;
+  }): Promise<void> {
     const { host, port } = mirror;
     const mirrorId = usableMirrorId(mirror.mirrorId);
     const token = await pairingStore.getToken(mirrorId, host, port).catch(() => null);
@@ -740,9 +756,7 @@ class MirrorAPI {
     this.relocation = (async () => {
       try {
         const saved = await storage.getLinkedMirrors().catch(() => []);
-        const subnets = saved
-          .map((m) => subnetOf(m.host))
-          .filter((s): s is string => s !== null);
+        const subnets = saved.map((m) => subnetOf(m.host)).filter((s): s is string => s !== null);
         const found = await locateMirror(mirrorId, {
           lastHost,
           lastPort,
@@ -824,7 +838,10 @@ class MirrorAPI {
     // A failed token lookup never blocks the request; the mirror answers 401 instead.
     const token = isPublicEndpoint(endpoint)
       ? null
-      : await this.loadAuth().then((a) => a.token, () => null);
+      : await this.loadAuth().then(
+          (a) => a.token,
+          () => null
+        );
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -848,10 +865,13 @@ class MirrorAPI {
       if (!response.ok) {
         const error = await response.json().catch(() => ({ message: 'Request failed' }));
         const code =
-          typeof error?.status === 'string' ? error.status
-          : typeof error?.code === 'string' ? error.code
-          : typeof error?.error === 'string' && /^[a-z][a-z0-9_]*$/.test(error.error) ? error.error
-          : undefined;
+          typeof error?.status === 'string'
+            ? error.status
+            : typeof error?.code === 'string'
+              ? error.code
+              : typeof error?.error === 'string' && /^[a-z][a-z0-9_]*$/.test(error.error)
+                ? error.error
+                : undefined;
         const apiError = new ApiError(
           error?.message || error?.error || `HTTP ${response.status}`,
           response.status,
@@ -923,7 +943,9 @@ class MirrorAPI {
 
   /** Who the mirror thinks this phone is. Never opens the Pair screen. */
   async whoami(): Promise<PairingWhoAmI> {
-    return this.request('/api/pairing/whoami', {}, this.timeout, true, { skipPairingRedirect: true });
+    return this.request('/api/pairing/whoami', {}, this.timeout, true, {
+      skipPairingRedirect: true,
+    });
   }
 
   async getPairedDevices(): Promise<PairedDevice[]> {
@@ -954,7 +976,10 @@ class MirrorAPI {
   // FACE ENROLLMENT (session control; progress arrives over the WebSocket)
   // ============================================================
 
-  async startRegistration(userName: string, userId?: string): Promise<RegistrationStatus & { error?: string }> {
+  async startRegistration(
+    userName: string,
+    userId?: string
+  ): Promise<RegistrationStatus & { error?: string }> {
     return this.request('/api/registration/start', {
       method: 'POST',
       body: JSON.stringify({ userName, userId }),
@@ -1019,7 +1044,10 @@ class MirrorAPI {
    * preview: true turns the mirror to `orientation` and shows its "This way
    * up?" check without saving; otherwise it is saved and the check ends.
    */
-  async setOrientation(orientation: MirrorOrientation, preview = false): Promise<{ success: boolean }> {
+  async setOrientation(
+    orientation: MirrorOrientation,
+    preview = false
+  ): Promise<{ success: boolean }> {
     return this.request('/api/setup/orientation', {
       method: 'POST',
       body: JSON.stringify({ orientation, preview }),
@@ -1334,7 +1362,10 @@ class MirrorAPI {
     return res.accounts ?? [];
   }
 
-  async updateCalendarAccount(id: string, updates: CalendarAccountUpdate): Promise<CalendarAccount> {
+  async updateCalendarAccount(
+    id: string,
+    updates: CalendarAccountUpdate
+  ): Promise<CalendarAccount> {
     const res = await this.request<{ account: CalendarAccount }>(
       `/api/calendar/accounts/${encodeURIComponent(id)}`,
       { method: 'PATCH', body: JSON.stringify(updates) }
@@ -1343,7 +1374,9 @@ class MirrorAPI {
   }
 
   async deleteCalendarAccount(id: string): Promise<void> {
-    await this.request<void>(`/api/calendar/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await this.request<void>(`/api/calendar/accounts/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   }
 
   /** Sync now; the mirror also rediscovers the account's calendar list. */
@@ -1398,7 +1431,9 @@ class MirrorAPI {
 
   /** Flight duties in the mirror's current XLSX schedule (0 when none was uploaded). */
   async getFlightScheduleCount(): Promise<number> {
-    const res = await this.request<{ flightSchedule?: { eventsLoaded?: number } }>('/api/schedule/status');
+    const res = await this.request<{ flightSchedule?: { eventsLoaded?: number } }>(
+      '/api/schedule/status'
+    );
     return res.flightSchedule?.eventsLoaded ?? 0;
   }
 
@@ -1418,7 +1453,11 @@ class MirrorAPI {
    * "schedule", 10 MB max). A file the mirror can't read is a 400 and the
    * current schedule stays.
    */
-  async uploadFlightSchedule(uri: string, name: string, mimeType?: string): Promise<ScheduleUploadResult> {
+  async uploadFlightSchedule(
+    uri: string,
+    name: string,
+    mimeType?: string
+  ): Promise<ScheduleUploadResult> {
     const form = new FormData();
     // React Native's FormData takes a { uri, name, type } descriptor instead of a Blob.
     form.append('schedule', {
@@ -1426,7 +1465,11 @@ class MirrorAPI {
       name,
       type: mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     } as unknown as Blob);
-    return this.request<ScheduleUploadResult>('/api/schedule/upload', { method: 'POST', body: form }, 60000);
+    return this.request<ScheduleUploadResult>(
+      '/api/schedule/upload',
+      { method: 'POST', body: form },
+      60000
+    );
   }
 
   /** Remove the mirror's XLSX flight schedule (calendar accounts are untouched). */

@@ -3,9 +3,9 @@
 Every SkyGlass mirror needs a license. One license runs one mirror at a time.
 Customers get a license in two ways:
 
-| Purchase | How the key reaches the mirror |
-|----------|--------------------------------|
-| **Software License** (DIY hardware) | The key is emailed after checkout. The customer enters it in the phone app during setup. |
+| Purchase                                      | How the key reaches the mirror                                                                                                |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Software License** (DIY hardware)           | The key is emailed after checkout. The customer enters it in the phone app during setup.                                      |
 | **Hardware Kit / Complete Kit** (pre-flashed) | The key is written to the SD card at fulfilment. The mirror activates it on first boot and the customer never has to type it. |
 
 The license API runs on the marketing site's Vercel functions (`packages/website/api/license/*`)
@@ -42,7 +42,13 @@ with Neon Postgres. There is no separate license server.
 `base64url(payloadJson) + "." + base64url(ed25519Signature(payloadJsonBytes))`
 
 ```json
-{ "v": 1, "lid": "<license uuid>", "fp": "<device fingerprint>", "iat": 1761000000, "exp": 1763592000 }
+{
+  "v": 1,
+  "lid": "<license uuid>",
+  "fp": "<device fingerprint>",
+  "iat": 1761000000,
+  "exp": 1763592000
+}
 ```
 
 `iat` and `exp` are Unix seconds, with `exp = iat + 30 days`. The signing key is
@@ -58,14 +64,14 @@ A token is accepted when the signature verifies, `fp` equals this device's finge
 
 All bodies are JSON. Errors are `{ "status": "<code>", "message": "<human text>" }`.
 
-| Action | Body | Success | Failure statuses |
-|--------|------|---------|------------------|
-| `POST activate` | `{ licenseKey, deviceFingerprint, fingerprintType: "pi_serial"\|"machine_id", mirrorId?, appVersion? }` | `200 { status: "active", token, licenseId, keyLast4, activatedAt }`. Binds a `pending` license, or re-issues a token if already bound to the same fingerprint | `404 not_found`, `409 bound_to_another_device`, `403 revoked` |
-| `POST refresh` | `{ licenseKey, deviceFingerprint, appVersion? }` | `200 { status: "active", token, ... }` only if the license is bound to this fingerprint. **Never binds.** Updates `last_seen_at` | `404 not_found`, `409 released` (no longer bound to this device), `403 revoked` |
-| `POST manage-request` | `{ email }` | Always `200 { ok: true }`, and always after at least 1.5 s, so neither the answer nor its timing reveals whether the address has licenses. If licenses exist for that email, sends a sign-in link `https://skyglass.dev/license?token=…` valid for 30 minutes (HMAC with `LICENSE_MANAGE_SECRET`) | - |
-| `POST manage-list` | `{ token }` | `200 { email, licenses: [{ id, keyLast4, productId, status, mirrorId, activatedAt, lastSeenAt }], releasesRemaining }` | `401 invalid_token` |
-| `POST manage-release` | `{ token, licenseId }` | `200 { ok: true }`. Unbinds (status → `pending`) and records a release | `401`, `404`, `429 transfer_limit` |
-| `POST manage-reissue` | `{ token, licenseId }` | `200 { ok: true }`. Only for `pending` licenses: new key, old key dead, new key emailed | `401`, `404`, `409 bound` |
+| Action                | Body                                                                                                    | Success                                                                                                                                                                                                                                                                                           | Failure statuses                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `POST activate`       | `{ licenseKey, deviceFingerprint, fingerprintType: "pi_serial"\|"machine_id", mirrorId?, appVersion? }` | `200 { status: "active", token, licenseId, keyLast4, activatedAt }`. Binds a `pending` license, or re-issues a token if already bound to the same fingerprint                                                                                                                                     | `404 not_found`, `409 bound_to_another_device`, `403 revoked`                   |
+| `POST refresh`        | `{ licenseKey, deviceFingerprint, appVersion? }`                                                        | `200 { status: "active", token, ... }` only if the license is bound to this fingerprint. **Never binds.** Updates `last_seen_at`                                                                                                                                                                  | `404 not_found`, `409 released` (no longer bound to this device), `403 revoked` |
+| `POST manage-request` | `{ email }`                                                                                             | Always `200 { ok: true }`, and always after at least 1.5 s, so neither the answer nor its timing reveals whether the address has licenses. If licenses exist for that email, sends a sign-in link `https://skyglass.dev/license?token=…` valid for 30 minutes (HMAC with `LICENSE_MANAGE_SECRET`) | -                                                                               |
+| `POST manage-list`    | `{ token }`                                                                                             | `200 { email, licenses: [{ id, keyLast4, productId, status, mirrorId, activatedAt, lastSeenAt }], releasesRemaining }`                                                                                                                                                                            | `401 invalid_token`                                                             |
+| `POST manage-release` | `{ token, licenseId }`                                                                                  | `200 { ok: true }`. Unbinds (status → `pending`) and records a release                                                                                                                                                                                                                            | `401`, `404`, `429 transfer_limit`                                              |
+| `POST manage-reissue` | `{ token, licenseId }`                                                                                  | `200 { ok: true }`. Only for `pending` licenses: new key, old key dead, new key emailed                                                                                                                                                                                                           | `401`, `404`, `409 bound`                                                       |
 
 Rate limits are per IP: activate/refresh 30 per hour, manage-request 5 per hour (plus 5 sign-in
 emails per address per hour), create-payment-intent 20 per hour, failed admin sign-ins 10 per
@@ -79,6 +85,7 @@ Admin API: `GET|POST /api/admin/licenses` with `Authorization: Bearer $ADMIN_PAS
 with `api/admin/orders.ts` through `api/_lib/admin.ts`: `503` when `ADMIN_PASSWORD` is unset,
 constant-time comparison, and after 10 failed attempts from one IP in an hour every request from
 it gets `429` until the hour is over.
+
 - `GET ?email=|orderId=|licenseId=`: search.
 - `POST { action: "provision", licenseId }`: assigns a key to an unkeyed kit license and
   returns the plaintext once. `409 already_keyed` if it already has one.
@@ -112,10 +119,11 @@ existing database.
 `webhook.ts` on `payment_intent.succeeded` creates one license row per licensed unit (the quantity
 of each `software-license`, `hardware-kit` and `complete-kit` line). It inserts with
 `ON CONFLICT (order_id, order_seq) DO NOTHING`, so retries never duplicate rows.
+
 - `software-license` rows get a key immediately, and the key goes in the confirmation email.
 - Kit rows are created **unkeyed**. The email says the license comes pre-installed.
 - After inserting, it checks the PaymentIntent's latest charge: a refund or dispute that Stripe
-  delivered *before* this event succeeded is applied now (rules under "Refunds and disputes").
+  delivered _before_ this event succeeded is applied now (rules under "Refunds and disputes").
 - Confirmation email: every delivery emails the order's rows that have no `emailed_at` and aren't
   revoked, then sets `emailed_at`. The rows are claimed first (`email_claimed_at`, a 2-minute
   lease), so concurrent deliveries never both send. A software key whose plaintext was lost (a
@@ -141,7 +149,7 @@ Stripe events: `charge.refunded`, `refund.updated` (or `charge.refund.updated`),
   list of license ids, exactly those are revoked (ids not on the order are ignored). The
   threshold rule below is then skipped.
 - **Otherwise, a full return:** if `amount_refunded >= charge amount − shipping − tax on
-  shipping` (both from the PaymentIntent metadata), every license on the order is revoked. Per the
+shipping` (both from the PaymentIntent metadata), every license on the order is revoked. Per the
   Terms, a kit return refunds the product price and tax but not shipping, so this counts as a full
   return even though Stripe calls it a partial refund.
 - **Otherwise:** nothing is revoked and the webhook logs a warning naming the order.
@@ -161,14 +169,15 @@ Licenses):
    - in the Dashboard, open the refund and add metadata `revoke_licenses` = `<licenseId>` (several
      ids comma-separated). The `refund.updated` event revokes them; or
    - `POST /api/admin/licenses { "action": "revoke", "licenseId": "<id>" }`.
-   When creating the refund through the API or Stripe CLI, the metadata can be set at creation:
-   `stripe refunds create --charge ch_… --amount <cents> -d "metadata[revoke_licenses]=<licenseId>"`.
+     When creating the refund through the API or Stripe CLI, the metadata can be set at creation:
+     `stripe refunds create --charge ch_… --amount <cents> -d "metadata[revoke_licenses]=<licenseId>"`.
 4. A whole-order return (everything but shipping) needs no metadata: it revokes every license.
 
 ## Checkout (`api/create-payment-intent.ts`)
 
 The server computes every amount: prices from `shared/catalog.ts`, the promo discount, shipping,
 and sales tax.
+
 - **Tax:** a Stripe Tax calculation is created by `create-payment-intent` itself, from the
   catalog lines after the promo discount (split across lines in proportion to their totals),
   shipping as `shipping_cost`, and the address being charged (the shipping address for kit carts,
@@ -255,16 +264,16 @@ the right way up: `echo portrait-cw > /Volumes/bootfs/skyglass-orientation.txt` 
 - `POST /api/license/key` errors are `{ status, message, license }`. The `status` codes and their
   HTTP statuses are:
 
-  | Code | HTTP |
-  |------|------|
-  | `invalid_key` | 400 |
-  | `not_found` | 404 |
-  | `bound_to_another_device` | 409 |
-  | `revoked` | 403 |
-  | `rate_limited` | 429 |
-  | `network_error` (skyglass.dev unreachable) | 503 |
-  | `server_error` (bad token or unexpected reply) | 502 |
-  | `disabled` | 409 |
+  | Code                                           | HTTP |
+  | ---------------------------------------------- | ---- |
+  | `invalid_key`                                  | 400  |
+  | `not_found`                                    | 404  |
+  | `bound_to_another_device`                      | 409  |
+  | `revoked`                                      | 403  |
+  | `rate_limited`                                 | 429  |
+  | `network_error` (skyglass.dev unreachable)     | 503  |
+  | `server_error` (bad token or unexpected reply) | 502  |
+  | `disabled`                                     | 409  |
 
 - The mirror trusts a 4xx from the cloud only when the body carries a known status code. Any other
   4xx, every 5xx, and a 429 on `refresh` are treated as network errors, so they never downgrade a

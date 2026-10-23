@@ -24,7 +24,9 @@ export function StepProgress({ steps, labels, current, style }: StepProgressProp
     <View
       style={[styles.row, style]}
       accessibilityRole="progressbar"
-      accessibilityLabel={label ? `Step ${current + 1} of ${count}: ${label}` : `Step ${current + 1} of ${count}`}
+      accessibilityLabel={
+        label ? `Step ${current + 1} of ${count}: ${label}` : `Step ${current + 1} of ${count}`
+      }
       accessibilityValue={{ min: 0, max: count, now: current + 1 }}
     >
       {Array.from({ length: count }, (_, i) => {
@@ -33,7 +35,10 @@ export function StepProgress({ steps, labels, current, style }: StepProgressProp
           <View key={i} style={styles.step}>
             <View style={[styles.bar, styles[state]]} />
             {labels ? (
-              <Text style={[styles.label, state === 'current' && styles.labelCurrent]} numberOfLines={1}>
+              <Text
+                style={[styles.label, state === 'current' && styles.labelCurrent]}
+                numberOfLines={1}
+              >
                 {labels[i]}
               </Text>
             ) : null}

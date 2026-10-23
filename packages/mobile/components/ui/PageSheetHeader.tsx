@@ -24,7 +24,14 @@ interface PageSheetHeaderProps {
 
 const HIT = { top: 4, bottom: 4, left: 4, right: 4 };
 
-export function PageSheetHeader({ title, icon, onClose, closeLabel = 'Close', action, right }: PageSheetHeaderProps) {
+export function PageSheetHeader({
+  title,
+  icon,
+  onClose,
+  closeLabel = 'Close',
+  action,
+  right,
+}: PageSheetHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.side}>
@@ -57,7 +64,9 @@ export function PageSheetHeader({ title, icon, onClose, closeLabel = 'Close', ac
               accessibilityRole="button"
               accessibilityState={{ disabled: !!action.disabled }}
             >
-              <Text style={[styles.actionText, action.disabled && styles.actionDisabled]}>{action.label}</Text>
+              <Text style={[styles.actionText, action.disabled && styles.actionDisabled]}>
+                {action.label}
+              </Text>
             </Pressable>
           ) : null)}
       </View>

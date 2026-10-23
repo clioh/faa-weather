@@ -153,13 +153,40 @@ export function PairingCodeOverlay() {
           <div className="pairing-overlay__result-mark" aria-hidden="true">
             {view.result === 'paired' ? (
               <svg viewBox="0 0 48 48" width="100%" height="100%">
-                <circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M15 24.5l6 6 12-13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M15 24.5l6 6 12-13"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             ) : (
               <svg viewBox="0 0 48 48" width="100%" height="100%">
-                <circle cx="24" cy="24" r="22" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M16 24h16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M16 24h16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
               </svg>
             )}
           </div>

@@ -41,15 +41,21 @@ export function PasswordConnect({ provider, initialUsername, onConnected }: Pass
   const usernameRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const labelRef = useRef<TextInput>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ serverUrl?: string; username?: string; password?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    serverUrl?: string;
+    username?: string;
+    password?: string;
+  }>({});
 
   const submit = async () => {
     if (busy) return;
     const errs: typeof fieldErrors = {};
     if (!icloud && !serverUrl.trim()) errs.serverUrl = 'Enter your server’s address.';
     if (!username.trim()) errs.username = icloud ? 'Enter your Apple ID.' : 'Enter your username.';
-    else if (icloud && !username.includes('@')) errs.username = 'Your Apple ID is an email address.';
-    if (!password) errs.password = icloud ? 'Paste your app-specific password.' : 'Enter your password.';
+    else if (icloud && !username.includes('@'))
+      errs.username = 'Your Apple ID is an email address.';
+    if (!password)
+      errs.password = icloud ? 'Paste your app-specific password.' : 'Enter your password.';
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
 
@@ -84,12 +90,16 @@ export function PasswordConnect({ provider, initialUsername, onConnected }: Pass
         <View style={styles.explainer}>
           <Text style={styles.explainerTitle}>You’ll need an app-specific password</Text>
           <Text style={styles.explainerText}>
-            This is not your Apple ID password. It’s a separate password Apple creates just for SkyGlass, and you can
-            revoke it at any time.
+            This is not your Apple ID password. It’s a separate password Apple creates just for
+            SkyGlass, and you can revoke it at any time.
           </Text>
           <Text style={styles.explainerStep}>1. Sign in at account.apple.com</Text>
-          <Text style={styles.explainerStep}>2. Open Sign-In and Security, then App-Specific Passwords</Text>
-          <Text style={styles.explainerStep}>3. Create one named “SkyGlass” and paste it below</Text>
+          <Text style={styles.explainerStep}>
+            2. Open Sign-In and Security, then App-Specific Passwords
+          </Text>
+          <Text style={styles.explainerStep}>
+            3. Create one named “SkyGlass” and paste it below
+          </Text>
           <Button
             label="Open account.apple.com"
             variant="secondary"
@@ -101,7 +111,8 @@ export function PasswordConnect({ provider, initialUsername, onConnected }: Pass
         </View>
       ) : (
         <Text style={styles.lead}>
-          Use the CalDAV details from your calendar provider, such as Nextcloud, Fastmail or your own server.
+          Use the CalDAV details from your calendar provider, such as Nextcloud, Fastmail or your
+          own server.
         </Text>
       )}
 
@@ -186,8 +197,14 @@ export function PasswordConnect({ provider, initialUsername, onConnected }: Pass
 
       {error ? <Notice tone="error" message={error} /> : null}
 
-      <PrimaryButton label={icloud ? 'Connect iCloud' : 'Connect'} onPress={submit} loading={busy} />
-      {busy ? <Text style={styles.busy}>Checking with {icloud ? 'iCloud' : 'your server'}…</Text> : null}
+      <PrimaryButton
+        label={icloud ? 'Connect iCloud' : 'Connect'}
+        onPress={submit}
+        loading={busy}
+      />
+      {busy ? (
+        <Text style={styles.busy}>Checking with {icloud ? 'iCloud' : 'your server'}…</Text>
+      ) : null}
     </View>
   );
 }

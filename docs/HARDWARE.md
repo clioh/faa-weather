@@ -38,6 +38,7 @@ Before cutting or buying anything:
    - Location of inputs (HDMI, power)
 
 2. **Plan component placement:**
+
    ```
    ┌─────────────────────────────────────┐
    │            Two-Way Mirror           │
@@ -74,6 +75,7 @@ Before cutting or buying anything:
    - Set back ~1/4" from front edge
 
 3. **Assemble:**
+
    ```
    Front view:
    ┌──────────────────┐
@@ -246,6 +248,7 @@ cd ~/SkyGlass
 ```
 
 This will install (natively; there is no Docker image):
+
 - Node.js 20
 - Python 3 venv with face_recognition and OpenCV
 - PM2, running `skyglass-backend` (port 3001, also serves the display UI),
@@ -303,6 +306,7 @@ restarted if it exits. No panel or screen blanker runs behind the mirror. To get
 the normal desktop back for maintenance, delete that autostart file and reboot.
 
 Test it:
+
 ```bash
 sudo reboot
 ```
@@ -342,45 +346,45 @@ Only for lighter builds (<15 lbs).
 
 ### Display Issues
 
-| Problem | Solution |
-|---------|----------|
-| No display output | Check HDMI connection, try different cable |
-| Display too dim behind mirror | Increase monitor brightness to 100% |
-| Text hard to read | Adjust font sizes in frontend settings |
-| Screen flickering | Check power supply, try different outlet |
+| Problem                       | Solution                                   |
+| ----------------------------- | ------------------------------------------ |
+| No display output             | Check HDMI connection, try different cable |
+| Display too dim behind mirror | Increase monitor brightness to 100%        |
+| Text hard to read             | Adjust font sizes in frontend settings     |
+| Screen flickering             | Check power supply, try different outlet   |
 
 ### Camera Issues
 
-| Problem | Solution |
-|---------|----------|
-| Camera not detected | Check ribbon cable orientation and that you used the Pi 5 (22-pin) cable; `rpicam-hello --list-cameras` should list it |
-| Face not recognized | Register the face again from the phone app, in front of the mirror and in its usual lighting |
-| Slow recognition | Set `detection_method: opencv` in the `presence:` block of config.yaml (wakes for any face) |
+| Problem              | Solution                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Camera not detected  | Check ribbon cable orientation and that you used the Pi 5 (22-pin) cable; `rpicam-hello --list-cameras` should list it            |
+| Face not recognized  | Register the face again from the phone app, in front of the mirror and in its usual lighting                                      |
+| Slow recognition     | Set `detection_method: opencv` in the `presence:` block of config.yaml (wakes for any face)                                       |
 | Camera preview black | `pm2 logs skyglass-detector` shows which camera opened; see "Camera not working on Raspberry Pi" in `packages/presence/README.md` |
 
 ### Presence Detection Issues
 
-| Problem | Solution |
-|---------|----------|
-| Mirror won't turn on | Check a face is registered, then `pm2 logs skyglass-detector` (see `packages/presence/README.md`) |
+| Problem               | Solution                                                                                                                                                                                                                                                    |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mirror won't turn on  | Check a face is registered, then `pm2 logs skyglass-detector` (see `packages/presence/README.md`)                                                                                                                                                           |
 | Mirror won't turn off | Lower `presence.timeout` (detector) or `display.presence_timeout` in config.yaml. `pm2 logs skyglass-backend` shows `Display control: ...` at startup: a TV uses HDMI-CEC, a monitor has its HDMI output switched off and must be set to sleep on no signal |
-| Detects other people | Lower `presence.tolerance` in config.yaml (e.g. 0.5) |
-| Too sensitive | Increase `presence.min_detection_frames` in config.yaml |
+| Detects other people  | Lower `presence.tolerance` in config.yaml (e.g. 0.5)                                                                                                                                                                                                        |
+| Too sensitive         | Increase `presence.min_detection_frames` in config.yaml                                                                                                                                                                                                     |
 
 ### Network Issues
 
-| Problem | Solution |
-|---------|----------|
+| Problem                         | Solution                                                         |
+| ------------------------------- | ---------------------------------------------------------------- |
 | Phone app can't find the mirror | Check the Pi's IP with `hostname -I` and open `http://<ip>:3001` |
-| Aviation data not loading | Check internet, verify API endpoints |
-| WebSocket disconnecting | Check for network stability |
+| Aviation data not loading       | Check internet, verify API endpoints                             |
+| WebSocket disconnecting         | Check for network stability                                      |
 
 ### Heat Issues
 
-| Problem | Solution |
-|---------|----------|
-| Pi throttling | Add ventilation holes to frame |
-| Monitor too hot | Add small USB fan |
+| Problem         | Solution                                |
+| --------------- | --------------------------------------- |
+| Pi throttling   | Add ventilation holes to frame          |
+| Monitor too hot | Add small USB fan                       |
 | System unstable | Check CPU temp: `vcgencmd measure_temp` |
 
 ---
@@ -395,7 +399,7 @@ Only for lighter builds (<15 lbs).
 
 ### Updating Software
 
-Install updates from the display UI (*Download*, then *Install Now*) or from a shell:
+Install updates from the display UI (_Download_, then _Install Now_) or from a shell:
 
 ```bash
 cd ~/SkyGlass
@@ -405,7 +409,7 @@ npm run update                 # check and prompt
 ```
 
 Updates come from GitHub release tarballs; `config/config.yaml`, `data/` and
-registered faces are kept. Details in the README's *Updating* section.
+registered faces are kept. Details in the README's _Updating_ section.
 
 ---
 
@@ -418,4 +422,4 @@ registered faces are kept. Details in the README's *Updating* section.
 
 ---
 
-*Happy building! If you have questions, open an issue on GitHub.*
+_Happy building! If you have questions, open an issue on GitHub._

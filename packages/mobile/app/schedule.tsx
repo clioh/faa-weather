@@ -19,7 +19,16 @@ import * as Haptics from 'expo-haptics';
 import { ApiError, api, type FlightDuty } from '@/lib/api';
 import { colors, spacing, typography } from '@/lib/theme';
 import { ScreenHeader } from '@/components';
-import { Button, Footer, Notice, Row, RowGroup, SectionLabel, Spinner, Text } from '@/components/ui';
+import {
+  Button,
+  Footer,
+  Notice,
+  Row,
+  RowGroup,
+  SectionLabel,
+  Spinner,
+  Text,
+} from '@/components/ui';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 /** The mirror's upload limit (multer, routes/schedule.ts). */
@@ -45,7 +54,11 @@ function flightLabel(f: FlightDuty): string {
 }
 
 function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  return new Date(iso).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 function shortTime(iso: string): string {
@@ -61,16 +74,19 @@ function uploadErrorMessage(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 400) {
       // The mirror's parser messages are short and readable ("No flights found in the file").
-      const reason = e.message && !/^HTTP \d+$/.test(e.message) ? `${e.message.replace(/\.$/, '')}. ` : '';
+      const reason =
+        e.message && !/^HTTP \d+$/.test(e.message) ? `${e.message.replace(/\.$/, '')}. ` : '';
       return `${reason}Check that it’s an .xlsx file with a header row (Date, Flight, Dep, Arr…). Your current schedule hasn’t changed.`;
     }
     if (e.status === 404) {
       return 'This mirror’s software doesn’t support schedule uploads. Install the latest update on the mirror, then try again.';
     }
-    if (e.status === 413) return 'That file is too large. The mirror accepts schedules up to 10 MB.';
+    if (e.status === 413)
+      return 'That file is too large. The mirror accepts schedules up to 10 MB.';
     if (e.status === 429) return 'Too many uploads in the last hour. Try again later.';
     if (e.status === 503) return 'The mirror is still starting up. Try again in a minute.';
-    if (e.status === undefined) return 'Couldn’t reach the mirror. Check that your phone is on the same WiFi, then try again.';
+    if (e.status === undefined)
+      return 'Couldn’t reach the mirror. Check that your phone is on the same WiFi, then try again.';
   }
   return 'The mirror couldn’t read that file. Your current schedule hasn’t changed.';
 }
@@ -152,22 +168,26 @@ export default function ScheduleScreen() {
   };
 
   const remove = () => {
-    Alert.alert('Remove the schedule?', 'Your flights disappear from the mirror. Calendars stay as they are.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.clearFlightSchedule();
-            setResult(null);
-            await load();
-          } catch {
-            Alert.alert('Couldn’t remove', 'The mirror couldn’t remove the schedule. Try again.');
-          }
+    Alert.alert(
+      'Remove the schedule?',
+      'Your flights disappear from the mirror. Calendars stay as they are.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.clearFlightSchedule();
+              setResult(null);
+              await load();
+            } catch {
+              Alert.alert('Couldn’t remove', 'The mirror couldn’t remove the schedule. Try again.');
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const onRefresh = () => {
@@ -195,18 +215,29 @@ export default function ScheduleScreen() {
         <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
         <Text style={styles.emptyTitle}>Couldn’t load the schedule</Text>
         <Text style={styles.emptyText}>{loadError}</Text>
-        <Button label="Try again" variant="secondary" onPress={() => load()} style={styles.emptyButton} />
+        <Button
+          label="Try again"
+          variant="secondary"
+          onPress={() => load()}
+          style={styles.emptyButton}
+        />
       </View>
     );
   } else {
     body = (
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
       >
         <Text style={styles.intro}>
-          Upload the roster your airline’s crew system exports as an Excel file. Your flights show in the Schedule
-          widget, next to your calendars. A new upload replaces the old one.
+          Upload the roster your airline’s crew system exports as an Excel file. Your flights show
+          in the Schedule widget, next to your calendars. A new upload replaces the old one.
         </Text>
 
         {result ? (
@@ -219,7 +250,12 @@ export default function ScheduleScreen() {
           />
         ) : null}
         {uploadError ? (
-          <Notice tone="error" title="Couldn’t load that file" message={uploadError} onDismiss={() => setUploadError(null)} />
+          <Notice
+            tone="error"
+            title="Couldn’t load that file"
+            message={uploadError}
+            onDismiss={() => setUploadError(null)}
+          />
         ) : null}
 
         <View>
@@ -241,12 +277,19 @@ export default function ScheduleScreen() {
                   icon="airplane-outline"
                 />
               ) : (
-                <Row title="No upcoming flights" caption="Every flight in this schedule is in the past." />
+                <Row
+                  title="No upcoming flights"
+                  caption="Every flight in this schedule is in the past."
+                />
               )}
             </RowGroup>
           ) : (
             <RowGroup>
-              <Row icon="document-outline" title="No schedule uploaded" caption="Calendar events still show as usual." />
+              <Row
+                icon="document-outline"
+                title="No schedule uploaded"
+                caption="Calendar events still show as usual."
+              />
             </RowGroup>
           )}
         </View>
@@ -282,11 +325,10 @@ export default function ScheduleScreen() {
           <Text style={styles.helpText}>and, if your roster has them:</Text>
           <Text style={styles.helpMono}>Report · Release · Duty · Aircraft</Text>
           <Text style={styles.helpText}>
-            If your airline offers a calendar link (iCal or webcal) instead, add it under Calendars; it stays up to date
-            on its own.
+            If your airline offers a calendar link (iCal or webcal) instead, add it under Calendars;
+            it stays up to date on its own.
           </Text>
         </View>
-
       </ScrollView>
     );
   }
@@ -312,13 +354,29 @@ export default function ScheduleScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: 22 },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: 22,
+  },
   intro: { ...typography.bodySmall, color: colors.textSecondary },
   help: { gap: spacing.sm },
   helpText: { ...typography.bodySmall, color: colors.textSecondary },
   helpMono: { ...typography.mono, fontSize: 13, color: colors.text },
   emptyTitle: { ...typography.h3, color: colors.text, textAlign: 'center', marginTop: spacing.sm },
-  emptyText: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center', maxWidth: 320 },
+  emptyText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    maxWidth: 320,
+  },
   emptyButton: { marginTop: spacing.md, alignSelf: 'stretch' },
 });

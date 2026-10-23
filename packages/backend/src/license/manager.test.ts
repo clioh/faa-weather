@@ -60,7 +60,9 @@ function setup(
     const reply = replies.shift();
     if (!reply) throw new Error('no reply queued');
     if (reply instanceof Error) throw reply;
-    return new Response(reply.body === undefined ? 'oops' : JSON.stringify(reply.body), { status: reply.status });
+    return new Response(reply.body === undefined ? 'oops' : JSON.stringify(reply.body), {
+      status: reply.status,
+    });
   });
   const events: LicenseStatus[] = [];
   const manager = new LicenseManager({
@@ -83,8 +85,21 @@ function setup(
   });
   manager.onChange((s) => events.push(s));
   const token = (tokenFp = fp, iatMs = now) =>
-    makeToken(signer, { fp: tokenFp, iat: Math.floor(iatMs / 1000), exp: Math.floor(iatMs / 1000) + 30 * 86400 });
-  const ok = (t = token()) => ({ status: 200, body: { status: 'active', token: t, licenseId: 'lic-1', keyLast4: 'PQRS', activatedAt: '2026-10-01T00:00:00.000Z' } });
+    makeToken(signer, {
+      fp: tokenFp,
+      iat: Math.floor(iatMs / 1000),
+      exp: Math.floor(iatMs / 1000) + 30 * 86400,
+    });
+  const ok = (t = token()) => ({
+    status: 200,
+    body: {
+      status: 'active',
+      token: t,
+      licenseId: 'lic-1',
+      keyLast4: 'PQRS',
+      activatedAt: '2026-10-01T00:00:00.000Z',
+    },
+  });
   return {
     manager,
     replies,
@@ -113,7 +128,11 @@ afterEach(() => {
 describe('LicenseManager: activation', () => {
   it('starts unlicensed and activates an entered key', async () => {
     const t = setup();
-    expect(t.manager.getStatus()).toMatchObject({ enabled: true, state: 'unlicensed', manageUrl: `${SERVER}/license` });
+    expect(t.manager.getStatus()).toMatchObject({
+      enabled: true,
+      state: 'unlicensed',
+      manageUrl: `${SERVER}/license`,
+    });
     expect(t.manager.isActivated()).toBe(false);
 
     t.replies.push(t.ok());
@@ -128,7 +147,11 @@ describe('LicenseManager: activation', () => {
       appVersion: '1.0.0',
     });
     const status = t.manager.getStatus();
-    expect(status).toMatchObject({ state: 'active', keyLast4: 'PQRS', activatedAt: '2026-10-01T00:00:00.000Z' });
+    expect(status).toMatchObject({
+      state: 'active',
+      keyLast4: 'PQRS',
+      activatedAt: '2026-10-01T00:00:00.000Z',
+    });
     expect(status.expiresAt).toBe(new Date(T0 + 30 * DAY).toISOString());
     expect(t.saved()).toMatchObject({ license_key: KEY, state: 'active' });
     expect(t.events.at(-1)?.state).toBe('active');
@@ -144,7 +167,10 @@ describe('LicenseManager: activation', () => {
 
   it('409 bound_to_another_device → bound_elsewhere when nothing is active', async () => {
     const t = setup();
-    t.replies.push({ status: 409, body: { status: 'bound_to_another_device', message: 'Bound elsewhere' } });
+    t.replies.push({
+      status: 409,
+      body: { status: 'bound_to_another_device', message: 'Bound elsewhere' },
+    });
     const r = await t.manager.submitKey(KEY);
     expect(r).toMatchObject({ ok: false, code: 'bound_to_another_device', httpStatus: 409 });
     expect(t.manager.getStatus()).toMatchObject({ state: 'bound_elsewhere', keyLast4: 'PQRS' });
@@ -154,7 +180,11 @@ describe('LicenseManager: activation', () => {
   it('403 revoked → revoked', async () => {
     const t = setup();
     t.replies.push({ status: 403, body: { status: 'revoked', message: 'Revoked' } });
-    expect(await t.manager.submitKey(KEY)).toMatchObject({ ok: false, code: 'revoked', httpStatus: 403 });
+    expect(await t.manager.submitKey(KEY)).toMatchObject({
+      ok: false,
+      code: 'revoked',
+      httpStatus: 403,
+    });
     expect(t.manager.getStatus().state).toBe('revoked');
   });
 
@@ -177,7 +207,11 @@ describe('LicenseManager: activation', () => {
   it('passes rate_limited through as 429 and changes nothing', async () => {
     const t = setup();
     t.replies.push({ status: 429, body: { status: 'rate_limited', message: 'Slow down' } });
-    expect(await t.manager.submitKey(KEY)).toMatchObject({ ok: false, code: 'rate_limited', httpStatus: 429 });
+    expect(await t.manager.submitKey(KEY)).toMatchObject({
+      ok: false,
+      code: 'rate_limited',
+      httpStatus: 429,
+    });
     expect(t.manager.getStatus().state).toBe('unlicensed');
     expect(t.saved()).toBeNull();
   });
@@ -185,14 +219,22 @@ describe('LicenseManager: activation', () => {
   it('network error on activation → 503, state unchanged', async () => {
     const t = setup();
     t.replies.push(new TypeError('fetch failed'));
-    expect(await t.manager.submitKey(KEY)).toMatchObject({ ok: false, code: 'network_error', httpStatus: 503 });
+    expect(await t.manager.submitKey(KEY)).toMatchObject({
+      ok: false,
+      code: 'network_error',
+      httpStatus: 503,
+    });
     expect(t.manager.getStatus().state).toBe('unlicensed');
   });
 
   it('treats a 200 with a bad token as an error, not active', async () => {
     const t = setup();
     t.replies.push(t.ok(t.token('someone-else')));
-    expect(await t.manager.submitKey(KEY)).toMatchObject({ ok: false, code: 'server_error', httpStatus: 502 });
+    expect(await t.manager.submitKey(KEY)).toMatchObject({
+      ok: false,
+      code: 'server_error',
+      httpStatus: 502,
+    });
     const forged = makeToken(makeSigner(), { fp: FP, iat: T0 / 1000, exp: T0 / 1000 + 86400 });
     t.replies.push(t.ok(forged));
     expect(await t.manager.submitKey(KEY)).toMatchObject({ ok: false, code: 'server_error' });
@@ -301,7 +343,11 @@ describe('LicenseManager: refresh', () => {
 
   it('re-derives state from the stored token on load', () => {
     const signer = makeSigner();
-    const stale = makeToken(signer, { fp: FP, iat: T0 / 1000 - 40 * 86400, exp: T0 / 1000 - 10 * 86400 });
+    const stale = makeToken(signer, {
+      fp: FP,
+      iat: T0 / 1000 - 40 * 86400,
+      exp: T0 / 1000 - 10 * 86400,
+    });
     const t = setup({
       record: {
         license_key: KEY,
@@ -349,7 +395,11 @@ describe('LicenseManager: key file', () => {
       `${SERVER}/api/license/activate`,
     ]);
     expect(t.calls[1].body).toMatchObject({ licenseKey: KEY });
-    expect(t.manager.getStatus()).toMatchObject({ state: 'active', keyLast4: 'PQRS', keyFilePending: false });
+    expect(t.manager.getStatus()).toMatchObject({
+      state: 'active',
+      keyLast4: 'PQRS',
+      keyFilePending: false,
+    });
     expect(t.saved()?.license_key).toBe(KEY);
 
     // From now on only refresh is used.
@@ -440,7 +490,6 @@ describe('LicenseManager: disabled', () => {
     m.stop();
   });
 });
-
 
 describe('LicenseManager: key file timing and status', () => {
   let dir: string;
@@ -582,7 +631,11 @@ describe('LicenseManager: card or DB moved to another Pi', () => {
 
   function moved() {
     const signer = makeSigner();
-    const foreign = makeToken(signer, { fp: OTHER_FP, iat: T0 / 1000 - DAY / 1000, exp: T0 / 1000 + 29 * 86400 });
+    const foreign = makeToken(signer, {
+      fp: OTHER_FP,
+      iat: T0 / 1000 - DAY / 1000,
+      exp: T0 / 1000 + 29 * 86400,
+    });
     return setup({
       signer,
       record: {
@@ -622,10 +675,17 @@ describe('LicenseManager: card or DB moved to another Pi', () => {
 
   it('still bound to the other Pi → bound_elsewhere (not released), activated once', async () => {
     const t = moved();
-    t.replies.push({ status: 409, body: { status: 'bound_to_another_device', message: 'Bound elsewhere' } });
+    t.replies.push({
+      status: 409,
+      body: { status: 'bound_to_another_device', message: 'Bound elsewhere' },
+    });
     await t.manager.tick();
     expect(t.manager.getStatus()).toMatchObject({ state: 'bound_elsewhere', keyLast4: 'PQRS' });
-    expect(t.saved()).toMatchObject({ license_key: KEY, token: null, activated_at: '2026-09-01T00:00:00.000Z' });
+    expect(t.saved()).toMatchObject({
+      license_key: KEY,
+      token: null,
+      activated_at: '2026-09-01T00:00:00.000Z',
+    });
     expect(t.manager.isActivated()).toBe(true);
     t.advance(DAY);
     await t.manager.tick();
@@ -663,16 +723,19 @@ describe('LicenseManager: rejected keys keep an activated mirror out of setup', 
     [409, 'bound_to_another_device'],
     [403, 'revoked'],
     [404, 'not_found'],
-  ] as const)('released mirror + rejected key (%s %s) keeps the bound key and activated_at', async (status, code) => {
-    const t = await released();
-    t.replies.push({ status, body: { status: code, message: code } });
-    const r = await t.manager.submitKey('WXYZ-WXYZ-WXYZ-WXYZ');
-    expect(r).toMatchObject({ ok: false, code, httpStatus: status });
-    expect(t.saved()).toMatchObject({ license_key: KEY, state: 'released' });
-    expect(t.saved()?.activated_at).toBeTruthy();
-    expect(t.manager.isActivated()).toBe(true);
-    expect(t.manager.getStatus()).toMatchObject({ state: 'released', keyLast4: 'PQRS' });
-  });
+  ] as const)(
+    'released mirror + rejected key (%s %s) keeps the bound key and activated_at',
+    async (status, code) => {
+      const t = await released();
+      t.replies.push({ status, body: { status: code, message: code } });
+      const r = await t.manager.submitKey('WXYZ-WXYZ-WXYZ-WXYZ');
+      expect(r).toMatchObject({ ok: false, code, httpStatus: status });
+      expect(t.saved()).toMatchObject({ license_key: KEY, state: 'released' });
+      expect(t.saved()?.activated_at).toBeTruthy();
+      expect(t.manager.isActivated()).toBe(true);
+      expect(t.manager.getStatus()).toMatchObject({ state: 'released', keyLast4: 'PQRS' });
+    }
+  );
 
   it('revoked mirror + rejected key stays activated', async () => {
     const t = setup();

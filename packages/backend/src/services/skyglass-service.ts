@@ -35,7 +35,9 @@ export function normalizeServiceUrl(raw: unknown): string | null {
 }
 
 /** `skyglass_service` from config: unset/blank → default; invalid → null. */
-export function skyglassServiceUrl(config: Partial<Pick<Config, 'skyglass_service'>>): string | null {
+export function skyglassServiceUrl(
+  config: Partial<Pick<Config, 'skyglass_service'>>
+): string | null {
   const raw = config.skyglass_service;
   const unset = raw === undefined || raw === null || (typeof raw === 'string' && !raw.trim());
   return unset ? DEFAULT_SKYGLASS_SERVICE : normalizeServiceUrl(raw);
@@ -50,15 +52,23 @@ export function skyglassServiceUrl(config: Partial<Pick<Config, 'skyglass_servic
  * - rejected: 4xx (e.g. the service rejected the input)
  * - bad_response: 2xx that isn't JSON
  */
-export type ServiceFailure = 'invalid_config' | 'not_configured' | 'unreachable' | 'rate_limited' | 'rejected' | 'bad_response';
+export type ServiceFailure =
+  | 'invalid_config'
+  | 'not_configured'
+  | 'unreachable'
+  | 'rate_limited'
+  | 'rejected'
+  | 'bad_response';
 
-export type ServiceResult = { ok: true; json: unknown } | { ok: false; reason: ServiceFailure; status?: number };
+export type ServiceResult =
+  | { ok: true; json: unknown }
+  | { ok: false; reason: ServiceFailure; status?: number };
 
 /** GET `{base}{pathAndQuery}` as JSON. Never throws. */
 export async function getSkyglassJson(
   base: string | null,
   pathAndQuery: string,
-  opts: { timeoutMs?: number; maxBytes?: number } = {},
+  opts: { timeoutMs?: number; maxBytes?: number } = {}
 ): Promise<ServiceResult> {
   if (!base) return { ok: false, reason: 'invalid_config' };
   let res: Response;
@@ -84,10 +94,15 @@ export async function getSkyglassJson(
   } catch {
     json = null;
   }
-  if (res.ok) return json === null ? { ok: false, reason: 'bad_response', status: res.status } : { ok: true, json };
+  if (res.ok)
+    return json === null
+      ? { ok: false, reason: 'bad_response', status: res.status }
+      : { ok: true, json };
   const code = json && typeof json === 'object' ? (json as { error?: unknown }).error : undefined;
-  if (res.status === 503 && code === 'not_configured') return { ok: false, reason: 'not_configured', status: 503 };
+  if (res.status === 503 && code === 'not_configured')
+    return { ok: false, reason: 'not_configured', status: 503 };
   if (res.status === 429) return { ok: false, reason: 'rate_limited', status: 429 };
-  if (res.status >= 400 && res.status < 500) return { ok: false, reason: 'rejected', status: res.status };
+  if (res.status >= 400 && res.status < 500)
+    return { ok: false, reason: 'rejected', status: res.status };
   return { ok: false, reason: 'unreachable', status: res.status };
 }

@@ -8,7 +8,17 @@ import { View, StyleSheet, Modal, ScrollView, Alert, Keyboard } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
-import { Button, Field, Footer, Notice, PageSheetHeader, Row, RowGroup, Spinner, Text } from '@/components/ui';
+import {
+  Button,
+  Field,
+  Footer,
+  Notice,
+  PageSheetHeader,
+  Row,
+  RowGroup,
+  Spinner,
+  Text,
+} from '@/components/ui';
 import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
 
@@ -26,12 +36,7 @@ interface LocationPickerProps {
   onClose: () => void;
 }
 
-export function LocationPicker({
-  visible,
-  currentValue,
-  onSelect,
-  onClose,
-}: LocationPickerProps) {
+export function LocationPicker({ visible, currentValue, onSelect, onClose }: LocationPickerProps) {
   const [detecting, setDetecting] = useState(false);
   const [location, setLocation] = useState<LocationData | null>(currentValue || null);
   const [manualLat, setManualLat] = useState(currentValue?.latitude?.toString() || '');
@@ -165,7 +170,13 @@ export function LocationPicker({
             <RowGroup>
               {/* Detect Location Button */}
               <Row
-                leading={detecting ? <Spinner /> : <Ionicons name="locate-outline" size={22} color={colors.primary} />}
+                leading={
+                  detecting ? (
+                    <Spinner />
+                  ) : (
+                    <Ionicons name="locate-outline" size={22} color={colors.primary} />
+                  )
+                }
                 title={detecting ? 'Detecting...' : 'Detect My Location'}
                 caption="Use GPS to find your location"
                 onPress={detectLocation}
@@ -179,7 +190,11 @@ export function LocationPicker({
                 title="Enter coordinates manually"
                 onPress={() => setShowManual(!showManual)}
                 trailing={
-                  <Ionicons name={showManual ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+                  <Ionicons
+                    name={showManual ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color={colors.chevron}
+                  />
                 }
               />
             </RowGroup>
@@ -210,7 +225,12 @@ export function LocationPicker({
                     onSubmitEditing={handleManualSave}
                   />
                 </View>
-                <Button label="Apply Coordinates" variant="secondary" onPress={handleManualSave} style={styles.apply} />
+                <Button
+                  label="Apply Coordinates"
+                  variant="secondary"
+                  onPress={handleManualSave}
+                  style={styles.apply}
+                />
               </View>
             )}
 

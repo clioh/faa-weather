@@ -47,11 +47,7 @@ export function classifyError(error: unknown): ErrorType {
     const name = error.name.toLowerCase();
 
     // Timeout errors
-    if (
-      name === 'aborterror' ||
-      message.includes('timeout') ||
-      message.includes('aborted')
-    ) {
+    if (name === 'aborterror' || message.includes('timeout') || message.includes('aborted')) {
       return ErrorType.NETWORK_TIMEOUT;
     }
 
@@ -67,10 +63,7 @@ export function classifyError(error: unknown): ErrorType {
     }
 
     // Offline errors
-    if (
-      message.includes('offline') ||
-      message.includes('no internet')
-    ) {
+    if (message.includes('offline') || message.includes('no internet')) {
       return ErrorType.NETWORK_OFFLINE;
     }
 
@@ -102,19 +95,12 @@ export function classifyError(error: unknown): ErrorType {
     }
 
     // Not found errors
-    if (
-      message.includes('not found') ||
-      message.includes('404')
-    ) {
+    if (message.includes('not found') || message.includes('404')) {
       return ErrorType.NOT_FOUND;
     }
 
     // HTTP errors
-    if (
-      message.includes('http') ||
-      message.includes('status') ||
-      /\b[45]\d{2}\b/.test(message)
-    ) {
+    if (message.includes('http') || message.includes('status') || /\b[45]\d{2}\b/.test(message)) {
       return ErrorType.API_ERROR;
     }
   }
@@ -161,11 +147,7 @@ function extractErrorMessage(error: unknown): string {
 /**
  * Log error with context
  */
-export function logError(
-  context: string,
-  error: unknown,
-  extra?: Record<string, unknown>
-): void {
+export function logError(context: string, error: unknown, extra?: Record<string, unknown>): void {
   const errorType = classifyError(error);
   const message = extractErrorMessage(error);
 

@@ -41,7 +41,10 @@ app.set('trust proxy', 'loopback');
 /** A request as Express sees it, from socket peer `remote`. */
 function fakeReq(remote: string, headers: IncomingHttpHeaders = {}): express.Request {
   const req = Object.create(app.request) as express.Request & { app: express.Application };
-  Object.defineProperty(req, 'headers', { value: { host: 'localhost:3001', ...headers }, writable: true });
+  Object.defineProperty(req, 'headers', {
+    value: { host: 'localhost:3001', ...headers },
+    writable: true,
+  });
   Object.defineProperty(req, 'socket', { value: { remoteAddress: remote }, writable: true });
   Object.defineProperty(req, 'connection', { value: { remoteAddress: remote }, writable: true });
   req.app = app;
@@ -56,16 +59,36 @@ describe('loopback helpers', () => {
     for (const ip of ['127.0.0.1', '127.1.2.3', '::1', '::ffff:127.0.0.1', '[::1]']) {
       expect(isLoopbackAddress(ip), ip).toBe(true);
     }
-    for (const ip of ['192.168.1.20', '::ffff:192.168.1.20', '10.0.0.1', 'fe80::1', '127.0.0.1.evil', '', undefined]) {
+    for (const ip of [
+      '192.168.1.20',
+      '::ffff:192.168.1.20',
+      '10.0.0.1',
+      'fe80::1',
+      '127.0.0.1.evil',
+      '',
+      undefined,
+    ]) {
       expect(isLoopbackAddress(ip), String(ip)).toBe(false);
     }
   });
 
   it('accepts only loopback Host names (no DNS rebinding)', () => {
-    for (const h of ['localhost:3001', '127.0.0.1:3001', '[::1]:3001', 'LOCALHOST', 'mirror.localhost:5173']) {
+    for (const h of [
+      'localhost:3001',
+      '127.0.0.1:3001',
+      '[::1]:3001',
+      'LOCALHOST',
+      'mirror.localhost:5173',
+    ]) {
       expect(isLoopbackHost(h), h).toBe(true);
     }
-    for (const h of ['evil.example:3001', '192.168.1.20:3001', 'skyglass.local:3001', '', undefined]) {
+    for (const h of [
+      'evil.example:3001',
+      '192.168.1.20:3001',
+      'skyglass.local:3001',
+      '',
+      undefined,
+    ]) {
       expect(isLoopbackHost(h), String(h)).toBe(false);
     }
   });
@@ -101,7 +124,9 @@ describe('classification with trust proxy: loopback (Express req.ip)', () => {
 
   it('a LAN client forging XFF through the loopback proxy is still NOT local (rightmost untrusted hop)', () => {
     // Client sent "X-Forwarded-For: 127.0.0.1", the proxy appended its real address.
-    expect(fakeReq('127.0.0.1', { 'x-forwarded-for': '127.0.0.1, 192.168.1.50' }).ip).toBe('192.168.1.50');
+    expect(fakeReq('127.0.0.1', { 'x-forwarded-for': '127.0.0.1, 192.168.1.50' }).ip).toBe(
+      '192.168.1.50'
+    );
     expect(kindOf('127.0.0.1', { 'x-forwarded-for': '127.0.0.1, 192.168.1.50' })).toBe('none');
   });
 
@@ -155,6 +180,11 @@ describe('effectiveClientIp (WebSocket upgrades) matches Express req.ip', () => 
 
   it('classify() with the upgrade IP rejects a forged XFF', () => {
     const headers = { host: 'localhost:3001', 'x-forwarded-for': '127.0.0.1' };
-    expect(classify({ ip: effectiveClientIp('192.168.1.50', headers['x-forwarded-for']), headers }, devices).kind).toBe('none');
+    expect(
+      classify(
+        { ip: effectiveClientIp('192.168.1.50', headers['x-forwarded-for']), headers },
+        devices
+      ).kind
+    ).toBe('none');
   });
 });

@@ -26,7 +26,15 @@ interface BottomSheetProps {
   onDismissed?: () => void;
 }
 
-export function BottomSheet({ visible, onClose, title, body, children, closeLabel = 'Close', onDismissed }: BottomSheetProps) {
+export function BottomSheet({
+  visible,
+  onClose,
+  title,
+  body,
+  children,
+  closeLabel = 'Close',
+  onDismissed,
+}: BottomSheetProps) {
   const insets = useSafeAreaInsets();
 
   // Modal's onDismiss is iOS-only; elsewhere the modal is gone as soon as
@@ -48,7 +56,10 @@ export function BottomSheet({ visible, onClose, title, body, children, closeLabe
       {/* Padding on Android too: edge-to-edge windows don't resize for the keyboard. */}
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel={closeLabel}>
-          <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) + 18 }]} onPress={() => {}}>
+          <Pressable
+            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) + 18 }]}
+            onPress={() => {}}
+          >
             <View style={styles.grabber} />
             {title || body ? (
               <View style={styles.heading}>

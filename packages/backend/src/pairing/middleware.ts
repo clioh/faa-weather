@@ -38,7 +38,10 @@ export function getAuth(res: Response): AuthInfo {
   return (res.locals.auth as AuthInfo | undefined) ?? { kind: 'none', deviceId: null };
 }
 
-export function classifyExpressRequest(req: Request, authenticateDevice: DeviceAuthenticator): AuthInfo {
+export function classifyExpressRequest(
+  req: Request,
+  authenticateDevice: DeviceAuthenticator
+): AuthInfo {
   // req.ip honours X-Forwarded-For only from loopback hops (trust proxy: 'loopback').
   return classify({ ip: req.ip, headers: req.headers }, authenticateDevice);
 }

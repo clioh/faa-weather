@@ -95,9 +95,13 @@ export function parseCloudNotams(json: unknown, icao: string): NotamData[] | nul
 }
 
 /** Fetch NOTAMs for an airport from the SkyGlass service. Never throws. */
-export async function fetchNotamsResult(icaoRaw: string, base?: string | null): Promise<NotamFetchResult> {
+export async function fetchNotamsResult(
+  icaoRaw: string,
+  base?: string | null
+): Promise<NotamFetchResult> {
   const icao = (icaoRaw || '').trim().toUpperCase();
-  if (!ICAO_RE.test(icao)) return { ok: false, reason: 'invalid_icao', message: notamUnavailableMessage('invalid_icao') };
+  if (!ICAO_RE.test(icao))
+    return { ok: false, reason: 'invalid_icao', message: notamUnavailableMessage('invalid_icao') };
   let serviceBase = base;
   if (serviceBase === undefined) {
     try {
@@ -106,10 +110,14 @@ export async function fetchNotamsResult(icaoRaw: string, base?: string | null): 
       serviceBase = null;
     }
   }
-  const res = await getSkyglassJson(serviceBase, `/api/data/notams?icao=${icao}`, { maxBytes: 1024 * 1024 });
-  if (!res.ok) return { ok: false, reason: res.reason, message: notamUnavailableMessage(res.reason) };
+  const res = await getSkyglassJson(serviceBase, `/api/data/notams?icao=${icao}`, {
+    maxBytes: 1024 * 1024,
+  });
+  if (!res.ok)
+    return { ok: false, reason: res.reason, message: notamUnavailableMessage(res.reason) };
   const notams = parseCloudNotams(res.json, icao);
-  if (!notams) return { ok: false, reason: 'bad_response', message: notamUnavailableMessage('bad_response') };
+  if (!notams)
+    return { ok: false, reason: 'bad_response', message: notamUnavailableMessage('bad_response') };
   return { ok: true, notams };
 }
 
@@ -121,7 +129,15 @@ export async function fetchNotams(icao: string): Promise<NotamData[]> {
   return [];
 }
 
-export const NOTAM_CATEGORIES = ['runway', 'taxiway', 'obstacle', 'airspace', 'navaid', 'approach', 'other'] as const;
+export const NOTAM_CATEGORIES = [
+  'runway',
+  'taxiway',
+  'obstacle',
+  'airspace',
+  'navaid',
+  'approach',
+  'other',
+] as const;
 export type NotamCategory = (typeof NOTAM_CATEGORIES)[number];
 
 const CATEGORY_KEYWORDS: Array<[Exclude<NotamCategory, 'other'>, string[]]> = [
@@ -129,13 +145,19 @@ const CATEGORY_KEYWORDS: Array<[Exclude<NotamCategory, 'other'>, string[]]> = [
   ['taxiway', ['TWY', 'TAXIWAY', 'TAXIWAYS']],
   ['obstacle', ['OBST', 'OBSTACLE', 'OBSTACLES', 'CRANE', 'CRANES', 'TOWER', 'TOWERS']],
   ['airspace', ['AIRSPACE', 'TFR', 'PJE']],
-  ['navaid', ['NAV', 'NAVAID', 'VOR', 'VORTAC', 'VOR/DME', 'ILS', 'LOC', 'GS', 'DME', 'NDB', 'TACAN']],
+  [
+    'navaid',
+    ['NAV', 'NAVAID', 'VOR', 'VORTAC', 'VOR/DME', 'ILS', 'LOC', 'GS', 'DME', 'NDB', 'TACAN'],
+  ],
   ['approach', ['APCH', 'APPROACH', 'IAP', 'SID', 'STAR', 'ODP']],
 ];
 
 const KEYWORD_PATTERNS = CATEGORY_KEYWORDS.map(([category, words]) => ({
   category,
-  re: new RegExp(`(?<![A-Z0-9])(?:${words.map((w) => w.replace('/', '\\/')).join('|')})(?![A-Z0-9])`, 'g'),
+  re: new RegExp(
+    `(?<![A-Z0-9])(?:${words.map((w) => w.replace('/', '\\/')).join('|')})(?![A-Z0-9])`,
+    'g'
+  ),
 }));
 
 /**
@@ -159,10 +181,7 @@ export function classifyNotam(text: string): NotamCategory {
  * navaid, approach, other). Values that are not a known category fall back
  * to matching the FAA classification/type codes (e.g. "FDC").
  */
-export function filterNotamsByCategory(
-  notams: NotamData[],
-  categories: string[]
-): NotamData[] {
+export function filterNotamsByCategory(notams: NotamData[], categories: string[]): NotamData[] {
   const wanted = categories.map((c) => c.trim().toLowerCase()).filter(Boolean);
   if (wanted.length === 0) {
     return notams;
@@ -175,7 +194,8 @@ export function filterNotamsByCategory(
       derived.includes(classifyNotam(notam.description)) ||
       codes.some(
         (code) =>
-          notam.classification.toUpperCase().includes(code) || notam.type.toUpperCase().includes(code)
+          notam.classification.toUpperCase().includes(code) ||
+          notam.type.toUpperCase().includes(code)
       )
   );
 }
@@ -199,7 +219,10 @@ export function filterActiveNotams(notams: NotamData[]): NotamData[] {
  * logged once per change, not on every request.
  */
 export class NotamDataManager {
-  private cache: Map<string, { notams: NotamData[]; fetchedAt: number; ok: boolean; goodAt: number | null }> = new Map();
+  private cache: Map<
+    string,
+    { notams: NotamData[]; fetchedAt: number; ok: boolean; goodAt: number | null }
+  > = new Map();
   private lastWarning = new Map<string, string>();
   readonly TTL_MS = 30 * 60 * 1000;
   readonly FAILURE_TTL_MS = 5 * 60 * 1000;
@@ -207,8 +230,9 @@ export class NotamDataManager {
   readonly MAX_STALE_MS = 6 * 60 * 60 * 1000;
 
   constructor(
-    private readonly fetcher: (icao: string) => Promise<NotamFetchResult> = (icao) => fetchNotamsResult(icao),
-    private readonly now: () => number = Date.now,
+    private readonly fetcher: (icao: string) => Promise<NotamFetchResult> = (icao) =>
+      fetchNotamsResult(icao),
+    private readonly now: () => number = Date.now
   ) {}
 
   async getNotams(icao: string, forceRefresh = false): Promise<NotamData[]> {
@@ -221,7 +245,12 @@ export class NotamDataManager {
 
     const result = await this.fetcher(key);
     if (result.ok) {
-      this.cache.set(key, { notams: result.notams, fetchedAt: this.now(), ok: true, goodAt: this.now() });
+      this.cache.set(key, {
+        notams: result.notams,
+        fetchedAt: this.now(),
+        ok: true,
+        goodAt: this.now(),
+      });
       this.lastWarning.delete(key);
       return result.notams;
     }
@@ -232,7 +261,12 @@ export class NotamDataManager {
     const goodAt = cached?.goodAt ?? null;
     const fresh = goodAt !== null && this.now() - goodAt < this.MAX_STALE_MS;
     const fallback = fresh ? cached!.notams : [];
-    this.cache.set(key, { notams: fallback, fetchedAt: this.now(), ok: false, goodAt: fresh ? goodAt : null });
+    this.cache.set(key, {
+      notams: fallback,
+      fetchedAt: this.now(),
+      ok: false,
+      goodAt: fresh ? goodAt : null,
+    });
     return fallback;
   }
 

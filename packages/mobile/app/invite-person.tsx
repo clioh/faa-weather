@@ -36,7 +36,9 @@ export default function InvitePersonScreen() {
     try {
       const invite = await api.createInvite(userId);
       const { host, port } = api.getConnectionState();
-      setLink(inviteLink({ host, port, token: invite.token, personName, mirrorName: invite.mirrorName }));
+      setLink(
+        inviteLink({ host, port, token: invite.token, personName, mirrorName: invite.mirrorName })
+      );
       setExpiresAt(invite.expiresAt);
     } catch (err) {
       setLink(null);
@@ -62,16 +64,24 @@ export default function InvitePersonScreen() {
   };
 
   const validUntil = expiresAt
-    ? new Date(expiresAt).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+    ? new Date(expiresAt).toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+      })
     : null;
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={`Invite ${personName}`} leftIcon="close" onLeftPress={() => goBack('/settings')} />
+      <ScreenHeader
+        title={`Invite ${personName}`}
+        leftIcon="close"
+        onLeftPress={() => goBack('/settings')}
+      />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          {personName}’s face is registered. Send them this invite so they can install SkyGlass and choose what the
-          mirror shows them.
+          {personName}’s face is registered. Send them this invite so they can install SkyGlass and
+          choose what the mirror shows them.
         </Text>
 
         {loading ? (
@@ -83,16 +93,30 @@ export default function InvitePersonScreen() {
         ) : link ? (
           <>
             {/* Dark modules on white so any phone camera reads it. */}
-            <View style={styles.qrCard} accessible accessibilityLabel={`Invite QR code for ${personName}`}>
-              <QRCode value={link} size={QR_SIZE} color="#000000" backgroundColor="#FFFFFF" ecl="M" />
+            <View
+              style={styles.qrCard}
+              accessible
+              accessibilityLabel={`Invite QR code for ${personName}`}
+            >
+              <QRCode
+                value={link}
+                size={QR_SIZE}
+                color="#000000"
+                backgroundColor="#FFFFFF"
+                ecl="M"
+              />
             </View>
             <View style={styles.steps}>
-              <Text style={styles.step}>In person: they scan this code with their phone’s camera.</Text>
+              <Text style={styles.step}>
+                In person: they scan this code with their phone’s camera.
+              </Text>
               <Text style={styles.step}>Elsewhere: share the link by Messages or email.</Text>
               <Text style={styles.step}>They need to be on this home WiFi when they open it.</Text>
             </View>
             {validUntil && (
-              <Text style={styles.caption}>Works once, until {validUntil}. A new invite cancels this one.</Text>
+              <Text style={styles.caption}>
+                Works once, until {validUntil}. A new invite cancels this one.
+              </Text>
             )}
           </>
         ) : null}

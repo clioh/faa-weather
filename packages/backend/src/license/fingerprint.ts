@@ -81,9 +81,13 @@ function byPreference(names: string[]): string[] {
  */
 function primaryMac(sysClassNet = '/sys/class/net'): string | null {
   try {
-    const physical = readdirSync(sysClassNet).filter((n) => existsSync(join(sysClassNet, n, 'device')));
+    const physical = readdirSync(sysClassNet).filter((n) =>
+      existsSync(join(sysClassNet, n, 'device'))
+    );
     for (const name of byPreference(physical)) {
-      const mac = readText(join(sysClassNet, name, 'address'))?.trim().toLowerCase();
+      const mac = readText(join(sysClassNet, name, 'address'))
+        ?.trim()
+        .toLowerCase();
       if (mac && mac !== ZERO_MAC) return mac;
     }
   } catch {
@@ -91,7 +95,9 @@ function primaryMac(sysClassNet = '/sys/class/net'): string | null {
   }
   const interfaces = networkInterfaces();
   for (const name of byPreference(Object.keys(interfaces))) {
-    const mac = (interfaces[name] ?? []).find((a) => !a.internal && a.mac && a.mac !== ZERO_MAC)?.mac;
+    const mac = (interfaces[name] ?? []).find(
+      (a) => !a.internal && a.mac && a.mac !== ZERO_MAC
+    )?.mac;
     if (mac) return mac.toLowerCase();
   }
   return null;

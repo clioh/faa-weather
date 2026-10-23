@@ -90,7 +90,12 @@ export function RadarModule({ config, latitude, longitude, timezone }: ModulePro
   } else if (loading) {
     content = <ModuleLoading />;
   } else if (!data || frames.length === 0) {
-    content = <ModuleError title="Radar unavailable" hint={error ? 'Retrying automatically' : 'No radar frames'} />;
+    content = (
+      <ModuleError
+        title="Radar unavailable"
+        hint={error ? 'Retrying automatically' : 'No radar frames'}
+      />
+    );
   } else {
     content = (
       <div className="radar">
@@ -172,7 +177,12 @@ function RadarCanvas({ lat, lon, zoom, host, frames, frame }: CanvasProps) {
     for (let ty = Math.floor(-originY / tile); ty * tile + originY < size.h; ty++) {
       if (ty < 0 || ty >= n) continue;
       for (let tx = Math.floor(-originX / tile); tx * tile + originX < size.w; tx++) {
-        tiles.push({ x: ((tx % n) + n) % n, y: ty, px: tx * tile + originX, py: ty * tile + originY });
+        tiles.push({
+          x: ((tx % n) + n) % n,
+          y: ty,
+          px: tx * tile + originX,
+          py: ty * tile + originY,
+        });
       }
     }
     return { tile, tiles };
@@ -209,11 +219,13 @@ function RadarCanvas({ lat, lon, zoom, host, frames, frame }: CanvasProps) {
 
     // A failed tile has no pixels and is skipped, leaving black glass.
     const draw = (img: HTMLImageElement, px: number, py: number) => {
-      if (img.complete && img.naturalWidth > 0) ctx.drawImage(img, px, py, layout.tile, layout.tile);
+      if (img.complete && img.naturalWidth > 0)
+        ctx.drawImage(img, px, py, layout.tile, layout.tile);
     };
     for (const t of layout.tiles) draw(image(BASEMAP(zoom, t.x, t.y)), t.px, t.py);
     ctx.globalAlpha = 0.8;
-    for (const t of layout.tiles) draw(image(RADAR_TILE(host, frame.path, zoom, t.x, t.y)), t.px, t.py);
+    for (const t of layout.tiles)
+      draw(image(RADAR_TILE(host, frame.path, zoom, t.x, t.y)), t.px, t.py);
     ctx.globalAlpha = 1;
 
     const cx = size.w / 2;

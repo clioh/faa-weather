@@ -15,7 +15,8 @@ import { colors, spacing, borderRadius, typography, fonts } from '@/lib/theme';
 import { InlineError } from '../ErrorToast';
 import { fieldStyles, TOUCH } from './fieldStyles';
 
-const errorText = (e: unknown, fallback: string) => (e instanceof Error ? `${fallback}: ${e.message}` : fallback);
+const errorText = (e: unknown, fallback: string) =>
+  e instanceof Error ? `${fallback}: ${e.message}` : fallback;
 
 export function TodoManager() {
   const [items, setItems] = useState<TodoItem[]>([]);
@@ -119,58 +120,66 @@ export function TodoManager() {
           <View style={styles.header}>
             <SectionLabel style={styles.headerLabel}>Items</SectionLabel>
             <Text style={styles.count}>
-              {items.length === 0 ? 'Nothing on the list.' : `${openCount} open · ${items.length - openCount} done`}
+              {items.length === 0
+                ? 'Nothing on the list.'
+                : `${openCount} open · ${items.length - openCount} done`}
             </Text>
           </View>
           <View style={items.length > 0 ? styles.rows : null}>
-          {items.map((item, index) => (
-            <View key={item.id} style={styles.row}>
-              <TouchableOpacity
-                style={styles.check}
-                onPress={() => toggle(item)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: item.done }}
-                accessibilityLabel={item.text}
-              >
-                <View style={[styles.box, item.done && styles.boxDone]}>
-                  {item.done ? <Ionicons name="checkmark" size={14} color={colors.onPrimary} /> : null}
-                </View>
-              </TouchableOpacity>
-              <Text style={[styles.text, item.done && styles.textDone]} numberOfLines={3}>
-                {item.text}
-              </Text>
-              <TouchableOpacity
-                style={styles.smallButton}
-                onPress={() => move(index, -1)}
-                disabled={index === 0}
-                accessibilityRole="button"
-                accessibilityLabel={`Move ${item.text} up`}
-              >
-                <Ionicons name="chevron-up" size={18} color={index === 0 ? colors.textDisabled : colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.smallButton}
-                onPress={() => move(index, 1)}
-                disabled={index === items.length - 1}
-                accessibilityRole="button"
-                accessibilityLabel={`Move ${item.text} down`}
-              >
-                <Ionicons
-                  name="chevron-down"
-                  size={18}
-                  color={index === items.length - 1 ? colors.textDisabled : colors.textSecondary}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.smallButton}
-                onPress={() => remove(item)}
-                accessibilityRole="button"
-                accessibilityLabel={`Delete ${item.text}`}
-              >
-                <Ionicons name="close" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-          ))}
+            {items.map((item, index) => (
+              <View key={item.id} style={styles.row}>
+                <TouchableOpacity
+                  style={styles.check}
+                  onPress={() => toggle(item)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: item.done }}
+                  accessibilityLabel={item.text}
+                >
+                  <View style={[styles.box, item.done && styles.boxDone]}>
+                    {item.done ? (
+                      <Ionicons name="checkmark" size={14} color={colors.onPrimary} />
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+                <Text style={[styles.text, item.done && styles.textDone]} numberOfLines={3}>
+                  {item.text}
+                </Text>
+                <TouchableOpacity
+                  style={styles.smallButton}
+                  onPress={() => move(index, -1)}
+                  disabled={index === 0}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Move ${item.text} up`}
+                >
+                  <Ionicons
+                    name="chevron-up"
+                    size={18}
+                    color={index === 0 ? colors.textDisabled : colors.textSecondary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.smallButton}
+                  onPress={() => move(index, 1)}
+                  disabled={index === items.length - 1}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Move ${item.text} down`}
+                >
+                  <Ionicons
+                    name="chevron-down"
+                    size={18}
+                    color={index === items.length - 1 ? colors.textDisabled : colors.textSecondary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.smallButton}
+                  onPress={() => remove(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${item.text}`}
+                >
+                  <Ionicons name="close" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
         </>
       )}
@@ -198,7 +207,9 @@ export function TodoManager() {
           {adding ? (
             <Spinner />
           ) : (
-            <Text style={[styles.addButtonText, !draft.trim() && styles.addButtonTextDisabled]}>Add</Text>
+            <Text style={[styles.addButtonText, !draft.trim() && styles.addButtonTextDisabled]}>
+              Add
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -229,7 +240,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.hairline,
   },
-  check: { width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center', marginLeft: -12 },
+  check: {
+    width: TOUCH,
+    height: TOUCH,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -12,
+  },
   box: {
     width: 20,
     height: 20,

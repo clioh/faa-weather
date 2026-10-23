@@ -19,14 +19,24 @@ function resend(): Resend | null {
 }
 
 /** Send an email. Returns false (and logs) on any failure; never throws. */
-export async function sendEmail(opts: { from?: string; to: string; subject: string; html: string }): Promise<boolean> {
+export async function sendEmail(opts: {
+  from?: string
+  to: string
+  subject: string
+  html: string
+}): Promise<boolean> {
   const r = resend()
   if (!r) {
     console.error('[Email] RESEND_API_KEY not configured, not sending:', opts.subject)
     return false
   }
   try {
-    const { error } = await r.emails.send({ from: opts.from ?? ORDERS_FROM, to: opts.to, subject: opts.subject, html: opts.html })
+    const { error } = await r.emails.send({
+      from: opts.from ?? ORDERS_FROM,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+    })
     if (error) {
       console.error('[Email] Send failed:', error)
       return false
@@ -104,7 +114,7 @@ export function licenseKeysHtml(keys: string[]): string {
       (key) => `
         <div style="color: #f5a623; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 2px; padding: 6px 0;">
           ${escapeHtml(key)}
-        </div>`,
+        </div>`
     )
     .join('')
   return `
@@ -136,9 +146,11 @@ export function preinstalledLicenseHtml(kitCount: number): string {
       <table role="presentation" style="width: 100%; background-color: #1a1a24; border: 1px solid #2a2a3a; border-radius: 8px;">
         <tr>
           <td style="padding: 20px; color: #8a8a9a; font-size: 14px; line-height: 1.6; text-align: center;">
-            ${kitCount > 1
-              ? 'Your SkyGlass licenses come pre-installed on the SD cards in your kits.'
-              : 'Your SkyGlass license comes pre-installed on the SD card in your kit.'}
+            ${
+              kitCount > 1
+                ? 'Your SkyGlass licenses come pre-installed on the SD cards in your kits.'
+                : 'Your SkyGlass license comes pre-installed on the SD card in your kit.'
+            }
             The mirror activates it automatically the first time it connects to WiFi. There is no key to type.
           </td>
         </tr>
@@ -166,7 +178,7 @@ export function manageSignInEmailHtml(link: string): string {
     </table>
     <p style="margin: 24px 0 0; color: #5a5a6a; font-size: 12px; text-align: center;">
       If you didn't ask for this, you can ignore this email.
-    </p>`,
+    </p>`
   )
 }
 
@@ -178,6 +190,6 @@ export function reissuedKeyEmailHtml(key: string): string {
     <p style="margin: 0; color: #8a8a9a; font-size: 15px; text-align: center; line-height: 1.6;">
       You asked for a new SkyGlass license key. Your previous key no longer works.
     </p>
-    ${licenseKeysHtml([key])}`,
+    ${licenseKeysHtml([key])}`
   )
 }

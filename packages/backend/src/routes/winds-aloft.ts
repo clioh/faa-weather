@@ -12,7 +12,11 @@ import { upstreamErrorResponse } from '../services/upstream.js';
 const router = Router();
 
 router.get('/', validateQuery(windsAloftQuerySchema), async (req, res) => {
-  const { lat, lon, maxAltitude } = req.query as unknown as { lat: number; lon: number; maxAltitude: number };
+  const { lat, lon, maxAltitude } = req.query as unknown as {
+    lat: number;
+    lon: number;
+    maxAltitude: number;
+  };
   try {
     res.json(await getWindsAloft(lat, lon, maxAltitude));
   } catch (error) {

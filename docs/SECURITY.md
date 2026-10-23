@@ -6,10 +6,10 @@ mirror's settings or take over its admin portal.
 
 ## Processes and ports
 
-| Process | Port | Reachable from | Notes |
-| ------- | ---- | -------------- | ----- |
-| Backend (Node, `packages/backend`) | 3001 | LAN | Mirror UI, REST API, WebSocket. Every API route and the WebSocket need a trusted caller: the device itself (loopback), the internal token, or a paired phone. See "Port 3001". |
-| Presence/admin server (Flask + gunicorn, `packages/presence/web_server.py` + `admin_portal.py`) | 5000 | LAN | Camera enrollment, enrolled faces, WiFi, logs, network admin portal. Every route except health/status/login needs one of the credentials below. |
+| Process                                                                                         | Port | Reachable from | Notes                                                                                                                                                                          |
+| ----------------------------------------------------------------------------------------------- | ---- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend (Node, `packages/backend`)                                                              | 3001 | LAN            | Mirror UI, REST API, WebSocket. Every API route and the WebSocket need a trusted caller: the device itself (loopback), the internal token, or a paired phone. See "Port 3001". |
+| Presence/admin server (Flask + gunicorn, `packages/presence/web_server.py` + `admin_portal.py`) | 5000 | LAN            | Camera enrollment, enrolled faces, WiFi, logs, network admin portal. Every route except health/status/login needs one of the credentials below.                                |
 
 Port 5000 stays bound to `0.0.0.0` (`gunicorn.conf.py`, `GUNICORN_BIND`)
 because two LAN clients still need it directly: the phone app's live camera
@@ -63,6 +63,7 @@ thing that grants access.
   The backend could also set it through `POST /api/admin/password` with the
   internal token, but it deliberately exposes no route that does so: a
   paired phone should not be able to set the network admin password.
+
 - Storage: `data/admin-password`, mode 0600, `scrypt$N$r$p$salt$hash`
   (N=2^15, r=8, p=1, 16-byte salt), verified with `hmac.compare_digest`. The
   old `salt:sha256` format is rejected; run the CLI to replace it. Minimum
@@ -93,7 +94,7 @@ thing that grants access.
   (the mirror's own overlay uses those to show the preview).
 - Accepted as `?token=` on `/video_feed` (an `<img>` cannot send headers) and
   as the `X-SkyGlass-Enrollment` header on API calls. `Referrer-Policy:
-  no-referrer` keeps it out of Referer headers.
+no-referrer` keeps it out of Referer headers.
 - It expires when the session completes, is cancelled, or 10 minutes after it
   started, whichever is first. Starting a new session invalidates the previous
   token. `/video_feed` answers 403 without a valid token, and an open stream
@@ -156,12 +157,12 @@ Untrusted callers get `401 { "error": "pairing_required", "message": "This
 phone isn't paired with this mirror." }` on every `/api` path (including
 unknown ones), except this allowlist (`PUBLIC_API_ROUTES`):
 
-| Public route | Why |
-| ------------ | --- |
-| `GET /api/health` | reachability probe during discovery |
-| `GET /api/discovery` | exactly `mirrorId`, `name`, `version`, `setupComplete`, `pairingRequired: true`; a test in `src/pairing/deny-by-default.test.ts` fails if a field is added |
-| `POST /api/pairing/claim`, `/request`, `/complete` | pairing itself; rate limited |
-| `POST /api/invites/claim` | an invited person's phone accepting; rate limited like pairing |
+| Public route                                       | Why                                                                                                                                                        |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`                                  | reachability probe during discovery                                                                                                                        |
+| `GET /api/discovery`                               | exactly `mirrorId`, `name`, `version`, `setupComplete`, `pairingRequired: true`; a test in `src/pairing/deny-by-default.test.ts` fails if a field is added |
+| `POST /api/pairing/claim`, `/request`, `/complete` | pairing itself; rate limited                                                                                                                               |
+| `POST /api/invites/claim`                          | an invited person's phone accepting; rate limited like pairing                                                                                             |
 
 Static frontend files (non-`/api`, production only) are public; they contain
 no data. `src/pairing/deny-by-default.test.ts` imports the real `server.ts`,
@@ -271,18 +272,18 @@ trusted caller.
 
 ## Who can call what on port 5000
 
-| Route | Internal token | Admin session | Enrollment token | Nothing |
-| ----- | :------------: | :-----------: | :--------------: | :-----: |
-| `GET /api/health`, `GET /api/status` | yes | yes | yes | **yes** |
-| `GET/POST /admin/login`, `GET /admin/logout` | | | | yes |
-| `GET /admin` (page) | | yes | | |
-| `GET /api/users`, `GET/DELETE /api/users/<id>/face` | yes | yes (+CSRF) | | |
-| `GET /api/admin/wifi/status`, `/scan`, `POST /connect` | yes | yes (+CSRF) | | |
-| `GET /api/admin/logs` | yes | yes | | |
-| `POST /api/admin/password` | yes | yes (+CSRF, current password) | | |
-| `POST /api/start` (open enrollment session) | yes | | | |
-| `POST /api/capture`, `POST /api/reset` | yes | | yes (header) | |
-| `GET /video_feed` | | | yes (query or header) | |
+| Route                                                  | Internal token |         Admin session         |   Enrollment token    | Nothing |
+| ------------------------------------------------------ | :------------: | :---------------------------: | :-------------------: | :-----: |
+| `GET /api/health`, `GET /api/status`                   |      yes       |              yes              |          yes          | **yes** |
+| `GET/POST /admin/login`, `GET /admin/logout`           |                |                               |                       |   yes   |
+| `GET /admin` (page)                                    |                |              yes              |                       |         |
+| `GET /api/users`, `GET/DELETE /api/users/<id>/face`    |      yes       |          yes (+CSRF)          |                       |         |
+| `GET /api/admin/wifi/status`, `/scan`, `POST /connect` |      yes       |          yes (+CSRF)          |                       |         |
+| `GET /api/admin/logs`                                  |      yes       |              yes              |                       |         |
+| `POST /api/admin/password`                             |      yes       | yes (+CSRF, current password) |                       |         |
+| `POST /api/start` (open enrollment session)            |      yes       |                               |                       |         |
+| `POST /api/capture`, `POST /api/reset`                 |      yes       |                               |     yes (header)      |         |
+| `GET /video_feed`                                      |                |                               | yes (query or header) |         |
 
 "Nothing" = no credential at all. Everything not listed answers 404.
 
@@ -311,7 +312,7 @@ to `/tmp`.
 - A paired phone is fully trusted (see "Port 3001"); there are no per-phone
   permissions. Remove a lost phone from Settings → Paired phones on another
   phone, or from the device (`curl -X DELETE
-  http://localhost:3001/api/pairing/devices/<id>`).
+http://localhost:3001/api/pairing/devices/<id>`).
 - Anyone who can stand in front of the mirror can pair (that is the design:
   physical presence). Codes and the QR are only shown on the screen.
 - The WiFi provisioning captive portal (`wifi_provisioning.py`) runs on an open
@@ -325,13 +326,13 @@ to `/tmp`.
 
 ## Files
 
-| File | Mode | Written by |
-| ---- | ---- | ---------- |
-| `data/internal-token` | 0600 | backend or presence server, first use |
-| `data/admin-session-secret` | 0600 | presence server, first start |
-| `data/admin-password` | 0600 | `set_admin_password.py` / portal password change |
-| `data/paired-devices.json` | 0600 | backend, on pairing / rename / revoke / lastSeenAt (token hashes only) |
-| `packages/presence/face_data/users/<id>/` | default | presence server (face encodings) |
+| File                                      | Mode    | Written by                                                             |
+| ----------------------------------------- | ------- | ---------------------------------------------------------------------- |
+| `data/internal-token`                     | 0600    | backend or presence server, first use                                  |
+| `data/admin-session-secret`               | 0600    | presence server, first start                                           |
+| `data/admin-password`                     | 0600    | `set_admin_password.py` / portal password change                       |
+| `data/paired-devices.json`                | 0600    | backend, on pairing / rename / revoke / lastSeenAt (token hashes only) |
+| `packages/presence/face_data/users/<id>/` | default | presence server (face encodings)                                       |
 
 `data/` is git-ignored. `SKYGLASS_DATA_DIR` moves the presence server's
 session secret and password file (not the internal token; use

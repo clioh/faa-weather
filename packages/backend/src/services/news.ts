@@ -9,7 +9,15 @@ import { XMLParser } from 'fast-xml-parser';
 import { TtlCache, UpstreamError } from './upstream.js';
 import { assertPublicUrl, safeFetchText } from './ssrf.js';
 
-export const NEWS_SOURCES = ['world', 'us', 'business', 'technology', 'sports', 'aviation', 'custom'] as const;
+export const NEWS_SOURCES = [
+  'world',
+  'us',
+  'business',
+  'technology',
+  'sports',
+  'aviation',
+  'custom',
+] as const;
 export type NewsSource = (typeof NEWS_SOURCES)[number];
 export type PresetSource = Exclude<NewsSource, 'custom'>;
 
@@ -49,18 +57,52 @@ export interface ParsedFeed {
 // ============= Text helpers =============
 
 const NAMED_ENTITIES: Record<string, string> = {
-  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
-  ndash: '–', mdash: '—', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
-  hellip: '…', bull: '•', middot: '·', copy: '©', reg: '®', trade: '™',
-  eacute: 'é', egrave: 'è', aacute: 'á', agrave: 'à', iacute: 'í', oacute: 'ó',
-  uacute: 'ú', ntilde: 'ñ', ccedil: 'ç', uuml: 'ü', ouml: 'ö', auml: 'ä',
-  deg: '°', euro: '€', pound: '£', yen: '¥', times: '×', laquo: '«', raquo: '»',
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  ndash: '–',
+  mdash: '—',
+  lsquo: '‘',
+  rsquo: '’',
+  ldquo: '“',
+  rdquo: '”',
+  hellip: '…',
+  bull: '•',
+  middot: '·',
+  copy: '©',
+  reg: '®',
+  trade: '™',
+  eacute: 'é',
+  egrave: 'è',
+  aacute: 'á',
+  agrave: 'à',
+  iacute: 'í',
+  oacute: 'ó',
+  uacute: 'ú',
+  ntilde: 'ñ',
+  ccedil: 'ç',
+  uuml: 'ü',
+  ouml: 'ö',
+  auml: 'ä',
+  deg: '°',
+  euro: '€',
+  pound: '£',
+  yen: '¥',
+  times: '×',
+  laquo: '«',
+  raquo: '»',
 };
 
 export function decodeEntities(input: string): string {
   return input.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (match, body: string) => {
     if (body[0] === '#') {
-      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      const code =
+        body[1] === 'x' || body[1] === 'X'
+          ? parseInt(body.slice(2), 16)
+          : parseInt(body.slice(1), 10);
       if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) return match;
       try {
         return String.fromCodePoint(code);
@@ -182,7 +224,7 @@ function buildItem(
   idKey: string | null,
   published: string | null,
   summaryRaw: string | null,
-  publisher: string,
+  publisher: string
 ): NewsItem | null {
   const cleanTitle = title ? htmlToText(title) : '';
   if (!cleanTitle) return null;
@@ -222,7 +264,7 @@ export function parseFeed(xml: string, publisherOverride?: string): ParsedFeed {
     const feedTitle = textOf(channel.title);
     const publisher = publisherOverride ?? (feedTitle ? htmlToText(feedTitle) : 'News');
     const rawItems = ((channel.item ?? root.item ?? []) as Record<string, unknown>[]).filter(
-      (i) => i && typeof i === 'object',
+      (i) => i && typeof i === 'object'
     );
     const items = rawItems
       .map((i) =>
@@ -232,8 +274,8 @@ export function parseFeed(xml: string, publisherOverride?: string): ParsedFeed {
           textOf(i.guid),
           first(i, ['pubDate', 'dc:date', 'published', 'updated']),
           first(i, ['description', 'content:encoded', 'summary']),
-          publisher,
-        ),
+          publisher
+        )
       )
       .filter((i): i is NewsItem => i !== null);
     return { title: feedTitle ? htmlToText(feedTitle) : null, items };
@@ -242,7 +284,9 @@ export function parseFeed(xml: string, publisherOverride?: string): ParsedFeed {
   if (feed) {
     const feedTitle = textOf(feed.title);
     const publisher = publisherOverride ?? (feedTitle ? htmlToText(feedTitle) : 'News');
-    const entries = ((feed.entry ?? []) as Record<string, unknown>[]).filter((e) => e && typeof e === 'object');
+    const entries = ((feed.entry ?? []) as Record<string, unknown>[]).filter(
+      (e) => e && typeof e === 'object'
+    );
     const items = entries
       .map((e) =>
         buildItem(
@@ -251,8 +295,8 @@ export function parseFeed(xml: string, publisherOverride?: string): ParsedFeed {
           textOf(e.id),
           first(e, ['published', 'updated']),
           first(e, ['summary', 'content']),
-          publisher,
-        ),
+          publisher
+        )
       )
       .filter((i): i is NewsItem => i !== null);
     return { title: feedTitle ? htmlToText(feedTitle) : null, items };
@@ -277,7 +321,11 @@ export interface NewsResult {
  * SSRF guard (throws UnsafeUrlError). Presets use the same fetcher; their
  * hosts are public so the guard is a no-op for them.
  */
-export async function getNews(source: NewsSource, customUrl: string | undefined, limit: number): Promise<NewsResult> {
+export async function getNews(
+  source: NewsSource,
+  customUrl: string | undefined,
+  limit: number
+): Promise<NewsResult> {
   const preset = source === 'custom' ? null : NEWS_PRESETS[source];
   const url = preset ? preset.url : customUrl;
   if (!url) throw new UpstreamError('A feed URL is required for custom news', 400);
@@ -289,7 +337,10 @@ export async function getNews(source: NewsSource, customUrl: string | undefined,
     const xml = await safeFetchText(url, {
       timeoutMs: 5000,
       maxBytes: 2 * 1024 * 1024,
-      headers: { Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5' },
+      headers: {
+        Accept:
+          'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5',
+      },
     });
     return parseFeed(xml, preset?.publisher);
   });

@@ -44,14 +44,18 @@ const LAYOUT: Record<string, { cols: number; rows: number }> = {
 };
 
 export function NewsModule({ config, size }: ModuleProps) {
-  const source = typeof config.source === 'string' && config.source in SOURCE_NAMES ? config.source : 'world';
+  const source =
+    typeof config.source === 'string' && config.source in SOURCE_NAMES ? config.source : 'world';
   const feedUrl = typeof config.feedUrl === 'string' ? config.feedUrl.trim() : '';
   const showSource = config.showSource !== false;
   const requested = Number(config.maxItems);
   const layout = LAYOUT[size] ?? LAYOUT.medium;
   const limit = Math.max(
     1,
-    Math.min(Number.isFinite(requested) && requested > 0 ? Math.round(requested) : 6, layout.cols * layout.rows)
+    Math.min(
+      Number.isFinite(requested) && requested > 0 ? Math.round(requested) : 6,
+      layout.cols * layout.rows
+    )
   );
 
   const needsFeed = source === 'custom' && !feedUrl;
@@ -67,7 +71,9 @@ export function NewsModule({ config, size }: ModuleProps) {
 
   const items = (data?.items ?? []).slice(0, limit);
   const title =
-    source === 'custom' ? items.find((i) => i.publisher)?.publisher || SOURCE_NAMES.custom : SOURCE_NAMES[source];
+    source === 'custom'
+      ? items.find((i) => i.publisher)?.publisher || SOURCE_NAMES.custom
+      : SOURCE_NAMES[source];
 
   let body;
   if (needsFeed) {
@@ -81,10 +87,16 @@ export function NewsModule({ config, size }: ModuleProps) {
   } else {
     const cols = Math.min(layout.cols, items.length);
     body = (
-      <ol className={`news-list news-cols-${cols}`} style={{ '--news-cols': cols } as CSSProperties}>
+      <ol
+        className={`news-list news-cols-${cols}`}
+        style={{ '--news-cols': cols } as CSSProperties}
+      >
         {items.map((item) => {
           const age = relativeAge(item.publishedAt, now.getTime());
-          const byline = [source === 'custom' ? null : item.publisher, age ? (age === 'now' ? 'just now' : `${age} ago`) : null]
+          const byline = [
+            source === 'custom' ? null : item.publisher,
+            age ? (age === 'now' ? 'just now' : `${age} ago`) : null,
+          ]
             .filter(Boolean)
             .join(' · ');
           return (

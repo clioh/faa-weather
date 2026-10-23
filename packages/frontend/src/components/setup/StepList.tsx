@@ -18,7 +18,9 @@ export function StepList({ items, long = false }: { items: StepListItem[]; long?
     <ol className={`sg-steps${long ? ' sg-steps--long' : ''}`}>
       {items.map((item, index) => (
         <li key={item.key} className={`sg-step${item.state ? ` is-${item.state}` : ''}`}>
-          <span className="sg-step__n">{item.state === 'done' ? '✓' : String(index + 1).padStart(2, '0')}</span>
+          <span className="sg-step__n">
+            {item.state === 'done' ? '✓' : String(index + 1).padStart(2, '0')}
+          </span>
           <span className="sg-step__label">{item.label}</span>
           {item.note != null && <span className="sg-step__note">{item.note}</span>}
         </li>

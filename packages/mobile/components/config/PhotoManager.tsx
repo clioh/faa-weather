@@ -33,7 +33,9 @@ const JPEG_QUALITY = 0.82;
  * JPEG. Re-encoding also bakes in EXIF orientation and turns PNG/WebP
  * screenshots into compact JPEGs.
  */
-async function prepareForUpload(asset: ImagePicker.ImagePickerAsset): Promise<{ uri: string; mime: string }> {
+async function prepareForUpload(
+  asset: ImagePicker.ImagePickerAsset
+): Promise<{ uri: string; mime: string }> {
   const context = ImageManipulator.manipulate(asset.uri);
   const { width, height } = asset;
   if (width > 0 && height > 0 && Math.max(width, height) > MAX_EDGE) {
@@ -86,7 +88,8 @@ export function PhotoManager() {
       quality: 1,
       exif: false,
       // Ask iOS for JPEG instead of HEIC, which the mirror can't decode.
-      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (result.canceled || result.assets.length === 0) return;
 
@@ -102,7 +105,8 @@ export function PhotoManager() {
       } catch {
         // Resizing failed (unusual format, low memory): send the original
         // if the mirror will accept it as-is.
-        const mime = asset.mimeType && ACCEPTED.includes(asset.mimeType) ? asset.mimeType : 'image/jpeg';
+        const mime =
+          asset.mimeType && ACCEPTED.includes(asset.mimeType) ? asset.mimeType : 'image/jpeg';
         if (asset.fileSize && asset.fileSize > MAX_BYTES) tooLarge++;
         else file = { uri: asset.uri, mime };
       }
@@ -135,7 +139,9 @@ export function PhotoManager() {
       setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
       setConfirmingId(null);
     } catch (e) {
-      setError(e instanceof Error ? `Couldn’t delete photo: ${e.message}` : 'Couldn’t delete photo');
+      setError(
+        e instanceof Error ? `Couldn’t delete photo: ${e.message}` : 'Couldn’t delete photo'
+      );
     } finally {
       setDeletingId(null);
     }
@@ -180,9 +186,15 @@ export function PhotoManager() {
                     onPress={() => setConfirmingId(confirming ? null : photo.id)}
                     accessibilityRole="button"
                     accessibilityLabel={`Photo ${index + 1}`}
-                    accessibilityHint={confirming ? 'Hides the delete option' : 'Shows a delete option'}
+                    accessibilityHint={
+                      confirming ? 'Hides the delete option' : 'Shows a delete option'
+                    }
                   >
-                    <Image source={api.photoSource(photo)} style={styles.thumb} resizeMode="cover" />
+                    <Image
+                      source={api.photoSource(photo)}
+                      style={styles.thumb}
+                      resizeMode="cover"
+                    />
                     {confirming && (
                       <View style={styles.confirmOverlay}>
                         {deletingId === photo.id ? (
@@ -219,7 +231,9 @@ export function PhotoManager() {
 
       <Button
         label={
-          uploading ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…` : 'Add photos'
+          uploading
+            ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…`
+            : 'Add photos'
         }
         variant="secondary"
         icon={uploading ? 'cloud-upload-outline' : 'add'}
@@ -247,7 +261,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceTint,
   },
   thumb: { width: '100%', height: '100%' },
-  pending: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.hairline },
+  pending: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
   confirmOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: colors.overlay,

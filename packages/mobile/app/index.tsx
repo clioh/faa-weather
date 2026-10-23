@@ -8,13 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  RefreshControl,
-} from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -51,7 +45,9 @@ async function restoreMirrorConnection(mirrorId?: string): Promise<LinkedMirror 
     [...mirrors].sort((a, b) => b.lastConnected.localeCompare(a.lastConnected))[0];
   if (mirror) {
     api.setBaseUrl(mirror.host, mirror.port, mirror.mirrorId);
-    console.log(`[Home] Restored connection to ${mirror.mirrorName} at ${mirror.host}:${mirror.port}`);
+    console.log(
+      `[Home] Restored connection to ${mirror.mirrorName} at ${mirror.host}:${mirror.port}`
+    );
     return mirror;
   }
   console.warn('[Home] No linked mirror to reconnect to');
@@ -418,8 +414,8 @@ export default function HomeScreen() {
             <View style={styles.header}>
               <Text style={styles.instructionsTitle}>No mirrors found</Text>
               <Text style={styles.subtitle}>
-                Make sure your SkyGlass is powered on and connected to the same network,
-                or connect to its WiFi hotspot for initial setup.
+                Make sure your SkyGlass is powered on and connected to the same network, or connect
+                to its WiFi hotspot for initial setup.
               </Text>
             </View>
 
@@ -427,7 +423,8 @@ export default function HomeScreen() {
               <View style={styles.helpStep}>
                 <Text style={styles.helpStepNumber}>01</Text>
                 <Text style={styles.helpStepText}>
-                  For new mirrors: Connect to the "<Text style={styles.mono}>SkyGlass-Setup</Text>" WiFi network
+                  For new mirrors: Connect to the "<Text style={styles.mono}>SkyGlass-Setup</Text>"
+                  WiFi network
                 </Text>
               </View>
               <View style={styles.helpStep}>
@@ -447,7 +444,11 @@ export default function HomeScreen() {
               title="Enter IP manually"
               onPress={() => setShowManual(!showManual)}
               trailing={
-                <Ionicons name={showManual ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+                <Ionicons
+                  name={showManual ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color={colors.chevron}
+                />
               }
             />
           </RowGroup>

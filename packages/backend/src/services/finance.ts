@@ -15,7 +15,11 @@
  */
 
 import { TtlCache, UpstreamError, fetchJson, readBodyCapped } from './upstream.js';
-import { DEFAULT_SKYGLASS_SERVICE, getSkyglassJson, type ServiceFailure } from './skyglass-service.js';
+import {
+  DEFAULT_SKYGLASS_SERVICE,
+  getSkyglassJson,
+  type ServiceFailure,
+} from './skyglass-service.js';
 
 export const STOCK_CACHE_TTL_MS = 5 * 60 * 1000;
 export const CRYPTO_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -51,7 +55,16 @@ export interface StockQuote {
 }
 
 export function emptyQuote(symbol: string): StockQuote {
-  return { symbol, name: null, price: null, change: null, changePercent: null, currency: 'USD', history: [], asOf: null };
+  return {
+    symbol,
+    name: null,
+    price: null,
+    change: null,
+    changePercent: null,
+    currency: 'USD',
+    history: [],
+    asOf: null,
+  };
 }
 
 /** Normalize a user symbol: uppercase, allow letters/digits/.-^ only. */
@@ -81,7 +94,8 @@ export class Pacer {
   constructor(
     private readonly gapMs: number,
     private readonly perMinute = Infinity,
-    private readonly sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+    private readonly sleep: (ms: number) => Promise<void> = (ms) =>
+      new Promise((r) => setTimeout(r, ms))
   ) {}
 
   run<T>(fn: () => Promise<T>): Promise<T> {
@@ -134,7 +148,8 @@ export function resetSkyglassServiceState(): void {
 }
 
 function markServiceDown(reason: ServiceFailure): void {
-  const wait = reason === 'not_configured' ? SERVICE_NOT_CONFIGURED_RETRY_MS : SERVICE_FAILURE_RETRY_MS;
+  const wait =
+    reason === 'not_configured' ? SERVICE_NOT_CONFIGURED_RETRY_MS : SERVICE_FAILURE_RETRY_MS;
   if (serviceDownReason !== reason) {
     const why =
       reason === 'not_configured'
@@ -144,7 +159,9 @@ function markServiceDown(reason: ServiceFailure): void {
           : reason === 'bad_response'
             ? 'returned an unusable response'
             : "can't be reached";
-    console.warn(`[finance] SkyGlass service ${why}; using Yahoo for stock quotes for ${wait / 60000} min`);
+    console.warn(
+      `[finance] SkyGlass service ${why}; using Yahoo for stock quotes for ${wait / 60000} min`
+    );
   }
   serviceDownReason = reason;
   serviceDownUntil = Date.now() + wait;
@@ -187,7 +204,7 @@ export function parseYahooChart(symbol: string, body: YahooChartResponse): Stock
   const change = price !== null && prev !== null ? round(price - prev, 4) : null;
   const changePercent = change !== null && prev ? round((change / prev) * 100, 2) : null;
   const closes = (result.indicators?.quote?.[0]?.close ?? []).filter(
-    (c): c is number => typeof c === 'number' && Number.isFinite(c),
+    (c): c is number => typeof c === 'number' && Number.isFinite(c)
   );
   const time = finite(meta.regularMarketTime);
   return {
@@ -208,9 +225,11 @@ export function parseYahooChart(symbol: string, body: YahooChartResponse): Stock
  * no request is made and the call fails fast so callers serve cached data.
  */
 async function fetchYahooChart(symbol: string): Promise<YahooChartResponse> {
-  if (isYahooCoolingDown()) throw new UpstreamError('Quote provider rate limited, using cached data', 503);
+  if (isYahooCoolingDown())
+    throw new UpstreamError('Quote provider rate limited, using cached data', 503);
   return yahooPacer.run(async () => {
-    if (isYahooCoolingDown()) throw new UpstreamError('Quote provider rate limited, using cached data', 503);
+    if (isYahooCoolingDown())
+      throw new UpstreamError('Quote provider rate limited, using cached data', 503);
     const url = `${YAHOO_CHART}/${encodeURIComponent(symbol)}?range=1mo&interval=1d`;
     let res: Response;
     try {
@@ -219,13 +238,19 @@ async function fetchYahooChart(symbol: string): Promise<YahooChartResponse> {
         signal: AbortSignal.timeout(8000),
       });
     } catch (error) {
-      const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-      throw new UpstreamError(timedOut ? 'Upstream timed out' : 'Upstream unreachable', timedOut ? 504 : 502);
+      const timedOut =
+        error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+      throw new UpstreamError(
+        timedOut ? 'Upstream timed out' : 'Upstream unreachable',
+        timedOut ? 504 : 502
+      );
     }
     if (res.status === 429) {
       await res.body?.cancel().catch(() => undefined);
       yahooCooldownUntil = Date.now() + YAHOO_COOLDOWN_MS;
-      console.warn(`[finance] Yahoo returned 429; pausing Yahoo calls for ${YAHOO_COOLDOWN_MS / 60000} min`);
+      console.warn(
+        `[finance] Yahoo returned 429; pausing Yahoo calls for ${YAHOO_COOLDOWN_MS / 60000} min`
+      );
       throw new UpstreamError('Quote provider rate limited, using cached data', 503);
     }
     if (!res.ok && res.status !== 404) {
@@ -272,7 +297,7 @@ export function parseCloudQuote(
   symbol: string,
   item: CloudQuote | null | undefined,
   name: string | null = null,
-  history: number[] = [],
+  history: number[] = []
 ): StockQuote | null {
   if (!item || typeof item !== 'object' || item.symbol !== symbol) return null;
   if (item.status === 'unknown_symbol') return emptyQuote(symbol);
@@ -281,7 +306,10 @@ export function parseCloudQuote(
   if (price === null) return null;
   const change = finite(item.change);
   const changePercent = finite(item.changePercent);
-  const asOf = typeof item.asOf === 'string' && Number.isFinite(Date.parse(item.asOf)) ? new Date(item.asOf).toISOString() : null;
+  const asOf =
+    typeof item.asOf === 'string' && Number.isFinite(Date.parse(item.asOf))
+      ? new Date(item.asOf).toISOString()
+      : null;
   return {
     symbol,
     name,
@@ -324,8 +352,12 @@ const nameCache = new TtlCache<string | null>(NAME_CACHE_TTL_MS);
 async function serviceName(symbol: string): Promise<string | null> {
   try {
     const result = await nameCache.get(symbol, async () => {
-      const item = firstItem(await serviceGet(`/api/data/stock-profiles?symbols=${encodeURIComponent(symbol)}`), 'profiles');
-      if (!item || item.symbol !== symbol || item.status === 'error') throw new UpstreamError('No profile');
+      const item = firstItem(
+        await serviceGet(`/api/data/stock-profiles?symbols=${encodeURIComponent(symbol)}`),
+        'profiles'
+      );
+      if (!item || item.symbol !== symbol || item.status === 'error')
+        throw new UpstreamError('No profile');
       return typeof item.name === 'string' && item.name.trim() ? item.name.trim() : null;
     });
     return result.value;
@@ -371,7 +403,9 @@ export function clearFinanceCaches(): void {
  * fields (or the stale cached quote); 502 only when every symbol fails with
  * nothing cached.
  */
-export async function getStockQuotes(symbols: string[]): Promise<{ quotes: StockQuote[]; fetchedAt: string }> {
+export async function getStockQuotes(
+  symbols: string[]
+): Promise<{ quotes: StockQuote[]; fetchedAt: string }> {
   const results: Array<StockQuote | null> = [];
   for (const symbol of symbols) {
     let quote: StockQuote | null = null;
@@ -394,7 +428,10 @@ export async function getStockQuotes(symbols: string[]): Promise<{ quotes: Stock
   if (symbols.length > 0 && results.every((r) => r === null)) {
     throw new UpstreamError('Stock quotes unavailable');
   }
-  return { quotes: results.map((q, i) => q ?? emptyQuote(symbols[i])), fetchedAt: new Date().toISOString() };
+  return {
+    quotes: results.map((q, i) => q ?? emptyQuote(symbols[i])),
+    fetchedAt: new Date().toISOString(),
+  };
 }
 
 // ============= Crypto =============
@@ -463,7 +500,7 @@ const cryptoCache = new TtlCache<SimplePrice>(CRYPTO_CACHE_TTL_MS);
 /** Unknown symbols are returned with null price rather than failing the request. */
 export async function getCryptoQuotes(
   coins: string[],
-  currency: CryptoCurrency,
+  currency: CryptoCurrency
 ): Promise<{ quotes: CryptoQuote[]; fetchedAt: string }> {
   const known = coins.filter((c) => COIN_IDS[c]);
   const ids = [...new Set(known.map((c) => COIN_IDS[c].id))].sort();
@@ -473,7 +510,9 @@ export async function getCryptoQuotes(
   if (ids.length > 0) {
     const key = `${ids.join(',')}|${vs}`;
     const url = `${COINGECKO_BASE}/simple/price?ids=${encodeURIComponent(ids.join(','))}&vs_currencies=${vs}&include_24hr_change=true`;
-    const result = await cryptoCache.get(key, () => fetchJson<SimplePrice>(url, { timeoutMs: 8000, maxBytes: 256 * 1024 }));
+    const result = await cryptoCache.get(key, () =>
+      fetchJson<SimplePrice>(url, { timeoutMs: 8000, maxBytes: 256 * 1024 })
+    );
     data = result.value;
     fetchedAt = new Date(result.storedAt).toISOString();
   }

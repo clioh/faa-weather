@@ -9,14 +9,14 @@ Third-party calls share `services/upstream.ts`: each has an `AbortSignal` timeou
 in-memory TTL cache per key, in-flight de-duplication, and serves the last good value
 (up to 24 h old) if the upstream fails. Raw upstream errors are never returned.
 
-| Endpoint | Provider | Cache |
-|---|---|---|
-| `GET /api/news` | RSS / Atom feeds | 10 min per feed URL |
-| `GET /api/finance/stocks` | Finnhub (with key) or Yahoo Finance chart API | 5 min per symbol (Finnhub names 24 h) |
-| `GET /api/finance/crypto` | CoinGecko `simple/price` | 2 min per coin set + currency |
-| `GET /api/weather/current`, `/forecast` | Open-Meteo | 10 min per (lat, lon rounded to 2 dp, units) |
-| `GET /api/aviation/winds-aloft` | AWC `api/data/windtemp` (FB) | 30 min per region/level product |
-| `GET /api/aviation/tfrs` | FAA `tfrapi/getTfrList` + TFR GeoServer WFS | 15 min |
+| Endpoint                                | Provider                                      | Cache                                        |
+| --------------------------------------- | --------------------------------------------- | -------------------------------------------- |
+| `GET /api/news`                         | RSS / Atom feeds                              | 10 min per feed URL                          |
+| `GET /api/finance/stocks`               | Finnhub (with key) or Yahoo Finance chart API | 5 min per symbol (Finnhub names 24 h)        |
+| `GET /api/finance/crypto`               | CoinGecko `simple/price`                      | 2 min per coin set + currency                |
+| `GET /api/weather/current`, `/forecast` | Open-Meteo                                    | 10 min per (lat, lon rounded to 2 dp, units) |
+| `GET /api/aviation/winds-aloft`         | AWC `api/data/windtemp` (FB)                  | 30 min per region/level product              |
+| `GET /api/aviation/tfrs`                | FAA `tfrapi/getTfrList` + TFR GeoServer WFS   | 15 min                                       |
 
 ## News
 
@@ -28,14 +28,14 @@ in-memory TTL cache per key, in-flight de-duplication, and serves the last good 
 
 Presets (`services/news.ts`, `NEWS_PRESETS`):
 
-| source | feed |
-|---|---|
-| world | BBC News World — `https://feeds.bbci.co.uk/news/world/rss.xml` |
-| us | NPR National — `https://feeds.npr.org/1003/rss.xml` |
-| business | CNBC Business — `https://www.cnbc.com/id/10001147/device/rss/rss.html` |
-| technology | Ars Technica — `https://feeds.arstechnica.com/arstechnica/index` |
-| sports | ESPN — `https://www.espn.com/espn/rss/news` |
-| aviation | AVweb — `https://avweb.com/feed/` |
+| source     | feed                                                                   |
+| ---------- | ---------------------------------------------------------------------- |
+| world      | BBC News World — `https://feeds.bbci.co.uk/news/world/rss.xml`         |
+| us         | NPR National — `https://feeds.npr.org/1003/rss.xml`                    |
+| business   | CNBC Business — `https://www.cnbc.com/id/10001147/device/rss/rss.html` |
+| technology | Ars Technica — `https://feeds.arstechnica.com/arstechnica/index`       |
+| sports     | ESPN — `https://www.espn.com/espn/rss/news`                            |
+| aviation   | AVweb — `https://avweb.com/feed/`                                      |
 
 - RSS 2.0, RSS 1.0 (RDF) and Atom are supported. Titles and summaries have HTML stripped
   and entities decoded; summaries are capped at 200 characters. `id` is the first 16 hex
@@ -141,13 +141,13 @@ the fetch is retried after 5 minutes. Classification and filtering run on the mi
 
 Stored in `data/todos.json` (repo root `data/`), rewritten atomically; max 200 items, text ≤ 500 chars.
 
-| Method | Path | Body | Response |
-|---|---|---|---|
-| GET | `/api/todos` | — | `{ items: [{ id, text, done, createdAt, completedAt }] }` |
-| POST | `/api/todos` | `{ text }` | `201 { item }` |
-| PATCH | `/api/todos/:id` | `{ text?, done? }` | `{ item }` |
-| DELETE | `/api/todos/:id` | — | `{ success: true }` |
-| PUT | `/api/todos` | `{ items: [{ id, text, done }] }` | `{ items }` (reorder/bulk replace) |
+| Method | Path             | Body                              | Response                                                  |
+| ------ | ---------------- | --------------------------------- | --------------------------------------------------------- |
+| GET    | `/api/todos`     | —                                 | `{ items: [{ id, text, done, createdAt, completedAt }] }` |
+| POST   | `/api/todos`     | `{ text }`                        | `201 { item }`                                            |
+| PATCH  | `/api/todos/:id` | `{ text?, done? }`                | `{ item }`                                                |
+| DELETE | `/api/todos/:id` | —                                 | `{ success: true }`                                       |
+| PUT    | `/api/todos`     | `{ items: [{ id, text, done }] }` | `{ items }` (reorder/bulk replace)                        |
 
 Every change broadcasts `{ type: 'todos', data: { items } }` over the WebSocket.
 
@@ -158,12 +158,12 @@ The phone app manages the list from the To-do widget's config sheet in the layou
 
 Stored in `data/photos/` as `<uuid>.jpg|png|webp`; metadata comes from the filesystem.
 
-| Method | Path | Notes |
-|---|---|---|
-| GET | `/api/photos` | `{ photos: [{ id, url: '/api/photos/<id>/file', uploadedAt, size }] }` |
-| POST | `/api/photos` | multipart field `photo`; ≤ 10 MB (413 above); type checked by magic bytes, not the client MIME (415 otherwise); `201 { photo }` |
-| DELETE | `/api/photos/:id` | `{ success: true }` |
-| GET | `/api/photos/:id/file` | image bytes, `Cache-Control: public, max-age=86400` |
+| Method | Path                   | Notes                                                                                                                           |
+| ------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/photos`          | `{ photos: [{ id, url: '/api/photos/<id>/file', uploadedAt, size }] }`                                                          |
+| POST   | `/api/photos`          | multipart field `photo`; ≤ 10 MB (413 above); type checked by magic bytes, not the client MIME (415 otherwise); `201 { photo }` |
+| DELETE | `/api/photos/:id`      | `{ success: true }`                                                                                                             |
+| GET    | `/api/photos/:id/file` | image bytes, `Cache-Control: public, max-age=86400`                                                                             |
 
 Ids must match the safe-id pattern (`validation/safe-id.ts`), so path tricks get a 400.
 Every change broadcasts `{ type: 'photos', data: { count } }`.

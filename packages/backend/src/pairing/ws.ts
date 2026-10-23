@@ -39,9 +39,14 @@ export function selectProtocol(protocols: Set<string>): string | false {
   return protocols.has(WS_PROTOCOL) ? WS_PROTOCOL : false;
 }
 
-export type UpgradeDecision = { ok: true; auth: AuthInfo } | { ok: false; status: 400 | 401; reason: string };
+export type UpgradeDecision =
+  | { ok: true; auth: AuthInfo }
+  | { ok: false; status: 400 | 401; reason: string };
 
-export function authorizeUpgrade(req: IncomingMessage, authenticateDevice: DeviceAuthenticator): UpgradeDecision {
+export function authorizeUpgrade(
+  req: IncomingMessage,
+  authenticateDevice: DeviceAuthenticator
+): UpgradeDecision {
   const protocols = offeredProtocols(req);
   if (protocols.length > 0 && !protocols.includes(WS_PROTOCOL)) {
     return { ok: false, status: 400, reason: 'unsupported_protocol' };

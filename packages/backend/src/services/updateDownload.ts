@@ -180,7 +180,11 @@ function consumeBody(
       declared !== undefined && /^\d+$/.test(declared) ? parseInt(declared, 10) : undefined;
     const expectedSize = opts.expectedSize && opts.expectedSize > 0 ? opts.expectedSize : undefined;
 
-    if (contentLength !== undefined && expectedSize !== undefined && contentLength !== expectedSize) {
+    if (
+      contentLength !== undefined &&
+      expectedSize !== undefined &&
+      contentLength !== expectedSize
+    ) {
       res.destroy();
       reject(
         new DownloadError(
@@ -190,7 +194,11 @@ function consumeBody(
       );
       return;
     }
-    if (opts.maxBytes !== undefined && contentLength !== undefined && contentLength > opts.maxBytes) {
+    if (
+      opts.maxBytes !== undefined &&
+      contentLength !== undefined &&
+      contentLength > opts.maxBytes
+    ) {
       res.destroy();
       reject(new DownloadError('Response is too large', 'too-large'));
       return;

@@ -47,7 +47,12 @@ export function CurrentWeatherModule({ config, size, latitude, longitude, timezo
   } else if (loading) {
     body = <ModuleLoading />;
   } else if (!data) {
-    body = <ModuleError title="Weather unavailable" hint={fetchErrorHint(error, 'No data for this location')} />;
+    body = (
+      <ModuleError
+        title="Weather unavailable"
+        hint={fetchErrorHint(error, 'No data for this location')}
+      />
+    );
   } else {
     const wind =
       Math.round(data.windSpeed) === 0

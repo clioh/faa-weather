@@ -8,14 +8,23 @@
  * Never log tokens, codes or verifiers.
  */
 
-import { httpRequest, parseJson, toTokenSet, type HttpResponse, type OAuthTokenResponse, type TokenSet } from './http.js';
+import {
+  httpRequest,
+  parseJson,
+  toTokenSet,
+  type HttpResponse,
+  type OAuthTokenResponse,
+  type TokenSet,
+} from './http.js';
 import { CalendarAuthError, CalendarError } from './types.js';
 import { DEFAULT_SKYGLASS_SERVICE, normalizeServiceUrl } from '../services/skyglass-service.js';
 
 export const DEFAULT_AUTH_SERVICE = DEFAULT_SKYGLASS_SERVICE;
 
-export const AUTH_SERVICE_UNREACHABLE = "Can't reach the SkyGlass sign-in service. Check the mirror's internet connection.";
-export const AUTH_SERVICE_INVALID = 'The skyglass_service setting must be an https:// URL. See docs/CLOUD_SERVICE.md.';
+export const AUTH_SERVICE_UNREACHABLE =
+  "Can't reach the SkyGlass sign-in service. Check the mirror's internet connection.";
+export const AUTH_SERVICE_INVALID =
+  'The skyglass_service setting must be an https:// URL. See docs/CLOUD_SERVICE.md.';
 export const GOOGLE_UNAVAILABLE = "Google sign-in isn't available right now.";
 export const MICROSOFT_UNAVAILABLE = "Outlook sign-in isn't available right now.";
 
@@ -67,7 +76,8 @@ export function parseAuthServiceConfig(json: unknown): AuthServiceConfig | null 
     const clientId = str(g.clientId);
     const redirectUri = str(g.redirectUri);
     const sc = scopes(g.scopes);
-    if (clientId && redirectUri && /^https:\/\//.test(redirectUri) && sc) google = { clientId, redirectUri, scopes: sc };
+    if (clientId && redirectUri && /^https:\/\//.test(redirectUri) && sc)
+      google = { clientId, redirectUri, scopes: sc };
   }
 
   let microsoft: MicrosoftClientConfig | null = null;
@@ -76,7 +86,8 @@ export function parseAuthServiceConfig(json: unknown): AuthServiceConfig | null 
     const clientId = str(m.clientId);
     const tenant = str(m.tenant ?? 'common', 128);
     const sc = scopes(m.scopes);
-    if (clientId && tenant && /^[A-Za-z0-9.-]+$/.test(tenant) && sc) microsoft = { clientId, tenant, scopes: sc };
+    if (clientId && tenant && /^[A-Za-z0-9.-]+$/.test(tenant) && sc)
+      microsoft = { clientId, tenant, scopes: sc };
   }
 
   return { google, microsoft };
@@ -156,7 +167,9 @@ export class AuthServiceClient {
       if (res.ok) config = parseAuthServiceConfig(safeJson(res));
       if (!config) console.warn(`[calendar] sign-in service config unusable (HTTP ${res.status})`);
     } catch (error) {
-      console.warn(`[calendar] sign-in service unreachable: ${error instanceof Error ? error.message : 'error'}`);
+      console.warn(
+        `[calendar] sign-in service unreachable: ${error instanceof Error ? error.message : 'error'}`
+      );
     }
     if (this.baseUrl() !== base) {
       // config changed while we were fetching; don't cache under the old base
@@ -168,7 +181,12 @@ export class AuthServiceClient {
       this.lastGood = { base, config };
       return config;
     }
-    this.cache = { base, ok: false, error: AUTH_SERVICE_UNREACHABLE, expiresAt: this.now() + CONFIG_FAILURE_TTL_MS };
+    this.cache = {
+      base,
+      ok: false,
+      error: AUTH_SERVICE_UNREACHABLE,
+      expiresAt: this.now() + CONFIG_FAILURE_TTL_MS,
+    };
     throw new CalendarError(AUTH_SERVICE_UNREACHABLE, 503);
   }
 
@@ -176,35 +194,56 @@ export class AuthServiceClient {
 
   /** authorization_code + PKCE verifier → tokens. The broker adds client_id/secret/redirect_uri. */
   async exchangeGoogleCode(code: string, codeVerifier: string): Promise<TokenSet> {
-    const { res, json } = await this.postGoogleToken({ grant_type: 'authorization_code', code, code_verifier: codeVerifier });
+    const { res, json } = await this.postGoogleToken({
+      grant_type: 'authorization_code',
+      code,
+      code_verifier: codeVerifier,
+    });
     const tokens = res.ok ? toTokenSet(json) : null;
     if (tokens) return tokens;
     console.warn(`[calendar] Google code exchange failed: ${res.status} ${json.error ?? ''}`);
-    throw new CalendarError(this.googleFailureMessage(res.status, json) ?? 'Google sign-in failed. Please try again.', 502);
+    throw new CalendarError(
+      this.googleFailureMessage(res.status, json) ?? 'Google sign-in failed. Please try again.',
+      502
+    );
   }
 
   async refreshGoogleToken(refreshToken: string): Promise<TokenSet> {
-    const { res, json } = await this.postGoogleToken({ grant_type: 'refresh_token', refresh_token: refreshToken });
+    const { res, json } = await this.postGoogleToken({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    });
     if (res.status >= 400 && res.status < 500 && json.error === 'invalid_grant') {
       throw new CalendarAuthError('Google sign-in expired. Reconnect this account.');
     }
     const tokens = res.ok ? toTokenSet(json) : null;
     if (tokens) return tokens;
     console.warn(`[calendar] Google token refresh failed: ${res.status} ${json.error ?? ''}`);
-    throw new CalendarError(this.googleFailureMessage(res.status, json) ?? `Couldn't refresh Google sign-in (HTTP ${res.status})`);
+    throw new CalendarError(
+      this.googleFailureMessage(res.status, json) ??
+        `Couldn't refresh Google sign-in (HTTP ${res.status})`
+    );
   }
 
   private googleFailureMessage(status: number, json: OAuthTokenResponse): string | null {
-    if (status === 503 || json.error === 'not_configured' || json.error === 'invalid_client' || json.error === 'unauthorized_client') {
+    if (
+      status === 503 ||
+      json.error === 'not_configured' ||
+      json.error === 'invalid_client' ||
+      json.error === 'unauthorized_client'
+    ) {
       this.invalidate();
       return GOOGLE_UNAVAILABLE;
     }
     if (status === 429) return 'Too many sign-in requests. Wait a minute and try again.';
-    if (status >= 500) return 'Google sign-in is temporarily unavailable. Try again in a few minutes.';
+    if (status >= 500)
+      return 'Google sign-in is temporarily unavailable. Try again in a few minutes.';
     return null;
   }
 
-  private async postGoogleToken(body: Record<string, string>): Promise<{ res: HttpResponse; json: OAuthTokenResponse }> {
+  private async postGoogleToken(
+    body: Record<string, string>
+  ): Promise<{ res: HttpResponse; json: OAuthTokenResponse }> {
     let url = `${this.base()}/api/oauth/google/token`;
     let res: HttpResponse | null = null;
     // Redirects are handled by hand so tokens/codes only ever follow one
@@ -224,9 +263,12 @@ export class AuthServiceClient {
         throw new CalendarError(AUTH_SERVICE_UNREACHABLE, 502);
       }
       if (res.status < 300 || res.status >= 400) break;
-      const next = hop === 0 ? sameSiteRedirect(url, res.status, res.headers.get('location')) : null;
+      const next =
+        hop === 0 ? sameSiteRedirect(url, res.status, res.headers.get('location')) : null;
       if (!next) {
-        console.warn(`[calendar] sign-in service token endpoint redirected (HTTP ${res.status}); set skyglass_service to its final URL`);
+        console.warn(
+          `[calendar] sign-in service token endpoint redirected (HTTP ${res.status}); set skyglass_service to its final URL`
+        );
         throw new CalendarError(AUTH_SERVICE_UNREACHABLE, 502);
       }
       url = next;
@@ -238,7 +280,11 @@ export class AuthServiceClient {
 }
 
 /** The redirect target if it's a 307/308 to https on the same host or its www. twin, else null. */
-export function sameSiteRedirect(from: string, status: number, location: string | null): string | null {
+export function sameSiteRedirect(
+  from: string,
+  status: number,
+  location: string | null
+): string | null {
   if ((status !== 307 && status !== 308) || !location) return null;
   let src: URL;
   let dst: URL;

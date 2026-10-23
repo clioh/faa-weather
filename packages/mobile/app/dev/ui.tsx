@@ -44,90 +44,122 @@ export default function DevUiScreen() {
     <>
       <Stack.Screen options={{ title: 'UI primitives', headerBackTitle: 'Back' }} />
       <KeyboardAvoidingScreen>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <SectionLabel>Type</SectionLabel>
-        <Text style={[typography.hero, styles.white]}>08:42</Text>
-        <Text style={[typography.h1, styles.white]}>Find your mirror</Text>
-        <Text style={[typography.h3, styles.white]}>Add a widget</Text>
-        <Text style={[typography.body, styles.secondary]}>Make sure the mirror is powered on.</Text>
-        <Text style={[typography.caption, styles.muted]}>Paired Oct 3, 2026</Text>
-        <Text style={[styles.white, { fontFamily: fonts.mono, fontSize: 15 }]}>KJFK 31012KT 10SM</Text>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <SectionLabel>Type</SectionLabel>
+          <Text style={[typography.hero, styles.white]}>08:42</Text>
+          <Text style={[typography.h1, styles.white]}>Find your mirror</Text>
+          <Text style={[typography.h3, styles.white]}>Add a widget</Text>
+          <Text style={[typography.body, styles.secondary]}>
+            Make sure the mirror is powered on.
+          </Text>
+          <Text style={[typography.caption, styles.muted]}>Paired Oct 3, 2026</Text>
+          <Text style={[styles.white, { fontFamily: fonts.mono, fontSize: 15 }]}>
+            KJFK 31012KT 10SM
+          </Text>
 
-        <SectionLabel style={styles.gap}>Buttons</SectionLabel>
-        <Button label="Continue" onPress={noop} />
-        <Button label="Scan again" variant="secondary" icon="refresh" onPress={noop} />
-        <Button label="Disconnect" variant="danger" onPress={noop} />
-        <Button label="Save airport" disabled onPress={noop} />
-        <Button label="Saving" loading onPress={noop} />
-        <View style={styles.inline}>
-          <Button label="Small" size="small" onPress={noop} />
-          <Button label="Small" size="small" variant="secondary" onPress={noop} />
-          <TextButton label="Text button" onPress={noop} />
-        </View>
+          <SectionLabel style={styles.gap}>Buttons</SectionLabel>
+          <Button label="Continue" onPress={noop} />
+          <Button label="Scan again" variant="secondary" icon="refresh" onPress={noop} />
+          <Button label="Disconnect" variant="danger" onPress={noop} />
+          <Button label="Save airport" disabled onPress={noop} />
+          <Button label="Saving" loading onPress={noop} />
+          <View style={styles.inline}>
+            <Button label="Small" size="small" onPress={noop} />
+            <Button label="Small" size="small" variant="secondary" onPress={noop} />
+            <TextButton label="Text button" onPress={noop} />
+          </View>
 
-        <SectionLabel style={styles.gap}>Chips, switches, badges</SectionLabel>
-        <View style={styles.inline}>
-          {['All', 'Aviation', 'Weather'].map((c) => (
-            <Chip key={c} label={c} selected={chip === c} onPress={() => setChip(c)} />
-          ))}
-          <Chip label="4×2" blocked onPress={noop} />
-        </View>
-        <View style={styles.inline}>
-          <Switch value={on} onValueChange={setOn} accessibilityLabel="Demo switch" />
-          <Switch value={!on} onValueChange={(v) => setOn(!v)} accessibilityLabel="Demo switch 2" />
-          <Badge label="NEW" />
-          <Badge label="NO FACE DATA" tone="warning" />
-          <Spinner />
-        </View>
+          <SectionLabel style={styles.gap}>Chips, switches, badges</SectionLabel>
+          <View style={styles.inline}>
+            {['All', 'Aviation', 'Weather'].map((c) => (
+              <Chip key={c} label={c} selected={chip === c} onPress={() => setChip(c)} />
+            ))}
+            <Chip label="4×2" blocked onPress={noop} />
+          </View>
+          <View style={styles.inline}>
+            <Switch value={on} onValueChange={setOn} accessibilityLabel="Demo switch" />
+            <Switch
+              value={!on}
+              onValueChange={(v) => setOn(!v)}
+              accessibilityLabel="Demo switch 2"
+            />
+            <Badge label="NEW" />
+            <Badge label="NO FACE DATA" tone="warning" />
+            <Spinner />
+          </View>
 
-        <SectionLabel style={styles.gap}>Rows</SectionLabel>
-        <RowGroup>
-          <Row icon="airplane-outline" title="Home airport" value="KJFK" valueMono onPress={noop} />
-          <Row
-            title="Auto-download updates"
-            caption="Download updates in the background"
-            trailing={<Switch value={on} onValueChange={setOn} accessibilityLabel="Auto-download updates" />}
+          <SectionLabel style={styles.gap}>Rows</SectionLabel>
+          <RowGroup>
+            <Row
+              icon="airplane-outline"
+              title="Home airport"
+              value="KJFK"
+              valueMono
+              onPress={noop}
+            />
+            <Row
+              title="Auto-download updates"
+              caption="Download updates in the background"
+              trailing={
+                <Switch
+                  value={on}
+                  onValueChange={setOn}
+                  accessibilityLabel="Auto-download updates"
+                />
+              }
+            />
+            <Row title="Software updates" badge={<Badge label="v1.4.0" />} onPress={noop} />
+            <Row
+              leading={<Text style={styles.icao}>KBDU</Text>}
+              title="Boulder Municipal"
+              caption="Boulder · 3 NM"
+              selected
+              onPress={noop}
+            />
+            <Row icon="add" title="Add a person" tone="accent" onPress={noop} />
+          </RowGroup>
+
+          <SectionLabel style={styles.gap}>Fields</SectionLabel>
+          <Field label="Name" placeholder="Enter your name" />
+          <Field label="Password" secureTextEntry revealable defaultValue="hunter2" />
+          <Field
+            label="License key"
+            mono
+            defaultValue="XXXX-O1"
+            error="License keys never contain 0, O, 1 or I."
           />
-          <Row title="Software updates" badge={<Badge label="v1.4.0" />} onPress={noop} />
-          <Row
-            leading={<Text style={styles.icao}>KBDU</Text>}
-            title="Boulder Municipal"
-            caption="Boulder · 3 NM"
-            selected
-            onPress={noop}
+
+          <SectionLabel style={styles.gap}>Notices, toast, progress</SectionLabel>
+          <Notice
+            tone="info"
+            message="Your kit came with a license. The mirror activates it once it is online."
           />
-          <Row icon="add" title="Add a person" tone="accent" onPress={noop} />
-        </RowGroup>
+          <Notice tone="warning" message="Mirror not responding" />
+          <Notice
+            tone="error"
+            message="Connection timed out. The mirror may be busy or unreachable."
+            onRetry={noop}
+            onDismiss={noop}
+          />
+          <Notice
+            tone="error"
+            title="Key not recognized"
+            message="No SkyGlass license matches this key."
+            action={{ label: 'skyglass.dev/license', onPress: noop }}
+          />
+          <Toast message="Saved to mirror" tone="success" style={styles.start} />
+          <StepProgress labels={['Profile', 'Mirror', 'Setup', 'Template', 'Ready']} current={2} />
 
-        <SectionLabel style={styles.gap}>Fields</SectionLabel>
-        <Field label="Name" placeholder="Enter your name" />
-        <Field label="Password" secureTextEntry revealable defaultValue="hunter2" />
-        <Field label="License key" mono defaultValue="XXXX-O1" error="License keys never contain 0, O, 1 or I." />
-
-        <SectionLabel style={styles.gap}>Notices, toast, progress</SectionLabel>
-        <Notice tone="info" message="Your kit came with a license. The mirror activates it once it is online." />
-        <Notice tone="warning" message="Mirror not responding" />
-        <Notice
-          tone="error"
-          message="Connection timed out. The mirror may be busy or unreachable."
-          onRetry={noop}
-          onDismiss={noop}
-        />
-        <Notice
-          tone="error"
-          title="Key not recognized"
-          message="No SkyGlass license matches this key."
-          action={{ label: 'skyglass.dev/license', onPress: noop }}
-        />
-        <Toast message="Saved to mirror" tone="success" style={styles.start} />
-        <StepProgress labels={['Profile', 'Mirror', 'Setup', 'Template', 'Ready']} current={2} />
-
-        <SectionLabel style={styles.gap}>Sheets</SectionLabel>
-        <View style={styles.pageSheet}>
-          <PageSheetHeader title="Add widget" onClose={noop} action={{ label: 'Done', onPress: noop }} />
-        </View>
-        <Button label="Open bottom sheet" variant="secondary" onPress={() => setSheet(true)} />
-      </ScrollView>
+          <SectionLabel style={styles.gap}>Sheets</SectionLabel>
+          <View style={styles.pageSheet}>
+            <PageSheetHeader
+              title="Add widget"
+              onClose={noop}
+              action={{ label: 'Done', onPress: noop }}
+            />
+          </View>
+          <Button label="Open bottom sheet" variant="secondary" onPress={() => setSheet(true)} />
+        </ScrollView>
       </KeyboardAvoidingScreen>
       <TabBar
         items={[

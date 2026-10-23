@@ -26,5 +26,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </BrowserRouter>
       </HelmetProvider>
     </ErrorBoundary>
-  </React.StrictMode>,
+  </React.StrictMode>
 )

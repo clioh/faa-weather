@@ -24,11 +24,22 @@ const KNOB_OFF = 20;
 // Off knob sits inside the 1px border; on knob is flush with the padding.
 const TRAVEL = TRACK_W - PAD * 2 - KNOB_ON;
 
-export function Switch({ value, onValueChange, disabled, accessibilityLabel, accessibilityHint, style }: SwitchProps) {
+export function Switch({
+  value,
+  onValueChange,
+  disabled,
+  accessibilityLabel,
+  accessibilityHint,
+  style,
+}: SwitchProps) {
   const position = useRef(new Animated.Value(value ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.timing(position, { toValue: value ? 1 : 0, duration: 150, useNativeDriver: true }).start();
+    Animated.timing(position, {
+      toValue: value ? 1 : 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
   }, [value, position]);
 
   return (
@@ -40,12 +51,23 @@ export function Switch({ value, onValueChange, disabled, accessibilityLabel, acc
       accessibilityHint={accessibilityHint}
       accessibilityState={{ checked: value, disabled: !!disabled }}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      style={[styles.track, value ? styles.trackOn : styles.trackOff, disabled && styles.disabled, style]}
+      style={[
+        styles.track,
+        value ? styles.trackOn : styles.trackOff,
+        disabled && styles.disabled,
+        style,
+      ]}
     >
       <Animated.View
         style={[
           value ? styles.knobOn : styles.knobOff,
-          { transform: [{ translateX: position.interpolate({ inputRange: [0, 1], outputRange: [0, TRAVEL] }) }] },
+          {
+            transform: [
+              {
+                translateX: position.interpolate({ inputRange: [0, 1], outputRange: [0, TRAVEL] }),
+              },
+            ],
+          },
         ]}
       />
     </Pressable>

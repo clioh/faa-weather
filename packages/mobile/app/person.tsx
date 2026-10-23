@@ -37,7 +37,8 @@ export default function PersonScreen() {
           setError(null);
         })
         .catch(() => {
-          if (!cancelled) setError('Couldn’t reach the mirror. Check that your phone is on the same network.');
+          if (!cancelled)
+            setError('Couldn’t reach the mirror. Check that your phone is on the same network.');
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -91,9 +92,16 @@ export default function PersonScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          {error ? <Notice tone="warning" message={error} /> : <Text style={styles.status}>{status}</Text>}
+          {error ? (
+            <Notice tone="warning" message={error} />
+          ) : (
+            <Text style={styles.status}>{status}</Text>
+          )}
           {hasFace === false && person && (
-            <Notice tone="info" message={`${name} has no face registered, so the mirror won’t recognize them yet.`} />
+            <Notice
+              tone="info"
+              message={`${name} has no face registered, so the mirror won’t recognize them yet.`}
+            />
           )}
 
           {person && !joined && (
@@ -102,19 +110,26 @@ export default function PersonScreen() {
                 icon="paper-plane-outline"
                 title={person.inviteExpiresAt ? 'Send a New Invite' : `Invite ${name}`}
                 caption="QR code or a link to share"
-                onPress={() => router.push({ pathname: '/invite-person', params: { userId: id, name } })}
+                onPress={() =>
+                  router.push({ pathname: '/invite-person', params: { userId: id, name } })
+                }
               />
               <Row
                 icon="grid-outline"
                 title={`Edit ${name}’s Layout`}
                 caption="What the mirror shows when it recognizes them"
-                onPress={() => router.push({ pathname: '/editor', params: { personId: id, personName: name } })}
+                onPress={() =>
+                  router.push({ pathname: '/editor', params: { personId: id, personName: name } })
+                }
               />
               <Row
                 icon="scan-outline"
                 title={hasFace ? 'Register Face Again' : 'Register Face'}
                 onPress={() =>
-                  router.push({ pathname: '/setup/face', params: { personId: id, personName: name } })
+                  router.push({
+                    pathname: '/setup/face',
+                    params: { personId: id, personName: name },
+                  })
                 }
               />
             </RowGroup>

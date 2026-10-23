@@ -31,8 +31,19 @@ export class UnauthorizedError extends Error {
   }
 }
 
-export async function httpRequest(url: string, service: string, opts: HttpOptions = {}): Promise<HttpResponse> {
-  const { method = 'GET', headers = {}, body, timeoutMs = 15_000, maxBytes = 10 * 1024 * 1024, redirect = 'follow' } = opts;
+export async function httpRequest(
+  url: string,
+  service: string,
+  opts: HttpOptions = {}
+): Promise<HttpResponse> {
+  const {
+    method = 'GET',
+    headers = {},
+    body,
+    timeoutMs = 15_000,
+    maxBytes = 10 * 1024 * 1024,
+    redirect = 'follow',
+  } = opts;
   let res: Response;
   try {
     res = await fetch(url, {
@@ -43,8 +54,12 @@ export async function httpRequest(url: string, service: string, opts: HttpOption
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
-    const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-    throw new CalendarError(timedOut ? `${service} took too long to respond` : `Couldn't reach ${service}`, timedOut ? 504 : 502);
+    const timedOut =
+      error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+    throw new CalendarError(
+      timedOut ? `${service} took too long to respond` : `Couldn't reach ${service}`,
+      timedOut ? 504 : 502
+    );
   }
   let text: string;
   try {
@@ -70,7 +85,10 @@ export function form(data: Record<string, string | undefined>): string {
   return p.toString();
 }
 
-export const FORM_HEADERS = { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' };
+export const FORM_HEADERS = {
+  'Content-Type': 'application/x-www-form-urlencoded',
+  Accept: 'application/json',
+};
 
 export interface TokenSet {
   accessToken: string;

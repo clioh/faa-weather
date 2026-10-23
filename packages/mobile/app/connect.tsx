@@ -53,12 +53,20 @@ function claimErrorMessage(err: unknown, host: string): string {
   if (err instanceof ApiError && err.status === undefined) {
     return `Couldn’t reach the mirror at ${host}. Make sure your phone is on the same WiFi network as the mirror.`;
   }
-  return commonPairingError(err) ?? 'The mirror couldn’t pair with this phone. Scan the code again or pair with a 6-digit code instead.';
+  return (
+    commonPairingError(err) ??
+    'The mirror couldn’t pair with this phone. Scan the code again or pair with a 6-digit code instead.'
+  );
 }
 
 export default function ConnectScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ host?: string; port?: string; pair?: string; reset?: string }>();
+  const params = useLocalSearchParams<{
+    host?: string;
+    port?: string;
+    pair?: string;
+    reset?: string;
+  }>();
   const { isLoading, isOnboarded, resetAppData } = useUser();
   const [claimError, setClaimError] = useState<string | null>(null);
   const [wasReset, setWasReset] = useState(false);
@@ -124,7 +132,11 @@ export default function ConnectScreen() {
         </View>
         <Footer>
           {/* The address is saved; discovery connects to it and opens the code flow. */}
-          <PrimaryButton label="Pair with a code instead" icon="keypad-outline" onPress={continueOnboarding} />
+          <PrimaryButton
+            label="Pair with a code instead"
+            icon="keypad-outline"
+            onPress={continueOnboarding}
+          />
           <TextButton label="Cancel" onPress={() => goBack('/')} />
         </Footer>
       </View>

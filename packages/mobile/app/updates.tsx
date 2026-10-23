@@ -110,9 +110,11 @@ export default function UpdatesScreen() {
 
   // Poll while downloading/installing
   useEffect(() => {
-    if (status?.downloadProgress.phase === 'downloading' ||
-        status?.downloadProgress.phase === 'extracting' ||
-        status?.downloadProgress.phase === 'installing') {
+    if (
+      status?.downloadProgress.phase === 'downloading' ||
+      status?.downloadProgress.phase === 'extracting' ||
+      status?.downloadProgress.phase === 'installing'
+    ) {
       const interval = setInterval(loadStatus, 1000);
       setPollInterval(interval);
       return () => clearInterval(interval);
@@ -230,7 +232,8 @@ export default function UpdatesScreen() {
               {downloadProgress.phase === 'downloading' && (
                 <>
                   <Text style={styles.monoCaption}>
-                    {formatBytes(downloadProgress.bytesDownloaded || 0)} / {formatBytes(status.downloadSize)}
+                    {formatBytes(downloadProgress.bytesDownloaded || 0)} /{' '}
+                    {formatBytes(status.downloadSize)}
                   </Text>
                   <Text style={styles.monoCaption}>
                     {formatSpeed(downloadProgress.speed || 0)}
@@ -267,7 +270,9 @@ export default function UpdatesScreen() {
             <View style={styles.versionCompare}>
               <View style={styles.versionBox}>
                 <Text style={styles.caption}>Current</Text>
-                <Text style={[styles.versionValue, styles.versionValueOld]}>v{status.currentVersion}</Text>
+                <Text style={[styles.versionValue, styles.versionValueOld]}>
+                  v{status.currentVersion}
+                </Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.progressLabel} />
               <View style={styles.versionBox}>
@@ -334,7 +339,11 @@ export default function UpdatesScreen() {
             {status.downloadReady ? (
               <Button label="Install Now" icon="rocket-outline" onPress={installUpdate} />
             ) : (
-              <Button label="Download Update" icon="cloud-download-outline" onPress={downloadUpdate} />
+              <Button
+                label="Download Update"
+                icon="cloud-download-outline"
+                onPress={downloadUpdate}
+              />
             )}
             <TextButton label="Check for Updates" onPress={checkForUpdates} disabled={checking} />
           </>

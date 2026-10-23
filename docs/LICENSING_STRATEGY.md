@@ -47,10 +47,12 @@ packages/
 - **Used by:** GitLab, MongoDB, Grafana Enterprise
 
 **Pros:**
+
 - Strong copyleft protects against competitors using code without contributing back
 - Clear monetization path for enterprise customers
 
 **Cons:**
+
 - AGPL can deter some contributors and adopters
 - More complex licensing to explain
 
@@ -61,10 +63,12 @@ packages/
 - **Used by:** Sidekiq, many SaaS products
 
 **Pros:**
+
 - Maximum adoption and contributor friendliness
 - Simple to understand
 
 **Cons:**
+
 - Competitors can fork and compete without contributing back
 - Must ensure premium features are genuinely valuable
 

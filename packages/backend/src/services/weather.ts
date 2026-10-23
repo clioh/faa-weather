@@ -110,11 +110,16 @@ interface OpenMeteoDaily {
   };
 }
 
-export function mapCurrent(body: OpenMeteoCurrent, units: Units, fetchedAt: string): CurrentWeather {
+export function mapCurrent(
+  body: OpenMeteoCurrent,
+  units: Units,
+  fetchedAt: string
+): CurrentWeather {
   const c = body.current;
   const temperature = num(c?.temperature_2m);
   const code = num(c?.weather_code);
-  if (!c || temperature === null || code === null) throw new UpstreamError('Weather data incomplete');
+  if (!c || temperature === null || code === null)
+    throw new UpstreamError('Weather data incomplete');
   return {
     temperature: round1(temperature),
     apparentTemperature: round1(num(c.apparent_temperature) ?? temperature),
@@ -130,7 +135,12 @@ export function mapCurrent(body: OpenMeteoCurrent, units: Units, fetchedAt: stri
   };
 }
 
-export function mapForecast(body: OpenMeteoDaily, units: Units, days: number, fetchedAt: string): WeatherForecast {
+export function mapForecast(
+  body: OpenMeteoDaily,
+  units: Units,
+  days: number,
+  fetchedAt: string
+): WeatherForecast {
   const d = body.daily;
   if (!d?.time) throw new UpstreamError('Forecast data incomplete');
   const out: ForecastDay[] = [];
@@ -154,7 +164,11 @@ export function mapForecast(body: OpenMeteoDaily, units: Units, days: number, fe
 const currentCache = new TtlCache<CurrentWeather>(WEATHER_CACHE_TTL_MS);
 const forecastCache = new TtlCache<WeatherForecast>(WEATHER_CACHE_TTL_MS);
 
-export async function getCurrentWeather(lat: number, lon: number, units: Units): Promise<CurrentWeather> {
+export async function getCurrentWeather(
+  lat: number,
+  lon: number,
+  units: Units
+): Promise<CurrentWeather> {
   const key = weatherKey(lat, lon, units);
   const result = await currentCache.get(key, async () => {
     const url =
@@ -167,7 +181,12 @@ export async function getCurrentWeather(lat: number, lon: number, units: Units):
   return result.value;
 }
 
-export async function getWeatherForecast(lat: number, lon: number, units: Units, days: number): Promise<WeatherForecast> {
+export async function getWeatherForecast(
+  lat: number,
+  lon: number,
+  units: Units,
+  days: number
+): Promise<WeatherForecast> {
   const n = Math.min(Math.max(Math.trunc(days) || 5, 1), MAX_FORECAST_DAYS);
   // Always fetch the full window so one cache entry serves every `days` value.
   const result = await forecastCache.get(weatherKey(lat, lon, units), async () => {

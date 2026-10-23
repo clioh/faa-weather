@@ -106,8 +106,7 @@ export function SetupProgressScreen({ license, onSetupComplete }: SetupProgressS
   // License step is always satisfied, so don't list it, matching the phone.
   const steps = license?.state === 'disabled' ? STEPS.filter((s) => s.id !== 'license') : STEPS;
   /** 1-based position of a step in the visible list. */
-  const stepNumber = (id: (typeof STEPS)[number]['id']) =>
-    steps.findIndex((s) => s.id === id) + 1;
+  const stepNumber = (id: (typeof STEPS)[number]['id']) => steps.findIndex((s) => s.id === id) + 1;
 
   // Determine current step (1-based index into steps; steps.length + 1 = done)
   const getCurrentStep = (): {
@@ -192,7 +191,8 @@ export function SetupProgressScreen({ license, onSetupComplete }: SetupProgressS
     orientation === 'portrait' ? 'Portrait' : orientation === 'landscape' ? 'Landscape' : null;
 
   const stepItems: StepListItem[] = steps.map((step, index) => {
-    const state = index + 1 < currentStep.step ? 'done' : index + 1 === currentStep.step ? 'now' : 'todo';
+    const state =
+      index + 1 < currentStep.step ? 'done' : index + 1 === currentStep.step ? 'now' : 'todo';
     return {
       key: step.id,
       label: step.label,
@@ -228,7 +228,10 @@ export function SetupProgressScreen({ license, onSetupComplete }: SetupProgressS
         {/* Connect QR with a one-time pairing secret (GET /api/pairing/qr);
             in `npm run dev:e2e` it opens the Expo dev build instead. */}
         <div className="sg-panel sg-first">
-          <PairingQr caption={phoneCaption} fallback={<p className="sg-caption">{phoneCaption}</p>} />
+          <PairingQr
+            caption={phoneCaption}
+            fallback={<p className="sg-caption">{phoneCaption}</p>}
+          />
         </div>
       </div>
     </SetupFrame>

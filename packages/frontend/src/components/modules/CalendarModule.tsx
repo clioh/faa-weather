@@ -85,8 +85,10 @@ export function CalendarModule({ config, size, timezone }: ModuleProps) {
   const url = flightsOnly
     ? `/api/schedule/flights?days=${daysAhead}`
     : `/api/schedule?days=${daysAhead}`;
-  const { data, loading, error, isStale, lastUpdated, refresh } =
-    useModuleData<ScheduleResponse>(url, { refreshMs: 5 * 60_000 });
+  const { data, loading, error, isStale, lastUpdated, refresh } = useModuleData<ScheduleResponse>(
+    url,
+    { refreshMs: 5 * 60_000 }
+  );
 
   // The backend broadcasts `calendar` when accounts change or a sync lands.
   useWsEvent('calendar', () => {
@@ -196,7 +198,9 @@ export function CalendarModule({ config, size, timezone }: ModuleProps) {
             </div>
             {group.rows.map((row) => {
               const event = row.event;
-              const isFlight = Boolean(event.isFlightDuty && (event.flightNumber || event.departure));
+              const isFlight = Boolean(
+                event.isFlightDuty && (event.flightNumber || event.departure)
+              );
               const report = isFlight ? formatTime(event.reportTime) : null;
               const color = isFlight ? null : calendarColor(event.color);
               const through = throughLabel(row);
@@ -224,7 +228,9 @@ export function CalendarModule({ config, size, timezone }: ModuleProps) {
                   <span className="cal-detail">
                     {isFlight ? (
                       <span className="cal-title">
-                        {event.flightNumber && <span className="cal-flight">{event.flightNumber}</span>}
+                        {event.flightNumber && (
+                          <span className="cal-flight">{event.flightNumber}</span>
+                        )}
                         {event.departure && event.arrival && (
                           <span className="cal-route">
                             {event.departure} → {event.arrival}

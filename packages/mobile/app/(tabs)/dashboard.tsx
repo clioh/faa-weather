@@ -32,7 +32,11 @@ interface MirrorSummary {
 export default function DashboardScreen() {
   const { user, currentMirror } = useUser();
   const [status, setStatus] = useState<MirrorStatus | null>(null);
-  const [summary, setSummary] = useState<MirrorSummary>({ modules: null, airport: null, latestVersion: null });
+  const [summary, setSummary] = useState<MirrorSummary>({
+    modules: null,
+    airport: null,
+    latestVersion: null,
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -66,7 +70,9 @@ export default function DashboardScreen() {
       modules: modules.status === 'fulfilled' ? modules.value : null,
       airport: config.status === 'fulfilled' ? config.value.airport || null : null,
       latestVersion:
-        update.status === 'fulfilled' && update.value.updateAvailable ? update.value.latestVersion : null,
+        update.status === 'fulfilled' && update.value.updateAvailable
+          ? update.value.latestVersion
+          : null,
     });
   }, [user]);
 
@@ -173,7 +179,9 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.layoutFooter}>
                 <View style={styles.layoutText}>
-                  <Text style={styles.layoutTitle}>{user ? `${user.name}'s layout` : 'Your layout'}</Text>
+                  <Text style={styles.layoutTitle}>
+                    {user ? `${user.name}'s layout` : 'Your layout'}
+                  </Text>
                   <Text style={styles.caption}>
                     {modules
                       ? `${modules.length} widget${modules.length === 1 ? '' : 's'}`
@@ -197,12 +205,16 @@ export default function DashboardScreen() {
                 value={currentMirror?.faceEnrolled ? 'Registered' : 'Not registered'}
                 onPress={() => router.push('/setup/face')}
                 accessibilityHint={
-                  currentMirror?.faceEnrolled ? 'Register your face again' : 'Register your face with the mirror'
+                  currentMirror?.faceEnrolled
+                    ? 'Register your face again'
+                    : 'Register your face with the mirror'
                 }
               />
               <Row
                 title="Software Updates"
-                badge={summary.latestVersion ? <Badge label={`v${summary.latestVersion}`} /> : undefined}
+                badge={
+                  summary.latestVersion ? <Badge label={`v${summary.latestVersion}`} /> : undefined
+                }
                 chevron
                 onPress={() => router.push('/updates')}
               />

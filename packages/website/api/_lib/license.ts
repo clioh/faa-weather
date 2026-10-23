@@ -30,7 +30,9 @@ export const LICENSED_PRODUCTS = PRODUCT_IDS
 export type LicensedProduct = ProductId
 
 /** Digital products are keyed at purchase; physical kits are keyed at fulfilment. */
-export const KEYED_AT_PURCHASE: readonly string[] = PRODUCT_IDS.filter((id) => !CATALOG[id].physical)
+export const KEYED_AT_PURCHASE: readonly string[] = PRODUCT_IDS.filter(
+  (id) => !CATALOG[id].physical
+)
 
 export function isLicensedProduct(productId: string): productId is LicensedProduct {
   return (LICENSED_PRODUCTS as readonly string[]).includes(productId)
@@ -121,8 +123,18 @@ export function parseSigningKey(value: string): KeyObject {
   return key
 }
 
-export function buildTokenPayload(licenseId: string, fingerprint: string, nowSeconds: number): TokenPayload {
-  return { v: 1, lid: licenseId, fp: fingerprint, iat: nowSeconds, exp: nowSeconds + TOKEN_TTL_SECONDS }
+export function buildTokenPayload(
+  licenseId: string,
+  fingerprint: string,
+  nowSeconds: number
+): TokenPayload {
+  return {
+    v: 1,
+    lid: licenseId,
+    fp: fingerprint,
+    iat: nowSeconds,
+    exp: nowSeconds + TOKEN_TTL_SECONDS,
+  }
 }
 
 /** base64url(payloadJson) + "." + base64url(ed25519(payloadJsonBytes)) */
@@ -140,7 +152,7 @@ export function verifyToken(
   token: string,
   publicKey: KeyObject | string,
   fingerprint: string,
-  nowSeconds: number,
+  nowSeconds: number
 ): TokenPayload | null {
   const parts = token.split('.')
   if (parts.length !== 2) return null
@@ -185,13 +197,20 @@ function manageMac(body: string, secret: string): Buffer {
 }
 
 export function createManageToken(email: string, secret: string, nowSeconds: number): string {
-  const payload: ManageTokenPayload = { email: email.toLowerCase(), exp: nowSeconds + MANAGE_TOKEN_TTL_SECONDS }
+  const payload: ManageTokenPayload = {
+    email: email.toLowerCase(),
+    exp: nowSeconds + MANAGE_TOKEN_TTL_SECONDS,
+  }
   const body = b64url(JSON.stringify(payload))
   return `${body}.${b64url(manageMac(body, secret))}`
 }
 
 /** Returns the (lowercased) email when the token is authentic and unexpired. */
-export function verifyManageToken(token: unknown, secret: string, nowSeconds: number): string | null {
+export function verifyManageToken(
+  token: unknown,
+  secret: string,
+  nowSeconds: number
+): string | null {
   if (typeof token !== 'string' || token.length > 2048) return null
   const parts = token.split('.')
   if (parts.length !== 2) return null
@@ -232,7 +251,8 @@ export function expandOrderLicenses(items: OrderItem[]): PlannedLicense[] {
   for (const item of items) {
     if (!item || !isLicensedProduct(item.productId)) continue
     const qty = Math.max(0, Math.min(100, Math.floor(Number(item.quantity) || 0)))
-    for (let i = 0; i < qty; i++) rows.push({ orderSeq: rows.length + 1, productId: item.productId })
+    for (let i = 0; i < qty; i++)
+      rows.push({ orderSeq: rows.length + 1, productId: item.productId })
   }
   return rows
 }

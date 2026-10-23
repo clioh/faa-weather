@@ -240,7 +240,9 @@ export function RegistrationOverlay() {
           <h1 className="sg-headline registration-welcome__headline">
             Welcome{registration?.userName ? `, ${registration.userName}` : ''}!
           </h1>
-          <p className="sg-body registration-welcome__lead">Your face has been registered successfully</p>
+          <p className="sg-body registration-welcome__lead">
+            Your face has been registered successfully
+          </p>
           <p className="sg-body">The mirror will now recognize you automatically</p>
         </div>
       </SetupFrame>

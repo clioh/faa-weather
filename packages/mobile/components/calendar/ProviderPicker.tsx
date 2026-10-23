@@ -21,7 +21,10 @@ interface ProviderPickerProps {
 }
 
 export function ProviderPicker({ providers, error, onRetry, onPick }: ProviderPickerProps) {
-  if (error) return <Notice tone="error" message={error} action={{ label: 'Try again', onPress: onRetry }} />;
+  if (error)
+    return (
+      <Notice tone="error" message={error} action={{ label: 'Try again', onPress: onRetry }} />
+    );
   if (!providers) return <Spinner style={styles.loader} />;
 
   // "Other CalDAV" is for people who know they need it; keep it out of the main list.
@@ -47,13 +50,20 @@ export function ProviderPicker({ providers, error, onRetry, onPick }: ProviderPi
         </View>
       )}
       <Text style={styles.footnote}>
-        Sign-ins are stored on your mirror and used only to read your calendars. SkyGlass never changes your events.
+        Sign-ins are stored on your mirror and used only to read your calendars. SkyGlass never
+        changes your events.
       </Text>
     </View>
   );
 }
 
-function ProviderRow({ provider, onPick }: { provider: CalendarProvider; onPick: (p: CalendarProvider) => void }) {
+function ProviderRow({
+  provider,
+  onPick,
+}: {
+  provider: CalendarProvider;
+  onPick: (p: CalendarProvider) => void;
+}) {
   const meta = PROVIDER_META[provider.id];
   const name = provider.name || meta?.name || provider.id;
   const off = !provider.available;
@@ -61,7 +71,7 @@ function ProviderRow({ provider, onPick }: { provider: CalendarProvider; onPick:
     <Row
       leading={<ProviderTile provider={provider.id} />}
       title={name}
-      caption={off ? provider.reason ?? 'Not available on this mirror.' : meta?.blurb}
+      caption={off ? (provider.reason ?? 'Not available on this mirror.') : meta?.blurb}
       disabled={off}
       chevron={!off}
       onPress={() => {

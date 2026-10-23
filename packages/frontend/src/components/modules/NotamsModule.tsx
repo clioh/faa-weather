@@ -33,7 +33,8 @@ export function NotamsModule({ config, airport, size }: ModuleProps) {
   const icao = resolveAirport(config, airport);
   const maxItems = Math.min(20, Math.max(1, Number(config.maxItems) || 6));
   const categories = typeof config.categories === 'string' ? config.categories.trim() : 'all';
-  const query = categories && categories !== 'all' ? `?categories=${encodeURIComponent(categories)}` : '';
+  const query =
+    categories && categories !== 'all' ? `?categories=${encodeURIComponent(categories)}` : '';
   const { data, loading, error, isStale, lastUpdated } = useModuleData<NotamResponse>(
     icao ? `/api/aviation/notams/${encodeURIComponent(icao)}${query}` : null,
     { refreshMs: 15 * 60_000 }
@@ -63,9 +64,15 @@ export function NotamsModule({ config, airport, size }: ModuleProps) {
       ) : loading ? (
         <ModuleLoading />
       ) : !data ? (
-        <ModuleError title="NOTAMs unavailable" hint={fetchErrorHint(error, `No NOTAMs for ${icao}`)} />
+        <ModuleError
+          title="NOTAMs unavailable"
+          hint={fetchErrorHint(error, `No NOTAMs for ${icao}`)}
+        />
       ) : shown.length === 0 ? (
-        <ModuleEmpty title="No active NOTAMs" hint={query ? 'For the selected categories' : undefined} />
+        <ModuleEmpty
+          title="No active NOTAMs"
+          hint={query ? 'For the selected categories' : undefined}
+        />
       ) : (
         <div className="mf-list notams-list">
           {shown.map(({ notam, category }) => {

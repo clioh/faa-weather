@@ -96,11 +96,15 @@ export function accountStatus(account: CalendarAccount): StatusInfo {
       label: 'Sync problem',
       color: colors.warning,
       icon: 'warning-outline',
-      detail: account.error ?? 'The last sync didn’t finish. The mirror keeps showing the events it already has.',
+      detail:
+        account.error ??
+        'The last sync didn’t finish. The mirror keeps showing the events it already has.',
     };
   }
   return {
-    label: account.lastSyncAt ? `Synced ${relativeTime(account.lastSyncAt)}` : 'Waiting for first sync',
+    label: account.lastSyncAt
+      ? `Synced ${relativeTime(account.lastSyncAt)}`
+      : 'Waiting for first sync',
     color: colors.success,
     icon: 'checkmark',
     detail: null,

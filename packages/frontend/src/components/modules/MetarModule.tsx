@@ -44,7 +44,7 @@ export function MetarModule({ config, airport, size }: ModuleProps) {
   );
 
   const observed = data?.parsed?.observationTime
-    ? parseDayTime(data.parsed.observationTime)?.getTime() ?? null
+    ? (parseDayTime(data.parsed.observationTime)?.getTime() ?? null)
     : null;
   const ageAt = observed ?? lastUpdated;
   const stale = isStale || (observed !== null && Date.now() - observed > STALE_OBS_MS);
@@ -61,7 +61,10 @@ export function MetarModule({ config, airport, size }: ModuleProps) {
       ) : loading ? (
         <ModuleLoading />
       ) : !data ? (
-        <ModuleError title="METAR unavailable" hint={fetchErrorHint(error, `No report for ${icao}`)} />
+        <ModuleError
+          title="METAR unavailable"
+          hint={fetchErrorHint(error, `No report for ${icao}`)}
+        />
       ) : (
         <MetarBody data={data} size={size} showRaw={showRaw} />
       )}
@@ -105,10 +108,20 @@ function MetarBody({
     <Metric key="wind" label="Wind" value={wind.value} unit={wind.unit || undefined} />,
     <Metric key="vis" label="Vis" value={vis ?? '—'} unit={vis ? 'SM' : undefined} />,
     <Metric key="sky" label={p?.ceiling != null ? 'Ceiling' : 'Sky'} value={ceiling} />,
-    <Metric key="temp" label="Temp / Dew" value={temp} unit={p?.temperature != null ? 'C' : undefined} />,
+    <Metric
+      key="temp"
+      label="Temp / Dew"
+      value={temp}
+      unit={p?.temperature != null ? 'C' : undefined}
+    />,
   ];
   const altMetric = (
-    <Metric key="alt" label="Altimeter" value={altimeter ?? '—'} unit={altimeter ? 'inHg' : undefined} />
+    <Metric
+      key="alt"
+      label="Altimeter"
+      value={altimeter ?? '—'}
+      unit={altimeter ? 'inHg' : undefined}
+    />
   );
 
   if (size === 'medium') {
@@ -117,11 +130,7 @@ function MetarBody({
         <div className="metar-top">
           <FlightRulesPill rules={data.flightRules} />
           {weather && <span className="metar-wx mono">{weather}</span>}
-          {altimeter && (
-            <span className="metar-alt mono">
-              A{altimeter}
-            </span>
-          )}
+          {altimeter && <span className="metar-alt mono">A{altimeter}</span>}
         </div>
         <div className="metar-grid">{metrics}</div>
       </div>

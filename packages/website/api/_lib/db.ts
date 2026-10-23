@@ -129,7 +129,10 @@ export async function findByOrder(sql: Sql, orderId: string): Promise<LicenseRow
 }
 
 /** Customer releases for each license inside the rolling window. */
-export async function customerReleaseCounts(sql: Sql, licenseIds: string[]): Promise<Map<string, number>> {
+export async function customerReleaseCounts(
+  sql: Sql,
+  licenseIds: string[]
+): Promise<Map<string, number>> {
   const counts = new Map<string, number>()
   if (licenseIds.length === 0) return counts
   const rows = (await sql`
@@ -153,7 +156,11 @@ export function releasesRemaining(used: number): number {
  * when the license was not bound. For actor 'admin' a revoked license is also
  * reset to pending.
  */
-export async function releaseLicense(sql: Sql, id: string, actor: 'customer' | 'admin'): Promise<boolean> {
+export async function releaseLicense(
+  sql: Sql,
+  id: string,
+  actor: 'customer' | 'admin'
+): Promise<boolean> {
   const allowed = actor === 'admin' ? ['active', 'revoked'] : ['active']
   const rows = (await sql`
     WITH old AS (
@@ -187,20 +194,22 @@ export async function releaseLicense(sql: Sql, id: string, actor: 'customer' | '
 export async function assignNewKey(
   sql: Sql,
   id: string,
-  onlyIf: 'unkeyed' | 'pending-keyed',
+  onlyIf: 'unkeyed' | 'pending-keyed'
 ): Promise<string | null> {
   const key = generateLicenseKey()
   const hash = hashLicenseKey(key)
   const last4 = keyLast4(key)
-  const rows = (onlyIf === 'unkeyed'
-    ? await sql`
+  const rows = (
+    onlyIf === 'unkeyed'
+      ? await sql`
         UPDATE licenses SET key_hash = ${hash}, key_last4 = ${last4}
         WHERE id = ${id} AND key_hash IS NULL AND status <> 'revoked'
         RETURNING id`
-    : await sql`
+      : await sql`
         UPDATE licenses SET key_hash = ${hash}, key_last4 = ${last4}
         WHERE id = ${id} AND key_hash IS NOT NULL AND status = 'pending'
-        RETURNING id`) as { id: string }[]
+        RETURNING id`
+  ) as { id: string }[]
   return rows.length > 0 ? key : null
 }
 
@@ -220,7 +229,7 @@ export async function createOrderLicenses(
   sql: Sql,
   orderId: string,
   email: string,
-  planned: (PlannedLicense & { keyed: boolean })[],
+  planned: (PlannedLicense & { keyed: boolean })[]
 ): Promise<CreatedLicense[]> {
   if (planned.length === 0) return []
   const keys = new Map<number, string>()
@@ -230,18 +239,32 @@ export async function createOrderLicenses(
     const key = p.keyed ? generateLicenseKey() : null
     if (key) keys.set(p.orderSeq, key)
     const base = params.length
-    params.push(key ? hashLicenseKey(key) : null, key ? keyLast4(key) : null, email, orderId, p.orderSeq, p.productId)
-    values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, 'pending')`)
+    params.push(
+      key ? hashLicenseKey(key) : null,
+      key ? keyLast4(key) : null,
+      email,
+      orderId,
+      p.orderSeq,
+      p.productId
+    )
+    values.push(
+      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, 'pending')`
+    )
   }
   const rows = (await sql.query(
     `INSERT INTO licenses (key_hash, key_last4, email, order_id, order_seq, product_id, status)
      VALUES ${values.join(', ')}
      ON CONFLICT (order_id, order_seq) DO NOTHING
      RETURNING id, order_seq, product_id`,
-    params,
+    params
   )) as { id: string; order_seq: number; product_id: string }[]
   return rows
-    .map((r) => ({ id: r.id, orderSeq: Number(r.order_seq), productId: r.product_id, key: keys.get(Number(r.order_seq)) ?? null }))
+    .map((r) => ({
+      id: r.id,
+      orderSeq: Number(r.order_seq),
+      productId: r.product_id,
+      key: keys.get(Number(r.order_seq)) ?? null,
+    }))
     .sort((a, b) => a.orderSeq - b.orderSeq)
 }
 
@@ -254,7 +277,11 @@ export async function revokeOrderLicenses(sql: Sql, orderId: string): Promise<nu
 }
 
 /** Revoke specific licenses, only if they belong to `orderId`. Returns the ids that changed. */
-export async function revokeLicensesOnOrder(sql: Sql, orderId: string, ids: string[]): Promise<string[]> {
+export async function revokeLicensesOnOrder(
+  sql: Sql,
+  orderId: string,
+  ids: string[]
+): Promise<string[]> {
   const valid = ids.filter(isUuid)
   if (valid.length === 0) return []
   const rows = (await sql`
@@ -315,7 +342,7 @@ export async function recordPromoRedemption(
   sql: Sql,
   orderId: string,
   promotionCodeId: string,
-  couponId: string | null,
+  couponId: string | null
 ): Promise<void> {
   await sql`
     INSERT INTO promo_redemptions (order_id, promotion_code_id, coupon_id)
@@ -327,7 +354,7 @@ export async function recordPromoRedemption(
 export async function countPromoRedemptions(
   sql: Sql,
   promotionCodeId: string,
-  couponId: string | null,
+  couponId: string | null
 ): Promise<{ promotionCode: number; coupon: number }> {
   const rows = (await sql`
     SELECT
@@ -336,9 +363,15 @@ export async function countPromoRedemptions(
     FROM promo_redemptions
     WHERE promotion_code_id = ${promotionCodeId} OR coupon_id = ${couponId}
   `) as { promotion_code: number; coupon: number }[]
-  return { promotionCode: Number(rows[0]?.promotion_code ?? 0), coupon: Number(rows[0]?.coupon ?? 0) }
+  return {
+    promotionCode: Number(rows[0]?.promotion_code ?? 0),
+    coupon: Number(rows[0]?.coupon ?? 0),
+  }
 }
 
 export function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+  )
 }

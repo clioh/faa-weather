@@ -13,14 +13,22 @@
 
 import { Router, type Request, type RequestHandler } from 'express';
 import multer from 'multer';
-import { getScheduleService, flightToScheduleEvent, mergeScheduleEvents, scheduleWindow } from '../services/schedule.js';
+import {
+  getScheduleService,
+  flightToScheduleEvent,
+  mergeScheduleEvents,
+  scheduleWindow,
+} from '../services/schedule.js';
 import { getXlsxHeaders, ScheduleParseError } from '../services/schedule-parser.js';
 import { uploadLimiter } from '../middleware/rateLimiter.js';
 import { calendarService } from '../calendar/instance.js';
 import type { TimeWindow } from '../calendar/types.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+});
 
 /** multer's single-file parser, answering 413 for a file over 10 MB instead of a 500. */
 function singleFile(field: string): RequestHandler {
@@ -29,7 +37,9 @@ function singleFile(field: string): RequestHandler {
     parse(req, res, (err: unknown) => {
       if (err instanceof multer.MulterError) {
         const tooLarge = err.code === 'LIMIT_FILE_SIZE';
-        res.status(tooLarge ? 413 : 400).json({ error: tooLarge ? 'File must be 10 MB or smaller' : err.message });
+        res
+          .status(tooLarge ? 413 : 400)
+          .json({ error: tooLarge ? 'File must be 10 MB or smaller' : err.message });
         return;
       }
       next(err);

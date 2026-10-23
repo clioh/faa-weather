@@ -67,7 +67,10 @@ async function callAdmin(
     // The token was refused: data/internal-token differs between the two
     // processes (e.g. SKYGLASS_INTERNAL_TOKEN_FILE set for only one of them).
     console.error(`[Device] Admin portal refused the internal token for ${method} ${pathname}`);
-    return { status: 502, body: { error: 'Admin portal refused the backend', message: 'Internal token mismatch' } };
+    return {
+      status: 502,
+      body: { error: 'Admin portal refused the backend', message: 'Internal token mismatch' },
+    };
   }
 
   const parsed = await response.json().catch(() => null);
@@ -130,7 +133,10 @@ wifiRoutes.post('/connect', authLimiter, validateBody(wifiConnectSchema), async 
     if (result.status !== 200) {
       return res.status(result.status).json(result.body ?? { success: false });
     }
-    res.json({ success: !!data.success, ...(data.error ? { error: data.error, message: data.error } : {}) });
+    res.json({
+      success: !!data.success,
+      ...(data.error ? { error: data.error, message: data.error } : {}),
+    });
   } catch (error) {
     sendUnavailable(res, error);
   }
@@ -167,7 +173,9 @@ presenceFaceRoutes.get('/', async (_req, res) => {
 presenceFaceRoutes.delete('/:id', async (req, res) => {
   const { id } = req.params;
   if (!isSafeId(id)) {
-    return res.status(400).json({ success: false, error: 'Invalid face id', message: 'Invalid face id' });
+    return res
+      .status(400)
+      .json({ success: false, error: 'Invalid face id', message: 'Invalid face id' });
   }
   try {
     const result = await callAdmin('DELETE', `/api/users/${encodeURIComponent(id)}/face`);

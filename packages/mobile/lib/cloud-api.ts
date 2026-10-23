@@ -87,10 +87,7 @@ class CloudAPIClient {
     }
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = await this.getAuthToken();
     if (!token) {
       throw new CloudAPIError('Not authenticated', 401);
@@ -138,9 +135,7 @@ class CloudAPIClient {
         throw new CloudAPIError('Request timed out', 408);
       }
 
-      throw new CloudAPIError(
-        error instanceof Error ? error.message : 'Request failed'
-      );
+      throw new CloudAPIError(error instanceof Error ? error.message : 'Request failed');
     }
   }
 
@@ -188,15 +183,17 @@ class CloudAPIClient {
     return this.request(`/api/layouts/sync${params}`);
   }
 
-  async syncPush(layouts: {
-    id: string;
-    name: string;
-    modules: ModuleConfig[];
-    isActive: boolean;
-    version: number;
-    updatedAt: string;
-    deleted?: boolean;
-  }[]): Promise<SyncPushResult> {
+  async syncPush(
+    layouts: {
+      id: string;
+      name: string;
+      modules: ModuleConfig[];
+      isActive: boolean;
+      version: number;
+      updatedAt: string;
+      deleted?: boolean;
+    }[]
+  ): Promise<SyncPushResult> {
     return this.request('/api/layouts/sync', {
       method: 'POST',
       body: JSON.stringify({ layouts }),

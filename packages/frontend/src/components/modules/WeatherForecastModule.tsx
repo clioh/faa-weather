@@ -44,7 +44,13 @@ function todayIn(timeZone?: string): string {
   }
 }
 
-export function WeatherForecastModule({ config, size, latitude, longitude, timezone }: ModuleProps) {
+export function WeatherForecastModule({
+  config,
+  size,
+  latitude,
+  longitude,
+  timezone,
+}: ModuleProps) {
   const location = resolveLocation(config, { latitude, longitude, timezone });
   const units = config.units === 'metric' ? 'metric' : 'imperial';
   const days = Math.min(7, Math.max(3, Number(config.days) || 5));
@@ -73,11 +79,17 @@ export function WeatherForecastModule({ config, size, latitude, longitude, timez
       ) : loading ? (
         <ModuleLoading />
       ) : !data ? (
-        <ModuleError title="Forecast unavailable" hint={fetchErrorHint(error, 'No data for this location')} />
+        <ModuleError
+          title="Forecast unavailable"
+          hint={fetchErrorHint(error, 'No data for this location')}
+        />
       ) : shown.length === 0 ? (
         <ModuleEmpty title="No forecast" />
       ) : (
-        <div className="fc-grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        <div
+          className="fc-grid"
+          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        >
           {shown.map((d) => (
             <div key={d.date} className={`fc-day${d.date === today ? ' today' : ''}`}>
               <span className="fc-name">{d.date === today ? 'Today' : weekday(d.date)}</span>

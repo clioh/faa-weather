@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parseFeed, htmlToText, decodeEntities, truncate, itemId, SUMMARY_MAX_CHARS } from './news.js';
+import {
+  parseFeed,
+  htmlToText,
+  decodeEntities,
+  truncate,
+  itemId,
+  SUMMARY_MAX_CHARS,
+} from './news.js';
 
 const RSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -54,11 +61,15 @@ const ATOM = `<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.o
 
 describe('text helpers', () => {
   it('decodes named, decimal and hex entities', () => {
-    expect(decodeEntities('a &amp; b &#38; c &#x2019; &mdash; &unknown;')).toBe('a & b & c ’ — &unknown;');
+    expect(decodeEntities('a &amp; b &#38; c &#x2019; &mdash; &unknown;')).toBe(
+      'a & b & c ’ — &unknown;'
+    );
   });
 
   it('strips tags, scripts and collapses whitespace', () => {
-    expect(htmlToText('<p>Hi <script>alert(1)</script><b>there</b>\n\n friend</p>')).toBe('Hi there friend');
+    expect(htmlToText('<p>Hi <script>alert(1)</script><b>there</b>\n\n friend</p>')).toBe(
+      'Hi there friend'
+    );
   });
 
   it('caps summaries at 200 chars with an ellipsis', () => {

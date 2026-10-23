@@ -24,7 +24,10 @@ export const INTERNAL_TOKEN_HEADER = 'X-SkyGlass-Internal';
 const TOKEN_RE = /^[0-9a-f]{64}$/;
 
 export function internalTokenPath(): string {
-  return process.env.SKYGLASS_INTERNAL_TOKEN_FILE || path.resolve(__dirname, '../../../../data/internal-token');
+  return (
+    process.env.SKYGLASS_INTERNAL_TOKEN_FILE ||
+    path.resolve(__dirname, '../../../../data/internal-token')
+  );
 }
 
 function createTokenFile(file: string): void {

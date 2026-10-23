@@ -71,7 +71,10 @@ export function needsShipping(items: readonly { productId: string }[]): boolean 
 }
 
 /** Shipping fee in cents: zero when nothing ships, else free over the threshold. */
-export function shippingCostFor(items: readonly { productId: string }[], subtotalCents: number): number {
+export function shippingCostFor(
+  items: readonly { productId: string }[],
+  subtotalCents: number
+): number {
   if (!needsShipping(items)) return 0
   return subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : SHIPPING_COST_CENTS
 }

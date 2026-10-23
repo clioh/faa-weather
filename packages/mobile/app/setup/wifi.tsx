@@ -97,7 +97,9 @@ export default function WifiSetupScreen() {
         startHandoff();
       } else {
         setError(
-          result.message || result.error || 'Failed to connect to network. Check the password and try again.'
+          result.message ||
+            result.error ||
+            'Failed to connect to network. Check the password and try again.'
         );
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
@@ -179,10 +181,18 @@ export default function WifiSetupScreen() {
           setPassword('');
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }}
-        trailing={item.secure ? <Ionicons name="lock-closed-outline" size={16} color={colors.textMuted} /> : undefined}
+        trailing={
+          item.secure ? (
+            <Ionicons name="lock-closed-outline" size={16} color={colors.textMuted} />
+          ) : undefined
+        }
         chevron={false}
         // A row under the selected one keeps its hairline hidden too.
-        style={index > 0 && networks[index - 1]?.ssid === selectedNetwork?.ssid ? styles.afterSelected : undefined}
+        style={
+          index > 0 && networks[index - 1]?.ssid === selectedNetwork?.ssid
+            ? styles.afterSelected
+            : undefined
+        }
       />
     );
   };
@@ -220,13 +230,23 @@ export default function WifiSetupScreen() {
           renderItem={renderNetwork}
           keyExtractor={(item) => item.ssid}
           style={styles.networkList}
-          contentContainerStyle={[styles.networkListContent, networks.length > 0 && styles.networkListRows]}
+          contentContainerStyle={[
+            styles.networkListContent,
+            networks.length > 0 && styles.networkListRows,
+          ]}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="wifi-outline" size={40} color={colors.textMuted} />
               <Text style={styles.emptyText}>No networks found</Text>
-              <Button label="Scan Again" variant="secondary" size="small" icon="refresh" onPress={scanNetworks} style={styles.rescanButton} />
+              <Button
+                label="Scan Again"
+                variant="secondary"
+                size="small"
+                icon="refresh"
+                onPress={scanNetworks}
+                style={styles.rescanButton}
+              />
             </View>
           }
         />

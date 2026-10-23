@@ -4,21 +4,19 @@
  */
 
 import { useMemo, useState } from 'react';
-import {
-  FlatList,
-  Keyboard,
-  Modal,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, Keyboard, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { PageSheetHeader, Text, TextInput } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, typography, fonts } from '@/lib/theme';
 import { HEADER_HIT_SLOP } from '../ScreenHeader';
 import { KeyboardAvoidingScreen } from '../KeyboardAvoidingScreen';
-import { COMMON_TIMEZONES, isValidTimezone, timezoneOffsetLabel, type TimezoneOption } from './timezones';
+import {
+  COMMON_TIMEZONES,
+  isValidTimezone,
+  timezoneOffsetLabel,
+  type TimezoneOption,
+} from './timezones';
 
 interface TimezonePickerModalProps {
   visible: boolean;
@@ -41,7 +39,9 @@ export function TimezonePickerModal({
   const offsets = useMemo(() => {
     if (!visible) return {} as Record<string, string>;
     const now = new Date();
-    return Object.fromEntries(COMMON_TIMEZONES.map((tz) => [tz.id, timezoneOffsetLabel(tz.id, now)]));
+    return Object.fromEntries(
+      COMMON_TIMEZONES.map((tz) => [tz.id, timezoneOffsetLabel(tz.id, now)])
+    );
   }, [visible]);
 
   const trimmed = query.trim();
@@ -99,7 +99,12 @@ export function TimezonePickerModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={close}
+    >
       <View style={styles.container}>
         <PageSheetHeader title={title} onClose={close} />
         {/* iOS: the FlatList insets itself (exact in a page sheet); Android: padding. */}
@@ -207,5 +212,10 @@ const styles = StyleSheet.create({
   offset: { fontFamily: fonts.mono, fontSize: 13, color: colors.textSecondary },
   customRow: { borderTopColor: 'transparent' },
   customText: { fontSize: 15, color: colors.primary },
-  empty: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center', padding: spacing.xl },
+  empty: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    padding: spacing.xl,
+  },
 });

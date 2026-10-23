@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
-import { calculateCartTax, isTaxLocationError, priceCart, resolveTaxAddress } from './_lib/checkout.js'
+import {
+  calculateCartTax,
+  isTaxLocationError,
+  priceCart,
+  resolveTaxAddress,
+} from './_lib/checkout.js'
 import { readJsonObject } from './_lib/http.js'
 import { stripe } from './_lib/stripe.js'
 
@@ -55,14 +60,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const taxBreakdown =
       calculation.tax_breakdown?.map((tb) => ({
         amount: tb.amount,
-        jurisdiction: [tb.tax_rate_details?.state, tb.tax_rate_details?.country].filter(Boolean).join(', '),
+        jurisdiction: [tb.tax_rate_details?.state, tb.tax_rate_details?.country]
+          .filter(Boolean)
+          .join(', '),
         taxType: tb.tax_rate_details?.tax_type || 'sales_tax',
-        rate: tb.tax_rate_details?.percentage_decimal ? parseFloat(tb.tax_rate_details.percentage_decimal) : 0,
+        rate: tb.tax_rate_details?.percentage_decimal
+          ? parseFloat(tb.tax_rate_details.percentage_decimal)
+          : 0,
       })) || []
 
     const a = taxAddress.value.address
     console.log(
-      `[Tax] Estimated for ${[a.city, a.state, a.postal_code].filter(Boolean).join(' ')}: $${(tax / 100).toFixed(2)} tax`,
+      `[Tax] Estimated for ${[a.city, a.state, a.postal_code].filter(Boolean).join(' ')}: $${(tax / 100).toFixed(2)} tax`
     )
 
     return res.status(200).json({
@@ -80,7 +89,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // The buyer's address/ZIP could not be located: let them correct it.
     if (isTaxLocationError(error)) {
-      return res.status(400).json({ error: 'We could not verify that address for sales tax. Please check it.' })
+      return res
+        .status(400)
+        .json({ error: 'We could not verify that address for sales tax. Please check it.' })
     }
     if (error instanceof Stripe.errors.StripeError) {
       // Any other Stripe Tax failure (e.g. tax_not_active): the frontend and

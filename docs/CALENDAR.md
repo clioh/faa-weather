@@ -7,13 +7,13 @@ phone app (**Calendars** screen), merged with airline XLSX schedules uploaded th
 The mirror is a LAN-only device with no public URL, so it stores the credentials and does
 all syncing itself. The phone only drives the sign-in.
 
-| Provider | UI name | How the user connects | What the mirror needs |
-|---|---|---|---|
-| `google` | Google Calendar | Sign in with Google in the phone's browser | Nothing (the SkyGlass sign-in service holds the app credentials) |
-| `microsoft` | Outlook / Microsoft 365 | Enter a short code at microsoft.com/devicelogin | Nothing (client ID comes from the SkyGlass sign-in service) |
-| `icloud` | iCloud | Apple ID + app-specific password | Nothing |
-| `caldav` | Other CalDAV | Server URL + username + password (Nextcloud, Fastmail, Radicale...) | Nothing |
-| `ics` | Calendar link | Paste an iCal/ICS/webcal link | Nothing |
+| Provider    | UI name                 | How the user connects                                               | What the mirror needs                                            |
+| ----------- | ----------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `google`    | Google Calendar         | Sign in with Google in the phone's browser                          | Nothing (the SkyGlass sign-in service holds the app credentials) |
+| `microsoft` | Outlook / Microsoft 365 | Enter a short code at microsoft.com/devicelogin                     | Nothing (client ID comes from the SkyGlass sign-in service)      |
+| `icloud`    | iCloud                  | Apple ID + app-specific password                                    | Nothing                                                          |
+| `caldav`    | Other CalDAV            | Server URL + username + password (Nextcloud, Fastmail, Radicale...) | Nothing                                                          |
+| `ics`       | Calendar link           | Paste an iCal/ICS/webcal link                                       | Nothing                                                          |
 
 The mirror itself holds **no OAuth app credentials**: no client secret, no client ID, no
 environment variables. Google and Outlook sign-in go through the **SkyGlass sign-in
@@ -37,7 +37,7 @@ iCloud, CalDAV and calendar links never need the sign-in service.
 `config/default.yaml`:
 
 ```yaml
-skyglass_service: https://skyglass.dev   # SkyGlass cloud service (top-level key)
+skyglass_service: https://skyglass.dev # SkyGlass cloud service (top-level key)
 
 calendar:
   refresh_minutes: 10
@@ -53,9 +53,9 @@ without a restart.
 
 The mirror calls the service over HTTPS with ~10 s timeouts:
 
-| Mirror call | Purpose |
-|---|---|
-| `GET {skyglass_service}/api/oauth/config` | Public client IDs, redirect URI, scopes, tenant. Cached 10 minutes (failures cached ~1 minute). |
+| Mirror call                                      | Purpose                                                                                                                                                  |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET {skyglass_service}/api/oauth/config`        | Public client IDs, redirect URI, scopes, tenant. Cached 10 minutes (failures cached ~1 minute).                                                          |
 | `POST {skyglass_service}/api/oauth/google/token` | Google code exchange (`authorization_code` + PKCE verifier) and token refresh (`refresh_token`). The service adds the client ID/secret and redirect URI. |
 
 ## Google Calendar
@@ -133,7 +133,7 @@ comes from `X-WR-CALNAME` unless the user gives a label.
 
 Where to find a link:
 
-- **Google Calendar** (web): Settings > *your calendar* > Integrate calendar >
+- **Google Calendar** (web): Settings > _your calendar_ > Integrate calendar >
   **Secret address in iCal format**. (Use Google sign-in instead when possible; the
   secret address gives read access to anyone who has it.)
 - **iCloud**: Calendar app or icloud.com/calendar > share icon next to the calendar >
@@ -177,19 +177,19 @@ interface CalendarAccount {
 }
 ```
 
-| Method | Path | Body | Response |
-|---|---|---|---|
-| GET | `/api/calendar/providers` | | `{ providers: [{ id, name, method, available, reason }] }` |
-| GET | `/api/calendar/accounts` | | `{ accounts }` |
-| PATCH | `/api/calendar/accounts/:id` | `{ label?, calendars?: [{ id, enabled?, color? }] }` | `{ account }` |
-| DELETE | `/api/calendar/accounts/:id` | | `204` (Google tokens revoked best-effort) |
-| POST | `/api/calendar/accounts/:id/sync` | | `{ account }` (also rediscovers calendars) |
-| POST | `/api/calendar/google/start` | `{ returnUrl }` (`skyglass://`, `exp://`, `exp+skyglass://`) | `{ authUrl }` |
-| POST | `/api/calendar/google/complete` | `{ code, state }` | `201 { account }`, or `200` when that Google account was already connected; `400` bad/expired state; `502` exchange failed |
-| POST | `/api/calendar/microsoft/start` | | `{ sessionId, userCode, verificationUri, expiresAt }` |
-| GET | `/api/calendar/microsoft/status/:sessionId` | | `{ status: 'pending'\|'complete'\|'expired'\|'denied'\|'error', account, error }` |
-| POST | `/api/calendar/caldav` | `{ provider: 'icloud'\|'caldav', serverUrl?, username, password, label? }` | `201 { account }` (`200` when the same login was already connected) |
-| POST | `/api/calendar/ics` | `{ url, label? }` | `201 { account }` |
+| Method | Path                                        | Body                                                                       | Response                                                                                                                   |
+| ------ | ------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/calendar/providers`                   |                                                                            | `{ providers: [{ id, name, method, available, reason }] }`                                                                 |
+| GET    | `/api/calendar/accounts`                    |                                                                            | `{ accounts }`                                                                                                             |
+| PATCH  | `/api/calendar/accounts/:id`                | `{ label?, calendars?: [{ id, enabled?, color? }] }`                       | `{ account }`                                                                                                              |
+| DELETE | `/api/calendar/accounts/:id`                |                                                                            | `204` (Google tokens revoked best-effort)                                                                                  |
+| POST   | `/api/calendar/accounts/:id/sync`           |                                                                            | `{ account }` (also rediscovers calendars)                                                                                 |
+| POST   | `/api/calendar/google/start`                | `{ returnUrl }` (`skyglass://`, `exp://`, `exp+skyglass://`)               | `{ authUrl }`                                                                                                              |
+| POST   | `/api/calendar/google/complete`             | `{ code, state }`                                                          | `201 { account }`, or `200` when that Google account was already connected; `400` bad/expired state; `502` exchange failed |
+| POST   | `/api/calendar/microsoft/start`             |                                                                            | `{ sessionId, userCode, verificationUri, expiresAt }`                                                                      |
+| GET    | `/api/calendar/microsoft/status/:sessionId` |                                                                            | `{ status: 'pending'\|'complete'\|'expired'\|'denied'\|'error', account, error }`                                          |
+| POST   | `/api/calendar/caldav`                      | `{ provider: 'icloud'\|'caldav', serverUrl?, username, password, label? }` | `201 { account }` (`200` when the same login was already connected)                                                        |
+| POST   | `/api/calendar/ics`                         | `{ url, label? }`                                                          | `201 { account }`                                                                                                          |
 
 Calendar colors are `#rrggbb`: the provider's color when it has one, otherwise the next
 color of the mirror palette. A color set via PATCH sticks across rediscovery.
@@ -208,21 +208,27 @@ interface ScheduleResponse {
   updatedAt: string; // last successful sync of any account
 }
 interface ScheduleEvent {
-  id: string;                       // unique across sources
+  id: string; // unique across sources
   source: CalendarProviderId | 'xlsx';
-  accountId: string | null;         // null for xlsx
+  accountId: string | null; // null for xlsx
   calendarId: string | null;
   calendarName: string | null;
-  color: string | null;             // null for xlsx
+  color: string | null; // null for xlsx
   title: string;
   location: string | null;
-  startTime: string;                // ISO instant
+  startTime: string; // ISO instant
   endTime: string;
   allDay: boolean;
-  startDate: string | null;         // 'YYYY-MM-DD', all-day only (floating date)
-  endDate: string | null;           // exclusive, all-day only
+  startDate: string | null; // 'YYYY-MM-DD', all-day only (floating date)
+  endDate: string | null; // exclusive, all-day only
   isFlightDuty: boolean;
-  flightNumber?; departure?; arrival?; aircraftType?; dutyType?; reportTime?; releaseTime?;
+  flightNumber?;
+  departure?;
+  arrival?;
+  aircraftType?;
+  dutyType?;
+  reportTime?;
+  releaseTime?;
 }
 ```
 
@@ -253,9 +259,9 @@ it. It runs as Vercel functions on the marketing site (`packages/website`), serv
 or the secret (logs carry only error categories such as `google_token upstream_timeout`).
 Users' refresh tokens stay on their mirror (`data/calendar-accounts.json`).
 
-| Endpoint | Behaviour |
-|---|---|
-| `GET /api/oauth/config` | `{ version: 1, google: { clientId, redirectUri, scopes } \| null, microsoft: { clientId, tenant, scopes } \| null }`. A provider is `null` when its env vars are unset (Google needs both ID and secret). GET/HEAD only. |
+| Endpoint                       | Behaviour                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/oauth/config`        | `{ version: 1, google: { clientId, redirectUri, scopes } \| null, microsoft: { clientId, tenant, scopes } \| null }`. A provider is `null` when its env vars are unset (Google needs both ID and secret). GET/HEAD only.                                                                                                    |
 | `POST /api/oauth/google/token` | JSON body `{ grant_type: "authorization_code", code, code_verifier }` or `{ grant_type: "refresh_token", refresh_token }`. The service adds `client_id`, `client_secret` and (for code exchange) the fixed `redirect_uri`; caller-supplied values for those are ignored. Forwards to `https://oauth2.googleapis.com/token`. |
 
 Token endpoint responses:
@@ -283,13 +289,13 @@ Google redirects to is the static `public/oauth/google.html` (`/oauth/google`).
 
 Environment variables (Vercel project settings, see `packages/website/.env.example`):
 
-| Variable | Required | Notes |
-|---|---|---|
-| `GOOGLE_CLIENT_ID` | for Google | Web application OAuth client. |
-| `GOOGLE_CLIENT_SECRET` | for Google | Only ever stored here. |
-| `GOOGLE_REDIRECT_URI` | no | Default `https://skyglass.dev/oauth/google`; must be an authorized redirect URI on the Google client. |
-| `MICROSOFT_CLIENT_ID` | for Microsoft | Public client (device code flow runs on the mirror; no secret). |
-| `MICROSOFT_TENANT` | no | Default `common`. |
+| Variable               | Required      | Notes                                                                                                 |
+| ---------------------- | ------------- | ----------------------------------------------------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`     | for Google    | Web application OAuth client.                                                                         |
+| `GOOGLE_CLIENT_SECRET` | for Google    | Only ever stored here.                                                                                |
+| `GOOGLE_REDIRECT_URI`  | no            | Default `https://skyglass.dev/oauth/google`; must be an authorized redirect URI on the Google client. |
+| `MICROSOFT_CLIENT_ID`  | for Microsoft | Public client (device code flow runs on the mirror; no secret).                                       |
+| `MICROSOFT_TENANT`     | no            | Default `common`.                                                                                     |
 
 **Self-hosting:** deploy `packages/website` to your own Vercel project with your own Google/Microsoft app
 credentials, register `https://<your-host>/oauth/google` as the Google redirect URI, set

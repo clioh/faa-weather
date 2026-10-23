@@ -7,6 +7,7 @@ A smart mirror built for pilots that displays aviation weather, flight schedules
 ## Project Overview
 
 SkyGlass is a smart mirror application designed for pilots. It displays:
+
 - Real-time METAR/TAF with flight rules color coding (VFR/MVFR/IFR/LIFR)
 - TFRs and NOTAMs for your area
 - Calendars (Google, Outlook/Microsoft 365, iCloud, CalDAV, ICS links) + airline schedule import
@@ -66,14 +67,14 @@ npm run format        # Run Prettier
 
 ## Services & Ports
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Backend API | 3001 | Node.js REST API |
-| Frontend | 5173 | React UI (Vite dev server, `npm run dev` only; in production the backend serves the built UI on 3001) |
+| Service          | Port | Description                                                                                                                                   |
+| ---------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend API      | 3001 | Node.js REST API                                                                                                                              |
+| Frontend         | 5173 | React UI (Vite dev server, `npm run dev` only; in production the backend serves the built UI on 3001)                                         |
 | Presence / Admin | 5000 | Flask presence server (`packages/presence/web_server.py`, gunicorn `wsgi:app` in production): enrollment API, camera feed, slim `/admin` page |
-| mDNS | - | Advertises `_skyglass._tcp` for discovery (from the backend, `services/mdns.ts`) |
-| Cloud API | 3003 | Optional, separate deployment (`packages/cloud-api`) |
-| Website | 5174 | Marketing site dev server (`packages/website`, deployed to Vercel; also hosts the license API, `api/license`) |
+| mDNS             | -    | Advertises `_skyglass._tcp` for discovery (from the backend, `services/mdns.ts`)                                                              |
+| Cloud API        | 3003 | Optional, separate deployment (`packages/cloud-api`)                                                                                          |
+| Website          | 5174 | Marketing site dev server (`packages/website`, deployed to Vercel; also hosts the license API, `api/license`)                                 |
 
 ## Key Directories
 

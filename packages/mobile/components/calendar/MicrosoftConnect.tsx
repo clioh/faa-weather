@@ -160,7 +160,7 @@ export function MicrosoftConnect({ onConnected, onCancel }: MicrosoftConnectProp
         ? 'That code expired before sign-in finished. Get a new one and try again.'
         : phase === 'denied'
           ? 'Sign-in was declined on the Microsoft page, so nothing was connected.'
-          : error ?? 'Microsoft sign-in didn’t finish.';
+          : (error ?? 'Microsoft sign-in didn’t finish.');
     return (
       <View style={styles.wrap}>
         <Notice tone={phase === 'error' ? 'error' : 'warning'} message={message} />
@@ -188,11 +188,21 @@ export function MicrosoftConnect({ onConnected, onCancel }: MicrosoftConnectProp
 
       <Step n={2} title="Sign in to Microsoft" divided>
         <Text style={styles.body}>
-          Enter the code, then sign in with the Outlook or Microsoft 365 account whose calendar you want.
+          Enter the code, then sign in with the Outlook or Microsoft 365 account whose calendar you
+          want.
         </Text>
-        <PrimaryButton label="Open Microsoft sign-in" icon="open-outline" onPress={openSignIn} loading={opening} />
+        <PrimaryButton
+          label="Open Microsoft sign-in"
+          icon="open-outline"
+          onPress={openSignIn}
+          loading={opening}
+        />
         <Text style={styles.muted}>
-          Or go to <Text selectable style={styles.link}>{host}</Text> on any device.
+          Or go to{' '}
+          <Text selectable style={styles.link}>
+            {host}
+          </Text>{' '}
+          on any device.
         </Text>
         {error ? <Notice tone="error" message={error} /> : null}
       </Step>
@@ -201,14 +211,26 @@ export function MicrosoftConnect({ onConnected, onCancel }: MicrosoftConnectProp
         <Spinner />
         <View style={styles.flex}>
           <Text style={styles.waitingText}>Waiting for you to finish signing in…</Text>
-          <Text style={[styles.muted, styles.mono]}>Code expires in {formatRemaining(remaining)}</Text>
+          <Text style={[styles.muted, styles.mono]}>
+            Code expires in {formatRemaining(remaining)}
+          </Text>
         </View>
       </View>
     </View>
   );
 }
 
-function Step({ n, title, divided, children }: { n: number; title: string; divided?: boolean; children: ReactNode }) {
+function Step({
+  n,
+  title,
+  divided,
+  children,
+}: {
+  n: number;
+  title: string;
+  divided?: boolean;
+  children: ReactNode;
+}) {
   return (
     <View style={[styles.step, divided && styles.stepDivided]}>
       <Text style={styles.stepNum}>{String(n).padStart(2, '0')}</Text>

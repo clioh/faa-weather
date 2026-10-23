@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { decodeWindGroup, parseFbProduct, resolveDayHourZ, nearestStation, distanceNm } from './winds-aloft.js';
+import {
+  decodeWindGroup,
+  parseFbProduct,
+  resolveDayHourZ,
+  nearestStation,
+  distanceNm,
+} from './winds-aloft.js';
 import { FB_STATIONS } from './winds-aloft-stations.js';
 
 // Excerpt of a real FBUS31 product (column layout preserved), with a
@@ -27,27 +33,62 @@ LNY           0817 0817 0914+13 1009+09 0808+08 9900+04 3109-03 3219-16
 
 describe('decodeWindGroup', () => {
   it('decodes plain wind without temperature', () => {
-    expect(decodeWindGroup('2809', 3000)).toEqual({ altitude: 3000, direction: 280, speed: 9, temperature: null });
+    expect(decodeWindGroup('2809', 3000)).toEqual({
+      altitude: 3000,
+      direction: 280,
+      speed: 9,
+      temperature: null,
+    });
   });
 
   it('decodes signed temperatures', () => {
-    expect(decodeWindGroup('3217+05', 6000)).toEqual({ altitude: 6000, direction: 320, speed: 17, temperature: 5 });
+    expect(decodeWindGroup('3217+05', 6000)).toEqual({
+      altitude: 6000,
+      direction: 320,
+      speed: 17,
+      temperature: 5,
+    });
     expect(decodeWindGroup('2541-15', 18000)?.temperature).toBe(-15);
   });
 
   it('treats 9900 as light and variable', () => {
-    expect(decodeWindGroup('9900+13', 9000)).toEqual({ altitude: 9000, direction: null, speed: 0, temperature: 13 });
-    expect(decodeWindGroup('990039', 34000)).toEqual({ altitude: 34000, direction: null, speed: 0, temperature: -39 });
+    expect(decodeWindGroup('9900+13', 9000)).toEqual({
+      altitude: 9000,
+      direction: null,
+      speed: 0,
+      temperature: 13,
+    });
+    expect(decodeWindGroup('990039', 34000)).toEqual({
+      altitude: 34000,
+      direction: null,
+      speed: 0,
+      temperature: -39,
+    });
   });
 
   it('decodes >100 kt winds (direction + 50)', () => {
-    expect(decodeWindGroup('7307-16', 18000)).toEqual({ altitude: 18000, direction: 230, speed: 107, temperature: -16 });
-    expect(decodeWindGroup('720246', 34000)).toEqual({ altitude: 34000, direction: 220, speed: 102, temperature: -46 });
+    expect(decodeWindGroup('7307-16', 18000)).toEqual({
+      altitude: 18000,
+      direction: 230,
+      speed: 107,
+      temperature: -16,
+    });
+    expect(decodeWindGroup('720246', 34000)).toEqual({
+      altitude: 34000,
+      direction: 220,
+      speed: 102,
+      temperature: -46,
+    });
     expect(decodeWindGroup('7799', 39000)).toMatchObject({ direction: 270, speed: 199 });
   });
 
   it('makes unsigned temps negative above FL240', () => {
-    expect(decodeWindGroup('237742', 30000)).toEqual({ altitude: 30000, direction: 230, speed: 77, temperature: -42 });
+    expect(decodeWindGroup('237742', 30000)).toEqual({
+      altitude: 30000,
+      direction: 230,
+      speed: 77,
+      temperature: -42,
+    });
   });
 
   it('reports north as 360 and rejects garbage', () => {
@@ -69,17 +110,38 @@ describe('parseFbProduct', () => {
   });
 
   it('skips blank low levels using fixed columns', () => {
-    expect(p.stations.ABI.map((l) => l.altitude)).toEqual([6000, 9000, 12000, 18000, 24000, 30000, 34000, 39000]);
-    expect(p.stations.ABI[0]).toEqual({ altitude: 6000, direction: 210, speed: 27, temperature: 17 });
+    expect(p.stations.ABI.map((l) => l.altitude)).toEqual([
+      6000, 9000, 12000, 18000, 24000, 30000, 34000, 39000,
+    ]);
+    expect(p.stations.ABI[0]).toEqual({
+      altitude: 6000,
+      direction: 210,
+      speed: 27,
+      temperature: 17,
+    });
     expect(p.stations.DEN[0].altitude).toBe(9000);
   });
 
   it('parses 9900, >100 kt and FL300 groups in context', () => {
     const atl = p.stations.ATL;
-    expect(atl.find((l) => l.altitude === 9000)).toMatchObject({ direction: null, speed: 0, temperature: 13 });
+    expect(atl.find((l) => l.altitude === 9000)).toMatchObject({
+      direction: null,
+      speed: 0,
+      temperature: 13,
+    });
     const den = p.stations.DEN;
-    expect(den.find((l) => l.altitude === 18000)).toEqual({ altitude: 18000, direction: 230, speed: 107, temperature: -16 });
-    expect(den.find((l) => l.altitude === 30000)).toEqual({ altitude: 30000, direction: 280, speed: 105, temperature: -45 });
+    expect(den.find((l) => l.altitude === 18000)).toEqual({
+      altitude: 18000,
+      direction: 230,
+      speed: 107,
+      temperature: -16,
+    });
+    expect(den.find((l) => l.altitude === 30000)).toEqual({
+      altitude: 30000,
+      direction: 280,
+      speed: 105,
+      temperature: -45,
+    });
     expect(p.stations.ABR.find((l) => l.altitude === 30000)).toEqual({
       altitude: 30000,
       direction: 230,
@@ -89,14 +151,26 @@ describe('parseFbProduct', () => {
   });
 
   it('handles station ids starting with a digit', () => {
-    expect(p.stations['2XG'][0]).toEqual({ altitude: 3000, direction: null, speed: 0, temperature: null });
+    expect(p.stations['2XG'][0]).toEqual({
+      altitude: 3000,
+      direction: null,
+      speed: 0,
+      temperature: null,
+    });
   });
 
   it('follows a different header layout (Hawaii)', () => {
     const hi = parseFbProduct(HAWAII, now);
     expect(hi.altitudes[0]).toBe(1000);
-    expect(hi.stations.LNY.map((l) => l.altitude)).toEqual([2000, 3000, 6000, 9000, 12000, 15000, 18000, 24000]);
-    expect(hi.stations.LNY[2]).toEqual({ altitude: 6000, direction: 90, speed: 14, temperature: 13 });
+    expect(hi.stations.LNY.map((l) => l.altitude)).toEqual([
+      2000, 3000, 6000, 9000, 12000, 15000, 18000, 24000,
+    ]);
+    expect(hi.stations.LNY[2]).toEqual({
+      altitude: 6000,
+      direction: 90,
+      speed: 14,
+      temperature: 13,
+    });
   });
 
   it('throws on non-FB text', () => {
@@ -106,7 +180,9 @@ describe('parseFbProduct', () => {
 
 describe('resolveDayHourZ', () => {
   it('rolls back to the previous month near month start', () => {
-    expect(resolveDayHourZ('311800Z', new Date('2026-11-01T02:00:00Z'))).toBe('2026-10-31T18:00:00.000Z');
+    expect(resolveDayHourZ('311800Z', new Date('2026-11-01T02:00:00Z'))).toBe(
+      '2026-10-31T18:00:00.000Z'
+    );
   });
   it('rejects malformed tokens', () => {
     expect(resolveDayHourZ('991200Z')).toBeNull();

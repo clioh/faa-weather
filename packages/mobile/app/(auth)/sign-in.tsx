@@ -4,14 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-  Alert,
-  ScrollView,
-} from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useSSO } from '@clerk/expo';
 import { useSignIn } from '@clerk/expo/legacy';

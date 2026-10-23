@@ -45,7 +45,7 @@ const RAW_BODY_TIMEOUT_MS = 10_000
  */
 export function readRawBody(
   req: Pick<IncomingMessage, 'on'>,
-  { maxBytes = MAX_RAW_BODY_BYTES, timeoutMs = RAW_BODY_TIMEOUT_MS } = {},
+  { maxBytes = MAX_RAW_BODY_BYTES, timeoutMs = RAW_BODY_TIMEOUT_MS } = {}
 ): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = []
@@ -58,7 +58,10 @@ export function readRawBody(
       if (err) reject(err)
       else resolve(body!)
     }
-    const timer = setTimeout(() => settle(new Error('Timed out reading the request body')), timeoutMs)
+    const timer = setTimeout(
+      () => settle(new Error('Timed out reading the request body')),
+      timeoutMs
+    )
     req.on('data', (chunk: Buffer | string) => {
       if (settled) return
       const buf = typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk

@@ -22,7 +22,11 @@ import windsAloftRoutes from './routes/winds-aloft.js';
 import todosRoutes from './routes/todos.js';
 import photosRoutes from './routes/photos.js';
 import { wifiRoutes, presenceFaceRoutes, ADMIN_PORTAL_URL } from './routes/device.js';
-import { internalHeaders, isValidInternalToken, INTERNAL_TOKEN_HEADER } from './services/internal-token.js';
+import {
+  internalHeaders,
+  isValidInternalToken,
+  INTERNAL_TOKEN_HEADER,
+} from './services/internal-token.js';
 import { relayClient } from './services/relay-client.js';
 import { aviationData } from './services/aviation.js';
 import { updateService } from './services/updater.js';
@@ -32,7 +36,13 @@ import { displayManager } from './services/display.js';
 import { orientationPreview } from './services/orientation.js';
 import { mdnsService } from './services/mdns.js';
 import { licenseManager, usingPlaceholderPublicKey } from './license/index.js';
-import { initDatabase, updateUserLastSeen, getUserActiveLayout, getMirrorId, getMirrorName } from './db/index.js';
+import {
+  initDatabase,
+  updateUserLastSeen,
+  getUserActiveLayout,
+  getMirrorId,
+  getMirrorName,
+} from './db/index.js';
 
 // Security middleware
 import { securityMiddleware } from './middleware/security.js';
@@ -76,9 +86,7 @@ pairingService.on('pairing', (event: PairingEvent) => {
   if (event.state === 'show') {
     void displayManager
       .hold(Math.max(0, event.expiresAt - Date.now()) + 5000)
-      .then(() =>
-        broadcast('presence', presenceSnapshot(true))
-      )
+      .then(() => broadcast('presence', presenceSnapshot(true)))
       .catch((error) => console.error('[Pairing] Could not wake the display:', error));
   }
 });
@@ -89,8 +97,12 @@ pairingService.on('revoked', (deviceId: string) => wsHub.closeDevice(deviceId));
 // reason: a preview that started or ended while it was away).
 wsHub.wss.on('connection', (ws: WebSocket) => {
   try {
-    ws.send(JSON.stringify({ type: 'license', data: licenseManager.getStatus(), timestamp: Date.now() }));
-    ws.send(JSON.stringify({ type: 'orientation', data: orientationState(), timestamp: Date.now() }));
+    ws.send(
+      JSON.stringify({ type: 'license', data: licenseManager.getStatus(), timestamp: Date.now() })
+    );
+    ws.send(
+      JSON.stringify({ type: 'orientation', data: orientationState(), timestamp: Date.now() })
+    );
   } catch (error) {
     console.error('[WS] Could not send the status snapshot to a new client:', error);
   }
@@ -118,7 +130,8 @@ function publicDisplayConfig(): {
   fade_duration: number;
   presence_timeout: number;
 } {
-  const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+  const num = (v: unknown, fallback: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? v : fallback;
   return {
     // Normalized by loadConfig (legacy `portrait` reads as portrait-cw).
     orientation: config.display?.orientation ?? 'landscape',
@@ -152,7 +165,10 @@ configEvents.on('changed', () => {
  * /api/setup/orientation.
  */
 function orientationState(): { orientation: MirrorOrientation; preview: MirrorOrientation | null } {
-  return { orientation: config.display?.orientation ?? 'landscape', preview: orientationPreview.current() };
+  return {
+    orientation: config.display?.orientation ?? 'landscape',
+    preview: orientationPreview.current(),
+  };
 }
 function broadcastOrientation(): void {
   broadcast('orientation', orientationState());
@@ -217,7 +233,13 @@ app.get('/api/provisioning/status', (_req, res) => {
   // Check for WiFi configured flag file
   // This file is created by wifi_provisioning.py after successful WiFi setup
   const projectRoot = join(__dirname, '..', '..', '..');
-  const wifiConfiguredFlag = join(projectRoot, 'packages', 'presence', 'face_data', '.wifi_configured');
+  const wifiConfiguredFlag = join(
+    projectRoot,
+    'packages',
+    'presence',
+    'face_data',
+    '.wifi_configured'
+  );
 
   const wifiConfigured = existsSync(wifiConfiguredFlag);
 
@@ -244,7 +266,9 @@ let recognizedUser: { userId: string; userName: string | null } | null = null;
 function activeLayoutOf(userId: string) {
   try {
     const layout = getUserActiveLayout(userId);
-    return layout ? { id: layout.id, name: layout.name, modules: JSON.parse(layout.modules) } : null;
+    return layout
+      ? { id: layout.id, name: layout.name, modules: JSON.parse(layout.modules) }
+      : null;
   } catch {
     return null; // Layout fetch failed, continue without it
   }
@@ -273,7 +297,9 @@ app.post('/api/presence', validateBody(presenceSchema), async (req, res) => {
 
   // Log with user info if available
   if (userId) {
-    console.log(`Presence update: ${userName || userId} - ${present ? 'PRESENT' : 'ABSENT'} (confidence: ${confidence?.toFixed(2)})`);
+    console.log(
+      `Presence update: ${userName || userId} - ${present ? 'PRESENT' : 'ABSENT'} (confidence: ${confidence?.toFixed(2)})`
+    );
     // Update user's last seen timestamp
     try {
       updateUserLastSeen(userId);
@@ -281,7 +307,9 @@ app.post('/api/presence', validateBody(presenceSchema), async (req, res) => {
       // User might not exist in DB yet
     }
   } else {
-    console.log(`Presence update: ${present ? 'PRESENT' : 'ABSENT'} (confidence: ${confidence}, state: ${state})`);
+    console.log(
+      `Presence update: ${present ? 'PRESENT' : 'ABSENT'} (confidence: ${confidence}, state: ${state})`
+    );
   }
 
   // Update display based on presence
@@ -420,82 +448,93 @@ const CAPTURE_INSTRUCTIONS = [
 app.get('/api/registration', (_req, res) => {
   res.json({
     ...registrationMode,
-    currentInstruction: CAPTURE_INSTRUCTIONS[Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)],
+    currentInstruction:
+      CAPTURE_INSTRUCTIONS[
+        Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)
+      ],
   });
 });
 
-app.post('/api/registration/start', authLimiter, validateBody(registrationStartSchema), async (req, res) => {
-  const { userName, userId } = req.body as { userName?: string; userId: string };
+app.post(
+  '/api/registration/start',
+  authLimiter,
+  validateBody(registrationStartSchema),
+  async (req, res) => {
+    const { userName, userId } = req.body as { userName?: string; userId: string };
 
-  clearRegistrationTimer();
-  let session: { enrollmentToken: string; expiresAt: number };
-  try {
-    const response = await fetch(`${presenceServerUrl}/api/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...internalHeaders() },
-      body: JSON.stringify({ userId, name: userName ?? null }),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (response.status === 503) {
-      // Reachable, but the camera could not be opened (packages/presence/cameras.py).
+    clearRegistrationTimer();
+    let session: { enrollmentToken: string; expiresAt: number };
+    try {
+      const response = await fetch(`${presenceServerUrl}/api/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...internalHeaders() },
+        body: JSON.stringify({ userId, name: userName ?? null }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (response.status === 503) {
+        // Reachable, but the camera could not be opened (packages/presence/cameras.py).
+        registrationMode = idleRegistration(registrationMode);
+        return res.status(503).json({
+          ...registrationMode,
+          error: 'The mirror camera is not available. Check that it is connected, then try again.',
+        });
+      }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const body = (await response.json()) as { enrollmentToken?: string; expiresAt?: number };
+      if (!body.enrollmentToken || typeof body.expiresAt !== 'number') {
+        throw new Error('presence server returned no enrollment token');
+      }
+      session = { enrollmentToken: body.enrollmentToken, expiresAt: body.expiresAt };
+    } catch (error) {
       registrationMode = idleRegistration(registrationMode);
-      return res.status(503).json({
+      console.error(`Presence server unreachable at ${presenceServerUrl}:`, error);
+      return res.status(502).json({
         ...registrationMode,
-        error: 'The mirror camera is not available. Check that it is connected, then try again.',
+        error:
+          `Presence server unreachable at ${presenceServerUrl}. ` +
+          'Start it with "npm run dev:admin" (packages/presence/web_server.py) and try again.',
       });
     }
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const body = (await response.json()) as { enrollmentToken?: string; expiresAt?: number };
-    if (!body.enrollmentToken || typeof body.expiresAt !== 'number') {
-      throw new Error('presence server returned no enrollment token');
-    }
-    session = { enrollmentToken: body.enrollmentToken, expiresAt: body.expiresAt };
-  } catch (error) {
-    registrationMode = idleRegistration(registrationMode);
-    console.error(`Presence server unreachable at ${presenceServerUrl}:`, error);
-    return res.status(502).json({
+
+    registrationMode = {
+      active: true,
+      startedAt: new Date(),
+      presenceServerUrl,
+      samplesCollected: 0,
+      samplesNeeded: 5,
+      userName: userName || null,
+      userId,
+      enrollmentToken: session.enrollmentToken,
+      expiresAt: session.expiresAt,
+      guidance: null,
+    };
+    // The presence server expires the token on its own; mirror that here so the
+    // overlay closes even if its notification is lost.
+    const token = session.enrollmentToken;
+    registrationExpiryTimer = setTimeout(
+      () => {
+        if (registrationMode.active && registrationMode.enrollmentToken === token) {
+          console.log('Registration session expired');
+          endRegistration('cancelled');
+          resetPresenceSession();
+        }
+      },
+      Math.max(0, session.expiresAt - Date.now())
+    );
+    registrationExpiryTimer.unref?.();
+
+    // Shows the full-screen registration overlay (and camera preview) on the mirror.
+    broadcast('registration', {
       ...registrationMode,
-      error:
-        `Presence server unreachable at ${presenceServerUrl}. ` +
-        'Start it with "npm run dev:admin" (packages/presence/web_server.py) and try again.',
+      action: 'started',
+      currentInstruction: CAPTURE_INSTRUCTIONS[0],
     });
+    console.log(`Registration mode started for user: ${registrationMode.userName || 'Unknown'}`);
+    res.json(registrationMode);
   }
-
-  registrationMode = {
-    active: true,
-    startedAt: new Date(),
-    presenceServerUrl,
-    samplesCollected: 0,
-    samplesNeeded: 5,
-    userName: userName || null,
-    userId,
-    enrollmentToken: session.enrollmentToken,
-    expiresAt: session.expiresAt,
-    guidance: null,
-  };
-  // The presence server expires the token on its own; mirror that here so the
-  // overlay closes even if its notification is lost.
-  const token = session.enrollmentToken;
-  registrationExpiryTimer = setTimeout(() => {
-    if (registrationMode.active && registrationMode.enrollmentToken === token) {
-      console.log('Registration session expired');
-      endRegistration('cancelled');
-      resetPresenceSession();
-    }
-  }, Math.max(0, session.expiresAt - Date.now()));
-  registrationExpiryTimer.unref?.();
-
-  // Shows the full-screen registration overlay (and camera preview) on the mirror.
-  broadcast('registration', {
-    ...registrationMode,
-    action: 'started',
-    currentInstruction: CAPTURE_INSTRUCTIONS[0],
-  });
-  console.log(`Registration mode started for user: ${registrationMode.userName || 'Unknown'}`);
-  res.json(registrationMode);
-});
+);
 
 // Manual fallback ("Take photo now"). The presence server takes photos on its
 // own once the face is framed and steady; this asks it for one now. It waits
@@ -516,13 +555,18 @@ app.post('/api/registration/capture', async (_req, res) => {
       body: JSON.stringify({ delay: 3 }),
       signal: AbortSignal.timeout(10000),
     });
-    const result = await response.json() as { success: boolean; samples_captured?: number; message?: string; complete?: boolean };
+    const result = (await response.json()) as {
+      success: boolean;
+      samples_captured?: number;
+      message?: string;
+      complete?: boolean;
+    };
 
     if (result.success) {
       // Normally /progress has already arrived; never move the count backwards.
       registrationMode.samplesCollected = Math.max(
         registrationMode.samplesCollected,
-        result.samples_captured || registrationMode.samplesCollected + 1,
+        result.samples_captured || registrationMode.samplesCollected + 1
       );
       const complete = registrationMode.samplesCollected >= registrationMode.samplesNeeded;
 
@@ -546,33 +590,49 @@ app.post('/api/registration/capture', async (_req, res) => {
 });
 
 // Progress / completion notifications come only from the presence server.
-app.post('/api/registration/progress', requireInternal, validateBody(registrationProgressSchema), (req, res) => {
-  const { samplesCollected, samplesNeeded } = req.body;
-  const before = registrationMode.samplesCollected;
-  registrationMode.samplesCollected = samplesCollected ?? registrationMode.samplesCollected;
-  registrationMode.samplesNeeded = samplesNeeded ?? registrationMode.samplesNeeded;
+app.post(
+  '/api/registration/progress',
+  requireInternal,
+  validateBody(registrationProgressSchema),
+  (req, res) => {
+    const { samplesCollected, samplesNeeded } = req.body;
+    const before = registrationMode.samplesCollected;
+    registrationMode.samplesCollected = samplesCollected ?? registrationMode.samplesCollected;
+    registrationMode.samplesNeeded = samplesNeeded ?? registrationMode.samplesNeeded;
 
-  // A new sample (auto or manual): mirror and phone flash / buzz on 'captured'.
-  broadcast('registration', {
-    ...registrationMode,
-    action: registrationMode.samplesCollected > before ? 'captured' : 'progress',
-    currentInstruction: CAPTURE_INSTRUCTIONS[Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)],
-  });
-  res.json({ success: true });
-});
+    // A new sample (auto or manual): mirror and phone flash / buzz on 'captured'.
+    broadcast('registration', {
+      ...registrationMode,
+      action: registrationMode.samplesCollected > before ? 'captured' : 'progress',
+      currentInstruction:
+        CAPTURE_INSTRUCTIONS[
+          Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)
+        ],
+    });
+    res.json({ success: true });
+  }
+);
 
 // Live hint while the presence server waits for a framed, posed, steady face.
 // Sent only when the reason changes; ignored outside a session.
-app.post('/api/registration/guidance', requireInternal, validateBody(registrationGuidanceSchema), (req, res) => {
-  if (!registrationMode.active) return res.json({ success: true, ignored: true });
-  registrationMode.guidance = req.body as RegistrationGuidanceInput;
-  broadcast('registration', {
-    ...registrationMode,
-    action: 'guidance',
-    currentInstruction: CAPTURE_INSTRUCTIONS[Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)],
-  });
-  res.json({ success: true });
-});
+app.post(
+  '/api/registration/guidance',
+  requireInternal,
+  validateBody(registrationGuidanceSchema),
+  (req, res) => {
+    if (!registrationMode.active) return res.json({ success: true, ignored: true });
+    registrationMode.guidance = req.body as RegistrationGuidanceInput;
+    broadcast('registration', {
+      ...registrationMode,
+      action: 'guidance',
+      currentInstruction:
+        CAPTURE_INSTRUCTIONS[
+          Math.min(registrationMode.samplesCollected, CAPTURE_INSTRUCTIONS.length - 1)
+        ],
+    });
+    res.json({ success: true });
+  }
+);
 
 app.post('/api/registration/complete', requireInternal, (_req, res) => {
   if (registrationMode.active) endRegistration('completed');
@@ -585,7 +645,8 @@ app.post('/api/registration/complete', requireInternal, (_req, res) => {
 app.post('/api/registration/cancel', (req, res) => {
   const source = (req.body as { source?: string } | undefined)?.source;
   const fromPresence =
-    source === 'presence-server' && isValidInternalToken(req.headers[INTERNAL_TOKEN_HEADER.toLowerCase()]);
+    source === 'presence-server' &&
+    isValidInternalToken(req.headers[INTERNAL_TOKEN_HEADER.toLowerCase()]);
   endRegistration('cancelled');
   console.log('Registration mode cancelled');
   if (!fromPresence) resetPresenceSession();
@@ -633,7 +694,9 @@ if (wantFrontend && existsSync(frontendIndex)) {
     `[Frontend] NOT serving frontend: ${frontendIndex} not found (run "npm run build" in packages/frontend)`
   );
 } else {
-  console.log('[Frontend] Not serving frontend (set NODE_ENV=production or SKYGLASS_SERVE_FRONTEND=1)');
+  console.log(
+    '[Frontend] Not serving frontend (set NODE_ENV=production or SKYGLASS_SERVE_FRONTEND=1)'
+  );
 }
 
 const PORT = process.env.PORT || 3001;

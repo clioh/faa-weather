@@ -24,9 +24,16 @@ interface ChooseCalendarsProps {
   onDone: () => void;
 }
 
-export function ChooseCalendars({ account, initialCalendars, reconnected, onDone }: ChooseCalendarsProps) {
+export function ChooseCalendars({
+  account,
+  initialCalendars,
+  reconnected,
+  onDone,
+}: ChooseCalendarsProps) {
   const [label, setLabel] = useState(account.label);
-  const [calendars, setCalendars] = useState<AccountCalendar[]>(initialCalendars ?? account.calendars);
+  const [calendars, setCalendars] = useState<AccountCalendar[]>(
+    initialCalendars ?? account.calendars
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const meta = PROVIDER_META[account.provider];
@@ -40,7 +47,9 @@ export function ChooseCalendars({ account, initialCalendars, reconnected, onDone
     const name = label.trim();
     const changed = calendars.filter((c) => {
       const orig = account.calendars.find((o) => o.id === c.id);
-      return !orig || orig.enabled !== c.enabled || orig.color.toLowerCase() !== c.color.toLowerCase();
+      return (
+        !orig || orig.enabled !== c.enabled || orig.color.toLowerCase() !== c.color.toLowerCase()
+      );
     });
     const labelChanged = !!name && name !== account.label;
     if (!labelChanged && changed.length === 0) {
@@ -52,7 +61,9 @@ export function ChooseCalendars({ account, initialCalendars, reconnected, onDone
     try {
       await api.updateCalendarAccount(account.id, {
         ...(labelChanged ? { label: name } : {}),
-        ...(changed.length ? { calendars: changed.map(({ id, enabled, color }) => ({ id, enabled, color })) } : {}),
+        ...(changed.length
+          ? { calendars: changed.map(({ id, enabled, color }) => ({ id, enabled, color })) }
+          : {}),
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onDone();
@@ -106,7 +117,9 @@ export function ChooseCalendars({ account, initialCalendars, reconnected, onDone
           />
         </View>
         {calendars.length > 0 && enabledCount === 0 ? (
-          <Text style={styles.hint}>With every calendar off, this account won’t show anything on the mirror.</Text>
+          <Text style={styles.hint}>
+            With every calendar off, this account won’t show anything on the mirror.
+          </Text>
         ) : null}
       </View>
 

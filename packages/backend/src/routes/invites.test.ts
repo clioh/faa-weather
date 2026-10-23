@@ -23,12 +23,22 @@ const { createInvitesRouter } = await import('./invites.js');
 // LAN callers, as the Vite dev proxy forwards them (see pairing.test.ts).
 const LAN = { 'X-Forwarded-For': '192.168.1.50' };
 const bearer = (token: string) => ({ ...LAN, Authorization: `Bearer ${token}` });
-const tile = { instanceId: 't1', moduleId: 'metar', position: { x: 0, y: 0 }, size: 'medium', config: {} };
+const tile = {
+  instanceId: 't1',
+  moduleId: 'metar',
+  position: { x: 0, y: 0 },
+  size: 'medium',
+  config: {},
+};
 
 let server: Server;
 let base: string;
 
-async function call(method: string, p: string, { headers = {}, body }: { headers?: Record<string, string>; body?: unknown } = {}) {
+async function call(
+  method: string,
+  p: string,
+  { headers = {}, body }: { headers?: Record<string, string>; body?: unknown } = {}
+) {
   const res = await fetch(`${base}${p}`, {
     method,
     headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers },
@@ -48,7 +58,10 @@ beforeAll(async () => {
   const app = express();
   app.set('trust proxy', 'loopback');
   app.use(express.json());
-  app.use('/api', apiAuthGate((t) => pairingService.authenticate(t)));
+  app.use(
+    '/api',
+    apiAuthGate((t) => pairingService.authenticate(t))
+  );
   app.use('/api/users', usersRoutes);
   app.use('/api/invites', createInvitesRouter({ service: pairingService, limiters: [] }));
   server = app.listen(0, '127.0.0.1');
@@ -65,15 +78,35 @@ afterAll(async () => {
 describe('adding and inviting another person', () => {
   it('runs the whole flow: add, set up, invite, accept, then the layout is theirs', async () => {
     const owner = pairPhone('Owner iPhone');
-    expect((await call('POST', '/api/users', { headers: bearer(owner), body: { id: 'owner', name: 'Clio' } })).status).toBe(200);
+    expect(
+      (
+        await call('POST', '/api/users', {
+          headers: bearer(owner),
+          body: { id: 'owner', name: 'Clio' },
+        })
+      ).status
+    ).toBe(200);
 
     // Added from the owner's phone: not joined yet, and the owner may set them up.
-    const added = await call('POST', '/api/users', { headers: bearer(owner), body: { id: 'sam', name: 'Sam', invited: true } });
+    const added = await call('POST', '/api/users', {
+      headers: bearer(owner),
+      body: { id: 'sam', name: 'Sam', invited: true },
+    });
     expect(added.status).toBe(200);
-    let people = (await call('GET', '/api/users', { headers: bearer(owner) })).body as { id: string; joined: boolean }[];
+    let people = (await call('GET', '/api/users', { headers: bearer(owner) })).body as {
+      id: string;
+      joined: boolean;
+    }[];
     expect(people.find((p) => p.id === 'sam')?.joined).toBe(false);
     expect(people.find((p) => p.id === 'owner')?.joined).toBe(true);
-    expect((await call('PUT', '/api/users/sam/layout', { headers: bearer(owner), body: { modules: [tile] } })).status).toBe(200);
+    expect(
+      (
+        await call('PUT', '/api/users/sam/layout', {
+          headers: bearer(owner),
+          body: { modules: [tile] },
+        })
+      ).status
+    ).toBe(200);
 
     // Invite: a single-use token, not usable by anyone else's phone twice.
     const invite = await call('POST', '/api/users/sam/invite', { headers: bearer(owner) });
@@ -81,47 +114,112 @@ describe('adding and inviting another person', () => {
     expect(invite.body.token).toMatch(/^sgi_[A-Za-z0-9_-]{32}$/);
     expect(invite.body.mirrorId).toBeTruthy();
     people = (await call('GET', '/api/users', { headers: bearer(owner) })).body;
-    expect((people.find((p) => p.id === 'sam') as { inviteExpiresAt: string | null }).inviteExpiresAt).toBeTruthy();
+    expect(
+      (people.find((p) => p.id === 'sam') as { inviteExpiresAt: string | null }).inviteExpiresAt
+    ).toBeTruthy();
 
     // Sam's phone accepts without being paired first.
-    const accepted = await call('POST', '/api/invites/claim', { headers: LAN, body: { token: invite.body.token, deviceName: 'Sam iPhone' } });
+    const accepted = await call('POST', '/api/invites/claim', {
+      headers: LAN,
+      body: { token: invite.body.token, deviceName: 'Sam iPhone' },
+    });
     expect(accepted.status).toBe(200);
     expect(accepted.body.user).toEqual({ id: 'sam', name: 'Sam' });
     const sam = accepted.body.token as string;
-    expect((await call('GET', '/api/users/sam/layout', { headers: bearer(sam) })).body.modules).toEqual([tile]);
+    expect(
+      (await call('GET', '/api/users/sam/layout', { headers: bearer(sam) })).body.modules
+    ).toEqual([tile]);
 
     // Used up.
-    const again = await call('POST', '/api/invites/claim', { headers: LAN, body: { token: invite.body.token, deviceName: 'Other' } });
+    const again = await call('POST', '/api/invites/claim', {
+      headers: LAN,
+      body: { token: invite.body.token, deviceName: 'Other' },
+    });
     expect(again.status).toBe(400);
     expect(again.body.error).toBe('invalid_invite');
 
     // Now only Sam's phone edits Sam's layout; no new invites for Sam.
-    expect((await call('PUT', '/api/users/sam/layout', { headers: bearer(owner), body: { modules: [] } })).status).toBe(403);
-    expect((await call('PUT', '/api/users/sam/layout', { headers: bearer(sam), body: { modules: [] } })).status).toBe(200);
-    expect((await call('PUT', '/api/users/owner/layout', { headers: bearer(sam), body: { modules: [] } })).status).toBe(403);
-    expect((await call('POST', '/api/users/sam/invite', { headers: bearer(owner) })).status).toBe(409);
+    expect(
+      (
+        await call('PUT', '/api/users/sam/layout', {
+          headers: bearer(owner),
+          body: { modules: [] },
+        })
+      ).status
+    ).toBe(403);
+    expect(
+      (await call('PUT', '/api/users/sam/layout', { headers: bearer(sam), body: { modules: [] } }))
+        .status
+    ).toBe(200);
+    expect(
+      (
+        await call('PUT', '/api/users/owner/layout', {
+          headers: bearer(sam),
+          body: { modules: [] },
+        })
+      ).status
+    ).toBe(403);
+    expect((await call('POST', '/api/users/sam/invite', { headers: bearer(owner) })).status).toBe(
+      409
+    );
   });
 
   it('rejects an expired invite, and a newer invite replaces the old one', async () => {
     const owner = pairPhone('Owner iPad');
-    await call('POST', '/api/users', { headers: bearer(owner), body: { id: 'kim', name: 'Kim', invited: true } });
+    await call('POST', '/api/users', {
+      headers: bearer(owner),
+      body: { id: 'kim', name: 'Kim', invited: true },
+    });
 
-    const first = (await call('POST', '/api/users/kim/invite', { headers: bearer(owner) })).body.token as string;
-    const second = (await call('POST', '/api/users/kim/invite', { headers: bearer(owner) })).body.token as string;
-    expect((await call('POST', '/api/invites/claim', { headers: LAN, body: { token: first, deviceName: 'Kim' } })).status).toBe(400);
+    const first = (await call('POST', '/api/users/kim/invite', { headers: bearer(owner) })).body
+      .token as string;
+    const second = (await call('POST', '/api/users/kim/invite', { headers: bearer(owner) })).body
+      .token as string;
+    expect(
+      (
+        await call('POST', '/api/invites/claim', {
+          headers: LAN,
+          body: { token: first, deviceName: 'Kim' },
+        })
+      ).status
+    ).toBe(400);
 
     setUserInvite('kim', hashToken(second), new Date(Date.now() - 1000).toISOString());
-    expect((await call('POST', '/api/invites/claim', { headers: LAN, body: { token: second, deviceName: 'Kim' } })).status).toBe(400);
+    expect(
+      (
+        await call('POST', '/api/invites/claim', {
+          headers: LAN,
+          body: { token: second, deviceName: 'Kim' },
+        })
+      ).status
+    ).toBe(400);
   });
 
   it('ties a phone paired before invites existed to its person on first edit', async () => {
     // Joined person whose phone was paired without saying who it belongs to.
     const legacy = pairPhone('Old iPhone');
-    expect((await call('POST', '/api/users', { headers: LAN, body: { id: 'alex', name: 'Alex' } })).status).toBe(401);
+    expect(
+      (await call('POST', '/api/users', { headers: LAN, body: { id: 'alex', name: 'Alex' } }))
+        .status
+    ).toBe(401);
     const local = await call('POST', '/api/users', { body: { id: 'alex', name: 'Alex' } }); // the mirror itself
     expect(local.status).toBe(200);
-    expect((await call('PUT', '/api/users/alex/layout', { headers: bearer(legacy), body: { modules: [] } })).status).toBe(200);
+    expect(
+      (
+        await call('PUT', '/api/users/alex/layout', {
+          headers: bearer(legacy),
+          body: { modules: [] },
+        })
+      ).status
+    ).toBe(200);
     // Now tied to Alex, so another joined person's layout is off limits.
-    expect((await call('PUT', '/api/users/owner/layout', { headers: bearer(legacy), body: { modules: [] } })).status).toBe(403);
+    expect(
+      (
+        await call('PUT', '/api/users/owner/layout', {
+          headers: bearer(legacy),
+          body: { modules: [] },
+        })
+      ).status
+    ).toBe(403);
   });
 });

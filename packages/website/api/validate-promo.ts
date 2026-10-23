@@ -45,7 +45,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = readJsonObject(req)
   if (!body) {
-    return res.status(400).json({ valid: false, error: 'Body must be a JSON object' } as PromoResult)
+    return res
+      .status(400)
+      .json({ valid: false, error: 'Body must be a JSON object' } as PromoResult)
   }
 
   const { code, subtotal } = body
@@ -71,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const promo = result.value
     console.log(
-      `[Promo] Valid code "${promo.code}": ${promo.discountType === 'percent' ? `${promo.percentOff}% off` : `$${(promo.amountOff ?? 0) / 100} off`}`,
+      `[Promo] Valid code "${promo.code}": ${promo.discountType === 'percent' ? `${promo.percentOff}% off` : `$${(promo.amountOff ?? 0) / 100} off`}`
     )
 
     return res.status(200).json({ valid: true, ...promo } as PromoResult)
@@ -79,9 +81,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[Promo] Error:', error)
 
     if (error instanceof Stripe.errors.StripeError) {
-      return res.status(400).json({ valid: false, error: 'Could not check that promo code' } as PromoResult)
+      return res
+        .status(400)
+        .json({ valid: false, error: 'Could not check that promo code' } as PromoResult)
     }
 
-    return res.status(500).json({ valid: false, error: 'Failed to validate promo code' } as PromoResult)
+    return res
+      .status(500)
+      .json({ valid: false, error: 'Failed to validate promo code' } as PromoResult)
   }
 }

@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  parseMetar,
-  formatWind,
-  formatVisibility,
-  formatClouds,
-} from './metar-parser.js';
+import { parseMetar, formatWind, formatVisibility, formatClouds } from './metar-parser.js';
 
 describe('METAR Parser', () => {
   describe('parseMetar', () => {
@@ -267,9 +262,7 @@ describe('METAR Parser', () => {
     });
 
     it('should include cloud type', () => {
-      const clouds = [
-        { coverage: 'BKN' as const, altitude: 2500, type: 'CB' as const },
-      ];
+      const clouds = [{ coverage: 'BKN' as const, altitude: 2500, type: 'CB' as const }];
       expect(formatClouds(clouds)).toBe('BKN 2,500ft CB');
     });
   });

@@ -47,7 +47,8 @@ export default function TemplateScreen() {
     api
       .getConfig()
       .then((config) => {
-        if (!cancelled) setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
+        if (!cancelled)
+          setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
       })
       .catch(() => {
         // Unreachable mirror: keep the landscape templates.
@@ -151,10 +152,7 @@ export default function TemplateScreen() {
       {/* Error display */}
       {error && (
         <View style={styles.errorContainer}>
-          <InlineError
-            message={error}
-            onDismiss={() => setError(null)}
-          />
+          <InlineError message={error} onDismiss={() => setError(null)} />
         </View>
       )}
 

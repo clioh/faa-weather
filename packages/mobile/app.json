@@ -7,9 +7,7 @@
     "icon": "./assets/app-icon.png",
     "scheme": "skyglass",
     "userInterfaceStyle": "dark",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.skyglass.app",
@@ -17,10 +15,7 @@
         "NSCameraUsageDescription": "SkyGlass uses your camera to register your face for presence detection.",
         "NSLocationWhenInUseUsageDescription": "SkyGlass uses your location to provide accurate sunrise/sunset times and local weather.",
         "NSLocalNetworkUsageDescription": "SkyGlass needs to discover your mirror on the local network.",
-        "NSBonjourServices": [
-          "_skyglass._tcp",
-          "_http._tcp"
-        ]
+        "NSBonjourServices": ["_skyglass._tcp", "_http._tcp"]
       }
     },
     "android": {

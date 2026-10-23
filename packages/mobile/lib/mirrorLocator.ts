@@ -373,7 +373,8 @@ export async function locateMirror(
   if (lastSubnet) sweep.unshift(lastSubnet);
 
   const hosts: { host: string; port: number }[] = [];
-  if (lastHost && !isSetupHotspot(lastHost, lastPort)) hosts.push({ host: lastHost, port: lastPort });
+  if (lastHost && !isSetupHotspot(lastHost, lastPort))
+    hosts.push({ host: lastHost, port: lastPort });
 
   const found = await findMirrors({
     timeoutMs,

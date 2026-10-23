@@ -86,7 +86,9 @@ describe('WebSocket upgrade auth', () => {
   });
 
   it('a forged X-Forwarded-For: 127.0.0.1 through a proxy does not make a client local', async () => {
-    expect(await rejectedStatus(connect(undefined, { 'X-Forwarded-For': '127.0.0.1, 192.168.1.50' }))).toBe(401);
+    expect(
+      await rejectedStatus(connect(undefined, { 'X-Forwarded-For': '127.0.0.1, 192.168.1.50' }))
+    ).toBe(401);
   });
 
   it('a paired phone authenticates with the token subprotocol; the server selects "skyglass" only', async () => {

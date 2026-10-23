@@ -12,8 +12,11 @@ const ALIGNS = ['left', 'center', 'right'];
 export function TextLabelModule({ config }: ModuleProps) {
   const text = typeof config.text === 'string' ? config.text.trim() : '';
   const fontSize =
-    typeof config.fontSize === 'string' && SIZES.includes(config.fontSize) ? config.fontSize : 'medium';
-  const align = typeof config.align === 'string' && ALIGNS.includes(config.align) ? config.align : 'left';
+    typeof config.fontSize === 'string' && SIZES.includes(config.fontSize)
+      ? config.fontSize
+      : 'medium';
+  const align =
+    typeof config.align === 'string' && ALIGNS.includes(config.align) ? config.align : 'left';
 
   if (!text) {
     return (

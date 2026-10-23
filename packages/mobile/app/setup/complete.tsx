@@ -84,9 +84,7 @@ export default function SetupCompleteScreen() {
         {/* Success message */}
         <View style={styles.heading}>
           <Text style={styles.title}>You're all set</Text>
-          <Text style={styles.subtitle}>
-            Your SkyGlass is configured and ready to use
-          </Text>
+          <Text style={styles.subtitle}>Your SkyGlass is configured and ready to use</Text>
         </View>
 
         {/* Feature highlights */}
@@ -116,7 +114,9 @@ export default function SetupCompleteScreen() {
                 title="Add a calendar"
                 caption="Google, Outlook, iCloud or a calendar link"
                 chevron
-                onPress={() => router.push({ pathname: '/add-calendar', params: { from: 'setup' } })}
+                onPress={() =>
+                  router.push({ pathname: '/add-calendar', params: { from: 'setup' } })
+                }
               />
             )}
             <Row
@@ -141,9 +141,9 @@ export default function SetupCompleteScreen() {
         <View>
           <SectionLabel>What's next</SectionLabel>
           <Text style={styles.nextStepsText}>
-            Your mirror will now activate when it detects your face, displaying METAR/TAF data,
-            your schedule, and astronomical information. Use this app anytime to manage settings
-            or check for updates.
+            Your mirror will now activate when it detects your face, displaying METAR/TAF data, your
+            schedule, and astronomical information. Use this app anytime to manage settings or check
+            for updates.
           </Text>
         </View>
       </ScrollView>

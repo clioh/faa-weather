@@ -38,7 +38,8 @@ function formatPrice(price: number | null, currency: string): string {
 }
 
 function Change({ value }: { value: number | null }) {
-  if (value === null || !Number.isFinite(value)) return <span className="ticker-change text-faint">—</span>;
+  if (value === null || !Number.isFinite(value))
+    return <span className="ticker-change text-faint">—</span>;
   const tone = value > 0 ? 'text-positive' : value < 0 ? 'text-negative' : 'text-dim';
   const glyph = value > 0 ? '▲' : value < 0 ? '▼' : '';
   return (
@@ -109,7 +110,12 @@ export function CryptoModule({ config, size }: ModuleProps) {
   }
 
   return (
-    <ModuleFrame title="Crypto" accent={currency} meta={<Age at={lastUpdated} stale={isStale} />} className="ticker">
+    <ModuleFrame
+      title="Crypto"
+      accent={currency}
+      meta={<Age at={lastUpdated} stale={isStale} />}
+      className="ticker"
+    >
       {body}
     </ModuleFrame>
   );

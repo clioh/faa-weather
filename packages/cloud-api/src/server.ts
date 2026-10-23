@@ -21,12 +21,14 @@ app.use(helmet());
 
 // CORS configuration
 const corsOrigin = process.env.CORS_ORIGIN || '*';
-app.use(cors({
-  origin: corsOrigin === '*' ? '*' : corsOrigin.split(','),
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+app.use(
+  cors({
+    origin: corsOrigin === '*' ? '*' : corsOrigin.split(','),
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
 // Rate limiting
 const limiter = rateLimit({

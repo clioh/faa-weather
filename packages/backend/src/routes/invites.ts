@@ -26,7 +26,8 @@ export const inviteClaimSchema = z.object({
 
 const INVALID_INVITE = {
   error: 'invalid_invite',
-  message: 'This invite has expired or was already used. Ask whoever invited you to send a new one.',
+  message:
+    'This invite has expired or was already used. Ask whoever invited you to send a new one.',
 } as const;
 
 export interface InvitesRouterOptions {
@@ -43,7 +44,9 @@ export function createInvitesRouter({ service, limiters }: InvitesRouterOptions)
     const { token, deviceName } = req.body as z.infer<typeof inviteClaimSchema>;
     res.setHeader('Cache-Control', 'no-store');
 
-    const invite = token.startsWith(INVITE_TOKEN_PREFIX) ? findInviteByTokenHash(hashToken(token)) : null;
+    const invite = token.startsWith(INVITE_TOKEN_PREFIX)
+      ? findInviteByTokenHash(hashToken(token))
+      : null;
     if (!invite || !(Date.parse(invite.expires_at) > Date.now())) {
       res.status(400).json(INVALID_INVITE);
       return;
@@ -63,11 +66,15 @@ export function createInvitesRouter({ service, limiters }: InvitesRouterOptions)
       res.json({ ...result, user: { id: user.id, name: user.name } });
     } catch (error) {
       if (error instanceof PairingError) {
-        res.status(error.httpStatus).json({ error: error.code, message: error.message, ...error.extra });
+        res
+          .status(error.httpStatus)
+          .json({ error: error.code, message: error.message, ...error.extra });
         return;
       }
       console.error('[Invites] Claim failed:', error);
-      res.status(500).json({ error: 'internal_error', message: 'Accepting the invite failed. Try again.' });
+      res
+        .status(500)
+        .json({ error: 'internal_error', message: 'Accepting the invite failed. Try again.' });
     }
   });
 

@@ -58,10 +58,12 @@ export function GoogleConnect({ onConnected, onCancel }: GoogleConnectProps) {
         onCancel();
         return;
       }
-      if (googleError) throw new Error(`Google didn’t finish the sign-in (${googleError}). Try again.`);
+      if (googleError)
+        throw new Error(`Google didn’t finish the sign-in (${googleError}). Try again.`);
       const code = param(queryParams?.code);
       const state = param(queryParams?.state);
-      if (!code || !state) throw new Error('Google didn’t send the sign-in back to the app. Try again.');
+      if (!code || !state)
+        throw new Error('Google didn’t send the sign-in back to the app. Try again.');
       // The mirror checks state too; this catches a redirect from some other sign-in.
       const sentState = param(Linking.parse(authUrl).queryParams?.state);
       if (sentState && sentState !== state) {
@@ -97,7 +99,9 @@ export function GoogleConnect({ onConnected, onCancel }: GoogleConnectProps) {
   return (
     <View style={styles.centered} accessibilityLiveRegion="polite">
       <Spinner size="large" />
-      <Text style={styles.title}>{phase === 'finishing' ? 'Finishing sign-in…' : 'Continue in your browser'}</Text>
+      <Text style={styles.title}>
+        {phase === 'finishing' ? 'Finishing sign-in…' : 'Continue in your browser'}
+      </Text>
       <Text style={styles.body}>
         {phase === 'finishing'
           ? 'Your mirror is connecting to Google Calendar.'

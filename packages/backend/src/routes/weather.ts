@@ -24,7 +24,12 @@ router.get('/current', validateQuery(weatherCurrentQuerySchema), async (req, res
 });
 
 router.get('/forecast', validateQuery(weatherForecastQuerySchema), async (req, res) => {
-  const { lat, lon, units, days } = req.query as unknown as { lat: number; lon: number; units: Units; days: number };
+  const { lat, lon, units, days } = req.query as unknown as {
+    lat: number;
+    lon: number;
+    units: Units;
+    days: number;
+  };
   try {
     res.json(await getWeatherForecast(lat, lon, units, days));
   } catch (error) {

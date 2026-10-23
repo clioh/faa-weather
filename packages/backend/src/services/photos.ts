@@ -104,7 +104,12 @@ export class PhotoStore {
     if (!file) return null;
     fs.writeFileSync(file, buf, { flag: 'wx' });
     const stat = fs.statSync(file);
-    return { id, url: `/api/photos/${id}/file`, uploadedAt: stat.mtime.toISOString(), size: stat.size };
+    return {
+      id,
+      url: `/api/photos/${id}/file`,
+      uploadedAt: stat.mtime.toISOString(),
+      size: stat.size,
+    };
   }
 
   /** Locate a stored photo by id; null for unknown or unsafe ids. */

@@ -30,7 +30,10 @@ import { readJsonObject } from '../_lib/http.js'
  */
 
 async function present(sql: Sql, licenses: LicenseRow[]) {
-  const used = await customerReleaseCounts(sql, licenses.map((l) => l.id))
+  const used = await customerReleaseCounts(
+    sql,
+    licenses.map((l) => l.id)
+  )
   return licenses.map((l) => ({
     id: l.id,
     keyLast4: l.key_last4,
@@ -94,7 +97,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const body = readJsonObject(req)
     if (!body) {
-      return res.status(400).json({ status: 'invalid_request', error: 'Body must be a JSON object' })
+      return res
+        .status(400)
+        .json({ status: 'invalid_request', error: 'Body must be a JSON object' })
     }
     const action = body.action
     const license = await findById(sql, String(body.licenseId ?? ''))
@@ -115,14 +120,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           })
         }
         if (license.key_hash && license.status !== 'pending') {
-          return res.status(409).json({ status: 'bound', error: 'License is active on a mirror. Reset it before rekeying.' })
+          return res.status(409).json({
+            status: 'bound',
+            error: 'License is active on a mirror. Reset it before rekeying.',
+          })
         }
-        const key = await assignNewKey(sql, license.id, license.key_hash ? 'pending-keyed' : 'unkeyed')
+        const key = await assignNewKey(
+          sql,
+          license.id,
+          license.key_hash ? 'pending-keyed' : 'unkeyed'
+        )
         if (!key) {
-          return res.status(409).json({ status: 'conflict', error: 'License changed concurrently. Look it up and try again.' })
+          return res.status(409).json({
+            status: 'conflict',
+            error: 'License changed concurrently. Look it up and try again.',
+          })
         }
         console.log(`[Admin] ${license.key_hash ? 'Rekeyed' : 'Provisioned key for'} ${license.id}`)
-        return res.status(200).json({ licenseId: license.id, licenseKey: key, keyLast4: key.slice(-4) })
+        return res
+          .status(200)
+          .json({ licenseId: license.id, licenseKey: key, keyLast4: key.slice(-4) })
       }
 
       case 'revoke': {
@@ -142,7 +159,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const updated = await findById(sql, license.id)
-    return res.status(200).json({ ok: true, license: (await present(sql, updated ? [updated] : []))[0] ?? null })
+    return res
+      .status(200)
+      .json({ ok: true, license: (await present(sql, updated ? [updated] : []))[0] ?? null })
   } catch (error) {
     console.error('[Admin] License error:', error)
     return res.status(500).json({ error: 'Internal server error' })

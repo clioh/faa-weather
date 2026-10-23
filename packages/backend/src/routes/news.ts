@@ -13,7 +13,11 @@ import { upstreamErrorResponse } from '../services/upstream.js';
 const router = Router();
 
 router.get('/', validateQuery(newsQuerySchema), async (req, res) => {
-  const { source, url, limit } = req.query as unknown as { source: NewsSource; url?: string; limit: number };
+  const { source, url, limit } = req.query as unknown as {
+    source: NewsSource;
+    url?: string;
+    limit: number;
+  };
   try {
     const result = await getNews(source, source === 'custom' ? url : undefined, limit);
     res.json({ source: result.source, items: result.items, fetchedAt: result.fetchedAt });

@@ -38,7 +38,9 @@ interface Layer {
   route?: { path: string | string[]; methods: Record<string, boolean> };
   name?: string;
 }
-const RouterProto = (express.Router as unknown as { prototype: { use: (...args: unknown[]) => unknown } }).prototype;
+const RouterProto = (
+  express.Router as unknown as { prototype: { use: (...args: unknown[]) => unknown } }
+).prototype;
 const realUse = RouterProto.use;
 RouterProto.use = function patchedUse(this: unknown, ...args: unknown[]) {
   const mount = typeof args[0] === 'string' ? args[0] : '/';
@@ -60,7 +62,8 @@ interface FoundRoute {
   index: number;
 }
 
-const join = (a: string, b: string) => `${a.replace(/\/$/, '')}/${b.replace(/^\//, '')}`.replace(/\/$/, '') || '/';
+const join = (a: string, b: string) =>
+  `${a.replace(/\/$/, '')}/${b.replace(/^\//, '')}`.replace(/\/$/, '') || '/';
 
 function collect(stack: Layer[], prefix: string, out: FoundRoute[], topIndex?: number): void {
   stack.forEach((layer, i) => {
@@ -115,7 +118,12 @@ describe('deny by default (server.ts route stack)', () => {
     expect(apiRoutes.length).toBeGreaterThan(60);
     // Sanity: the walker sees nested routers with their mount paths.
     const seen = new Set(apiRoutes.map((r) => `${r.method} ${r.path}`));
-    for (const r of ['GET /api/aviation/metar/:icao', 'DELETE /api/pairing/devices/:id', 'GET /api/license/status', 'GET /api/health']) {
+    for (const r of [
+      'GET /api/aviation/metar/:icao',
+      'DELETE /api/pairing/devices/:id',
+      'GET /api/license/status',
+      'GET /api/health',
+    ]) {
       expect(seen.has(r), r).toBe(true);
     }
   });
@@ -127,7 +135,10 @@ describe('deny by default (server.ts route stack)', () => {
 
   it('every allowlisted route exists', () => {
     for (const pub of PUBLIC_API_ROUTES) {
-      expect(apiRoutes.some((r) => r.method === pub.method && r.path === `/api${pub.path}`), `${pub.method} ${pub.path}`).toBe(true);
+      expect(
+        apiRoutes.some((r) => r.method === pub.method && r.path === `/api${pub.path}`),
+        `${pub.method} ${pub.path}`
+      ).toBe(true);
     }
   });
 
@@ -152,7 +163,13 @@ describe('deny by default (server.ts route stack)', () => {
   });
 
   it('unknown /api paths and case/trailing-slash variants are denied too', async () => {
-    for (const p of ['/api/does-not-exist', '/api', '/API/config', '/api/config/', '/api/%68ealth/../config']) {
+    for (const p of [
+      '/api/does-not-exist',
+      '/api',
+      '/API/config',
+      '/api/config/',
+      '/api/%68ealth/../config',
+    ]) {
       const res = await fetch(`${base}${p}`, { headers: { 'X-Forwarded-For': '192.168.1.50' } });
       expect(res.status, p).toBe(401);
     }
@@ -160,14 +177,20 @@ describe('deny by default (server.ts route stack)', () => {
 
   it('a route added to the app later is protected automatically', async () => {
     app.get('/api/zz-added-later', (_req, res) => res.json({ leaked: true }));
-    const res = await fetch(`${base}/api/zz-added-later`, { headers: { 'X-Forwarded-For': '192.168.1.50' } });
+    const res = await fetch(`${base}/api/zz-added-later`, {
+      headers: { 'X-Forwarded-For': '192.168.1.50' },
+    });
     expect(res.status).toBe(401);
   });
 
   it('public routes stay reachable for an unpaired phone', async () => {
     const lan = { 'X-Forwarded-For': '192.168.1.50', 'Content-Type': 'application/json' };
     expect((await fetch(`${base}/api/health`, { headers: lan })).status).toBe(200);
-    const claim = await fetch(`${base}/api/pairing/claim`, { method: 'POST', headers: lan, body: '{"secret":"x","deviceName":"p"}' });
+    const claim = await fetch(`${base}/api/pairing/claim`, {
+      method: 'POST',
+      headers: lan,
+      body: '{"secret":"x","deviceName":"p"}',
+    });
     expect(claim.status).toBe(400);
     expect((await claim.json()).error).toBe('invalid_pairing_code');
   });
@@ -181,12 +204,20 @@ describe('deny by default (server.ts route stack)', () => {
 
 describe('public responses stay minimal', () => {
   it('GET /api/discovery reveals only the mirror identity to an unpaired LAN client', async () => {
-    const res = await fetch(`${base}/api/discovery`, { headers: { 'X-Forwarded-For': '192.168.1.50' } });
+    const res = await fetch(`${base}/api/discovery`, {
+      headers: { 'X-Forwarded-For': '192.168.1.50' },
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     // Adding a field here is a privacy decision: anything the owner configured
     // (airport, location, calendars) or network details must stay behind pairing.
-    expect(Object.keys(body).sort()).toEqual(['mirrorId', 'name', 'pairingRequired', 'setupComplete', 'version']);
+    expect(Object.keys(body).sort()).toEqual([
+      'mirrorId',
+      'name',
+      'pairingRequired',
+      'setupComplete',
+      'version',
+    ]);
     expect(body.pairingRequired).toBe(true);
   });
 });

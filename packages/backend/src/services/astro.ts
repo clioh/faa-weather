@@ -172,9 +172,7 @@ export function getUpcomingEvent(
     tomorrow
   );
 
-  const minutesUntil = Math.round(
-    (tomorrowAstro.sun.civilDawn.getTime() - now.getTime()) / 60000
-  );
+  const minutesUntil = Math.round((tomorrowAstro.sun.civilDawn.getTime() - now.getTime()) / 60000);
 
   return {
     event: 'Civil Dawn',

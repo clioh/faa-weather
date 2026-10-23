@@ -214,7 +214,11 @@ export default function Admin() {
                 {authError && <p className="field-error">{authError}</p>}
               </div>
 
-              <button type="submit" disabled={isLoading || !password} className="btn btn-primary w-full">
+              <button
+                type="submit"
+                disabled={isLoading || !password}
+                className="btn btn-primary w-full"
+              >
                 {isLoading ? 'Authenticating...' : 'Login'}
               </button>
             </form>
@@ -255,11 +259,15 @@ export default function Admin() {
             </div>
             <div className="border-t border-line py-5 sm:px-6 sm:border-l">
               <dt className="section-label mb-2">Revenue</dt>
-              <dd className="text-4xl font-extralight text-fg font-mono">{formatCurrency(stats.totalRevenue)}</dd>
+              <dd className="text-4xl font-extralight text-fg font-mono">
+                {formatCurrency(stats.totalRevenue)}
+              </dd>
             </div>
             <div className="border-t border-line py-5 sm:pl-6 sm:border-l">
               <dt className="section-label mb-2">Pending</dt>
-              <dd className={`text-4xl font-extralight font-mono ${stats.pendingOrders > 0 ? 'text-warning' : 'text-fg'}`}>
+              <dd
+                className={`text-4xl font-extralight font-mono ${stats.pendingOrders > 0 ? 'text-warning' : 'text-fg'}`}
+              >
                 {stats.pendingOrders}
               </dd>
             </div>
@@ -329,7 +337,9 @@ export default function Admin() {
                         className="border-t border-line hover:bg-tint cursor-pointer transition-colors"
                       >
                         <td className="px-3 py-4">
-                          <span className="font-mono text-sm text-fg">{order.id.slice(-8).toUpperCase()}</span>
+                          <span className="font-mono text-sm text-fg">
+                            {order.id.slice(-8).toUpperCase()}
+                          </span>
                         </td>
                         <td className="px-3 py-4">
                           <span className="font-mono text-sm text-fg">{order.email}</span>
@@ -340,7 +350,9 @@ export default function Admin() {
                           </span>
                         </td>
                         <td className="px-3 py-4">
-                          <span className="font-mono text-sm text-fg">{formatCurrency(order.amount)}</span>
+                          <span className="font-mono text-sm text-fg">
+                            {formatCurrency(order.amount)}
+                          </span>
                         </td>
                         <td className="px-3 py-4">
                           <StatusLabel style={statusStyle} />
@@ -393,15 +405,28 @@ export default function Admin() {
                 <div className="flex items-center justify-between gap-4 pl-5 pr-2 py-3 border-b border-line">
                   <div className="min-w-0">
                     <h3 className="text-lg font-normal text-fg">Order details</h3>
-                    <p className="text-fg-2 text-sm font-mono">#{selectedOrder.id.slice(-8).toUpperCase()}</p>
+                    <p className="text-fg-2 text-sm font-mono">
+                      #{selectedOrder.id.slice(-8).toUpperCase()}
+                    </p>
                   </div>
                   <button
                     onClick={() => setSelectedOrder(null)}
                     aria-label="Close"
                     className="w-11 h-11 flex-shrink-0 inline-flex items-center justify-center rounded-full text-fg-2 hover:text-fg transition-colors"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.8}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -433,7 +458,9 @@ export default function Admin() {
                       <div className="section-label mb-2">Shipping address</div>
                       <div className="text-fg text-sm">
                         <p className="font-medium">{selectedOrder.shipping.name}</p>
-                        <p className="text-fg-2 whitespace-pre-line">{selectedOrder.shipping.address}</p>
+                        <p className="text-fg-2 whitespace-pre-line">
+                          {selectedOrder.shipping.address}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -443,12 +470,19 @@ export default function Admin() {
                     <div className="section-label mb-2">Items</div>
                     <div className="border-b border-line">
                       {selectedOrder.items.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-4 border-t border-line py-3">
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between gap-4 border-t border-line py-3"
+                        >
                           <div className="min-w-0">
                             <span className="text-fg">{item.name}</span>
-                            <span className="text-fg-2 font-mono text-sm ml-2">x{item.quantity}</span>
+                            <span className="text-fg-2 font-mono text-sm ml-2">
+                              x{item.quantity}
+                            </span>
                           </div>
-                          <span className="text-fg font-mono text-sm">{formatCurrency(item.price * item.quantity)}</span>
+                          <span className="text-fg font-mono text-sm">
+                            {formatCurrency(item.price * item.quantity)}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -457,12 +491,15 @@ export default function Admin() {
                   {/* Total */}
                   <div className="flex items-center justify-between">
                     <span className="text-fg font-medium">Total</span>
-                    <span className="text-xl text-fg font-mono">{formatCurrency(selectedOrder.amount)}</span>
+                    <span className="text-xl text-fg font-mono">
+                      {formatCurrency(selectedOrder.amount)}
+                    </span>
                   </div>
 
                   {/* Date */}
                   <div className="text-fg-2 text-sm">
-                    Ordered on <span className="font-mono">{formatDate(selectedOrder.createdAt)}</span>
+                    Ordered on{' '}
+                    <span className="font-mono">{formatDate(selectedOrder.createdAt)}</span>
                   </div>
 
                   {/* Actions */}

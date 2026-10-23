@@ -13,7 +13,11 @@
 export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 export const DEFAULT_GOOGLE_REDIRECT_URI = 'https://skyglass.dev/oauth/google'
 export const DEFAULT_MICROSOFT_TENANT = 'common'
-export const GOOGLE_SCOPES = ['openid', 'email', 'https://www.googleapis.com/auth/calendar.readonly']
+export const GOOGLE_SCOPES = [
+  'openid',
+  'email',
+  'https://www.googleapis.com/auth/calendar.readonly',
+]
 export const MICROSOFT_SCOPES = ['offline_access', 'User.Read', 'Calendars.Read']
 
 export const MAX_BODY_BYTES = 8 * 1024
@@ -93,10 +97,18 @@ export function buildPublicConfig(env: OAuthEnv): PublicConfig {
   return {
     version: 1,
     google: env.google
-      ? { clientId: env.google.clientId, redirectUri: env.google.redirectUri, scopes: [...GOOGLE_SCOPES] }
+      ? {
+          clientId: env.google.clientId,
+          redirectUri: env.google.redirectUri,
+          scopes: [...GOOGLE_SCOPES],
+        }
       : null,
     microsoft: env.microsoft
-      ? { clientId: env.microsoft.clientId, tenant: env.microsoft.tenant, scopes: [...MICROSOFT_SCOPES] }
+      ? {
+          clientId: env.microsoft.clientId,
+          tenant: env.microsoft.tenant,
+          scopes: [...MICROSOFT_SCOPES],
+        }
       : null,
   }
 }
@@ -112,7 +124,7 @@ export class RateLimiter {
     private readonly limit: number,
     private readonly windowMs: number,
     private readonly now: () => number = Date.now,
-    private readonly maxKeys = 10_000,
+    private readonly maxKeys = 10_000
   ) {}
 
   /** Returns 0 when allowed, otherwise the seconds until the window resets. */
@@ -176,7 +188,7 @@ export function errorResult(
   status: number,
   error: string,
   error_description?: string,
-  headers?: Record<string, string>,
+  headers?: Record<string, string>
 ): HandlerResult {
   return { status, body: error_description ? { error, error_description } : { error }, headers }
 }
@@ -214,7 +226,8 @@ export function handleConfigRequest(req: RequestInput, deps: ConfigDeps = {}): H
   }
   const limiter = deps.limiter ?? configLimiter
   const retry = limiter.hit(clientIp(req.headers, req.remoteAddress))
-  if (retry) return errorResult(429, 'rate_limited', 'Too many requests', { 'Retry-After': String(retry) })
+  if (retry)
+    return errorResult(429, 'rate_limited', 'Too many requests', { 'Retry-After': String(retry) })
   const body = buildPublicConfig(readOAuthEnv(deps.env ?? process.env))
   return { status: 200, body: body as unknown as Record<string, unknown> }
 }
@@ -227,7 +240,9 @@ export type TokenGrant =
   | { grant_type: 'authorization_code'; code: string; code_verifier: string }
   | { grant_type: 'refresh_token'; refresh_token: string }
 
-export type ValidationResult = { ok: true; grant: TokenGrant } | { ok: false; result: HandlerResult }
+export type ValidationResult =
+  | { ok: true; grant: TokenGrant }
+  | { ok: false; result: HandlerResult }
 
 function invalid(description: string): ValidationResult {
   return { ok: false, result: errorResult(400, 'invalid_request', description) }
@@ -251,10 +266,14 @@ function stringField(body: Record<string, unknown>, name: string): string | null
  */
 export function validateTokenRequest(req: RequestInput): ValidationResult {
   if (!isJsonContentType(header(req.headers, 'content-type'))) {
-    return { ok: false, result: errorResult(415, 'invalid_request', 'Content-Type must be application/json') }
+    return {
+      ok: false,
+      result: errorResult(415, 'invalid_request', 'Content-Type must be application/json'),
+    }
   }
   const declared = header(req.headers, 'content-length')
-  if (declared !== undefined && Number(declared) > MAX_BODY_BYTES) return invalid('Request body too large')
+  if (declared !== undefined && Number(declared) > MAX_BODY_BYTES)
+    return invalid('Request body too large')
 
   let raw: unknown
   try {
@@ -271,7 +290,8 @@ export function validateTokenRequest(req: RequestInput): ValidationResult {
       return invalid('Request body must be valid JSON')
     }
   }
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return invalid('Request body must be a JSON object')
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+    return invalid('Request body must be a JSON object')
   const body = raw as Record<string, unknown>
   let size: number
   try {
@@ -287,7 +307,8 @@ export function validateTokenRequest(req: RequestInput): ValidationResult {
     if (!code) return invalid('code is required')
     const verifier = stringField(body, 'code_verifier')
     if (!verifier) return invalid('code_verifier is required')
-    if (!PKCE_VERIFIER_RE.test(verifier)) return invalid('code_verifier is not a valid PKCE verifier')
+    if (!PKCE_VERIFIER_RE.test(verifier))
+      return invalid('code_verifier is not a valid PKCE verifier')
     return { ok: true, grant: { grant_type: 'authorization_code', code, code_verifier: verifier } }
   }
   if (grantType === 'refresh_token') {
@@ -340,7 +361,7 @@ const UPSTREAM_UNAVAILABLE = (): HandlerResult => errorResult(502, 'upstream_una
 export async function exchangeGoogleToken(
   grant: TokenGrant,
   google: GoogleEnv,
-  opts: UpstreamOptions = {},
+  opts: UpstreamOptions = {}
 ): Promise<HandlerResult> {
   const doFetch: FetchLike = opts.fetch ?? ((url, init) => fetch(url, init))
   const log = opts.log ?? defaultLog
@@ -351,13 +372,20 @@ export async function exchangeGoogleToken(
     try {
       res = await doFetch(GOOGLE_TOKEN_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
         body: buildGoogleTokenForm(grant, google).toString(),
         signal: controller.signal,
         redirect: 'error',
       })
     } catch {
-      log(controller.signal.aborted ? 'google_token upstream_timeout' : 'google_token upstream_network_error')
+      log(
+        controller.signal.aborted
+          ? 'google_token upstream_timeout'
+          : 'google_token upstream_network_error'
+      )
       return UPSTREAM_UNAVAILABLE()
     }
 
@@ -370,14 +398,19 @@ export async function exchangeGoogleToken(
     try {
       parsed = await res.json()
     } catch {
-      log(controller.signal.aborted ? 'google_token upstream_timeout' : 'google_token upstream_bad_json')
+      log(
+        controller.signal.aborted
+          ? 'google_token upstream_timeout'
+          : 'google_token upstream_bad_json'
+      )
       return UPSTREAM_UNAVAILABLE()
     }
     const body = filterTokenBody(parsed)
 
     if (res.status >= 400) {
       // Google's own error (e.g. invalid_grant): pass status and JSON through.
-      const code = typeof body.error === 'string' && /^[a-z_]{1,64}$/.test(body.error) ? body.error : 'unknown'
+      const code =
+        typeof body.error === 'string' && /^[a-z_]{1,64}$/.test(body.error) ? body.error : 'unknown'
       log(`google_token upstream_${res.status} ${code}`)
       if (!body.error) body.error = 'upstream_error'
       return { status: res.status, body }
@@ -400,9 +433,13 @@ export interface TokenDeps extends UpstreamOptions {
 
 export const tokenLimiter = new RateLimiter(30, 60_000)
 
-export async function handleGoogleTokenRequest(req: RequestInput, deps: TokenDeps = {}): Promise<HandlerResult> {
+export async function handleGoogleTokenRequest(
+  req: RequestInput,
+  deps: TokenDeps = {}
+): Promise<HandlerResult> {
   const log = deps.log ?? defaultLog
-  if (req.method !== 'POST') return errorResult(405, 'method_not_allowed', undefined, { Allow: 'POST' })
+  if (req.method !== 'POST')
+    return errorResult(405, 'method_not_allowed', undefined, { Allow: 'POST' })
 
   const limiter = deps.limiter ?? tokenLimiter
   const retry = limiter.hit(clientIp(req.headers, req.remoteAddress))

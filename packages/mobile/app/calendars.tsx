@@ -8,7 +8,16 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { Footer, IconCircle, Notice, Row, RowGroup, SectionLabel, Spinner, Text } from '@/components/ui';
+import {
+  Footer,
+  IconCircle,
+  Notice,
+  Row,
+  RowGroup,
+  SectionLabel,
+  Spinner,
+  Text,
+} from '@/components/ui';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -17,7 +26,13 @@ import { colors, spacing, typography } from '@/lib/theme';
 import { ScreenHeader, HeaderTextButton, ErrorToast, type ToastType } from '@/components';
 import { AccountCard } from '@/components/calendar/AccountCard';
 import { calendarErrorMessage } from '@/components/calendar/meta';
-import { Field, PrimaryButton, SecondaryButton, Sheet, errorMessage } from '@/components/calendar/ui';
+import {
+  Field,
+  PrimaryButton,
+  SecondaryButton,
+  Sheet,
+  errorMessage,
+} from '@/components/calendar/ui';
 
 export default function CalendarsScreen() {
   const [accounts, setAccounts] = useState<CalendarAccount[]>([]);
@@ -53,7 +68,11 @@ export default function CalendarsScreen() {
     } catch (e) {
       // Keep showing the last good list on a refresh that fails.
       if (!loadedOnce.current) setLoadError(calendarErrorMessage(e, 'Couldn’t reach the mirror.'));
-      else setToast({ message: calendarErrorMessage(e, 'Couldn’t refresh calendars.'), type: 'error' });
+      else
+        setToast({
+          message: calendarErrorMessage(e, 'Couldn’t refresh calendars.'),
+          type: 'error',
+        });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -70,7 +89,11 @@ export default function CalendarsScreen() {
   const replaceAccount = (next: CalendarAccount) =>
     setAccounts((prev) => prev.map((a) => (a.id === next.id ? next : a)));
 
-  const patchCalendar = async (account: CalendarAccount, calendar: AccountCalendar, change: Partial<AccountCalendar>) => {
+  const patchCalendar = async (
+    account: CalendarAccount,
+    calendar: AccountCalendar,
+    change: Partial<AccountCalendar>
+  ) => {
     const before = account;
     replaceAccount({
       ...account,
@@ -171,7 +194,9 @@ export default function CalendarsScreen() {
           icon="airplane-outline"
           title="Upload a roster"
           caption={
-            flightCount ? `${flightCount} ${flightCount === 1 ? 'flight' : 'flights'} loaded` : 'An .xlsx file from your airline'
+            flightCount
+              ? `${flightCount} ${flightCount === 1 ? 'flight' : 'flights'} loaded`
+              : 'An .xlsx file from your airline'
           }
           chevron
           onPress={openSchedule}
@@ -191,7 +216,9 @@ export default function CalendarsScreen() {
     <ScreenHeader
       title="Calendars"
       fallbackHref="/settings"
-      right={accounts.length > 0 ? <HeaderTextButton label="Add" onPress={addCalendar} /> : undefined}
+      right={
+        accounts.length > 0 ? <HeaderTextButton label="Add" onPress={addCalendar} /> : undefined
+      }
     />
   );
 
@@ -223,13 +250,20 @@ export default function CalendarsScreen() {
       <>
         <ScrollView
           contentContainerStyle={styles.emptyScroll}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
         >
           <IconCircle icon="calendar-outline" />
           <Text style={styles.emptyHeroTitle}>Put your day on the mirror</Text>
           <Text style={styles.emptyHeroText}>
-            Connect Google, Outlook, iCloud or a calendar link and the Schedule widget shows what’s coming up, next to the
-            weather. Your mirror keeps the sign-in and refreshes events on its own; you choose which calendars it shows.
+            Connect Google, Outlook, iCloud or a calendar link and the Schedule widget shows what’s
+            coming up, next to the weather. Your mirror keeps the sign-in and refreshes events on
+            its own; you choose which calendars it shows.
           </Text>
           {scheduleSection}
         </ScrollView>
@@ -242,7 +276,13 @@ export default function CalendarsScreen() {
     body = (
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
       >
         <Text style={styles.intro}>
           Turn calendars on to show their events in the Schedule widget. Tap a color to change it.
@@ -292,7 +332,12 @@ export default function CalendarsScreen() {
           returnKeyType="done"
           autoCapitalize="words"
         />
-        <PrimaryButton label="Save" onPress={saveName} loading={savingName} style={styles.sheetButton} />
+        <PrimaryButton
+          label="Save"
+          onPress={saveName}
+          loading={savingName}
+          style={styles.sheetButton}
+        />
         <SecondaryButton label="Cancel" onPress={() => setRenaming(null)} disabled={savingName} />
       </Sheet>
 
@@ -326,14 +371,30 @@ export default function CalendarsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: 22 },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: 22,
+  },
   intro: { ...typography.bodySmall, color: colors.textSecondary },
   emptyScroll: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: 80, gap: 22 },
   emptyHeroTitle: { ...typography.h1, color: colors.text },
   emptyHeroText: { ...typography.body, color: colors.textSecondary },
   emptyTitle: { ...typography.h3, color: colors.text, textAlign: 'center', marginTop: spacing.sm },
-  emptyText: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center', maxWidth: 320 },
+  emptyText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    maxWidth: 320,
+  },
   emptyButton: { marginTop: spacing.md, alignSelf: 'stretch' },
   sheetButton: { marginTop: spacing.xs },
 });

@@ -147,7 +147,10 @@ export function getDeviceName(): string {
 export function usePairingRedirect(): void {
   const pathname = usePathname();
   const params = useGlobalSearchParams();
-  const here = useRef<{ pathname: string; params: Record<string, string> }>({ pathname, params: {} });
+  const here = useRef<{ pathname: string; params: Record<string, string> }>({
+    pathname,
+    params: {},
+  });
 
   useEffect(() => {
     const flat: Record<string, string> = {};

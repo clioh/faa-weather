@@ -27,7 +27,9 @@ router.post('/key', configWriteLimiter, async (req, res) => {
     res.json(result.status);
     return;
   }
-  res.status(result.httpStatus).json({ status: result.code, message: result.message, license: result.status });
+  res
+    .status(result.httpStatus)
+    .json({ status: result.code, message: result.message, license: result.status });
 });
 
 router.post('/refresh', configWriteLimiter, async (_req, res) => {

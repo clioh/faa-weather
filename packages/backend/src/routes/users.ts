@@ -96,7 +96,13 @@ router.post('/', validateBody(createUserSchema), (req, res) => {
   const { id, name, preferences, invited } = req.body;
 
   try {
-    const user = upsertUser(id, name, preferences || {}, loadCurrentLayout().modules, invited === true);
+    const user = upsertUser(
+      id,
+      name,
+      preferences || {},
+      loadCurrentLayout().modules,
+      invited === true
+    );
     // A phone registering its own profile: that person has joined, and this
     // phone is theirs.
     if (invited !== true) {
@@ -177,15 +183,22 @@ router.post('/:id/invite', (req, res) => {
     const user = getUser(id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.claimed_at) {
-      return res
-        .status(409)
-        .json({ error: 'already_joined', message: `${user.name} already uses SkyGlass on their phone.` });
+      return res.status(409).json({
+        error: 'already_joined',
+        message: `${user.name} already uses SkyGlass on their phone.`,
+      });
     }
     const token = INVITE_TOKEN_PREFIX + randomBytes(24).toString('base64url');
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
     setUserInvite(id, hashToken(token), expiresAt);
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ token, expiresAt, mirrorId: getMirrorId(), mirrorName: getMirrorName(), user: personJson(user) });
+    res.json({
+      token,
+      expiresAt,
+      mirrorId: getMirrorId(),
+      mirrorName: getMirrorName(),
+      user: personJson(user),
+    });
   } catch (error) {
     console.error('[Users] Failed to create invite:', error);
     res.status(500).json({ error: 'Failed to create invite' });
@@ -227,27 +240,32 @@ router.get('/:id/layout', (req, res) => {
  * PUT /api/users/:id/layout
  * Update user's active layout modules
  */
-router.put('/:id/layout', requireLayoutAccess, validateBody(userLayoutModulesSchema), (req, res) => {
-  const id = req.params.id as string;
-  const { modules, shelf } = req.body;
+router.put(
+  '/:id/layout',
+  requireLayoutAccess,
+  validateBody(userLayoutModulesSchema),
+  (req, res) => {
+    const id = req.params.id as string;
+    const { modules, shelf } = req.body;
 
-  try {
-    const layout = getUserActiveLayout(id);
-    if (!layout) {
-      return res.status(404).json({ error: 'No active layout found' });
+    try {
+      const layout = getUserActiveLayout(id);
+      if (!layout) {
+        return res.status(404).json({ error: 'No active layout found' });
+      }
+
+      updateLayoutModules(layout.id, modules, shelf);
+
+      // Broadcast layout update to frontend
+      broadcast('user-layout-update', { userId: id, modules });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[Users] Failed to update layout:', error);
+      res.status(500).json({ error: 'Failed to update layout' });
     }
-
-    updateLayoutModules(layout.id, modules, shelf);
-
-    // Broadcast layout update to frontend
-    broadcast('user-layout-update', { userId: id, modules });
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('[Users] Failed to update layout:', error);
-    res.status(500).json({ error: 'Failed to update layout' });
   }
-});
+);
 
 /**
  * GET /api/users/:id/layouts
@@ -282,31 +300,36 @@ router.get('/:id/layouts', (req, res) => {
  * POST /api/users/:id/layouts
  * Create a new layout for a user
  */
-router.post('/:id/layouts', requireLayoutAccess, validateBody(createUserLayoutSchema), (req, res) => {
-  const id = req.params.id as string;
-  const { name, modules } = req.body;
+router.post(
+  '/:id/layouts',
+  requireLayoutAccess,
+  validateBody(createUserLayoutSchema),
+  (req, res) => {
+    const id = req.params.id as string;
+    const { name, modules } = req.body;
 
-  try {
-    const user = getUser(id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    try {
+      const user = getUser(id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const layout = createLayout(id, name, modules || []);
+
+      res.json({
+        id: layout.id,
+        name: layout.name,
+        modules: JSON.parse(layout.modules),
+        isActive: layout.is_active === 1,
+        createdAt: layout.created_at,
+        updatedAt: layout.updated_at,
+      });
+    } catch (error) {
+      console.error('[Users] Failed to create layout:', error);
+      res.status(500).json({ error: 'Failed to create layout' });
     }
-
-    const layout = createLayout(id, name, modules || []);
-
-    res.json({
-      id: layout.id,
-      name: layout.name,
-      modules: JSON.parse(layout.modules),
-      isActive: layout.is_active === 1,
-      createdAt: layout.created_at,
-      updatedAt: layout.updated_at,
-    });
-  } catch (error) {
-    console.error('[Users] Failed to create layout:', error);
-    res.status(500).json({ error: 'Failed to create layout' });
   }
-});
+);
 
 /**
  * POST /api/users/:id/layouts/:layoutId/activate

@@ -53,7 +53,10 @@ export function DigitalClockModule({ config, timezone, size }: ModuleProps) {
 
   return (
     <ModuleFrame className={classes}>
-      <div className="dclock-time" aria-label={`${hour}:${pad(p.minute)}${format24h ? '' : ` ${period}`}`}>
+      <div
+        className="dclock-time"
+        aria-label={`${hour}:${pad(p.minute)}${format24h ? '' : ` ${period}`}`}
+      >
         <span>
           {hour}
           <span className="dclock-colon">:</span>

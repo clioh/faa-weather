@@ -87,7 +87,10 @@ const ICS = [
   'END:VCALENDAR',
 ].join('\r\n');
 
-const WINDOW = { start: Date.parse('2026-10-01T00:00:00Z'), end: Date.parse('2026-12-31T00:00:00Z') };
+const WINDOW = {
+  start: Date.parse('2026-10-01T00:00:00Z'),
+  end: Date.parse('2026-12-31T00:00:00Z'),
+};
 
 describe('parseIcs', () => {
   const parsed = parseIcs(ICS, WINDOW, 'America/Los_Angeles');

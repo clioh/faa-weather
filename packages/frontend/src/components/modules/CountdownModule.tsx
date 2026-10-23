@@ -47,7 +47,11 @@ export function CountdownModule({ config, size }: ModuleProps) {
     passed = true;
     const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const ago = Math.round((midnight.getTime() - target.getTime()) / DAY_MS);
-    hero = <span className="cd-word">{ago === 0 ? 'Today' : `${ago} ${ago === 1 ? 'day' : 'days'} ago`}</span>;
+    hero = (
+      <span className="cd-word">
+        {ago === 0 ? 'Today' : `${ago} ${ago === 1 ? 'day' : 'days'} ago`}
+      </span>
+    );
   } else if (days >= 1) {
     hero = (
       <>

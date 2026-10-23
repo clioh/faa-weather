@@ -45,7 +45,13 @@ export const TEMPLATE_CATEGORIES: Record<TemplateCategory, { label: string; icon
 
 type TemplateModule = Omit<ModuleInstance, 'instanceId'>;
 
-function tile(moduleId: string, x: number, y: number, size: ModuleSize, config: Record<string, unknown> = {}): TemplateModule {
+function tile(
+  moduleId: string,
+  x: number,
+  y: number,
+  size: ModuleSize,
+  config: Record<string, unknown> = {}
+): TemplateModule {
   return { moduleId, position: { x, y }, size, config };
 }
 
@@ -312,14 +318,18 @@ export function validateTemplate(template: LayoutTemplate): string[] {
       switch (field.type) {
         case 'number':
           if (typeof value !== 'number' || !Number.isFinite(value)) bad('a number');
-          else if ((field.min !== undefined && value < field.min) || (field.max !== undefined && value > field.max))
+          else if (
+            (field.min !== undefined && value < field.min) ||
+            (field.max !== undefined && value > field.max)
+          )
             bad(`within ${field.min}–${field.max}`);
           break;
         case 'boolean':
           if (typeof value !== 'boolean') bad('a boolean');
           break;
         case 'list':
-          if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) bad('an array of strings');
+          if (!Array.isArray(value) || value.some((v) => typeof v !== 'string'))
+            bad('an array of strings');
           break;
         case 'select':
           if (!field.options?.some((o) => o.value === value)) {
@@ -327,7 +337,8 @@ export function validateTemplate(template: LayoutTemplate): string[] {
           }
           break;
         case 'date':
-          if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) bad('a YYYY-MM-DD string');
+          if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+            bad('a YYYY-MM-DD string');
           break;
         case 'location':
           if (
@@ -346,9 +357,20 @@ export function validateTemplate(template: LayoutTemplate): string[] {
     // A template should never land on the mirror already asking for setup.
     for (const field of def.configFields) {
       if (!field.required) continue;
-      if (field.showWhen && (mod.config?.[field.showWhen.key] ?? def.configFields.find((f) => f.key === field.showWhen!.key)?.default) !== field.showWhen.value) continue;
+      if (
+        field.showWhen &&
+        (mod.config?.[field.showWhen.key] ??
+          def.configFields.find((f) => f.key === field.showWhen!.key)?.default) !==
+          field.showWhen.value
+      )
+        continue;
       const v = mod.config?.[field.key] ?? field.default;
-      if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0)) {
+      if (
+        v === undefined ||
+        v === null ||
+        (typeof v === 'string' && v.trim() === '') ||
+        (Array.isArray(v) && v.length === 0)
+      ) {
         problems.push(`${where}: required field "${field.key}" is empty`);
       }
     }
@@ -357,12 +379,23 @@ export function validateTemplate(template: LayoutTemplate): string[] {
     if (!dims) return;
     if (template.orientation === 'portrait') {
       const minCols = PORTRAIT_MIN_COLS[mod.moduleId];
-      if (minCols && dims.cols < minCols) problems.push(`${where}: ${dims.cols} columns is too narrow in portrait (min ${minCols})`);
-      if (mod.moduleId === 'metar' && mod.size !== 'large') problems.push(`${where}: METAR should be large in portrait`);
+      if (minCols && dims.cols < minCols)
+        problems.push(`${where}: ${dims.cols} columns is too narrow in portrait (min ${minCols})`);
+      if (mod.moduleId === 'metar' && mod.size !== 'large')
+        problems.push(`${where}: METAR should be large in portrait`);
     }
     const { x, y } = mod.position;
-    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x + dims.cols > GRID_COLS || y + dims.rows > GRID_ROWS) {
-      problems.push(`${where}: at (${x},${y}) size ${dims.cols}x${dims.rows} falls outside the ${GRID_COLS}x${GRID_ROWS} grid`);
+    if (
+      !Number.isInteger(x) ||
+      !Number.isInteger(y) ||
+      x < 0 ||
+      y < 0 ||
+      x + dims.cols > GRID_COLS ||
+      y + dims.rows > GRID_ROWS
+    ) {
+      problems.push(
+        `${where}: at (${x},${y}) size ${dims.cols}x${dims.rows} falls outside the ${GRID_COLS}x${GRID_ROWS} grid`
+      );
       return;
     }
     for (let r = y; r < y + dims.rows; r++) {

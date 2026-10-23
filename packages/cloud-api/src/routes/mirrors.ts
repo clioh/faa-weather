@@ -163,10 +163,10 @@ router.get('/:id', async (req, res) => {
 // Unregister mirror
 router.delete('/:id', async (req, res) => {
   try {
-    const { rowCount } = await query(
-      'DELETE FROM mirrors WHERE id = $1 AND owner_clerk_id = $2',
-      [req.params.id, req.clerkUserId]
-    );
+    const { rowCount } = await query('DELETE FROM mirrors WHERE id = $1 AND owner_clerk_id = $2', [
+      req.params.id,
+      req.clerkUserId,
+    ]);
 
     if (rowCount === 0) {
       res.status(404).json({ error: 'Mirror not found' });

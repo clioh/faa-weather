@@ -13,7 +13,12 @@ import { KeyboardAvoidingScreen } from '@/components/KeyboardAvoidingScreen';
 import { ModuleConfigForm } from '@/components/ModuleConfigForm';
 import { TodoManager } from '@/components/config/TodoManager';
 import { PhotoManager } from '@/components/config/PhotoManager';
-import { SIZE_LABELS, type ModuleDefinition, type ModuleInstance, type ModuleSize } from '@/lib/modules';
+import {
+  SIZE_LABELS,
+  type ModuleDefinition,
+  type ModuleInstance,
+  type ModuleSize,
+} from '@/lib/modules';
 import { colors, spacing, typography } from '@/lib/theme';
 import { SizeChips, type SizeOption } from './SizeChips';
 
@@ -58,7 +63,12 @@ export function ConfigSheet({
   }, [confirmRemove]);
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onDone}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onDone}
+    >
       <View style={styles.container}>
         <PageSheetHeader
           title={definition?.name ?? 'Widget'}
@@ -125,7 +135,9 @@ export function ConfigSheet({
                       onChangeSize(s);
                     }}
                     onBlocked={(s) =>
-                      setBlockedHint(`No room for ${SIZE_LABELS[s]} where this widget sits. Move it or shrink a neighbour.`)
+                      setBlockedHint(
+                        `No room for ${SIZE_LABELS[s]} where this widget sits. Move it or shrink a neighbour.`
+                      )
                     }
                   />
                   {blockedHint ? <Text style={styles.blocked}>{blockedHint}</Text> : null}
@@ -134,11 +146,19 @@ export function ConfigSheet({
 
               <Pressable
                 onPress={() => (confirmRemove ? onRemove() : setConfirmRemove(true))}
-                style={({ pressed }) => [styles.remove, confirmRemove && styles.removeConfirm, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.remove,
+                  confirmRemove && styles.removeConfirm,
+                  pressed && styles.pressed,
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel={confirmRemove ? 'Confirm remove widget' : 'Remove widget'}
               >
-                <Ionicons name="trash-outline" size={18} color={confirmRemove ? colors.background : colors.danger} />
+                <Ionicons
+                  name="trash-outline"
+                  size={18}
+                  color={confirmRemove ? colors.background : colors.danger}
+                />
                 <Text style={[styles.removeText, confirmRemove && styles.removeTextConfirm]}>
                   {confirmRemove ? 'Tap again to remove' : 'Remove widget'}
                 </Text>

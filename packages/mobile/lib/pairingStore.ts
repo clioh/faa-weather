@@ -103,7 +103,12 @@ export const pairingStore = {
    * Save a token. With an id the address-keyed fallback entry is dropped so
    * there is only ever one token per mirror.
    */
-  async setToken(mirrorId: string | null, host: string, port: number, token: string): Promise<void> {
+  async setToken(
+    mirrorId: string | null,
+    host: string,
+    port: number,
+    token: string
+  ): Promise<void> {
     const id = usableMirrorId(mirrorId);
     if (id) {
       await SecureStore.setItemAsync(idKey(id), token);
@@ -125,7 +130,9 @@ export const pairingStore = {
    * so the mirrors come from the address map plus whatever the caller adds
    * (linked mirrors, the pending mirror). Clears the address map too.
    */
-  async clearAll(extra: Array<{ mirrorId?: string | null; host: string; port: number }> = []): Promise<void> {
+  async clearAll(
+    extra: Array<{ mirrorId?: string | null; host: string; port: number }> = []
+  ): Promise<void> {
     const map = await readAddressMap();
     const known = Object.entries(map).map(([ref, mirrorId]) => {
       const i = ref.lastIndexOf(':');

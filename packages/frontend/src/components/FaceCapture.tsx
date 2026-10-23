@@ -78,7 +78,9 @@ export function FaceCapture({
           {Array.from({ length: samplesNeeded }, (_, i) => (
             <i
               key={i}
-              className={i < samplesCollected ? 'is-done' : i === samplesCollected ? 'is-now' : undefined}
+              className={
+                i < samplesCollected ? 'is-done' : i === samplesCollected ? 'is-now' : undefined
+              }
             />
           ))}
         </span>

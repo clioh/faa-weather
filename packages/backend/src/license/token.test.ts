@@ -56,10 +56,13 @@ describe('verifyToken', () => {
 
   it('rejects a tampered payload', () => {
     const [, sig] = makeToken(signer, { fp: FP, iat, exp }).split('.');
-    const forged = Buffer.from(JSON.stringify({ v: 1, lid: 'lic-1', fp: FP, iat, exp: exp + 1e6 })).toString(
-      'base64url'
-    );
-    expect(verifyToken(`${forged}.${sig}`, FP, NOW)).toMatchObject({ ok: false, reason: 'bad_signature' });
+    const forged = Buffer.from(
+      JSON.stringify({ v: 1, lid: 'lic-1', fp: FP, iat, exp: exp + 1e6 })
+    ).toString('base64url');
+    expect(verifyToken(`${forged}.${sig}`, FP, NOW)).toMatchObject({
+      ok: false,
+      reason: 'bad_signature',
+    });
   });
 
   it('rejects the placeholder key (no override)', () => {

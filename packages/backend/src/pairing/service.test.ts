@@ -20,7 +20,10 @@ let service: PairingService;
 let events: PairingEvent[];
 
 function makeService(): PairingService {
-  const s = new PairingService({ filePath: file, mirror: () => ({ id: 'mirror-1', name: 'Hall Mirror' }) });
+  const s = new PairingService({
+    filePath: file,
+    mirror: () => ({ id: 'mirror-1', name: 'Hall Mirror' }),
+  });
   s.on('pairing', (e: PairingEvent) => events.push(e));
   return s;
 }
@@ -115,10 +118,19 @@ describe('code request / complete', () => {
     const code = shownCode();
     const wrong = code === '000000' ? '111111' : '000000';
     for (let i = 1; i < MAX_CODE_ATTEMPTS; i++) {
-      const err = expectPairingError(() => service.complete(requestId, wrong), 'invalid_pairing_code');
-      expect(err.extra).toMatchObject({ attemptsRemaining: MAX_CODE_ATTEMPTS - i, requestExpired: false });
+      const err = expectPairingError(
+        () => service.complete(requestId, wrong),
+        'invalid_pairing_code'
+      );
+      expect(err.extra).toMatchObject({
+        attemptsRemaining: MAX_CODE_ATTEMPTS - i,
+        requestExpired: false,
+      });
     }
-    const last = expectPairingError(() => service.complete(requestId, wrong), 'invalid_pairing_code');
+    const last = expectPairingError(
+      () => service.complete(requestId, wrong),
+      'invalid_pairing_code'
+    );
     expect(last.extra).toMatchObject({ attemptsRemaining: 0, requestExpired: true });
     expect(events.at(-1)).toEqual({ state: 'hide', result: 'failed', deviceName: 'Pixel' });
     expectPairingError(() => service.complete(requestId, code), 'invalid_pairing_code');
@@ -166,7 +178,13 @@ describe('storage', () => {
     expect(records).toEqual([
       expect.objectContaining({ id: deviceId, name: 'Phone', tokenHash: hashToken(token) }),
     ]);
-    expect(Object.keys(records[0]).sort()).toEqual(['createdAt', 'id', 'lastSeenAt', 'name', 'tokenHash']);
+    expect(Object.keys(records[0]).sort()).toEqual([
+      'createdAt',
+      'id',
+      'lastSeenAt',
+      'name',
+      'tokenHash',
+    ]);
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     // No temp files left behind.
     expect(fs.readdirSync(dir)).toEqual(['paired-devices.json']);
@@ -183,7 +201,9 @@ describe('storage', () => {
     fs.writeFileSync(file, '{not json');
     const s = makeService();
     expect(s.listDevices()).toEqual([]);
-    expect(fs.readdirSync(dir).some((f) => f.startsWith('paired-devices.json.corrupt-'))).toBe(true);
+    expect(fs.readdirSync(dir).some((f) => f.startsWith('paired-devices.json.corrupt-'))).toBe(
+      true
+    );
     s.dispose();
   });
 
@@ -202,7 +222,10 @@ describe('storage', () => {
 
   it('caps paired devices', () => {
     for (let i = 0; i < MAX_DEVICES; i++) service.claim(service.getQrSecret().secret, `Phone ${i}`);
-    expectPairingError(() => service.claim(service.getQrSecret().secret, 'One too many'), 'too_many_devices');
+    expectPairingError(
+      () => service.claim(service.getQrSecret().secret, 'One too many'),
+      'too_many_devices'
+    );
     expectPairingError(() => service.request('One too many'), 'too_many_devices');
   });
 });

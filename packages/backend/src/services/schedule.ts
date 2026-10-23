@@ -12,7 +12,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { FlightEvent, parseFlightSchedule, ColumnMapping, ScheduleParseError } from './schedule-parser.js';
+import {
+  FlightEvent,
+  parseFlightSchedule,
+  ColumnMapping,
+  ScheduleParseError,
+} from './schedule-parser.js';
 import type { ScheduleEvent, TimeWindow } from '../calendar/types.js';
 import { compareScheduleEvents } from '../calendar/service.js';
 import { startOfToday } from '../calendar/time.js';
@@ -80,7 +85,10 @@ export class ScheduleService {
    * Replace the schedule with one from an XLSX buffer. Throws ScheduleParseError
    * (and keeps the current schedule) if the file is unreadable or has no flights.
    */
-  async loadScheduleFromBuffer(buffer: Buffer, mapping?: Partial<ColumnMapping>): Promise<FlightEvent[]> {
+  async loadScheduleFromBuffer(
+    buffer: Buffer,
+    mapping?: Partial<ColumnMapping>
+  ): Promise<FlightEvent[]> {
     const events = await parseFlightSchedule(buffer, mapping || this.config.columnMapping);
     if (events.length === 0) throw new ScheduleParseError('No flights found in the file');
     this.flightEvents = events;
@@ -131,7 +139,9 @@ export class ScheduleService {
       .filter((f) => {
         const start = f.startTime.getTime();
         const end = Math.max(start, f.endTime.getTime());
-        return end === start ? start >= window.start && start < window.end : start < window.end && end > window.start;
+        return end === start
+          ? start >= window.start && start < window.end
+          : start < window.end && end > window.start;
       })
       .map(flightToScheduleEvent)
       .sort(compareScheduleEvents);
@@ -163,7 +173,8 @@ let scheduleService: ScheduleService | null = null;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Tests point this at a throwaway file (like SKYGLASS_PAIRED_DEVICES_FILE).
 const SCHEDULE_FILE =
-  process.env.SKYGLASS_SCHEDULE_FILE || path.resolve(__dirname, '../../../../data/flight-schedule.xlsx');
+  process.env.SKYGLASS_SCHEDULE_FILE ||
+  path.resolve(__dirname, '../../../../data/flight-schedule.xlsx');
 
 export function initScheduleService(): ScheduleService {
   scheduleService = new ScheduleService({ columnMapping: {}, file: SCHEDULE_FILE });

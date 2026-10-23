@@ -9,7 +9,12 @@ interface ShippingFormProps {
   isCalculatingTax?: boolean
 }
 
-export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax }: ShippingFormProps) {
+export function ShippingForm({
+  defaultValues,
+  onSubmit,
+  onBack,
+  isCalculatingTax,
+}: ShippingFormProps) {
   const {
     register,
     handleSubmit,
@@ -23,7 +28,11 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-[28px] font-light tracking-[-0.01em] text-fg">Shipping</h2>
-        <button type="button" onClick={onBack} className="link min-h-11 inline-flex items-center text-sm">
+        <button
+          type="button"
+          onClick={onBack}
+          className="link min-h-11 inline-flex items-center text-sm"
+        >
           Edit email
         </button>
       </div>
@@ -38,7 +47,10 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="firstName" className="field-label">
-            First name <span className="text-fg-3" aria-hidden="true">*</span>
+            First name{' '}
+            <span className="text-fg-3" aria-hidden="true">
+              *
+            </span>
           </label>
           <input
             {...register('firstName')}
@@ -52,7 +64,10 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
         </div>
         <div>
           <label htmlFor="lastName" className="field-label">
-            Last name <span className="text-fg-3" aria-hidden="true">*</span>
+            Last name{' '}
+            <span className="text-fg-3" aria-hidden="true">
+              *
+            </span>
           </label>
           <input
             {...register('lastName')}
@@ -69,7 +84,10 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
       {/* Address */}
       <div>
         <label htmlFor="address" className="field-label">
-          Address <span className="text-fg-3" aria-hidden="true">*</span>
+          Address{' '}
+          <span className="text-fg-3" aria-hidden="true">
+            *
+          </span>
         </label>
         <input
           {...register('address')}
@@ -101,7 +119,10 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="col-span-2 sm:col-span-1">
           <label htmlFor="city" className="field-label">
-            City <span className="text-fg-3" aria-hidden="true">*</span>
+            City{' '}
+            <span className="text-fg-3" aria-hidden="true">
+              *
+            </span>
           </label>
           <input
             {...register('city')}
@@ -115,7 +136,10 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
         </div>
         <div>
           <label htmlFor="state" className="field-label">
-            State <span className="text-fg-3" aria-hidden="true">*</span>
+            State{' '}
+            <span className="text-fg-3" aria-hidden="true">
+              *
+            </span>
           </label>
           <input
             {...register('state')}
@@ -131,7 +155,10 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
         </div>
         <div>
           <label htmlFor="zip" className="field-label">
-            ZIP code <span className="text-fg-3" aria-hidden="true">*</span>
+            ZIP code{' '}
+            <span className="text-fg-3" aria-hidden="true">
+              *
+            </span>
           </label>
           <input
             {...register('zip')}
@@ -160,15 +187,23 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={isCalculatingTax}
-        className="btn btn-primary w-full"
-      >
+      <button type="submit" disabled={isCalculatingTax} className="btn btn-primary w-full">
         {isCalculatingTax ? (
           <>
-            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <svg
+              className="w-5 h-5 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
               <path
                 className="opacity-75"
                 fill="currentColor"

@@ -18,9 +18,9 @@ location:
 
 # Display settings
 display:
-  presence_timeout: 120        # Seconds before display sleeps after you leave
-  fade_duration: 1000          # Fade animation in milliseconds
-  brightness: 80               # Default brightness percentage
+  presence_timeout: 120 # Seconds before display sleeps after you leave
+  fade_duration: 1000 # Fade animation in milliseconds
+  brightness: 80 # Default brightness percentage
   # How the panel is mounted: landscape | portrait-cw (turned right) | portrait-ccw
   # (turned left), seen from the front. The mirror rotates its own UI to match;
   # set from the phone app (setup, or Settings > Mirror > Orientation).
@@ -33,7 +33,7 @@ display:
 # in data/calendar-accounts.json. The mirror needs no OAuth app credentials.
 # Setup details: docs/CALENDAR.md
 calendar:
-  refresh_minutes: 10                      # Background sync interval
+  refresh_minutes: 10 # Background sync interval
 
 # Stock quotes come from skyglass_service; when it is unreachable the mirror
 # falls back to the keyless Yahoo chart endpoint. NOTAMs come from
@@ -43,7 +43,7 @@ calendar:
 # Read by packages/presence/detector.py at startup (restart skyglass-detector
 # after editing); its CLI flags override these values.
 presence:
-  camera_index: 0              # 0 = first camera: a Raspberry Pi camera if one is connected, else the first USB webcam
+  camera_index: 0 # 0 = first camera: a Raspberry Pi camera if one is connected, else the first USB webcam
   # Turns camera frames upright: auto follows display.orientation (the camera
   # sits in the frame and turns with it); 0 | 90 | 180 | 270 = degrees clockwise,
   # for a camera mounted on its own
@@ -51,14 +51,14 @@ presence:
   # face_recognition = dlib face encodings, recognizes enrolled users (most accurate, heaviest)
   # opencv           = OpenCV's bundled YuNet face detector, detects any face (lightest, no extra install)
   # auto             = face_recognition if installed, else opencv
-  detection_method: auto       # face_recognition | opencv | auto
-  tolerance: 0.6               # Face match tolerance, 0-1 (lower = stricter; face_recognition only)
-  min_detection_frames: 3      # Consecutive detections needed to confirm presence
-  timeout: 5                   # Seconds without a face before marking absent
+  detection_method: auto # face_recognition | opencv | auto
+  tolerance: 0.6 # Face match tolerance, 0-1 (lower = stricter; face_recognition only)
+  min_detection_frames: 3 # Consecutive detections needed to confirm presence
+  timeout: 5 # Seconds without a face before marking absent
 
 # Licensing (docs/LICENSING.md). The key is entered from the phone app or
 # picked up from /boot/firmware/skyglass-license.txt on pre-flashed kits.
 # SKYGLASS_LICENSE=off disables licensing (the npm run dev* scripts set it).
 license:
   enabled: true
-  server: https://skyglass.dev     # Cloud license API (POST /api/license/activate|refresh)
+  server: https://skyglass.dev # Cloud license API (POST /api/license/activate|refresh)

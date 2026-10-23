@@ -47,10 +47,9 @@ class RelayService {
     }
 
     // Validate token and get mirror info
-    const { rows } = await query<{ id: string }>(
-      'SELECT id FROM mirrors WHERE relay_token = $1',
-      [relayToken]
-    );
+    const { rows } = await query<{ id: string }>('SELECT id FROM mirrors WHERE relay_token = $1', [
+      relayToken,
+    ]);
 
     if (rows.length === 0) {
       ws.close(4002, 'Invalid relay token');
@@ -135,10 +134,10 @@ class RelayService {
 
   private async updateMirrorStatus(mirrorId: string, online: boolean): Promise<void> {
     try {
-      await query(
-        'UPDATE mirrors SET online = $2, last_seen = NOW() WHERE id = $1',
-        [mirrorId, online]
-      );
+      await query('UPDATE mirrors SET online = $2, last_seen = NOW() WHERE id = $1', [
+        mirrorId,
+        online,
+      ]);
     } catch (error) {
       console.error('Error updating mirror status:', error);
     }
@@ -163,11 +162,7 @@ class RelayService {
     }
   }
 
-  async sendCommand(
-    mirrorId: string,
-    command: string,
-    payload?: unknown
-  ): Promise<unknown> {
+  async sendCommand(mirrorId: string, command: string, payload?: unknown): Promise<unknown> {
     const conn = this.connections.get(mirrorId);
     if (!conn) {
       throw new Error('Mirror not connected');

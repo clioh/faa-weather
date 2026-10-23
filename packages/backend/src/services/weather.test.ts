@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { describeWeatherCode, mapCurrent, mapForecast, weatherKey, WEATHER_CODES } from './weather.js';
+import {
+  describeWeatherCode,
+  mapCurrent,
+  mapForecast,
+  weatherKey,
+  WEATHER_CODES,
+} from './weather.js';
 
 describe('weatherCode mapping', () => {
   it('maps WMO codes to descriptions', () => {
@@ -19,8 +25,15 @@ describe('weatherCode mapping', () => {
   });
 
   it('covers every documented WMO code', () => {
-    const documented = [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99];
-    expect(Object.keys(WEATHER_CODES).map(Number).sort((a, b) => a - b)).toEqual(documented);
+    const documented = [
+      0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85,
+      86, 95, 96, 99,
+    ];
+    expect(
+      Object.keys(WEATHER_CODES)
+        .map(Number)
+        .sort((a, b) => a - b)
+    ).toEqual(documented);
   });
 });
 
@@ -40,7 +53,7 @@ describe('Open-Meteo mapping', () => {
         },
       },
       'imperial',
-      '2026-10-15T09:00:00.000Z',
+      '2026-10-15T09:00:00.000Z'
     );
     expect(out).toEqual({
       temperature: 57.3,
@@ -74,11 +87,25 @@ describe('Open-Meteo mapping', () => {
       },
       'metric',
       2,
-      'now',
+      'now'
     );
     expect(out.days).toEqual([
-      { date: '2026-10-15', high: 18, low: 10, weatherCode: 61, description: 'Slight rain', precipitationProbability: 80 },
-      { date: '2026-10-16', high: 17, low: 10, weatherCode: 3, description: 'Overcast', precipitationProbability: null },
+      {
+        date: '2026-10-15',
+        high: 18,
+        low: 10,
+        weatherCode: 61,
+        description: 'Slight rain',
+        precipitationProbability: 80,
+      },
+      {
+        date: '2026-10-16',
+        high: 17,
+        low: 10,
+        weatherCode: 3,
+        description: 'Overcast',
+        precipitationProbability: null,
+      },
     ]);
   });
 

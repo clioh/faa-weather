@@ -244,29 +244,44 @@ const queryNumber = z.preprocess(firstQueryValue, z.coerce.number());
 
 const latitude = queryNumber.pipe(z.number().min(-90).max(90));
 const longitude = queryNumber.pipe(z.number().min(-180).max(180));
-const unitsQuery = z.preprocess(firstQueryValue, z.enum(['imperial', 'metric']).default('imperial'));
+const unitsQuery = z.preprocess(
+  firstQueryValue,
+  z.enum(['imperial', 'metric']).default('imperial')
+);
 
 /** Comma-separated list → uppercase, de-duplicated, non-empty tokens. */
 const symbolList = (max: number, pattern: RegExp) =>
   queryString
-    .transform((s) => [...new Set(s.split(',').map((t) => t.trim().toUpperCase()).filter(Boolean))])
+    .transform((s) => [
+      ...new Set(
+        s
+          .split(',')
+          .map((t) => t.trim().toUpperCase())
+          .filter(Boolean)
+      ),
+    ])
     .pipe(
       z
         .array(z.string().regex(pattern, 'Invalid symbol'))
         .min(1, 'At least one symbol is required')
-        .max(max, `At most ${max} symbols`),
+        .max(max, `At most ${max} symbols`)
     );
 
 export const newsQuerySchema = z
   .object({
     source: z.preprocess(
       firstQueryValue,
-      z.enum(['world', 'us', 'business', 'technology', 'sports', 'aviation', 'custom']).default('world'),
+      z
+        .enum(['world', 'us', 'business', 'technology', 'sports', 'aviation', 'custom'])
+        .default('world')
     ),
     url: queryString.pipe(z.string().trim().max(2048)).optional(),
     limit: z.preprocess(firstQueryValue, z.coerce.number().int().min(1).max(30).default(10)),
   })
-  .refine((q) => q.source !== 'custom' || !!q.url, { message: 'url is required for custom source', path: ['url'] });
+  .refine((q) => q.source !== 'custom' || !!q.url, {
+    message: 'url is required for custom source',
+    path: ['url'],
+  });
 
 export const stocksQuerySchema = z.object({
   symbols: symbolList(12, /^[A-Z0-9^][A-Z0-9.^-]{0,14}$/),
@@ -275,8 +290,11 @@ export const stocksQuerySchema = z.object({
 export const cryptoQuerySchema = z.object({
   coins: symbolList(10, /^[A-Z0-9]{1,10}$/),
   currency: z.preprocess(
-    (v) => (typeof firstQueryValue(v) === 'string' ? (firstQueryValue(v) as string).toUpperCase() : firstQueryValue(v)),
-    z.enum(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF']).default('USD'),
+    (v) =>
+      typeof firstQueryValue(v) === 'string'
+        ? (firstQueryValue(v) as string).toUpperCase()
+        : firstQueryValue(v),
+    z.enum(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF']).default('USD')
   ),
 });
 
@@ -293,7 +311,10 @@ export const weatherForecastQuerySchema = weatherCurrentQuerySchema.extend({
 export const windsAloftQuerySchema = z.object({
   lat: latitude,
   lon: longitude,
-  maxAltitude: z.preprocess(firstQueryValue, z.coerce.number().int().min(3000).max(53000).default(12000)),
+  maxAltitude: z.preprocess(
+    firstQueryValue,
+    z.coerce.number().int().min(3000).max(53000).default(12000)
+  ),
 });
 
 const todoText = z.string().trim().min(1, 'Text is required').max(500);
@@ -311,7 +332,7 @@ export const replaceTodosSchema = z.object({
         id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, 'Invalid id'),
         text: todoText,
         done: z.boolean(),
-      }),
+      })
     )
     .max(200),
 });
@@ -335,7 +356,11 @@ export const tfrQuerySchema = z
 // ============= Calendar Schemas =============
 // Messages are shown verbatim by the phone app.
 
-const calendarLabel = z.string().trim().min(1, 'Label is required').max(60, 'Label is too long (max 60 characters)');
+const calendarLabel = z
+  .string()
+  .trim()
+  .min(1, 'Label is required')
+  .max(60, 'Label is too long (max 60 characters)');
 
 export const calendarPatchSchema = z.object({
   label: calendarLabel.optional(),
@@ -348,7 +373,7 @@ export const calendarPatchSchema = z.object({
           .string()
           .regex(/^#[0-9a-fA-F]{6}$/, 'Color must be #rrggbb')
           .optional(),
-      }),
+      })
     )
     .max(200)
     .optional(),
@@ -362,7 +387,10 @@ export const googleStartSchema = z.object({
 });
 
 export const googleCompleteSchema = z.object({
-  code: z.string({ error: 'Missing authorization code' }).min(1, 'Missing authorization code').max(4096),
+  code: z
+    .string({ error: 'Missing authorization code' })
+    .min(1, 'Missing authorization code')
+    .max(4096),
   state: z.string({ error: 'Missing state' }).min(1, 'Missing state').max(4096),
 });
 
@@ -370,7 +398,11 @@ export const caldavAccountSchema = z
   .object({
     provider: z.enum(['icloud', 'caldav'], { error: "provider must be 'icloud' or 'caldav'" }),
     serverUrl: z.string().trim().max(2048, 'Server address is too long').optional(),
-    username: z.string({ error: 'Username is required' }).trim().min(1, 'Username is required').max(320),
+    username: z
+      .string({ error: 'Username is required' })
+      .trim()
+      .min(1, 'Username is required')
+      .max(320),
     password: z.string({ error: 'Password is required' }).min(1, 'Password is required').max(1024),
     label: calendarLabel.optional(),
   })
@@ -385,6 +417,9 @@ export const icsAccountSchema = z.object({
     .trim()
     .min(1, 'Calendar link is required')
     .max(4096, 'Calendar link is too long')
-    .regex(/^(https?|webcals?):\/\//i, 'Calendar link must start with https://, http:// or webcal://'),
+    .regex(
+      /^(https?|webcals?):\/\//i,
+      'Calendar link must start with https://, http:// or webcal://'
+    ),
   label: calendarLabel.optional(),
 });

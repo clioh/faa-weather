@@ -30,7 +30,10 @@ interface TabBarProps {
 export function TabBar({ items, activeKey, onPress, onLongPress }: TabBarProps) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]} accessibilityRole="tablist">
+    <View
+      style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}
+      accessibilityRole="tablist"
+    >
       {items.map((item) => {
         const active = item.key === activeKey;
         const tint = active ? colors.primary : colors.textMuted;
@@ -45,7 +48,11 @@ export function TabBar({ items, activeKey, onPress, onLongPress }: TabBarProps) 
             accessibilityState={{ selected: active }}
           >
             <View>
-              <Ionicons name={active && item.activeIcon ? item.activeIcon : item.icon} size={22} color={tint} />
+              <Ionicons
+                name={active && item.activeIcon ? item.activeIcon : item.icon}
+                size={22}
+                color={tint}
+              />
               {item.badge ? <View style={styles.badge} /> : null}
             </View>
             <Text style={[styles.label, { color: tint }]}>{item.label}</Text>

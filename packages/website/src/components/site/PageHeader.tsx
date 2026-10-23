@@ -13,7 +13,10 @@ export function PageHeader({ right }: PageHeaderProps) {
     <header className="site-container flex items-center justify-between gap-4 py-6">
       <Logo />
       {right ?? (
-        <Link to="/" className="text-sm text-fg-2 hover:text-fg transition-colors min-h-11 inline-flex items-center">
+        <Link
+          to="/"
+          className="text-sm text-fg-2 hover:text-fg transition-colors min-h-11 inline-flex items-center"
+        >
           Back to home
         </Link>
       )}

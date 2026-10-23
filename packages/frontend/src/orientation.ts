@@ -38,7 +38,10 @@ export function parseOrientationState(data: unknown): OrientationState | null {
  * turns -90°; turned left, +90°. Nothing turns when the output is already
  * portrait (rotated by the OS, or a tall browser window in development).
  */
-export function uiRotation(orientation: MirrorOrientation, outputIsLandscape: boolean): -90 | 0 | 90 {
+export function uiRotation(
+  orientation: MirrorOrientation,
+  outputIsLandscape: boolean
+): -90 | 0 | 90 {
   if (!outputIsLandscape || orientation === 'landscape') return 0;
   return orientation === 'portrait-cw' ? -90 : 90;
 }

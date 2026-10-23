@@ -51,8 +51,19 @@ export function CartDrawer() {
                 className="w-11 h-11 flex items-center justify-center rounded-full text-fg-2 hover:text-fg transition-colors"
                 aria-label="Close cart"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -62,29 +73,40 @@ export function CartDrawer() {
               {items.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full border border-line flex items-center justify-center">
-                    <svg className="w-8 h-8 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    <svg
+                      className="w-8 h-8 text-fg-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                      />
                     </svg>
                   </div>
                   <p className="text-fg-2 mb-2">Your cart is empty</p>
-                  <button
-                    onClick={closeCart}
-                    className="link text-sm min-h-11 px-2"
-                  >
+                  <button onClick={closeCart} className="link text-sm min-h-11 px-2">
                     Continue browsing
                   </button>
                 </div>
               ) : (
                 <ul>
                   {items.map((item) => (
-                    <li
-                      key={item.product.id}
-                      className="py-5 border-b border-line last:border-b-0"
-                    >
+                    <li key={item.product.id} className="py-5 border-b border-line last:border-b-0">
                       <div className="flex gap-4">
                         {/* Product icon */}
                         <div className="w-14 h-14 rounded-xl border border-line bg-tint flex items-center justify-center flex-shrink-0">
-                          <svg className="w-7 h-7 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <svg
+                            className="w-7 h-7 text-fg-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
                             <rect x="3" y="2" width="18" height="20" rx="2" strokeWidth={1.5} />
                             <circle cx="18" cy="5" r="1.5" fill="currentColor" />
                           </svg>
@@ -93,9 +115,7 @@ export function CartDrawer() {
                         {/* Product info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-3">
-                            <h3 className="font-medium text-fg truncate">
-                              {item.product.name}
-                            </h3>
+                            <h3 className="font-medium text-fg truncate">{item.product.name}</h3>
                             {/* Line total */}
                             <span className="font-mono text-fg flex-shrink-0">
                               {formatPrice(item.product.price * item.quantity)}
@@ -113,22 +133,51 @@ export function CartDrawer() {
                                 className="w-11 h-11 flex items-center justify-center rounded-full text-fg-2 hover:text-fg transition-colors"
                                 aria-label="Decrease quantity"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M20 12H4"
+                                  />
                                 </svg>
                               </button>
-                              <span className="w-8 text-center font-mono text-sm text-fg" aria-live="polite">
+                              <span
+                                className="w-8 text-center font-mono text-sm text-fg"
+                                aria-live="polite"
+                              >
                                 {item.quantity}
                               </span>
                               <button
                                 onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                                 disabled={item.quantity >= MAX_QUANTITY_PER_ITEM}
-                                title={item.quantity >= MAX_QUANTITY_PER_ITEM ? `Limit ${MAX_QUANTITY_PER_ITEM} per order` : undefined}
+                                title={
+                                  item.quantity >= MAX_QUANTITY_PER_ITEM
+                                    ? `Limit ${MAX_QUANTITY_PER_ITEM} per order`
+                                    : undefined
+                                }
                                 className="w-11 h-11 flex items-center justify-center rounded-full text-fg-2 hover:text-fg transition-colors disabled:text-fg-disabled disabled:cursor-not-allowed"
                                 aria-label="Increase quantity"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 4v16m8-8H4"
+                                  />
                                 </svg>
                               </button>
                             </div>
@@ -154,9 +203,7 @@ export function CartDrawer() {
                 {/* Subtotal */}
                 <div className="flex items-baseline justify-between gap-4">
                   <span className="text-fg-2">Subtotal</span>
-                  <span className="font-mono text-xl text-fg">
-                    {formatPrice(total())}
-                  </span>
+                  <span className="font-mono text-xl text-fg">{formatPrice(total())}</span>
                 </div>
 
                 <p className="text-xs text-fg-3">
@@ -166,11 +213,7 @@ export function CartDrawer() {
                 </p>
 
                 {/* Checkout button */}
-                <Link
-                  to="/checkout"
-                  onClick={closeCart}
-                  className="btn btn-primary w-full"
-                >
+                <Link to="/checkout" onClick={closeCart} className="btn btn-primary w-full">
                   Checkout
                 </Link>
 

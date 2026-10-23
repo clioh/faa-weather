@@ -14,7 +14,13 @@ import {
   type LicenseRow,
   type Sql,
 } from '../_lib/db.js'
-import { LICENSE_FROM, MANAGE_URL, manageSignInEmailHtml, reissuedKeyEmailHtml, sendEmail } from '../_lib/email.js'
+import {
+  LICENSE_FROM,
+  MANAGE_URL,
+  manageSignInEmailHtml,
+  reissuedKeyEmailHtml,
+  sendEmail,
+} from '../_lib/email.js'
 import { readJsonObject, sleep } from '../_lib/http.js'
 import {
   FINGERPRINT_TYPES,
@@ -48,7 +54,7 @@ class ApiError extends Error {
   constructor(
     public httpStatus: number,
     public status: string,
-    message: string,
+    message: string
   ) {
     super(message)
   }
@@ -87,7 +93,11 @@ function str(body: Body, field: string, max: number, required = false): string |
     return null
   }
   if (typeof v !== 'string' || v.length > max) {
-    throw new ApiError(400, 'invalid_request', `${field} must be a string of at most ${max} characters.`)
+    throw new ApiError(
+      400,
+      'invalid_request',
+      `${field} must be a string of at most ${max} characters.`
+    )
   }
   return v.trim()
 }
@@ -106,8 +116,10 @@ function activeResponse(license: LicenseRow, fingerprint: string) {
   }
 }
 
-const notFound = () => new ApiError(404, 'not_found', 'That license key was not found. Check it and try again.')
-const revoked = () => new ApiError(403, 'revoked', 'This license has been revoked. Contact support@skyglass.dev.')
+const notFound = () =>
+  new ApiError(404, 'not_found', 'That license key was not found. Check it and try again.')
+const revoked = () =>
+  new ApiError(403, 'revoked', 'This license has been revoked. Contact support@skyglass.dev.')
 
 /** The license for the request's key, plus the key hash the row was found by. */
 async function findLicenseForKey(ctx: Ctx): Promise<{ license: LicenseRow; keyHash: string }> {
@@ -132,7 +144,11 @@ async function activate(ctx: Ctx) {
   const fingerprint = str(ctx.body, 'deviceFingerprint', 256, true)
   const fingerprintType = str(ctx.body, 'fingerprintType', 32, true)
   if (!(FINGERPRINT_TYPES as readonly string[]).includes(fingerprintType)) {
-    throw new ApiError(400, 'invalid_request', `fingerprintType must be one of ${FINGERPRINT_TYPES.join(', ')}.`)
+    throw new ApiError(
+      400,
+      'invalid_request',
+      `fingerprintType must be one of ${FINGERPRINT_TYPES.join(', ')}.`
+    )
   }
   const mirrorId = str(ctx.body, 'mirrorId', 128)
   const appVersion = str(ctx.body, 'appVersion', 64)
@@ -145,7 +161,7 @@ async function activate(ctx: Ctx) {
       throw new ApiError(
         409,
         'bound_to_another_device',
-        'This license is in use on another mirror. Release it at skyglass.dev/license first.',
+        'This license is in use on another mirror. Release it at skyglass.dev/license first.'
       )
     }
     const [row] = (await ctx.sql`
@@ -187,7 +203,8 @@ async function refresh(ctx: Ctx) {
   const fingerprint = str(ctx.body, 'deviceFingerprint', 256, true)
   const appVersion = str(ctx.body, 'appVersion', 64)
   const { license, keyHash } = await findLicenseForKey(ctx)
-  const released = () => new ApiError(409, 'released', 'This license is no longer assigned to this mirror.')
+  const released = () =>
+    new ApiError(409, 'released', 'This license is no longer assigned to this mirror.')
   if (license.status !== 'active' || license.device_fingerprint !== fingerprint) throw released()
   const [row] = (await ctx.sql`
     UPDATE licenses SET last_seen_at = now(), app_version = COALESCE(${appVersion}, app_version)
@@ -219,11 +236,20 @@ async function manageRequest(ctx: Ctx) {
   // counted for every address, so it costs the same either way.
   const started = Date.now()
   try {
-    const withinCap = await rateLimit(ctx.sql, `manage-email:${email}`, MANAGE_REQUEST_LIMIT_PER_HOUR)
+    const withinCap = await rateLimit(
+      ctx.sql,
+      `manage-email:${email}`,
+      MANAGE_REQUEST_LIMIT_PER_HOUR
+    )
     const licenses = await findByEmail(ctx.sql, email)
     if (licenses.length > 0 && withinCap) {
       const link = `${MANAGE_URL}?token=${encodeURIComponent(createManageToken(email, secret, now()))}`
-      await sendEmail({ from: LICENSE_FROM, to: email, subject: 'Manage your SkyGlass licenses', html: manageSignInEmailHtml(link) })
+      await sendEmail({
+        from: LICENSE_FROM,
+        to: email,
+        subject: 'Manage your SkyGlass licenses',
+        html: manageSignInEmailHtml(link),
+      })
     }
   } finally {
     await sleep(MANAGE_REQUEST_MIN_MS - (Date.now() - started))
@@ -233,7 +259,12 @@ async function manageRequest(ctx: Ctx) {
 
 function requireManageEmail(ctx: Ctx): string {
   const email = verifyManageToken(ctx.body.token, manageSecret(), now())
-  if (!email) throw new ApiError(401, 'invalid_token', 'This sign-in link is invalid or has expired. Request a new one.')
+  if (!email)
+    throw new ApiError(
+      401,
+      'invalid_token',
+      'This sign-in link is invalid or has expired. Request a new one.'
+    )
   return email
 }
 
@@ -248,7 +279,10 @@ async function ownedLicense(ctx: Ctx, email: string): Promise<LicenseRow> {
 async function manageList(ctx: Ctx) {
   const email = requireManageEmail(ctx)
   const licenses = await findByEmail(ctx.sql, email)
-  const used = await customerReleaseCounts(ctx.sql, licenses.map((l) => l.id))
+  const used = await customerReleaseCounts(
+    ctx.sql,
+    licenses.map((l) => l.id)
+  )
   const remaining = licenses.map((l) => releasesRemaining(used.get(l.id) ?? 0))
   return {
     email,
@@ -271,7 +305,11 @@ async function manageRelease(ctx: Ctx) {
   const email = requireManageEmail(ctx)
   const license = await ownedLicense(ctx, email)
   if (license.status === 'revoked') {
-    throw new ApiError(403, 'revoked', 'This license has been revoked. Contact support@skyglass.dev.')
+    throw new ApiError(
+      403,
+      'revoked',
+      'This license has been revoked. Contact support@skyglass.dev.'
+    )
   }
   if (license.status === 'pending') return { ok: true } // already released
   const used = (await customerReleaseCounts(ctx.sql, [license.id])).get(license.id) ?? 0
@@ -279,7 +317,7 @@ async function manageRelease(ctx: Ctx) {
     throw new ApiError(
       429,
       'transfer_limit',
-      'This license has been moved 3 times in the past year. Contact support@skyglass.dev to move it again.',
+      'This license has been moved 3 times in the past year. Contact support@skyglass.dev to move it again.'
     )
   }
   await releaseLicense(ctx.sql, license.id, 'customer')
@@ -291,17 +329,39 @@ async function manageReissue(ctx: Ctx) {
   const email = requireManageEmail(ctx)
   const license = await ownedLicense(ctx, email)
   if (license.status === 'revoked') {
-    throw new ApiError(403, 'revoked', 'This license has been revoked. Contact support@skyglass.dev.')
+    throw new ApiError(
+      403,
+      'revoked',
+      'This license has been revoked. Contact support@skyglass.dev.'
+    )
   }
   if (license.status === 'active') {
-    throw new ApiError(409, 'bound', 'Release this license from its mirror before getting a new key.')
+    throw new ApiError(
+      409,
+      'bound',
+      'Release this license from its mirror before getting a new key.'
+    )
   }
   if (!license.key_hash) {
-    throw new ApiError(409, 'not_provisioned', 'This license comes pre-installed on your kit and has no key yet.')
+    throw new ApiError(
+      409,
+      'not_provisioned',
+      'This license comes pre-installed on your kit and has no key yet.'
+    )
   }
   const key = await assignNewKey(ctx.sql, license.id, 'pending-keyed')
-  if (!key) throw new ApiError(409, 'bound', 'This license changed while you were working. Reload and try again.')
-  const sent = await sendEmail({ from: LICENSE_FROM, to: license.email, subject: 'Your new SkyGlass license key', html: reissuedKeyEmailHtml(key) })
+  if (!key)
+    throw new ApiError(
+      409,
+      'bound',
+      'This license changed while you were working. Reload and try again.'
+    )
+  const sent = await sendEmail({
+    from: LICENSE_FROM,
+    to: license.email,
+    subject: 'Your new SkyGlass license key',
+    html: reissuedKeyEmailHtml(key),
+  })
   if (sent) {
     // This email carries the license's live key, so an order confirmation
     // still pending for it must not rotate the key again.
@@ -356,7 +416,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sql = getDb()
   if (!sql || !process.env.LICENSE_SIGNING_KEY) {
     console.error('[License] Not configured: DATABASE_URL and LICENSE_SIGNING_KEY are required')
-    return res.status(503).json({ status: 'not_configured', message: 'The license service is not configured.' })
+    return res
+      .status(503)
+      .json({ status: 'not_configured', message: 'The license service is not configured.' })
   }
 
   try {
@@ -367,6 +429,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(err.httpStatus).json({ status: err.status, message: err.message })
     }
     console.error(`[License] ${action} failed:`, err)
-    return res.status(500).json({ status: 'server_error', message: 'Something went wrong. Try again later.' })
+    return res
+      .status(500)
+      .json({ status: 'server_error', message: 'Something went wrong. Try again later.' })
   }
 }

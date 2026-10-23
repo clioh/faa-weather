@@ -9,7 +9,13 @@
 
 import { createHash } from 'crypto';
 import { XMLParser } from 'fast-xml-parser';
-import { CalendarAuthError, CalendarError, type DiscoveredCalendar, type RawEvent, type TimeWindow } from '../types.js';
+import {
+  CalendarAuthError,
+  CalendarError,
+  type DiscoveredCalendar,
+  type RawEvent,
+  type TimeWindow,
+} from '../types.js';
 import { httpRequest, type HttpResponse } from '../http.js';
 import { expandEvents, parseCalendars } from '../ical.js';
 
@@ -22,14 +28,18 @@ export interface CalDavCredentials {
   password: string;
 }
 
-const NS = 'xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:a="http://apple.com/ns/ical/" xmlns:cs="http://calendarserver.org/ns/"';
+const NS =
+  'xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:a="http://apple.com/ns/ical/" xmlns:cs="http://calendarserver.org/ns/"';
 
 const PROPFIND_PRINCIPAL = `<?xml version="1.0" encoding="utf-8"?><d:propfind ${NS}><d:prop><d:current-user-principal/></d:prop></d:propfind>`;
 const PROPFIND_HOME = `<?xml version="1.0" encoding="utf-8"?><d:propfind ${NS}><d:prop><c:calendar-home-set/></d:prop></d:propfind>`;
 const PROPFIND_CALENDARS = `<?xml version="1.0" encoding="utf-8"?><d:propfind ${NS}><d:prop><d:resourcetype/><d:displayname/><a:calendar-color/><c:supported-calendar-component-set/></d:prop></d:propfind>`;
 
 function utcStamp(ms: number): string {
-  return new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  return new Date(ms)
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 }
 
 function calendarQuery(window: TimeWindow): string {
@@ -56,7 +66,8 @@ function textOf(v: unknown): string | null {
   if (typeof v === 'string') return v;
   if (typeof v === 'number') return String(v);
   if (Array.isArray(v)) return textOf(v[0]);
-  if (v && typeof v === 'object' && '#text' in (v as XmlNode)) return textOf((v as XmlNode)['#text']);
+  if (v && typeof v === 'object' && '#text' in (v as XmlNode))
+    return textOf((v as XmlNode)['#text']);
   return null;
 }
 
@@ -113,7 +124,12 @@ export class CalDavClient {
   }
 
   /** Request with manual redirects; credentials only go to the same site. */
-  async request(method: string, url: string, body: string | undefined, depth: '0' | '1'): Promise<HttpResponse> {
+  async request(
+    method: string,
+    url: string,
+    body: string | undefined,
+    depth: '0' | '1'
+  ): Promise<HttpResponse> {
     let current = new URL(url);
     for (let hop = 0; hop < 5; hop++) {
       const headers: Record<string, string> = {
@@ -140,7 +156,7 @@ export class CalDavClient {
         throw new CalendarAuthError(
           this.creds.provider === 'icloud'
             ? 'Apple ID or app-specific password was rejected'
-            : 'Username or password was rejected',
+            : 'Username or password was rejected'
         );
       }
       return { ...res, url: current.toString() };
@@ -148,18 +164,27 @@ export class CalDavClient {
     throw new CalendarError(`Too many redirects from ${this.service}`);
   }
 
-  private async propfind(url: string, body: string, depth: '0' | '1'): Promise<{ responses: DavResponse[]; url: string } | null> {
+  private async propfind(
+    url: string,
+    body: string,
+    depth: '0' | '1'
+  ): Promise<{ responses: DavResponse[]; url: string } | null> {
     const res = await this.request('PROPFIND', url, body, depth);
     if (res.status !== 207) return null;
     return { responses: parseMultistatus(res.text), url: res.url };
   }
 
   private async findPrincipal(): Promise<string | null> {
-    const candidates = [this.creds.serverUrl, new URL('/.well-known/caldav', this.origin).toString()];
+    const candidates = [
+      this.creds.serverUrl,
+      new URL('/.well-known/caldav', this.origin).toString(),
+    ];
     for (const candidate of candidates) {
       try {
         const r = await this.propfind(candidate, PROPFIND_PRINCIPAL, '0');
-        const href = r?.responses.map((x) => hrefIn(x.props['current-user-principal'])).find(Boolean);
+        const href = r?.responses
+          .map((x) => hrefIn(x.props['current-user-principal']))
+          .find(Boolean);
         if (r && href) return new URL(href, r.url).toString();
       } catch (error) {
         if (error instanceof CalendarAuthError) throw error;
@@ -192,7 +217,9 @@ export class CalDavClient {
         if (names.length > 0 && !names.includes('VEVENT')) continue;
       }
       const url = new URL(resp.href, r.url).toString();
-      const name = textOf(resp.props.displayname)?.trim() || decodeURIComponent(url.replace(/\/$/, '').split('/').pop() || 'Calendar');
+      const name =
+        textOf(resp.props.displayname)?.trim() ||
+        decodeURIComponent(url.replace(/\/$/, '').split('/').pop() || 'Calendar');
       out.push({
         id: calendarIdForUrl(url),
         url,
@@ -202,7 +229,8 @@ export class CalDavClient {
         system: /birthday|holiday/i.test(name) || /contact_birthdays/.test(url),
       });
     }
-    if (out.length === 0) throw new CalendarError(`Couldn't find any calendars on ${this.service}`, 400);
+    if (out.length === 0)
+      throw new CalendarError(`Couldn't find any calendars on ${this.service}`, 400);
     if (!out.some((c) => c.primary)) {
       const first = out.find((c) => !c.system) ?? out[0];
       first.primary = true;
@@ -212,8 +240,12 @@ export class CalDavClient {
 
   async fetchEvents(calendarUrl: string, window: TimeWindow, tz: string): Promise<RawEvent[]> {
     const res = await this.request('REPORT', calendarUrl, calendarQuery(window), '1');
-    if (res.status === 404) throw new CalendarError('A calendar on this account no longer exists. Sync again to refresh the list.');
-    if (res.status !== 207) throw new CalendarError(`${this.service} returned an error (HTTP ${res.status})`);
+    if (res.status === 404)
+      throw new CalendarError(
+        'A calendar on this account no longer exists. Sync again to refresh the list.'
+      );
+    if (res.status !== 207)
+      throw new CalendarError(`${this.service} returned an error (HTTP ${res.status})`);
     const calendars = [];
     for (const resp of parseMultistatus(res.text)) {
       const data = textOf(resp.props['calendar-data']);

@@ -29,10 +29,14 @@ interface StocksResponse {
 const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'SPY'];
 const MAX_ROWS: Record<string, number> = { small: 2, medium: 4, tall: 6, large: 6, wide: 4 };
 
-const priceFormat = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const priceFormat = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 function ChangePercent({ value }: { value: number | null }) {
-  if (value === null || !Number.isFinite(value)) return <span className="ticker-change text-faint">—</span>;
+  if (value === null || !Number.isFinite(value))
+    return <span className="ticker-change text-faint">—</span>;
   const tone = value > 0 ? 'text-positive' : value < 0 ? 'text-negative' : 'text-dim';
   const glyph = value > 0 ? '▲' : value < 0 ? '▼' : '';
   return (
@@ -60,7 +64,9 @@ export function StocksModule({ config, size }: ModuleProps) {
   const showSparkline = config.showSparkline !== false && size !== 'small';
   const maxRows = MAX_ROWS[size] ?? 4;
 
-  const url = symbols.length ? `/api/finance/stocks?symbols=${encodeURIComponent(symbols.join(','))}` : null;
+  const url = symbols.length
+    ? `/api/finance/stocks?symbols=${encodeURIComponent(symbols.join(','))}`
+    : null;
   const { data, loading, error, isStale, lastUpdated } = useModuleData<StocksResponse>(url, {
     refreshMs: 5 * 60_000,
   });
@@ -86,7 +92,9 @@ export function StocksModule({ config, size }: ModuleProps) {
               <span className="ticker-symbol">{q.symbol}</span>
               <ChangePercent value={q.changePercent} />
             </div>
-            <span className="ticker-price">{q.price === null ? '—' : priceFormat.format(q.price)}</span>
+            <span className="ticker-price">
+              {q.price === null ? '—' : priceFormat.format(q.price)}
+            </span>
             {showSparkline && <Trend history={q.history ?? []} />}
           </div>
         ))}
@@ -102,7 +110,9 @@ export function StocksModule({ config, size }: ModuleProps) {
               {size === 'large' && q.name && <span className="ticker-name">{q.name}</span>}
             </span>
             {showSparkline && <Trend history={q.history ?? []} />}
-            <span className="ticker-price">{q.price === null ? '—' : priceFormat.format(q.price)}</span>
+            <span className="ticker-price">
+              {q.price === null ? '—' : priceFormat.format(q.price)}
+            </span>
             <ChangePercent value={q.changePercent} />
           </div>
         ))}

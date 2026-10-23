@@ -66,7 +66,7 @@ function instantOf(t: Time, tzidHint: string | null, fallbackTz: string): number
   const tz = resolveTimeZone(tzidHint) ?? fallbackTz;
   return wallClockToInstant(
     { year: t.year, month: t.month, day: t.day, hour: t.hour, minute: t.minute, second: t.second },
-    tz,
+    tz
   );
 }
 
@@ -90,7 +90,7 @@ function build(
   start: Time,
   end: Time | null,
   key: string,
-  fallbackTz: string,
+  fallbackTz: string
 ): RawEvent {
   const title = text(comp, 'summary') ?? '(No title)';
   const location = text(comp, 'location');
@@ -110,7 +110,9 @@ function build(
     };
   }
   const s = instantOf(start, tzHint(comp, 'dtstart'), fallbackTz);
-  let e = end ? instantOf(end, tzHint(comp, comp.hasProperty('dtend') ? 'dtend' : 'dtstart'), fallbackTz) : s;
+  let e = end
+    ? instantOf(end, tzHint(comp, comp.hasProperty('dtend') ? 'dtend' : 'dtstart'), fallbackTz)
+    : s;
   if (e < s) e = s;
   return { key, title, location, start: s, end: e, allDay: false, startDate: null, endDate: null };
 }
@@ -128,7 +130,11 @@ function occurrenceKey(uid: string, t: Time): string {
  * Expand all VEVENTs of the given VCALENDAR components into occurrences
  * overlapping `window`.
  */
-export function expandEvents(calendars: Component[], window: TimeWindow, fallbackTz: string): RawEvent[] {
+export function expandEvents(
+  calendars: Component[],
+  window: TimeWindow,
+  fallbackTz: string
+): RawEvent[] {
   const out: RawEvent[] = [];
   const masters = new Map<string, Component>();
   const exceptions = new Map<string, Component[]>();
@@ -183,11 +189,16 @@ export function expandEvents(calendars: Component[], window: TimeWindow, fallbac
         const details = ev.getOccurrenceDetails(next);
         const itemComp = details.item?.component ?? comp;
         if (isCancelled(itemComp)) continue;
-        push(build(itemComp, details.startDate, details.endDate, occurrenceKey(uid, next), fallbackTz));
+        push(
+          build(itemComp, details.startDate, details.endDate, occurrenceKey(uid, next), fallbackTz)
+        );
         if (out.length >= MAX_EVENTS) break;
       }
     } catch (error) {
-      console.warn('[calendar] skipping unparseable event:', error instanceof Error ? error.message : error);
+      console.warn(
+        '[calendar] skipping unparseable event:',
+        error instanceof Error ? error.message : error
+      );
     }
   }
 

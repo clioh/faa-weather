@@ -82,7 +82,8 @@ export function TfrModule({ config, size, latitude, longitude }: ModuleProps) {
 
   const all = data?.tfrs ?? [];
   const hasHome = typeof latitude === 'number' && typeof longitude === 'number';
-  const located = hasHome && all.some((t) => typeof t.latitude === 'number' && typeof t.longitude === 'number');
+  const located =
+    hasHome && all.some((t) => typeof t.latitude === 'number' && typeof t.longitude === 'number');
 
   const items = located
     ? all
@@ -90,7 +91,9 @@ export function TfrModule({ config, size, latitude, longitude }: ModuleProps) {
         .map((t) => ({ tfr: t, nm: distanceNm(latitude!, longitude!, t.latitude!, t.longitude!) }))
         .filter((x) => x.nm <= radiusNm)
         .sort((a, b) => a.nm - b.nm)
-    : [...all].sort((a, b) => startKey(a) - startKey(b)).map((t) => ({ tfr: t, nm: null as number | null }));
+    : [...all]
+        .sort((a, b) => startKey(a) - startKey(b))
+        .map((t) => ({ tfr: t, nm: null as number | null }));
 
   const shown = items.slice(0, Math.min(maxItems, ROW_CAP[size] ?? 3));
   const hidden = items.length - shown.length;
@@ -113,7 +116,10 @@ export function TfrModule({ config, size, latitude, longitude }: ModuleProps) {
       {loading ? (
         <ModuleLoading />
       ) : !data ? (
-        <ModuleError title="TFRs unavailable" hint={fetchErrorHint(error, 'FAA list not available')} />
+        <ModuleError
+          title="TFRs unavailable"
+          hint={fetchErrorHint(error, 'FAA list not available')}
+        />
       ) : shown.length === 0 ? (
         <ModuleEmpty title={located ? `No TFRs within ${radiusNm} nm` : 'No active TFRs'} />
       ) : (
@@ -125,7 +131,9 @@ export function TfrModule({ config, size, latitude, longitude }: ModuleProps) {
                 <span className={`tfr-type${isSecurity(tfr.type) ? ' text-warning' : ''}`}>
                   {tfr.type || 'TFR'}
                 </span>
-                <span className="tfr-where">{[tfr.facility, tfr.state].filter(Boolean).join(' · ')}</span>
+                <span className="tfr-where">
+                  {[tfr.facility, tfr.state].filter(Boolean).join(' · ')}
+                </span>
                 <span className="tfr-when mono">
                   {nm !== null ? `${Math.round(nm)} nm · ` : ''}
                   {formatWindow(tfr)}

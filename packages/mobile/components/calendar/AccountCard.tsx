@@ -41,7 +41,11 @@ export function AccountCard({
 
   return (
     <View style={styles.card}>
-      <View style={styles.head} accessible accessibilityLabel={`${account.label}, ${account.email ?? meta?.name ?? ''}. ${status.label}`}>
+      <View
+        style={styles.head}
+        accessible
+        accessibilityLabel={`${account.label}, ${account.email ?? meta?.name ?? ''}. ${status.label}`}
+      >
         <ProviderTile provider={account.provider} />
         <View style={styles.headText}>
           <Text style={styles.label} numberOfLines={1}>
@@ -57,7 +61,10 @@ export function AccountCard({
           ) : (
             <Ionicons name={status.icon} size={13} color={status.color} />
           )}
-          <Text style={[styles.statusText, !ok && !syncing && { color: status.color }]} numberOfLines={1}>
+          <Text
+            style={[styles.statusText, !ok && !syncing && { color: status.color }]}
+            numberOfLines={1}
+          >
             {syncing ? 'Syncing…' : status.label}
           </Text>
         </View>
@@ -88,9 +95,20 @@ export function AccountCard({
       </View>
 
       <View style={styles.actions}>
-        <Action label="Sync now" onPress={onSync} disabled={syncing} a11y={`Sync ${account.label} now`} />
+        <Action
+          label="Sync now"
+          onPress={onSync}
+          disabled={syncing}
+          a11y={`Sync ${account.label} now`}
+        />
         <Action label="Rename" onPress={onRename} a11y={`Rename ${account.label}`} divided />
-        <Action label="Remove" onPress={onRemove} tint={colors.danger} a11y={`Remove ${account.label}`} divided />
+        <Action
+          label="Remove"
+          onPress={onRemove}
+          tint={colors.danger}
+          a11y={`Remove ${account.label}`}
+          divided
+        />
       </View>
     </View>
   );
@@ -139,7 +157,13 @@ const styles = StyleSheet.create({
     borderColor: colors.sheetBorder,
     overflow: 'hidden',
   },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: spacing.md },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+  },
   headText: { flex: 1, gap: 2 },
   label: { fontSize: 15, color: colors.text },
   email: { ...typography.caption, color: colors.textMuted },

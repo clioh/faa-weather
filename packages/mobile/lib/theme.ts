@@ -98,9 +98,24 @@ export const colors = {
 
 /** Notice tones: tinted fill, stronger border, light text in the tone's hue. */
 export const tones = {
-  info: { fill: 'rgba(122, 215, 255, 0.08)', border: 'rgba(122, 215, 255, 0.25)', text: '#D6F2FF', icon: '#7AD7FF' },
-  warning: { fill: 'rgba(255, 183, 77, 0.08)', border: 'rgba(255, 183, 77, 0.35)', text: '#FFE2B8', icon: '#FFB74D' },
-  error: { fill: 'rgba(255, 107, 122, 0.08)', border: 'rgba(255, 107, 122, 0.4)', text: '#FFD0D6', icon: '#FF6B7A' },
+  info: {
+    fill: 'rgba(122, 215, 255, 0.08)',
+    border: 'rgba(122, 215, 255, 0.25)',
+    text: '#D6F2FF',
+    icon: '#7AD7FF',
+  },
+  warning: {
+    fill: 'rgba(255, 183, 77, 0.08)',
+    border: 'rgba(255, 183, 77, 0.35)',
+    text: '#FFE2B8',
+    icon: '#FFB74D',
+  },
+  error: {
+    fill: 'rgba(255, 107, 122, 0.08)',
+    border: 'rgba(255, 107, 122, 0.4)',
+    text: '#FFD0D6',
+    icon: '#FF6B7A',
+  },
 };
 
 export type Tone = keyof typeof tones;

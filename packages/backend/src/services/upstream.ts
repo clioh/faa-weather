@@ -13,7 +13,7 @@ export const USER_AGENT = 'SkyGlass/1.0 (+https://skyglass.dev)';
 export class UpstreamError extends Error {
   constructor(
     message: string,
-    public readonly status = 502,
+    public readonly status = 502
   ) {
     super(message);
     this.name = 'UpstreamError';
@@ -57,7 +57,12 @@ export async function readBodyCapped(res: Response, maxBytes: number): Promise<s
  * network failure, non-2xx status or oversize body.
  */
 export async function fetchText(url: string, opts: FetchTextOptions = {}): Promise<string> {
-  const { timeoutMs = 10_000, maxBytes = 2 * 1024 * 1024, headers = {}, redirect = 'follow' } = opts;
+  const {
+    timeoutMs = 10_000,
+    maxBytes = 2 * 1024 * 1024,
+    headers = {},
+    redirect = 'follow',
+  } = opts;
   let res: Response;
   try {
     res = await fetch(url, {
@@ -66,8 +71,12 @@ export async function fetchText(url: string, opts: FetchTextOptions = {}): Promi
       redirect,
     });
   } catch (error) {
-    const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-    throw new UpstreamError(timedOut ? 'Upstream timed out' : 'Upstream unreachable', timedOut ? 504 : 502);
+    const timedOut =
+      error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+    throw new UpstreamError(
+      timedOut ? 'Upstream timed out' : 'Upstream unreachable',
+      timedOut ? 504 : 502
+    );
   }
   if (!res.ok) {
     await res.body?.cancel().catch(() => undefined);
@@ -77,7 +86,10 @@ export async function fetchText(url: string, opts: FetchTextOptions = {}): Promi
 }
 
 export async function fetchJson<T>(url: string, opts: FetchTextOptions = {}): Promise<T> {
-  const text = await fetchText(url, { ...opts, headers: { Accept: 'application/json', ...opts.headers } });
+  const text = await fetchText(url, {
+    ...opts,
+    headers: { Accept: 'application/json', ...opts.headers },
+  });
   try {
     return JSON.parse(text) as T;
   } catch {
@@ -108,7 +120,7 @@ export class TtlCache<T> {
     private readonly ttlMs: number,
     /** Entries older than this are dropped entirely (not even served stale). */
     private readonly maxStaleMs = 24 * 60 * 60 * 1000,
-    private readonly maxEntries = 200,
+    private readonly maxEntries = 200
   ) {}
 
   async get(key: string, loader: () => Promise<T>, now = Date.now()): Promise<CachedResult<T>> {
@@ -127,7 +139,10 @@ export class TtlCache<T> {
         return { value, stale: false, storedAt };
       } catch (error) {
         if (hit && now - hit.storedAt < this.maxStaleMs) {
-          console.warn(`[upstream] serving stale value for ${key}:`, error instanceof Error ? error.message : error);
+          console.warn(
+            `[upstream] serving stale value for ${key}:`,
+            error instanceof Error ? error.message : error
+          );
           return { value: hit.value, stale: true, storedAt: hit.storedAt };
         }
         throw error instanceof UpstreamError ? error : new UpstreamError('Upstream request failed');
@@ -156,7 +171,10 @@ export class TtlCache<T> {
 }
 
 /** Express helper: map any error to a safe `{ error }` JSON response. */
-export function upstreamErrorResponse(error: unknown, fallback: string): { status: number; body: { error: string } } {
+export function upstreamErrorResponse(
+  error: unknown,
+  fallback: string
+): { status: number; body: { error: string } } {
   if (error instanceof UpstreamError) {
     return { status: error.status, body: { error: `${fallback}: ${error.message}` } };
   }

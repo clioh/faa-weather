@@ -6,7 +6,12 @@
  * secret. Revocation needs no secret and goes to Google directly.
  */
 
-import { CalendarError, type DiscoveredCalendar, type RawEvent, type TimeWindow } from '../types.js';
+import {
+  CalendarError,
+  type DiscoveredCalendar,
+  type RawEvent,
+  type TimeWindow,
+} from '../types.js';
 import { FORM_HEADERS, form, httpRequest, parseJson, UnauthorizedError } from '../http.js';
 import type { GoogleClientConfig } from '../auth-service.js';
 import { addDays, dateToInstant } from '../time.js';
@@ -18,7 +23,11 @@ export const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 
 const SERVICE = 'Google';
 
-export function buildGoogleAuthUrl(cfg: GoogleClientConfig, state: string, codeChallenge: string): string {
+export function buildGoogleAuthUrl(
+  cfg: GoogleClientConfig,
+  state: string,
+  codeChallenge: string
+): string {
   const p = new URLSearchParams({
     client_id: cfg.clientId,
     redirect_uri: cfg.redirectUri,
@@ -48,7 +57,9 @@ async function apiGet<T>(url: string, accessToken: string): Promise<T> {
       }
     })();
     if (res.status === 403 && reason && /has not been used|disabled/i.test(reason)) {
-      throw new CalendarError("Google Calendar access isn't enabled for SkyGlass right now. Try again later.");
+      throw new CalendarError(
+        "Google Calendar access isn't enabled for SkyGlass right now. Try again later."
+      );
     }
     throw new CalendarError(`Google Calendar returned an error (HTTP ${res.status})`);
   }
@@ -80,7 +91,7 @@ export async function listGoogleCalendars(accessToken: string): Promise<Discover
     if (pageToken) p.set('pageToken', pageToken);
     const json = await apiGet<{ items?: GoogleCalendarListEntry[]; nextPageToken?: string }>(
       `${GOOGLE_CALENDAR_API}/users/me/calendarList?${p}`,
-      accessToken,
+      accessToken
     );
     for (const c of json.items ?? []) {
       if (!c.id || c.deleted) continue;
@@ -140,7 +151,7 @@ export async function fetchGoogleEvents(
   accessToken: string,
   calendarId: string,
   window: TimeWindow,
-  tz: string,
+  tz: string
 ): Promise<RawEvent[]> {
   const out: RawEvent[] = [];
   let pageToken: string | undefined;
@@ -155,7 +166,7 @@ export async function fetchGoogleEvents(
     if (pageToken) p.set('pageToken', pageToken);
     const json = await apiGet<{ items?: GoogleEvent[]; nextPageToken?: string }>(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${p}`,
-      accessToken,
+      accessToken
     );
     for (const e of json.items ?? []) {
       const ev = mapGoogleEvent(e, tz);

@@ -95,7 +95,8 @@ export async function authenticateMirrorRelay(
 
     // Attach mirror info to request
     (req as Request & { mirrorId: string; mirrorOwner: string }).mirrorId = rows[0].id;
-    (req as Request & { mirrorId: string; mirrorOwner: string }).mirrorOwner = rows[0].owner_clerk_id;
+    (req as Request & { mirrorId: string; mirrorOwner: string }).mirrorOwner =
+      rows[0].owner_clerk_id;
 
     next();
   } catch (error) {

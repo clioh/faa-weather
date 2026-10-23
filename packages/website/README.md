@@ -38,15 +38,15 @@ cp .env.example .env
 
 Required variables:
 
-| Variable | Description |
-|----------|-------------|
-| `VITE_FEATURE_ECOMMERCE` | Enable e-commerce mode (`true`/`false`) |
-| `STRIPE_SECRET_KEY` | Stripe secret key (starts with `sk_`) |
+| Variable                      | Description                                |
+| ----------------------------- | ------------------------------------------ |
+| `VITE_FEATURE_ECOMMERCE`      | Enable e-commerce mode (`true`/`false`)    |
+| `STRIPE_SECRET_KEY`           | Stripe secret key (starts with `sk_`)      |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (starts with `pk_`) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `RESEND_API_KEY` | Resend API key |
-| `RESEND_AUDIENCE_ID` | Resend audience for waitlist |
-| `ADMIN_PASSWORD` | Password for admin dashboard |
+| `STRIPE_WEBHOOK_SECRET`       | Stripe webhook signing secret              |
+| `RESEND_API_KEY`              | Resend API key                             |
+| `RESEND_AUDIENCE_ID`          | Resend audience for waitlist               |
+| `ADMIN_PASSWORD`              | Password for admin dashboard               |
 
 ### Development
 
@@ -112,6 +112,7 @@ packages/website/
 ## Features
 
 ### Marketing Website
+
 - Hero with product visualization
 - Feature showcase with aviation visual language
 - Interactive demo (METAR display simulation)
@@ -124,32 +125,36 @@ packages/website/
 Enable with `VITE_FEATURE_ECOMMERCE=true`
 
 #### Cart System
+
 - Zustand store with localStorage persistence
 - CartDrawer component with quantity controls
 - Products: Software License ($99), Hardware Kit ($349), Complete Kit ($549). Ids, names,
   prices and shipping rules live in `shared/catalog.ts`, used by both `src/` and `api/`
 
 #### Checkout Flow
+
 1. **Information** - Email collection (license-only carts also collect a US billing ZIP for sales tax)
 2. **Shipping** - Address entry with validation (only when the cart contains a kit)
 3. **Payment** - Stripe Elements with custom styling
 
 #### Stripe Integration
 
-| Feature | Implementation |
-|---------|---------------|
-| Payment | PaymentIntent with Elements |
-| Tax | Stripe Tax (location-based) with fallback |
-| Discounts | Promotion Codes via Coupons API |
-| Webhooks | payment_intent.succeeded, charge.refunded, refund.updated, charge.dispute.created |
+| Feature   | Implementation                                                                    |
+| --------- | --------------------------------------------------------------------------------- |
+| Payment   | PaymentIntent with Elements                                                       |
+| Tax       | Stripe Tax (location-based) with fallback                                         |
+| Discounts | Promotion Codes via Coupons API                                                   |
+| Webhooks  | payment_intent.succeeded, charge.refunded, refund.updated, charge.dispute.created |
 
 #### Promo Codes
+
 - Validates against Stripe Promotion Codes
 - Supports percent off and fixed amount discounts
 - Checks usage limits, expiration, minimum amounts
 - Server-side validation prevents manipulation
 
 #### Order Emails
+
 - Confirmation email on successful payment
 - License key (software) or pre-installed note (kits) in the confirmation; declines are shown inline by Stripe Elements, no email
 - Styled to match brand (dark theme, amber accents)
@@ -157,6 +162,7 @@ Enable with `VITE_FEATURE_ECOMMERCE=true`
 ### Admin Dashboard (`/admin`)
 
 Password-protected dashboard showing:
+
 - Order statistics (total orders, revenue, pending)
 - Filterable orders table
 - Order detail modal with Stripe link
@@ -165,6 +171,7 @@ Password-protected dashboard showing:
 ### Waitlist Mode
 
 When `VITE_FEATURE_ECOMMERCE=false`:
+
 - "Join Waitlist" instead of "Add to Cart"
 - Waitlist modal collects email + home airport
 - Adds contact to Resend audience
@@ -172,14 +179,14 @@ When `VITE_FEATURE_ECOMMERCE=false`:
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/create-payment-intent` | POST | Create Stripe PaymentIntent |
-| `/api/calculate-tax` | POST | Calculate tax via Stripe Tax |
-| `/api/validate-promo` | POST | Validate promotion code |
-| `/api/webhook` | POST | Stripe webhook handler |
-| `/api/waitlist` | POST | Add to waitlist |
-| `/api/admin/orders` | GET | List orders (auth required) |
+| Endpoint                     | Method | Description                  |
+| ---------------------------- | ------ | ---------------------------- |
+| `/api/create-payment-intent` | POST   | Create Stripe PaymentIntent  |
+| `/api/calculate-tax`         | POST   | Calculate tax via Stripe Tax |
+| `/api/validate-promo`        | POST   | Validate promotion code      |
+| `/api/webhook`               | POST   | Stripe webhook handler       |
+| `/api/waitlist`              | POST   | Add to waitlist              |
+| `/api/admin/orders`          | GET    | List orders (auth required)  |
 
 ## Deployment
 
@@ -226,17 +233,17 @@ npm run lint     # Run ESLint
 
 ### Colors (from tailwind.config.js)
 
-| Name | Hex | Usage |
-|------|-----|-------|
-| void | #0a0a0f | Dark background |
-| panel | #12121a | Card background |
-| instrument | #1a1a24 | Input background |
-| border | #2a2a3a | Borders |
-| amber | #f5a623 | Primary accent |
-| light | #e8e8ec | Primary text |
-| muted | #8a8a9a | Secondary text |
-| vfr | #4ade80 | Success/VFR green |
-| ifr | #ef4444 | Error/IFR red |
+| Name       | Hex     | Usage             |
+| ---------- | ------- | ----------------- |
+| void       | #0a0a0f | Dark background   |
+| panel      | #12121a | Card background   |
+| instrument | #1a1a24 | Input background  |
+| border     | #2a2a3a | Borders           |
+| amber      | #f5a623 | Primary accent    |
+| light      | #e8e8ec | Primary text      |
+| muted      | #8a8a9a | Secondary text    |
+| vfr        | #4ade80 | Success/VFR green |
+| ifr        | #ef4444 | Error/IFR red     |
 
 ### Typography
 

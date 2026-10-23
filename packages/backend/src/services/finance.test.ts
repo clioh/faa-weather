@@ -38,7 +38,10 @@ const AAPL: YahooChartResponse = {
 };
 
 const NOT_FOUND: YahooChartResponse = {
-  chart: { result: null, error: { code: 'Not Found', description: 'No data found, symbol may be delisted' } },
+  chart: {
+    result: null,
+    error: { code: 'Not Found', description: 'No data found, symbol may be delisted' },
+  },
 };
 
 describe('parseYahooChart', () => {
@@ -68,12 +71,23 @@ describe('parseYahooChart', () => {
 
   it('caps history at 30 points', () => {
     const body = structuredClone(AAPL);
-    body.chart!.result![0].indicators = { quote: [{ close: Array.from({ length: 40 }, (_, i) => i) }] };
+    body.chart!.result![0].indicators = {
+      quote: [{ close: Array.from({ length: 40 }, (_, i) => i) }],
+    };
     expect(parseYahooChart('AAPL', body).history).toHaveLength(30);
   });
 
   it('returns null fields for an error response or missing result', () => {
-    const empty = { symbol: 'ZZZZ', name: null, price: null, change: null, changePercent: null, currency: 'USD', history: [], asOf: null };
+    const empty = {
+      symbol: 'ZZZZ',
+      name: null,
+      price: null,
+      change: null,
+      changePercent: null,
+      currency: 'USD',
+      history: [],
+      asOf: null,
+    };
     expect(parseYahooChart('ZZZZ', NOT_FOUND)).toEqual(empty);
     expect(parseYahooChart('ZZZZ', { chart: { result: [], error: null } })).toEqual(empty);
     expect(parseYahooChart('ZZZZ', {} as YahooChartResponse)).toEqual(empty);
@@ -84,7 +98,11 @@ describe('parseYahooChart', () => {
     const meta = body.chart!.result![0].meta!;
     delete meta.previousClose;
     delete meta.chartPreviousClose;
-    expect(parseYahooChart('AAPL', body)).toMatchObject({ price: 233.75, change: null, changePercent: null });
+    expect(parseYahooChart('AAPL', body)).toMatchObject({
+      price: 233.75,
+      change: null,
+      changePercent: null,
+    });
   });
 });
 
@@ -108,8 +126,8 @@ describe('helpers', () => {
           await new Promise((r) => setTimeout(r, 5));
           active--;
           return n * 2;
-        }),
-      ),
+        })
+      )
     );
     expect(out).toEqual([2, 4, 6]);
     expect(peak).toBe(1);
@@ -131,7 +149,15 @@ describe('helpers', () => {
 });
 
 // Items of GET https://skyglass.dev/api/data/stocks?symbols=X (the cloud normalizes Finnhub /quote)
-const CLOUD_AAPL: CloudQuote = { symbol: 'AAPL', status: 'ok', price: 233.75, change: 3.5, changePercent: 1.5201, previousClose: 230.25, asOf: new Date(1792008000 * 1000).toISOString() };
+const CLOUD_AAPL: CloudQuote = {
+  symbol: 'AAPL',
+  status: 'ok',
+  price: 233.75,
+  change: 3.5,
+  changePercent: 1.5201,
+  previousClose: 230.25,
+  asOf: new Date(1792008000 * 1000).toISOString(),
+};
 
 describe('parseCloudQuote', () => {
   it('maps price/change/asOf with name and history', () => {
@@ -148,7 +174,11 @@ describe('parseCloudQuote', () => {
   });
 
   it('unknown symbol → null fields; error/mismatch/malformed → null', () => {
-    expect(parseCloudQuote('ZZZZ', { symbol: 'ZZZZ', status: 'unknown_symbol' })).toMatchObject({ symbol: 'ZZZZ', price: null, change: null });
+    expect(parseCloudQuote('ZZZZ', { symbol: 'ZZZZ', status: 'unknown_symbol' })).toMatchObject({
+      symbol: 'ZZZZ',
+      price: null,
+      change: null,
+    });
     expect(parseCloudQuote('AAPL', { ...CLOUD_AAPL, status: 'error' })).toBeNull();
     expect(parseCloudQuote('MSFT', CLOUD_AAPL)).toBeNull();
     expect(parseCloudQuote('AAPL', null)).toBeNull();
@@ -173,7 +203,10 @@ function installFetch(cloud: (url: URL) => Response | Promise<Response>) {
   const calls: Call[] = [];
   const fn = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input));
-    calls.push({ url: url.toString(), headers: { ...((init?.headers as Record<string, string>) ?? {}) } });
+    calls.push({
+      url: url.toString(),
+      headers: { ...((init?.headers as Record<string, string>) ?? {}) },
+    });
     if (url.hostname === 'query1.finance.yahoo.com') return json(200, AAPL);
     return cloud(url);
   });
@@ -184,11 +217,28 @@ function installFetch(cloud: (url: URL) => Response | Promise<Response>) {
 const cloudOk = (url: URL) => {
   if (url.pathname === '/api/data/stocks') {
     const sym = url.searchParams.get('symbols');
-    if (sym === 'ZZZZ') return json(200, { version: 1, fetchedAt: 'x', quotes: [{ symbol: 'ZZZZ', status: 'unknown_symbol' }] });
+    if (sym === 'ZZZZ')
+      return json(200, {
+        version: 1,
+        fetchedAt: 'x',
+        quotes: [{ symbol: 'ZZZZ', status: 'unknown_symbol' }],
+      });
     return json(200, { version: 1, fetchedAt: 'x', quotes: [{ ...CLOUD_AAPL, symbol: sym }] });
   }
   if (url.pathname === '/api/data/stock-profiles') {
-    return json(200, { version: 1, fetchedAt: 'x', profiles: [{ symbol: url.searchParams.get('symbols'), status: 'ok', name: 'Apple Inc', currency: 'USD', exchange: 'NASDAQ' }] });
+    return json(200, {
+      version: 1,
+      fetchedAt: 'x',
+      profiles: [
+        {
+          symbol: url.searchParams.get('symbols'),
+          status: 'ok',
+          name: 'Apple Inc',
+          currency: 'USD',
+          exchange: 'NASDAQ',
+        },
+      ],
+    });
   }
   return json(404, {});
 };
@@ -196,7 +246,8 @@ const cloudOk = (url: URL) => {
 function assertNoKeys(calls: Call[]) {
   for (const c of calls) {
     expect(c.url).not.toMatch(/token=|apikey|api_key|client_secret/i);
-    for (const k of Object.keys(c.headers)) expect(k.toLowerCase()).not.toMatch(/token|key|secret|client_id|authorization/);
+    for (const k of Object.keys(c.headers))
+      expect(k.toLowerCase()).not.toMatch(/token|key|secret|client_id|authorization/);
   }
 }
 
@@ -227,7 +278,16 @@ describe('getStockQuotes provider selection', () => {
       history: [226, 227.5, 230.25, 233.75],
       asOf: new Date(1792008000 * 1000).toISOString(),
     });
-    expect(r.quotes[1]).toEqual({ symbol: 'ZZZZ', name: null, price: null, change: null, changePercent: null, currency: 'USD', history: [], asOf: null });
+    expect(r.quotes[1]).toEqual({
+      symbol: 'ZZZZ',
+      name: null,
+      price: null,
+      change: null,
+      changePercent: null,
+      currency: 'USD',
+      history: [],
+      asOf: null,
+    });
     const cloudCalls = calls.filter((c) => c.url.startsWith('https://skyglass.dev/'));
     expect(cloudCalls.map((c) => c.url)).toEqual([
       'https://skyglass.dev/api/data/stocks?symbols=AAPL',
@@ -248,9 +308,16 @@ describe('getStockQuotes provider selection', () => {
   });
 
   it('not_configured → Yahoo, and the service is not asked again for a while', async () => {
-    const calls = installFetch(() => json(503, { error: 'not_configured', error_description: 'x' }));
+    const calls = installFetch(() =>
+      json(503, { error: 'not_configured', error_description: 'x' })
+    );
     const r = await getStockQuotes(['AAPL', 'MSFT']);
-    expect(r.quotes[0]).toMatchObject({ symbol: 'AAPL', price: 233.75, name: 'Apple Inc.', history: [226, 227.5, 230.25, 233.75] });
+    expect(r.quotes[0]).toMatchObject({
+      symbol: 'AAPL',
+      price: 233.75,
+      name: 'Apple Inc.',
+      history: [226, 227.5, 230.25, 233.75],
+    });
     const cloudCalls = calls.filter((c) => c.url.includes('skyglass.dev'));
     expect(cloudCalls).toHaveLength(1); // MSFT went straight to Yahoo
     expect(stockProvider()).toBe('yahoo');
@@ -264,14 +331,22 @@ describe('getStockQuotes provider selection', () => {
     });
     const r = await getStockQuotes(['AAPL']);
     expect(r.quotes[0]).toMatchObject({ symbol: 'AAPL', price: 233.75 });
-    expect(calls.map((c) => new URL(c.url).hostname)).toEqual(['skyglass.dev', 'query1.finance.yahoo.com']);
+    expect(calls.map((c) => new URL(c.url).hostname)).toEqual([
+      'skyglass.dev',
+      'query1.finance.yahoo.com',
+    ]);
     expect(stockProvider()).toBe('yahoo');
     expect(stockProvider(Date.now() + 3 * 60 * 1000)).toBe('skyglass');
   });
 
   it('per-symbol upstream error from the service → Yahoo for that symbol, service stays in use', async () => {
     const calls = installFetch((url) =>
-      url.pathname === '/api/data/stocks' ? json(200, { version: 1, quotes: [{ symbol: url.searchParams.get('symbols'), status: 'error' }] }) : cloudOk(url),
+      url.pathname === '/api/data/stocks'
+        ? json(200, {
+            version: 1,
+            quotes: [{ symbol: url.searchParams.get('symbols'), status: 'error' }],
+          })
+        : cloudOk(url)
     );
     const r = await getStockQuotes(['AAPL']);
     expect(r.quotes[0]).toMatchObject({ price: 233.75, name: 'Apple Inc.' });

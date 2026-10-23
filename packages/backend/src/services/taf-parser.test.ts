@@ -42,8 +42,7 @@ describe('TAF Parser', () => {
     });
 
     it('should parse TAF with FM period', () => {
-      const raw =
-        'KJFK 151730Z 1518/1624 31010KT P6SM FEW040 FM152200 33012G20KT P6SM SCT040';
+      const raw = 'KJFK 151730Z 1518/1624 31010KT P6SM FEW040 FM152200 33012G20KT P6SM SCT040';
       const result = parseTaf(raw);
 
       expect(result.periods).toHaveLength(2);
@@ -53,8 +52,7 @@ describe('TAF Parser', () => {
     });
 
     it('should parse TAF with TEMPO period', () => {
-      const raw =
-        'KJFK 151730Z 1518/1624 31010KT P6SM FEW040 TEMPO 1520/1524 4SM -RA BR BKN030';
+      const raw = 'KJFK 151730Z 1518/1624 31010KT P6SM FEW040 TEMPO 1520/1524 4SM -RA BR BKN030';
       const result = parseTaf(raw);
 
       const tempoPeriod = result.periods.find((p) => p.type === 'TEMPO');
@@ -77,8 +75,7 @@ describe('TAF Parser', () => {
     });
 
     it('should parse TAF with PROB period', () => {
-      const raw =
-        'KJFK 151730Z 1518/1624 31010KT P6SM FEW040 PROB30 1520/1524 2SM TSRA BKN020CB';
+      const raw = 'KJFK 151730Z 1518/1624 31010KT P6SM FEW040 PROB30 1520/1524 2SM TSRA BKN020CB';
       const result = parseTaf(raw);
 
       const probPeriod = result.periods.find((p) => p.type === 'PROB');
@@ -153,8 +150,7 @@ describe('TAF Parser', () => {
   });
 
   describe('visibility parsing', () => {
-    const base = (vis: string) =>
-      parseTaf(`KJFK 151730Z 1518/1624 31010KT ${vis} SKC`).periods[0];
+    const base = (vis: string) => parseTaf(`KJFK 151730Z 1518/1624 31010KT ${vis} SKC`).periods[0];
 
     it.each([
       ['P6SM', 10, 'VFR'],
@@ -177,9 +173,7 @@ describe('TAF Parser', () => {
     });
 
     it('parses a mixed-number visibility inside a TEMPO group', () => {
-      const taf = parseTaf(
-        'KJFK 151730Z 1518/1624 31010KT P6SM SKC TEMPO 1520/1524 1 1/2SM BR'
-      );
+      const taf = parseTaf('KJFK 151730Z 1518/1624 31010KT P6SM SKC TEMPO 1520/1524 1 1/2SM BR');
       const tempo = taf.periods.find((p) => p.type === 'TEMPO');
       expect(tempo?.visibility).toBe(1.5);
       expect(tempo?.flightRules).toBe('IFR');

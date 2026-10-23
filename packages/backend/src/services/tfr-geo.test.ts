@@ -23,12 +23,32 @@ const WFS = {
     // Second area of a multi-area TFR
     {
       type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [[[-100, 40], [-99, 40], [-99, 41], [-100, 40]]] },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [-100, 40],
+            [-99, 40],
+            [-99, 41],
+            [-100, 40],
+          ],
+        ],
+      },
       properties: { NOTAM_KEY: '6/1000-1-FDC-F' },
     },
     {
       type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [[[-98, 40], [-97, 40], [-97, 41], [-98, 40]]] },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [-98, 40],
+            [-97, 40],
+            [-97, 41],
+            [-98, 40],
+          ],
+        ],
+      },
       properties: { NOTAM_KEY: '6/1000-2-FDC-F' },
     },
     { type: 'Feature', geometry: null, properties: { NOTAM_KEY: '6/2000-1-FDC-F' } },
@@ -36,7 +56,11 @@ const WFS = {
 };
 
 const row = (id: string) =>
-  parseTfrListItem({ notam_id: id, type: 'SECURITY', description: 'SOMEWHERE, Saturday, October 17, 2026 UTC' });
+  parseTfrListItem({
+    notam_id: id,
+    type: 'SECURITY',
+    description: 'SOMEWHERE, Saturday, October 17, 2026 UTC',
+  });
 
 describe('TFR geometry', () => {
   const geo = parseTfrGeometry(WFS);

@@ -50,8 +50,11 @@ export function isLoopbackAddress(ip: string | undefined | null): boolean {
  * X-Forwarded-For only while the current hop is loopback. Used for WebSocket
  * upgrades, which never pass through Express (where req.ip does this).
  */
-export function effectiveClientIp(remoteAddress: string | undefined, xff: string | string[] | undefined): string | undefined {
-  const forwarded = (Array.isArray(xff) ? xff.join(',') : xff ?? '')
+export function effectiveClientIp(
+  remoteAddress: string | undefined,
+  xff: string | string[] | undefined
+): string | undefined {
+  const forwarded = (Array.isArray(xff) ? xff.join(',') : (xff ?? ''))
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
@@ -125,7 +128,11 @@ export function classify(input: ClassifyInput, authenticateDevice: DeviceAuthent
   if (isValidInternalToken(input.headers[INTERNAL_TOKEN_HEADER.toLowerCase()])) {
     return { kind: 'internal', deviceId: null };
   }
-  if (isLoopbackAddress(input.ip) && isLoopbackHost(input.headers.host) && isLoopbackOrigin(input.headers.origin)) {
+  if (
+    isLoopbackAddress(input.ip) &&
+    isLoopbackHost(input.headers.host) &&
+    isLoopbackOrigin(input.headers.origin)
+  ) {
     return { kind: 'local', deviceId: null };
   }
   return { kind: 'none', deviceId: null };

@@ -32,7 +32,13 @@ import {
   MICROSOFT_UNAVAILABLE,
   type AuthServiceConfig,
 } from './auth-service.js';
-import { buildGoogleAuthUrl, fetchGoogleEmail, fetchGoogleEvents, listGoogleCalendars, revokeGoogleToken } from './providers/google.js';
+import {
+  buildGoogleAuthUrl,
+  fetchGoogleEmail,
+  fetchGoogleEvents,
+  listGoogleCalendars,
+  revokeGoogleToken,
+} from './providers/google.js';
 import {
   fetchMicrosoftEmail,
   fetchMicrosoftEvents,
@@ -134,7 +140,10 @@ export function encodeState(nonce: string, returnUrl: string): string {
 
 export function decodeState(state: string): { n: string; r: string } | null {
   try {
-    const json = JSON.parse(Buffer.from(state, 'base64url').toString('utf-8')) as { n?: unknown; r?: unknown };
+    const json = JSON.parse(Buffer.from(state, 'base64url').toString('utf-8')) as {
+      n?: unknown;
+      r?: unknown;
+    };
     if (typeof json.n === 'string' && typeof json.r === 'string') return { n: json.n, r: json.r };
   } catch {
     // fall through
@@ -161,7 +170,9 @@ function overlaps(start: number, end: number, w: TimeWindow): boolean {
 function signatureOf(events: CachedEvent[]): string {
   const h = createHash('sha1');
   for (const e of [...events].sort((a, b) => a.start - b.start || a.key.localeCompare(b.key))) {
-    h.update(`${e.calendarId}|${e.key}|${e.start}|${e.end}|${e.title}|${e.location ?? ''}|${e.allDay}\n`);
+    h.update(
+      `${e.calendarId}|${e.key}|${e.start}|${e.end}|${e.title}|${e.location ?? ''}|${e.allDay}\n`
+    );
   }
   return h.digest('hex');
 }
@@ -180,13 +191,15 @@ export function compareScheduleEvents(a: ScheduleEvent, b: ScheduleEvent): numbe
 export function mergeCalendars(
   existing: StoredCalendar[],
   discovered: DiscoveredCalendar[],
-  paletteStart: number,
+  paletteStart: number
 ): StoredCalendar[] {
   let n = paletteStart;
   return discovered.map((d) => {
     const prev = existing.find((c) => c.id === d.id);
     const providerColor = normalizeColor(d.color);
-    const color = prev?.colorLocked ? prev.color : (providerColor ?? prev?.color ?? paletteColor(n++));
+    const color = prev?.colorLocked
+      ? prev.color
+      : (providerColor ?? prev?.color ?? paletteColor(n++));
     const cal: StoredCalendar = {
       id: d.id,
       name: d.name,
@@ -224,7 +237,9 @@ export class CalendarService {
     this.now = deps.now ?? Date.now;
     this.sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms).unref?.()));
     this.resolveHost = deps.resolveHost;
-    this.auth = deps.authService ?? new AuthServiceClient({ baseUrl: () => this.getSettings().authService, now: this.now });
+    this.auth =
+      deps.authService ??
+      new AuthServiceClient({ baseUrl: () => this.getSettings().authService, now: this.now });
   }
 
   // ---------------------------------------------------------------- lifecycle
@@ -288,7 +303,10 @@ export class CalendarService {
       cfg = await Promise.race([
         this.auth.getConfig(),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new CalendarError(AUTH_SERVICE_UNREACHABLE, 503)), waitMs);
+          timer = setTimeout(
+            () => reject(new CalendarError(AUTH_SERVICE_UNREACHABLE, 503)),
+            waitMs
+          );
           timer.unref?.();
         }),
       ]);
@@ -297,9 +315,16 @@ export class CalendarService {
     } finally {
       if (timer) clearTimeout(timer);
     }
-    const reason = (available: boolean, notAvailable: string) => (available ? null : (unreachable ?? notAvailable));
+    const reason = (available: boolean, notAvailable: string) =>
+      available ? null : (unreachable ?? notAvailable);
     return [
-      { id: 'google', name: 'Google Calendar', method: 'oauth', available: !!cfg?.google, reason: reason(!!cfg?.google, GOOGLE_UNAVAILABLE) },
+      {
+        id: 'google',
+        name: 'Google Calendar',
+        method: 'oauth',
+        available: !!cfg?.google,
+        reason: reason(!!cfg?.google, GOOGLE_UNAVAILABLE),
+      },
       {
         id: 'microsoft',
         name: 'Outlook / Microsoft 365',
@@ -325,13 +350,15 @@ export class CalendarService {
 
   patchAccount(
     id: string,
-    patch: { label?: string; calendars?: Array<{ id: string; enabled?: boolean; color?: string }> },
+    patch: { label?: string; calendars?: Array<{ id: string; enabled?: boolean; color?: string }> }
   ): CalendarAccount {
     const account = this.store.get(id);
     if (!account) throw new AccountNotFoundError();
     for (const c of patch.calendars ?? []) {
-      if (!account.calendars.some((x) => x.id === c.id)) throw new CalendarError('Unknown calendar', 400);
-      if (c.color !== undefined && !normalizeColor(c.color)) throw new CalendarError('Color must be #rrggbb', 400);
+      if (!account.calendars.some((x) => x.id === c.id))
+        throw new CalendarError('Unknown calendar', 400);
+      if (c.color !== undefined && !normalizeColor(c.color))
+        throw new CalendarError('Color must be #rrggbb', 400);
     }
     let newlyEnabled = false;
     const updated = this.store.update(id, (a) => {
@@ -382,7 +409,11 @@ export class CalendarService {
     const nonce = base64url(randomBytes(16));
     const verifier = base64url(randomBytes(32));
     const challenge = base64url(createHash('sha256').update(verifier).digest());
-    this.googleSessions.set(nonce, { verifier, returnUrl, expiresAt: this.now() + GOOGLE_SESSION_TTL_MS });
+    this.googleSessions.set(nonce, {
+      verifier,
+      returnUrl,
+      expiresAt: this.now() + GOOGLE_SESSION_TTL_MS,
+    });
     return { authUrl: buildGoogleAuthUrl(cfg, encodeState(nonce, returnUrl), challenge) };
   }
 
@@ -396,10 +427,18 @@ export class CalendarService {
     }
   }
 
-  async googleComplete(code: string, state: string): Promise<{ account: CalendarAccount; created: boolean }> {
+  async googleComplete(
+    code: string,
+    state: string
+  ): Promise<{ account: CalendarAccount; created: boolean }> {
     const decoded = decodeState(state);
     const session = decoded ? this.googleSessions.get(decoded.n) : undefined;
-    if (!decoded || !session || session.expiresAt <= this.now() || session.returnUrl !== decoded.r) {
+    if (
+      !decoded ||
+      !session ||
+      session.expiresAt <= this.now() ||
+      session.returnUrl !== decoded.r
+    ) {
       throw new CalendarError('This sign-in has expired. Start again from the app.', 400);
     }
     this.googleSessions.delete(decoded.n); // single use
@@ -412,10 +451,15 @@ export class CalendarService {
       email = await fetchGoogleEmail(tokens.accessToken);
       calendars = await listGoogleCalendars(tokens.accessToken);
     } catch (error) {
-      console.warn('[calendar] Google account lookup failed:', error instanceof Error ? error.message : error);
+      console.warn(
+        '[calendar] Google account lookup failed:',
+        error instanceof Error ? error.message : error
+      );
       throw new CalendarError(
-        error instanceof CalendarError ? error.message : "Couldn't read your Google calendars. Please try again.",
-        502,
+        error instanceof CalendarError
+          ? error.message
+          : "Couldn't read your Google calendars. Please try again.",
+        502
       );
     }
     return this.upsertOAuthAccount('google', 'Google', email, tokens, calendars);
@@ -426,12 +470,14 @@ export class CalendarService {
     defaultLabel: string,
     email: string | null,
     tokens: TokenSet,
-    calendars: DiscoveredCalendar[],
+    calendars: DiscoveredCalendar[]
   ): { account: CalendarAccount; created: boolean } {
     const now = this.now();
     const expiresAt = now + tokens.expiresIn * 1000;
     const existing = email
-      ? this.store.list().find((a) => a.provider === provider && a.email?.toLowerCase() === email.toLowerCase())
+      ? this.store
+          .list()
+          .find((a) => a.provider === provider && a.email?.toLowerCase() === email.toLowerCase())
       : undefined;
     let id: string;
     if (existing) {
@@ -479,7 +525,12 @@ export class CalendarService {
 
   // ---------------------------------------------------------------- Microsoft
 
-  async microsoftStart(): Promise<{ sessionId: string; userCode: string; verificationUri: string; expiresAt: string }> {
+  async microsoftStart(): Promise<{
+    sessionId: string;
+    userCode: string;
+    verificationUri: string;
+    expiresAt: string;
+  }> {
     const cfg = (await this.auth.getConfig()).microsoft;
     if (!cfg) throw new CalendarError(MICROSOFT_UNAVAILABLE, 400);
     this.pruneMicrosoftSessions();
@@ -508,12 +559,18 @@ export class CalendarService {
   microsoftStatus(sessionId: string): MicrosoftSessionStatus {
     const s = this.msSessions.get(sessionId);
     if (!s) throw new CalendarError('Sign-in session not found. Start again from the app.', 404);
-    if (s.status === 'pending' && this.now() >= s.expiresAt) this.finishMicrosoft(s, 'expired', 'The code expired. Start again.');
-    const account = s.accountId && this.store.get(s.accountId) ? this.getAccount(s.accountId) : null;
+    if (s.status === 'pending' && this.now() >= s.expiresAt)
+      this.finishMicrosoft(s, 'expired', 'The code expired. Start again.');
+    const account =
+      s.accountId && this.store.get(s.accountId) ? this.getAccount(s.accountId) : null;
     return { status: s.status, account, error: s.error };
   }
 
-  private finishMicrosoft(s: MicrosoftSession, status: MicrosoftSession['status'], error: string | null): void {
+  private finishMicrosoft(
+    s: MicrosoftSession,
+    status: MicrosoftSession['status'],
+    error: string | null
+  ): void {
     s.status = status;
     s.error = error;
     s.finishedAt = this.now();
@@ -522,7 +579,10 @@ export class CalendarService {
   private pruneMicrosoftSessions(): void {
     const now = this.now();
     for (const [k, s] of this.msSessions) {
-      if ((s.finishedAt && now - s.finishedAt > MS_SESSION_KEEP_MS) || now - s.expiresAt > MS_SESSION_KEEP_MS) {
+      if (
+        (s.finishedAt && now - s.finishedAt > MS_SESSION_KEEP_MS) ||
+        now - s.expiresAt > MS_SESSION_KEEP_MS
+      ) {
         this.msSessions.delete(k);
       }
     }
@@ -544,7 +604,11 @@ export class CalendarService {
         networkErrors = 0;
       } catch (error) {
         if (++networkErrors >= 5) {
-          this.finishMicrosoft(s, 'error', error instanceof Error ? error.message : 'Microsoft sign-in failed');
+          this.finishMicrosoft(
+            s,
+            'error',
+            error instanceof Error ? error.message : 'Microsoft sign-in failed'
+          );
           return;
         }
         continue;
@@ -568,14 +632,22 @@ export class CalendarService {
           try {
             const email = await fetchMicrosoftEmail(result.tokens.accessToken);
             const calendars = await listMicrosoftCalendars(result.tokens.accessToken);
-            const { account } = this.upsertOAuthAccount('microsoft', 'Outlook', email, result.tokens, calendars);
+            const { account } = this.upsertOAuthAccount(
+              'microsoft',
+              'Outlook',
+              email,
+              result.tokens,
+              calendars
+            );
             s.accountId = account.id;
             this.finishMicrosoft(s, 'complete', null);
           } catch (error) {
             this.finishMicrosoft(
               s,
               'error',
-              error instanceof CalendarError ? error.message : "Couldn't read your Outlook calendars. Please try again.",
+              error instanceof CalendarError
+                ? error.message
+                : "Couldn't read your Outlook calendars. Please try again."
             );
           }
           return;
@@ -594,7 +666,12 @@ export class CalendarService {
   }): Promise<{ account: CalendarAccount; created: boolean }> {
     const serverUrl = caldavServerUrl(input.provider, input.serverUrl);
     const username = input.username.trim();
-    const client = new CalDavClient({ provider: input.provider, serverUrl, username, password: input.password });
+    const client = new CalDavClient({
+      provider: input.provider,
+      serverUrl,
+      username,
+      password: input.password,
+    });
     let calendars: DiscoveredCalendar[];
     try {
       calendars = await client.discover();
@@ -609,7 +686,7 @@ export class CalendarService {
         (a) =>
           a.provider === input.provider &&
           a.secrets.serverUrl === serverUrl &&
-          a.secrets.username?.toLowerCase() === username.toLowerCase(),
+          a.secrets.username?.toLowerCase() === username.toLowerCase()
       );
     let id: string;
     if (existing) {
@@ -627,7 +704,9 @@ export class CalendarService {
       this.store.add({
         id,
         provider: input.provider,
-        label: input.label?.trim() || (input.provider === 'icloud' ? 'iCloud' : new URL(serverUrl).hostname),
+        label:
+          input.label?.trim() ||
+          (input.provider === 'icloud' ? 'iCloud' : new URL(serverUrl).hostname),
         email: username,
         status: 'ok',
         error: null,
@@ -656,12 +735,17 @@ export class CalendarService {
     } catch (error) {
       if (error instanceof UnsafeUrlError) {
         throw new CalendarError(
-          error.message === 'Invalid URL' ? "That isn't a valid link" : `That link can't be used: ${error.message.toLowerCase()}`,
-          400,
+          error.message === 'Invalid URL'
+            ? "That isn't a valid link"
+            : `That link can't be used: ${error.message.toLowerCase()}`,
+          400
         );
       }
       if (error instanceof UpstreamError) {
-        throw new CalendarError(`Couldn't download the calendar (${error.message.replace(/^Upstream /, '').toLowerCase()})`, 400);
+        throw new CalendarError(
+          `Couldn't download the calendar (${error.message.replace(/^Upstream /, '').toLowerCase()})`,
+          400
+        );
       }
       throw new CalendarError("Couldn't download the calendar", 400);
     }
@@ -675,7 +759,8 @@ export class CalendarService {
     try {
       parsed = parseIcs(text, this.syncWindow(), settings.timezone);
     } catch (error) {
-      if (error instanceof IcsParseError) throw new CalendarError("That link didn't return a calendar", 400);
+      if (error instanceof IcsParseError)
+        throw new CalendarError("That link didn't return a calendar", 400);
       throw error;
     }
     const now = this.now();
@@ -713,7 +798,10 @@ export class CalendarService {
   /** The window cached per account: covers any GET /api/schedule?days=1..30. */
   syncWindow(): TimeWindow {
     const now = this.now();
-    return { start: startOfToday(this.getSettings().timezone, now) - DAY_MS, end: now + 32 * DAY_MS };
+    return {
+      start: startOfToday(this.getSettings().timezone, now) - DAY_MS,
+      end: now + 32 * DAY_MS,
+    };
   }
 
   async syncAll(): Promise<void> {
@@ -741,7 +829,12 @@ export class CalendarService {
 
     try {
       const adapter = this.adapter(id, before.provider);
-      if (rediscover || !before.discoveredAt || this.now() - before.discoveredAt > DISCOVERY_INTERVAL_MS || before.calendars.length === 0) {
+      if (
+        rediscover ||
+        !before.discoveredAt ||
+        this.now() - before.discoveredAt > DISCOVERY_INTERVAL_MS ||
+        before.calendars.length === 0
+      ) {
         const discovered = await adapter.discover();
         this.store.update(id, (a) => {
           a.calendars = mergeCalendars(a.calendars, discovered, this.paletteStart(id));
@@ -776,17 +869,22 @@ export class CalendarService {
     } catch (error) {
       const reauth = error instanceof CalendarAuthError;
       const message =
-        error instanceof CalendarError || error instanceof CalendarAuthError ? error.message : 'Sync failed';
-      if (!(error instanceof CalendarError) && !reauth) console.error(`[calendar] sync ${id} failed:`, error);
+        error instanceof CalendarError || error instanceof CalendarAuthError
+          ? error.message
+          : 'Sync failed';
+      if (!(error instanceof CalendarError) && !reauth)
+        console.error(`[calendar] sync ${id} failed:`, error);
       if (!this.store.get(id)) return;
       this.store.update(id, (a) => {
         a.status = reauth ? 'reauth' : 'error';
         a.error = message;
       });
-      if (!prev) this.cache.set(id, { events: [], signature: signatureOf([]), syncedAt: this.now() });
+      if (!prev)
+        this.cache.set(id, { events: [], signature: signatureOf([]), syncedAt: this.now() });
     }
     const after = this.store.get(id);
-    if (changed || (after && (after.status !== prevStatus || after.error !== prevError))) this.notify();
+    if (changed || (after && (after.status !== prevStatus || after.error !== prevError)))
+      this.notify();
   }
 
   private adapter(id: string, provider: CalendarProviderId): Adapter {
@@ -805,7 +903,8 @@ export class CalendarService {
       case 'microsoft':
         return {
           discover: () => this.withToken(id, (t) => listMicrosoftCalendars(t)),
-          fetchEvents: (cal, w) => this.withToken(id, (t) => fetchMicrosoftEvents(t, cal.id, w, tz())),
+          fetchEvents: (cal, w) =>
+            this.withToken(id, (t) => fetchMicrosoftEvents(t, cal.id, w, tz())),
         };
       case 'icloud':
       case 'caldav': {
@@ -830,7 +929,15 @@ export class CalendarService {
         return {
           discover: async () => {
             const cal = account().calendars[0];
-            return [{ id: ICS_CALENDAR_ID, name: cal?.name ?? 'Calendar', color: null, primary: true, system: false }];
+            return [
+              {
+                id: ICS_CALENDAR_ID,
+                name: cal?.name ?? 'Calendar',
+                color: null,
+                primary: true,
+                system: false,
+              },
+            ];
           },
           fetchEvents: async (_cal, w) => {
             const url = account().secrets.icsUrl;
@@ -839,7 +946,8 @@ export class CalendarService {
             try {
               return parseIcs(text, w, tz()).events;
             } catch (error) {
-              if (error instanceof IcsParseError) throw new CalendarError("The calendar link didn't return a calendar");
+              if (error instanceof IcsParseError)
+                throw new CalendarError("The calendar link didn't return a calendar");
               throw error;
             }
           },
@@ -902,7 +1010,7 @@ export class CalendarService {
    */
   async getEvents(
     window: TimeWindow,
-    waitMs = 5000,
+    waitMs = 5000
   ): Promise<{ events: ScheduleEvent[]; accounts: ScheduleAccountSummary[]; updatedAt: string }> {
     const all = this.store.list();
     const missing = all.filter((a) => !this.cache.has(a.id));
@@ -938,7 +1046,12 @@ export class CalendarService {
     events.sort(compareScheduleEvents);
     return {
       events,
-      accounts: accounts.map((a) => ({ id: a.id, label: a.label, provider: a.provider, status: a.status })),
+      accounts: accounts.map((a) => ({
+        id: a.id,
+        label: a.label,
+        provider: a.provider,
+        status: a.status,
+      })),
       updatedAt: this.updatedAt(),
     };
   }

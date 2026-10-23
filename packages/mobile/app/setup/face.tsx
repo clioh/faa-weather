@@ -68,10 +68,16 @@ export default function FaceRegistrationScreen() {
   // Someone else (Settings › People): `person=new` adds a new person, or
   // personId/personName re-registers someone added earlier who hasn't joined.
   // Otherwise this phone's own person.
-  const params = useLocalSearchParams<{ person?: string; personId?: string; personName?: string }>();
+  const params = useLocalSearchParams<{
+    person?: string;
+    personId?: string;
+    personName?: string;
+  }>();
   const addingNew = params.person === 'new';
   const forOther = addingNew || typeof params.personId === 'string';
-  const otherId = useRef<string | null>(typeof params.personId === 'string' ? params.personId : null);
+  const otherId = useRef<string | null>(
+    typeof params.personId === 'string' ? params.personId : null
+  );
 
   const [step, setStep] = useState<'name' | 'capture' | 'complete'>('name');
   // Your own profile already has a name; ask only for a new person (or no profile).
@@ -184,7 +190,8 @@ export default function FaceRegistrationScreen() {
         api
           .getRegistration()
           .then((state) => {
-            if (!closed && state.active) setRegistration((prev) => ({ ...state, action: prev?.action }));
+            if (!closed && state.active)
+              setRegistration((prev) => ({ ...state, action: prev?.action }));
           })
           .catch(() => {});
       };
@@ -228,7 +235,8 @@ export default function FaceRegistrationScreen() {
         // A new person exists on the mirror before their face does; created
         // once, so a retry doesn't add them twice.
         if (!otherId.current) otherId.current = uuidv4();
-        if (addingNew) await api.createUser({ id: otherId.current, name: name.trim(), invited: true });
+        if (addingNew)
+          await api.createUser({ id: otherId.current, name: name.trim(), invited: true });
         personId = otherId.current;
       }
 
@@ -287,9 +295,11 @@ export default function FaceRegistrationScreen() {
   };
 
   const collected = registration?.samplesCollected || 0;
-  const currentInstruction = CAPTURE_INSTRUCTIONS[Math.min(collected, CAPTURE_INSTRUCTIONS.length - 1)];
+  const currentInstruction =
+    CAPTURE_INSTRUCTIONS[Math.min(collected, CAPTURE_INSTRUCTIONS.length - 1)];
   // Right after a photo the stored hint is stale until the next one arrives.
-  const hint = registration?.action === 'captured' ? null : guidanceHint(registration?.guidance, collected);
+  const hint =
+    registration?.action === 'captured' ? null : guidanceHint(registration?.guidance, collected);
 
   // Name entry step
   if (step === 'name') {
@@ -383,7 +393,7 @@ export default function FaceRegistrationScreen() {
               )}
             </View>
             <Text style={styles.instructionText}>{currentInstruction.text}</Text>
-            <Text style={styles.hintText}>{counting ? 'Hold still' : hint ?? ' '}</Text>
+            <Text style={styles.hintText}>{counting ? 'Hold still' : (hint ?? ' ')}</Text>
           </View>
 
           {/* Progress */}
@@ -433,7 +443,10 @@ export default function FaceRegistrationScreen() {
   const handleComplete = async () => {
     if (forOther) {
       if (otherId.current) {
-        router.replace({ pathname: '/invite-person', params: { userId: otherId.current, name: name.trim() } });
+        router.replace({
+          pathname: '/invite-person',
+          params: { userId: otherId.current, name: name.trim() },
+        });
       } else {
         goBack('/settings');
       }
@@ -470,7 +483,8 @@ export default function FaceRegistrationScreen() {
             <>
               <Text style={styles.successTitle}>{`${name} is registered`}</Text>
               <Text style={styles.subtitle}>
-                The mirror will recognize {name} now. Invite them so they can choose what it shows them.
+                The mirror will recognize {name} now. Invite them so they can choose what it shows
+                them.
               </Text>
             </>
           ) : (

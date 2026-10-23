@@ -78,7 +78,13 @@ export type LicenseErrorCode =
 
 export type SubmitKeyResult =
   | { ok: true; status: LicenseStatus }
-  | { ok: false; code: LicenseErrorCode; message: string; httpStatus: number; status: LicenseStatus };
+  | {
+      ok: false;
+      code: LicenseErrorCode;
+      message: string;
+      httpStatus: number;
+      status: LicenseStatus;
+    };
 
 /** Persisted row (db/index.ts license_state). */
 export interface LicenseRecord {
@@ -141,12 +147,18 @@ const MESSAGES: Record<LicenseState, string | undefined> = {
     'This license is active on another mirror. Release it at skyglass.dev/license, then enter the key again.',
 };
 const KEY_FILE_ACTIVATING = 'Activating the pre-installed license…';
-const KEY_FILE_OFFLINE = 'Connect the mirror to the internet to activate the pre-installed license.';
+const KEY_FILE_OFFLINE =
+  'Connect the mirror to the internet to activate the pre-installed license.';
 const KEY_FILE_USED =
   'The pre-installed license was already used on this mirror. Enter your license key in the SkyGlass app.';
 const REBIND_CHECKING = 'Checking the license for this mirror…';
 
-const ACTIVATE_REJECTIONS = ['not_found', 'bound_to_another_device', 'revoked', 'rate_limited'] as const;
+const ACTIVATE_REJECTIONS = [
+  'not_found',
+  'bound_to_another_device',
+  'revoked',
+  'rate_limited',
+] as const;
 const REFRESH_REJECTIONS = ['not_found', 'released', 'revoked'] as const;
 
 type CallResult =
@@ -292,7 +304,9 @@ export class LicenseManager {
     if (this.rec.token && (state === 'active' || state === 'expired' || state === 'unlicensed')) {
       const check = verifyToken(this.rec.token, this.deps.fingerprint().value, this.now());
       if (!check.ok && check.reason === 'wrong_device' && this.rec.license_key) {
-        console.warn('[License] Stored token belongs to another device; activating the stored key here');
+        console.warn(
+          '[License] Stored token belongs to another device; activating the stored key here'
+        );
         this.needsRebind = true;
         if (state !== 'unlicensed') this.persist({ ...this.rec, state: 'unlicensed' });
       } else if (state === 'active' || state === 'expired') {
@@ -334,7 +348,11 @@ export class LicenseManager {
       }
       const key = normalizeLicenseKey(input);
       if (!key) {
-        return this.fail('invalid_key', 'That is not a valid license key (format XXXX-XXXX-XXXX-XXXX).', 400);
+        return this.fail(
+          'invalid_key',
+          'That is not a valid license key (format XXXX-XXXX-XXXX-XXXX).',
+          400
+        );
       }
 
       const result = await this.call('activate', key, ACTIVATE_REJECTIONS);
@@ -345,13 +363,25 @@ export class LicenseManager {
       if (result.kind === 'error') {
         console.warn(`[License] Activation failed: ${result.message}`);
         return result.network
-          ? this.fail('network_error', 'Could not reach the license server. Check the mirror’s internet connection and try again.', 503)
-          : this.fail('server_error', 'The license server returned an unexpected response. Try again later.', 502);
+          ? this.fail(
+              'network_error',
+              'Could not reach the license server. Check the mirror’s internet connection and try again.',
+              503
+            )
+          : this.fail(
+              'server_error',
+              'The license server returned an unexpected response. Try again later.',
+              502
+            );
       }
 
       const code = result.code as (typeof ACTIVATE_REJECTIONS)[number];
       if (code === 'rate_limited') {
-        return this.fail(code, result.message || 'Too many activation attempts. Try again in an hour.', 429);
+        return this.fail(
+          code,
+          result.message || 'Too many activation attempts. Try again in an hour.',
+          429
+        );
       }
       const httpStatus = code === 'not_found' ? 404 : code === 'revoked' ? 403 : 409;
       const message =
@@ -390,7 +420,8 @@ export class LicenseManager {
       else if (!this.rec.license_key) await this.tryKeyFile(true);
       // A refresh can't help a key that was never bound here (it would only
       // answer `released`); those need a key entered from the app.
-      else if (this.rec.state !== 'bound_elsewhere' && this.rec.state !== 'unlicensed') await this.doRefresh();
+      else if (this.rec.state !== 'bound_elsewhere' && this.rec.state !== 'unlicensed')
+        await this.doRefresh();
       return this.getStatus();
     });
   }
@@ -414,7 +445,8 @@ export class LicenseManager {
         return;
       }
       if (state === 'active') {
-        if (since >= (this.lastAttemptFailed ? RETRY_INTERVAL_MS : REFRESH_INTERVAL_MS)) await this.doRefresh();
+        if (since >= (this.lastAttemptFailed ? RETRY_INTERVAL_MS : REFRESH_INTERVAL_MS))
+          await this.doRefresh();
       } else if (state === 'expired') {
         if (since >= RETRY_INTERVAL_MS) await this.doRefresh();
       }
@@ -482,7 +514,9 @@ export class LicenseManager {
       token: result.token,
       state: 'active',
       activated_at:
-        result.activatedAt ?? (sameKey ? this.rec.activated_at : null) ?? iso(result.payload.iat * 1000),
+        result.activatedAt ??
+        (sameKey ? this.rec.activated_at : null) ??
+        iso(result.payload.iat * 1000),
       last_checked_at: iso(this.now()),
       last_error: null,
     });
@@ -507,7 +541,11 @@ export class LicenseManager {
       return;
     }
     const state: StoredState =
-      result.code === 'released' ? 'released' : result.code === 'revoked' ? 'revoked' : 'unlicensed';
+      result.code === 'released'
+        ? 'released'
+        : result.code === 'revoked'
+          ? 'revoked'
+          : 'unlicensed';
     console.warn(`[License] Refresh rejected: ${result.code}`);
     this.persist({
       ...this.rec,
@@ -540,7 +578,9 @@ export class LicenseManager {
       return;
     }
     if (result.kind === 'error' || result.code === 'rate_limited') {
-      console.warn(`[License] Re-activation on this device deferred: ${result.kind === 'error' ? result.message : 'rate limited'}`);
+      console.warn(
+        `[License] Re-activation on this device deferred: ${result.kind === 'error' ? result.message : 'rate limited'}`
+      );
       this.emitIfChanged();
       return;
     }
@@ -588,7 +628,10 @@ export class LicenseManager {
       if (!this.keyFileInvalid) {
         this.keyFileInvalid = true;
         console.warn(`[License] ${path} does not contain a valid license key`);
-        this.persist({ ...this.rec, last_error: 'The pre-installed license file does not contain a valid key.' });
+        this.persist({
+          ...this.rec,
+          last_error: 'The pre-installed license file does not contain a valid key.',
+        });
       }
       return null;
     }
@@ -596,7 +639,10 @@ export class LicenseManager {
     if (this.readKeyFileMarker() === sha256(key)) {
       // Picked up before and the DB lost it (or was reset): a released
       // license must not silently re-bind here. The key has to come from the app.
-      if (!this.keyFileUsed) console.warn('[License] The key file was already used on this mirror; not activating it again');
+      if (!this.keyFileUsed)
+        console.warn(
+          '[License] The key file was already used on this mirror; not activating it again'
+        );
       this.keyFileUsed = true;
       this.keyFilePending = false;
       return null;
@@ -699,7 +745,11 @@ export class LicenseManager {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (error) {
-      return { kind: 'error', network: true, message: `License server unreachable: ${(error as Error).message}` };
+      return {
+        kind: 'error',
+        network: true,
+        message: `License server unreachable: ${(error as Error).message}`,
+      };
     }
 
     let data: Record<string, unknown> = {};
@@ -715,7 +765,11 @@ export class LicenseManager {
       const check = verifyToken(data.token, fp.value, this.now());
       if (!check.ok) {
         console.error(`[License] Rejected token from ${action}: ${check.reason}`);
-        return { kind: 'error', network: false, message: `License server returned an invalid token (${check.reason})` };
+        return {
+          kind: 'error',
+          network: false,
+          message: `License server returned an invalid token (${check.reason})`,
+        };
       }
       return {
         kind: 'ok',
@@ -751,7 +805,8 @@ export class LicenseManager {
     else if (keyFilePending) {
       // Right after boot the network is usually still coming up: only blame
       // the connection once the fast-retry window has passed.
-      message = this.lastAttemptFailed && !this.inFastWindow() ? KEY_FILE_OFFLINE : KEY_FILE_ACTIVATING;
+      message =
+        this.lastAttemptFailed && !this.inFastWindow() ? KEY_FILE_OFFLINE : KEY_FILE_ACTIVATING;
     } else if (!this.rec.license_key && this.keyFileUsed) message = KEY_FILE_USED;
     else message = this.rec.last_error ?? MESSAGES.unlicensed;
     return {

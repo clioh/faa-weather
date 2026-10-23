@@ -82,7 +82,15 @@ async function fetchRunningVersion(): Promise<string | null> {
 }
 
 // Circular progress component
-function CircularProgress({ percent, size = 60, strokeWidth = 4 }: { percent: number; size?: number; strokeWidth?: number }) {
+function CircularProgress({
+  percent,
+  size = 60,
+  strokeWidth = 4,
+}: {
+  percent: number;
+  size?: number;
+  strokeWidth?: number;
+}) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percent / 100) * circumference;
@@ -113,19 +121,21 @@ function CircularProgress({ percent, size = 60, strokeWidth = 4 }: { percent: nu
           style={{ transition: 'stroke-dashoffset 0.3s ease' }}
         />
       </svg>
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: size,
-        height: size,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: 'var(--font-mono)',
-        fontSize: '13px',
-        fontWeight: 500,
-      }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: size,
+          height: size,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '13px',
+          fontWeight: 500,
+        }}
+      >
         {percent}%
       </div>
     </div>
@@ -135,11 +145,20 @@ function CircularProgress({ percent, size = 60, strokeWidth = 4 }: { percent: nu
 // Animated download icon
 function DownloadIcon({ animating }: { animating: boolean }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-      <g style={{
-        animation: animating ? 'downloadBounce 0.6s ease-in-out infinite' : 'none',
-      }}>
+      <g
+        style={{
+          animation: animating ? 'downloadBounce 0.6s ease-in-out infinite' : 'none',
+        }}
+      >
         <polyline points="7,10 12,15 17,10" />
         <line x1="12" y1="15" x2="12" y2="3" />
       </g>
@@ -160,8 +179,15 @@ function PhaseIcon({ phase }: { phase: DownloadProgress['phase'] }) {
   }
   if (phase === 'extracting') {
     return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-        style={{ animation: 'spin 1s linear infinite' }}>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        style={{ animation: 'spin 1s linear infinite' }}
+      >
         <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
         <style>{`
           @keyframes spin {
@@ -173,8 +199,15 @@ function PhaseIcon({ phase }: { phase: DownloadProgress['phase'] }) {
   }
   if (phase === 'installing') {
     return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-        style={{ animation: 'pulse 1s ease-in-out infinite' }}>
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        style={{ animation: 'pulse 1s ease-in-out infinite' }}
+      >
         <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
         <style>{`
           @keyframes pulse {
@@ -187,14 +220,28 @@ function PhaseIcon({ phase }: { phase: DownloadProgress['phase'] }) {
   }
   if (phase === 'complete') {
     return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2">
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--color-accent)"
+        strokeWidth="2"
+      >
         <path d="M20 6L9 17l-5-5" />
       </svg>
     );
   }
   if (phase === 'error') {
     return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-negative)" strokeWidth="2">
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--color-negative)"
+        strokeWidth="2"
+      >
         <circle cx="12" cy="12" r="10" />
         <line x1="15" y1="9" x2="9" y2="15" />
         <line x1="9" y1="9" x2="15" y2="15" />
@@ -213,7 +260,12 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
   // never be dismissed.
   const [actionError, setActionError] = useState<string | null>(null);
   const unmounted = useRef(false);
-  useEffect(() => () => { unmounted.current = true; }, []);
+  useEffect(
+    () => () => {
+      unmounted.current = true;
+    },
+    []
+  );
   // expanded state reserved for future use with detailed update info
 
   const checkForUpdates = useCallback(async () => {
@@ -337,7 +389,8 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
   const isDownloading = downloadProgress.phase === 'downloading';
   const isProcessing = ['extracting', 'installing'].includes(downloadProgress.phase);
   const errorMessage =
-    actionError ?? (downloadProgress.phase === 'error' ? downloadProgress.error || 'Something went wrong' : null);
+    actionError ??
+    (downloadProgress.phase === 'error' ? downloadProgress.error || 'Something went wrong' : null);
   const isActive = isDownloading || isProcessing;
 
   // Phase labels
@@ -361,10 +414,12 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
 
   return (
     <div style={styles.container}>
-      <div style={{
-        ...styles.notification,
-        maxWidth: showDetails ? '400px' : '350px',
-      }}>
+      <div
+        style={{
+          ...styles.notification,
+          maxWidth: showDetails ? '400px' : '350px',
+        }}
+      >
         {/* Header */}
         <div style={styles.header}>
           <span style={styles.icon}>
@@ -374,11 +429,7 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
             {isActive ? phaseLabels[downloadProgress.phase] : 'Update available'}
           </span>
           {!isActive && (
-            <button
-              style={styles.closeButton}
-              onClick={() => setDismissed(true)}
-              title="Dismiss"
-            >
+            <button style={styles.closeButton} onClick={() => setDismissed(true)} title="Dismiss">
               &times;
             </button>
           )}
@@ -393,7 +444,8 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
                 {isDownloading && (
                   <>
                     <div style={styles.progressText}>
-                      {formatBytes(downloadProgress.bytesDownloaded)} / {formatBytes(downloadProgress.totalBytes)}
+                      {formatBytes(downloadProgress.bytesDownloaded)} /{' '}
+                      {formatBytes(downloadProgress.totalBytes)}
                     </div>
                     <div style={styles.progressMeta}>
                       {formatSpeed(downloadProgress.speed)}
@@ -406,19 +458,19 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
                   </>
                 )}
                 {isProcessing && (
-                  <div style={styles.progressText}>
-                    {phaseLabels[downloadProgress.phase]}
-                  </div>
+                  <div style={styles.progressText}>{phaseLabels[downloadProgress.phase]}</div>
                 )}
               </div>
             </div>
 
             {/* Progress bar */}
             <div style={styles.progressBarContainer}>
-              <div style={{
-                ...styles.progressBar,
-                width: `${downloadProgress.percent}%`,
-              }} />
+              <div
+                style={{
+                  ...styles.progressBar,
+                  width: `${downloadProgress.percent}%`,
+                }}
+              />
             </div>
           </div>
         )}
@@ -438,9 +490,7 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
               <span style={styles.version}>
                 v{updateStatus.currentVersion} → v{updateStatus.latestVersion}
               </span>
-              <span style={styles.releaseInfo}>
-                {formatBytes(updateStatus.downloadSize)}
-              </span>
+              <span style={styles.releaseInfo}>{formatBytes(updateStatus.downloadSize)}</span>
             </div>
 
             {updateStatus.releaseName && (
@@ -450,7 +500,14 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
             {/* Downloaded badge */}
             {updateStatus.downloadReady && (
               <div style={styles.readyBadge}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
                 Downloaded, ready to install
@@ -465,9 +522,7 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
             <div style={styles.changesTitle}>
               Release notes
               {updateStatus.publishedAt && (
-                <span style={styles.releaseDate}>
-                  {formatDate(updateStatus.publishedAt)}
-                </span>
+                <span style={styles.releaseDate}>{formatDate(updateStatus.publishedAt)}</span>
               )}
             </div>
             <ul style={styles.changesList}>
@@ -483,25 +538,16 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
         {/* Actions */}
         {!isActive && (
           <div style={styles.actions}>
-            <button
-              style={styles.detailsButton}
-              onClick={() => setShowDetails(!showDetails)}
-            >
+            <button style={styles.detailsButton} onClick={() => setShowDetails(!showDetails)}>
               {showDetails ? 'Hide' : 'Details'}
             </button>
 
             {updateStatus.downloadReady ? (
-              <button
-                style={styles.updateButton}
-                onClick={applyUpdate}
-              >
+              <button style={styles.updateButton} onClick={applyUpdate}>
                 Install now
               </button>
             ) : (
-              <button
-                style={styles.downloadButton}
-                onClick={downloadUpdate}
-              >
+              <button style={styles.downloadButton} onClick={downloadUpdate}>
                 <DownloadIcon animating={false} />
                 <span>Download</span>
               </button>

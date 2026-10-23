@@ -38,7 +38,10 @@ export function normalizeLicenseKey(input: string): string | null {
  * I) are kept so validation can point them out instead of silently eating them.
  */
 export function formatLicenseKeyInput(input: string): string {
-  const raw = input.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, LICENSE_KEY_LENGTH);
+  const raw = input
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, LICENSE_KEY_LENGTH);
   return groupInFours(raw);
 }
 

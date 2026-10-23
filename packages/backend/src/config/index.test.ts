@@ -33,9 +33,9 @@ describe('display.orientation', () => {
   it('normalizes the value merged from config.yaml', () => {
     const legacy = parseConfig(DEFAULTS, 'display:\n  orientation: portrait\n');
     expect(legacy.display).toMatchObject({ orientation: 'portrait-cw', presence_timeout: 120 });
-    expect(parseConfig(DEFAULTS, 'display:\n  orientation: portrait-ccw\n').display.orientation).toBe(
-      'portrait-ccw'
-    );
+    expect(
+      parseConfig(DEFAULTS, 'display:\n  orientation: portrait-ccw\n').display.orientation
+    ).toBe('portrait-ccw');
   });
 
   it('keeps landscape for a config.yaml with no display block, or an empty one', () => {
@@ -45,10 +45,13 @@ describe('display.orientation', () => {
 
   it('uses the pre-flashed orientation file until config.yaml sets one', () => {
     expect(parseConfig(DEFAULTS, null, 'portrait-ccw\n').display.orientation).toBe('portrait-ccw');
-    expect(parseConfig(DEFAULTS, 'airport: KSFO\n', 'portrait').display.orientation).toBe('portrait-cw');
-    expect(parseConfig(DEFAULTS, 'display:\n  orientation: landscape\n', 'portrait-ccw').display.orientation).toBe(
-      'landscape'
+    expect(parseConfig(DEFAULTS, 'airport: KSFO\n', 'portrait').display.orientation).toBe(
+      'portrait-cw'
     );
+    expect(
+      parseConfig(DEFAULTS, 'display:\n  orientation: landscape\n', 'portrait-ccw').display
+        .orientation
+    ).toBe('landscape');
     expect(parseConfig(DEFAULTS, null, 'upside down').display.orientation).toBe('landscape');
   });
 });

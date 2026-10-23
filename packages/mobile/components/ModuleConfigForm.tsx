@@ -102,7 +102,7 @@ export function ModuleConfigForm({ definition, config, onChange }: ModuleConfigF
         return (
           <NumberStepper
             label={field.label}
-            value={Number.isFinite(num) ? num : field.min ?? 0}
+            value={Number.isFinite(num) ? num : (field.min ?? 0)}
             min={field.min}
             max={field.max}
             step={field.step}
@@ -138,7 +138,8 @@ export function ModuleConfigForm({ definition, config, onChange }: ModuleConfigF
       }
 
       case 'airport': {
-        const icao = typeof value === 'string' && value.trim() ? value.trim().toUpperCase() : undefined;
+        const icao =
+          typeof value === 'string' && value.trim() ? value.trim().toUpperCase() : undefined;
         return (
           <PickerRow
             label={field.label}

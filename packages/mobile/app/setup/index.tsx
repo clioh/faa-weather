@@ -188,18 +188,14 @@ export default function SetupIndex() {
     </View>
   );
 
-  const completedSteps = status
-    ? steps.filter((step) => step.isComplete(status)).length
-    : 0;
+  const completedSteps = status ? steps.filter((step) => step.isComplete(status)).length : 0;
   const progressPercent = (completedSteps / steps.length) * 100;
   const allComplete = completedSteps === steps.length;
 
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <View style={[styles.errorBackButton, { top: insets.top + spacing.xs }]}>
-          {backButton}
-        </View>
+        <View style={[styles.errorBackButton, { top: insets.top + spacing.xs }]}>{backButton}</View>
         <Spinner size="large" />
         <Text style={styles.loadingText}>Loading setup status...</Text>
       </View>
@@ -210,9 +206,7 @@ export default function SetupIndex() {
     return (
       <View style={styles.centerContainer}>
         <Ionicons name="warning-outline" size={40} color={colors.warning} />
-        <View style={[styles.errorBackButton, { top: insets.top + spacing.xs }]}>
-          {backButton}
-        </View>
+        <View style={[styles.errorBackButton, { top: insets.top + spacing.xs }]}>{backButton}</View>
         <Text style={styles.errorTitle}>Connection Error</Text>
         <Text style={styles.errorText}>{error}</Text>
         {unreachable ? (
@@ -232,9 +226,7 @@ export default function SetupIndex() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Setup Your Mirror</Text>
-          <Text style={styles.subtitle}>
-            Complete these steps to get your SkyGlass ready
-          </Text>
+          <Text style={styles.subtitle}>Complete these steps to get your SkyGlass ready</Text>
         </View>
 
         {/* Progress bar */}
@@ -266,7 +258,13 @@ export default function SetupIndex() {
                 onPress={() => handleStepPress(step)}
                 accessibilityRole="button"
                 accessibilityLabel={`${step.title}, ${
-                  stepStatus === 'complete' ? 'done' : locked ? 'locked' : current ? 'next' : 'not started'
+                  stepStatus === 'complete'
+                    ? 'done'
+                    : locked
+                      ? 'locked'
+                      : current
+                        ? 'next'
+                        : 'not started'
                 }`}
               >
                 <View
@@ -286,7 +284,9 @@ export default function SetupIndex() {
                 </View>
 
                 <View style={styles.stepContent}>
-                  <Text style={[styles.stepTitle, stepStatus === 'pending' && styles.stepTitlePending]}>
+                  <Text
+                    style={[styles.stepTitle, stepStatus === 'pending' && styles.stepTitlePending]}
+                  >
                     {step.title}
                   </Text>
                   <Text style={styles.stepDescription}>

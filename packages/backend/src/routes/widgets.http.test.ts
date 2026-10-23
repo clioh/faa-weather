@@ -115,11 +115,16 @@ const upstream = vi.fn<Upstream>();
 const upstreamUrls: string[] = [];
 
 function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
 /** Route stubbed upstream calls by URL prefix; anything else fails like a dead network. */
-function routeUpstream(routes: Array<[string, (url: string) => Response | Promise<Response>]>): void {
+function routeUpstream(
+  routes: Array<[string, (url: string) => Response | Promise<Response>]>
+): void {
   upstream.mockImplementation(async (url) => {
     for (const [prefix, handler] of routes) if (url.startsWith(prefix)) return handler(url);
     throw new TypeError(`fetch failed (unrouted in test: ${url})`);
@@ -134,7 +139,9 @@ function snapshot(p: string): string {
     return 'missing';
   }
 }
-const repoDataPaths = ['todos.json', 'photos', 'calendar-accounts.json'].map((f) => path.join(REPO_DATA, f));
+const repoDataPaths = ['todos.json', 'photos', 'calendar-accounts.json'].map((f) =>
+  path.join(REPO_DATA, f)
+);
 const repoDataBefore = repoDataPaths.map(snapshot);
 
 let server: Server;
@@ -159,7 +166,8 @@ const sendJson = (method: string, p: string, body: unknown) =>
 
 beforeAll(async () => {
   vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const url =
+      typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     upstreamUrls.push(url);
     return upstream(url, init);
   });
@@ -207,17 +215,25 @@ describe('GET /api/news', () => {
     expect(body.source).toBe('aviation');
     expect(Number.isFinite(Date.parse(body.fetchedAt))).toBe(true);
     expect(body.items.map((i: { title: string }) => i.title)).toEqual(['Newest', 'Older & wiser']);
-    expect(body.items[0]).toMatchObject({ link: 'https://news.test/b', publishedAt: '2026-10-20T10:00:00.000Z' });
+    expect(body.items[0]).toMatchObject({
+      link: 'https://news.test/b',
+      publishedAt: '2026-10-20T10:00:00.000Z',
+    });
     expect(body.items[0].id).toMatch(/^[0-9a-f]{16}$/);
     expect(ssrf.safeFetchText).toHaveBeenCalledWith('https://avweb.com/feed/', expect.anything());
   });
 
   it('fetches a custom feed through the guard', async () => {
     ssrf.safeFetchText.mockResolvedValue(RSS);
-    const res = await api(`/api/news?source=custom&url=${encodeURIComponent('https://feeds.example.org/rss')}`);
+    const res = await api(
+      `/api/news?source=custom&url=${encodeURIComponent('https://feeds.example.org/rss')}`
+    );
     expect(res.status).toBe(200);
     expect((await res.json()).items).toHaveLength(3);
-    expect(ssrf.safeFetchText).toHaveBeenCalledWith('https://feeds.example.org/rss', expect.anything());
+    expect(ssrf.safeFetchText).toHaveBeenCalledWith(
+      'https://feeds.example.org/rss',
+      expect.anything()
+    );
   });
 
   it('rejects bad query params with 400 and details', async () => {
@@ -229,12 +245,20 @@ describe('GET /api/news', () => {
       expect(Array.isArray(body.details), q).toBe(true);
     }
     const missing = await (await api('/api/news?source=custom')).json();
-    expect(missing.details).toEqual([{ field: 'url', message: 'url is required for custom source' }]);
+    expect(missing.details).toEqual([
+      { field: 'url', message: 'url is required for custom source' },
+    ]);
     expect(ssrf.safeFetchText).not.toHaveBeenCalled();
   });
 
   it('rejects unsafe custom URLs with 400 before fetching', async () => {
-    for (const u of ['http://169.254.169.254/latest/meta-data', 'http://127.0.0.1:3001/api/config', 'file:///etc/passwd', 'http://localhost/x', 'not a url']) {
+    for (const u of [
+      'http://169.254.169.254/latest/meta-data',
+      'http://127.0.0.1:3001/api/config',
+      'file:///etc/passwd',
+      'http://localhost/x',
+      'not a url',
+    ]) {
       const res = await api(`/api/news?source=custom&url=${encodeURIComponent(u)}`);
       expect(res.status, u).toBe(400);
       expect(typeof (await res.json()).error, u).toBe('string');
@@ -257,7 +281,9 @@ describe('GET /api/news', () => {
   });
 
   it('never leaks a non-upstream error message', async () => {
-    ssrf.safeFetchText.mockRejectedValue(new Error('ECONNREFUSED 10.0.0.5:443 secret-internal-host'));
+    ssrf.safeFetchText.mockRejectedValue(
+      new Error('ECONNREFUSED 10.0.0.5:443 secret-internal-host')
+    );
     const res = await api('/api/news?source=sports');
     expect(res.status).toBe(502);
     const body = await res.json();
@@ -291,7 +317,13 @@ function yahooChart(symbol: string, price: number, prev: number, closes: Array<n
     chart: {
       result: [
         {
-          meta: { symbol, shortName: `${symbol} Corp`, regularMarketPrice: price, previousClose: prev, regularMarketTime: 1760990400 },
+          meta: {
+            symbol,
+            shortName: `${symbol} Corp`,
+            regularMarketPrice: price,
+            previousClose: prev,
+            regularMarketTime: 1760990400,
+          },
           indicators: { quote: [{ close: closes }] },
         },
       ],
@@ -309,9 +341,27 @@ describe('GET /api/finance/stocks', () => {
 
   it('returns quotes from the SkyGlass service with name and Yahoo history', async () => {
     routeUpstream([
-      [`${SVC}/api/data/stocks?symbols=AAPL`, () =>
-        json({ version: 1, quotes: [{ symbol: 'AAPL', status: 'ok', price: 200, change: 2, changePercent: 1.0101, asOf: '2026-10-20T20:00:00Z' }] })],
-      [`${SVC}/api/data/stock-profiles?symbols=AAPL`, () => json({ version: 1, profiles: [{ symbol: 'AAPL', name: 'Apple Inc' }] })],
+      [
+        `${SVC}/api/data/stocks?symbols=AAPL`,
+        () =>
+          json({
+            version: 1,
+            quotes: [
+              {
+                symbol: 'AAPL',
+                status: 'ok',
+                price: 200,
+                change: 2,
+                changePercent: 1.0101,
+                asOf: '2026-10-20T20:00:00Z',
+              },
+            ],
+          }),
+      ],
+      [
+        `${SVC}/api/data/stock-profiles?symbols=AAPL`,
+        () => json({ version: 1, profiles: [{ symbol: 'AAPL', name: 'Apple Inc' }] }),
+      ],
       [`${YAHOO}AAPL`, () => json(yahooChart('AAPL', 199, 198, [190, null, 195, 198]))],
     ]);
     const res = await api('/api/finance/stocks?symbols=aapl');
@@ -340,7 +390,15 @@ describe('GET /api/finance/stocks', () => {
     const res = await api('/api/finance/stocks?symbols=MSFT');
     expect(res.status).toBe(200);
     const [q] = (await res.json()).quotes;
-    expect(q).toMatchObject({ symbol: 'MSFT', name: 'MSFT Corp', price: 410, change: 10, changePercent: 2.5, currency: 'USD', history: [400, 405, 410] });
+    expect(q).toMatchObject({
+      symbol: 'MSFT',
+      name: 'MSFT Corp',
+      price: 410,
+      change: 10,
+      changePercent: 2.5,
+      currency: 'USD',
+      history: [400, 405, 410],
+    });
     expect(finance.stockProvider()).toBe('yahoo');
   });
 
@@ -354,18 +412,33 @@ describe('GET /api/finance/stocks', () => {
     expect(res.status).toBe(200);
     const { quotes } = await res.json();
     expect(quotes.map((q: { symbol: string }) => q.symbol)).toEqual(['IBM', 'NOPE']);
-    expect(quotes[1]).toMatchObject({ symbol: 'NOPE', price: null, change: null, changePercent: null, history: [] });
+    expect(quotes[1]).toMatchObject({
+      symbol: 'NOPE',
+      price: null,
+      change: null,
+      changePercent: null,
+      history: [],
+    });
   });
 
   it('answers 502 when every symbol fails with nothing cached', async () => {
     const res = await api('/api/finance/stocks?symbols=TSLA');
     expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({ error: 'Failed to fetch stock quotes: Stock quotes unavailable' });
+    expect(await res.json()).toEqual({
+      error: 'Failed to fetch stock quotes: Stock quotes unavailable',
+    });
   });
 
   it('rejects bad symbol lists with 400', async () => {
     const thirteen = Array.from({ length: 13 }, (_, i) => `S${i}`).join(',');
-    for (const q of ['', 'symbols=', 'symbols=%20,%20', 'symbols=BAD%20SYM', 'symbols=AAPL;rm', `symbols=${thirteen}`]) {
+    for (const q of [
+      '',
+      'symbols=',
+      'symbols=%20,%20',
+      'symbols=BAD%20SYM',
+      'symbols=AAPL;rm',
+      `symbols=${thirteen}`,
+    ]) {
       const res = await api(`/api/finance/stocks?${q}`);
       expect(res.status, q).toBe(400);
       const body = await res.json();
@@ -382,10 +455,16 @@ describe('GET /api/finance/crypto', () => {
   it('returns prices for known coins and nulls for unknown ones', async () => {
     let calledUrl = '';
     routeUpstream([
-      [GECKO, (url) => {
-        calledUrl = url;
-        return json({ bitcoin: { eur: 60000.5, eur_24h_change: 1.23456 }, ethereum: { eur: 3000 } });
-      }],
+      [
+        GECKO,
+        (url) => {
+          calledUrl = url;
+          return json({
+            bitcoin: { eur: 60000.5, eur_24h_change: 1.23456 },
+            ethereum: { eur: 3000 },
+          });
+        },
+      ],
     ]);
     const res = await api('/api/finance/crypto?coins=btc,ETH,ZZZ&currency=eur');
     expect(res.status).toBe(200);
@@ -414,11 +493,21 @@ describe('GET /api/finance/crypto', () => {
     routeUpstream([[GECKO, () => new Response('nope', { status: 500 })]]);
     const res = await api('/api/finance/crypto?coins=SOL');
     expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({ error: 'Failed to fetch crypto prices: Upstream returned 500' });
+    expect(await res.json()).toEqual({
+      error: 'Failed to fetch crypto prices: Upstream returned 500',
+    });
   });
 
   it('maps a CoinGecko rate limit (429) to 502 without leaking the body', async () => {
-    routeUpstream([[GECKO, () => new Response('{"status":{"error_code":429,"error_message":"secret plan"}}', { status: 429 })]]);
+    routeUpstream([
+      [
+        GECKO,
+        () =>
+          new Response('{"status":{"error_code":429,"error_message":"secret plan"}}', {
+            status: 429,
+          }),
+      ],
+    ]);
     const res = await api('/api/finance/crypto?coins=DOGE');
     expect(res.status).toBe(502);
     expect(JSON.stringify(await res.json())).not.toContain('secret plan');
@@ -471,7 +560,19 @@ describe('GET /api/weather/current', () => {
     expect(typeof body.description).toBe('string');
     expect(Number.isFinite(Date.parse(body.fetchedAt))).toBe(true);
     expect(Object.keys(body).sort()).toEqual(
-      ['apparentTemperature', 'description', 'fetchedAt', 'humidity', 'isDay', 'temperature', 'units', 'weatherCode', 'windDirection', 'windGust', 'windSpeed'].sort(),
+      [
+        'apparentTemperature',
+        'description',
+        'fetchedAt',
+        'humidity',
+        'isDay',
+        'temperature',
+        'units',
+        'weatherCode',
+        'windDirection',
+        'windGust',
+        'windSpeed',
+      ].sort()
     );
     expect(calledUrl).toContain('latitude=32.73&longitude=-117.19');
   });
@@ -486,7 +587,14 @@ describe('GET /api/weather/current', () => {
   });
 
   it('rejects bad coordinates and units with 400', async () => {
-    for (const q of ['', 'lat=91&lon=0', 'lat=0&lon=-181', 'lat=abc&lon=0', 'lat=0', 'lat=0&lon=0&units=kelvin']) {
+    for (const q of [
+      '',
+      'lat=91&lon=0',
+      'lat=0&lon=-181',
+      'lat=abc&lon=0',
+      'lat=0',
+      'lat=0&lon=0&units=kelvin',
+    ]) {
       const res = await api(`/api/weather/current?${q}`);
       expect(res.status, q).toBe(400);
       const body = await res.json();
@@ -503,7 +611,9 @@ describe('GET /api/weather/current', () => {
     expect(await res.json()).toEqual({ error: 'Failed to fetch weather: Upstream returned 500' });
 
     upstream.mockImplementation(async () => {
-      throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+      throw Object.assign(new Error('The operation was aborted due to timeout'), {
+        name: 'TimeoutError',
+      });
     });
     res = await api('/api/weather/current?lat=12&lon=12');
     expect(res.status).toBe(504);
@@ -535,7 +645,13 @@ describe('GET /api/weather/forecast', () => {
     const body = await res.json();
     expect(Object.keys(body).sort()).toEqual(['days', 'fetchedAt', 'units']);
     expect(body.days).toHaveLength(2);
-    expect(body.days[1]).toMatchObject({ date: '2026-10-22', high: 69, low: 55, weatherCode: 61, precipitationProbability: 80 });
+    expect(body.days[1]).toMatchObject({
+      date: '2026-10-22',
+      high: 69,
+      low: 55,
+      weatherCode: 61,
+      precipitationProbability: 80,
+    });
     expect(typeof body.days[1].description).toBe('string');
     expect(calledUrl).toContain('forecast_days=16');
     // Same cache entry serves a different `days`.
@@ -557,7 +673,9 @@ describe('GET /api/weather/forecast', () => {
     routeUpstream([[METEO, () => json({})]]);
     const res = await api('/api/weather/forecast?lat=21&lon=21');
     expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({ error: 'Failed to fetch forecast: Forecast data incomplete' });
+    expect(await res.json()).toEqual({
+      error: 'Failed to fetch forecast: Forecast data incomplete',
+    });
   });
 });
 
@@ -589,8 +707,13 @@ describe('/api/todos', () => {
     expect(a.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(readTodosFile().items).toEqual([a]);
 
-    const { item: b } = (await (await sendJson('POST', '/api/todos', { text: 'Renew medical' })).json()) as { item: Todo };
-    expect((await (await api('/api/todos')).json()).items.map((t: Todo) => t.id)).toEqual([a.id, b.id]);
+    const { item: b } = (await (
+      await sendJson('POST', '/api/todos', { text: 'Renew medical' })
+    ).json()) as { item: Todo };
+    expect((await (await api('/api/todos')).json()).items.map((t: Todo) => t.id)).toEqual([
+      a.id,
+      b.id,
+    ]);
 
     const patched = await sendJson('PATCH', `/api/todos/${a.id}`, { done: true });
     expect(patched.status).toBe(200);
@@ -599,7 +722,9 @@ describe('/api/todos', () => {
     expect(Number.isFinite(Date.parse(doneA.completedAt ?? ''))).toBe(true);
     expect(readTodosFile().items[0]).toEqual(doneA);
 
-    const renamed = await (await sendJson('PATCH', `/api/todos/${b.id}`, { text: 'Renew 3rd class medical' })).json();
+    const renamed = await (
+      await sendJson('PATCH', `/api/todos/${b.id}`, { text: 'Renew 3rd class medical' })
+    ).json();
     expect(renamed.item.text).toBe('Renew 3rd class medical');
 
     const reordered = await sendJson('PUT', '/api/todos', {
@@ -668,19 +793,32 @@ describe('/api/todos', () => {
   });
 
   it('enforces the 200 item limit with 400', async () => {
-    const items = Array.from({ length: 200 }, (_, i) => ({ id: `t${i}`, text: `item ${i}`, done: false }));
+    const items = Array.from({ length: 200 }, (_, i) => ({
+      id: `t${i}`,
+      text: `item ${i}`,
+      done: false,
+    }));
     expect((await sendJson('PUT', '/api/todos', { items })).status).toBe(200);
     const res = await sendJson('POST', '/api/todos', { text: 'one too many' });
     expect(res.status).toBe(400);
     expect(typeof (await res.json()).error).toBe('string');
     expect(readTodosFile().items).toHaveLength(200);
-    expect((await sendJson('PUT', '/api/todos', { items: [...items, { id: 't200', text: 'x', done: false }] })).status).toBe(400);
+    expect(
+      (
+        await sendJson('PUT', '/api/todos', {
+          items: [...items, { id: 't200', text: 'x', done: false }],
+        })
+      ).status
+    ).toBe(400);
   });
 });
 
 // ---------------------------------------------------------------- photos
 
-const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('fake-png-body')]);
+const PNG = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.from('fake-png-body'),
+]);
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from('fake-jpeg-body')]);
 
 function uploadForm(buf: Buffer, field = 'photo', type = 'image/png', name = 'p.png'): FormData {
@@ -716,7 +854,9 @@ describe('/api/photos', () => {
     expect(fs.existsSync(path.join(h.photosDir, `${jpg.photo.id}.jpg`))).toBe(true);
 
     const list = await (await api('/api/photos')).json();
-    expect(list.photos.map((p: { id: string }) => p.id).sort()).toEqual([photo.id, jpg.photo.id].sort());
+    expect(list.photos.map((p: { id: string }) => p.id).sort()).toEqual(
+      [photo.id, jpg.photo.id].sort()
+    );
 
     const file = await api(photo.url);
     expect(file.status).toBe(200);
@@ -731,17 +871,28 @@ describe('/api/photos', () => {
     expect(fs.existsSync(path.join(h.photosDir, `${photo.id}.png`))).toBe(false);
     expect((await api(photo.url)).status).toBe(404);
     expect((await api(`/api/photos/${photo.id}`, { method: 'DELETE' })).status).toBe(404);
-    expect((await (await api('/api/photos')).json()).photos.map((p: { id: string }) => p.id)).toEqual([jpg.photo.id]);
+    expect(
+      (await (await api('/api/photos')).json()).photos.map((p: { id: string }) => p.id)
+    ).toEqual([jpg.photo.id]);
   });
 
   it('rejects non-images with 415, a missing file with 400, the wrong field with 400', async () => {
     const before = fs.readdirSync(h.photosDir).sort();
 
-    const html = await upload(uploadForm(Buffer.from('<html><script>alert(1)</script>'), 'photo', 'image/png'));
+    const html = await upload(
+      uploadForm(Buffer.from('<html><script>alert(1)</script>'), 'photo', 'image/png')
+    );
     expect(html.status).toBe(415);
     expect(await html.json()).toEqual({ error: 'Only JPEG, PNG and WebP images are supported' });
 
-    const svg = await upload(uploadForm(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), 'photo', 'image/svg+xml', 'x.svg'));
+    const svg = await upload(
+      uploadForm(
+        Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+        'photo',
+        'image/svg+xml',
+        'x.svg'
+      )
+    );
     expect(svg.status).toBe(415);
 
     const none = await api('/api/photos', { method: 'POST', body: new FormData() });
@@ -792,7 +943,11 @@ describe('/api/photos', () => {
       expect((await raw('DELETE', `/api/photos/${id}`)).status, `raw DELETE ${id}`).toBe(400);
     }
     // Raw `..` segments that would climb out of /api/photos never serve the file.
-    for (const p of ['/api/photos/../../secret.png', '/api/photos/x/../../../secret.png', '/api/photos/%2e%2e/%2e%2e/secret.png']) {
+    for (const p of [
+      '/api/photos/../../secret.png',
+      '/api/photos/x/../../../secret.png',
+      '/api/photos/%2e%2e/%2e%2e/secret.png',
+    ]) {
       const res = await raw('GET', p);
       expect(res.status, p).not.toBe(200);
       expect(res.body, p).not.toContain('fake-png-body');

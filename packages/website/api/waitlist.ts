@@ -79,7 +79,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Don't fail the whole request if email fails
     }
 
-    console.log(`[Waitlist] New signup: ${entry.email}${entry.airport ? ` (${entry.airport})` : ''}`)
+    console.log(
+      `[Waitlist] New signup: ${entry.email}${entry.airport ? ` (${entry.airport})` : ''}`
+    )
 
     return res.status(200).json({
       success: true,
@@ -144,12 +146,16 @@ function getWelcomeEmailHtml(entry: WaitlistEntry): string {
                         </td>
                       </tr>
                     </table>
-                    ${entry.airport ? `
+                    ${
+                      entry.airport
+                        ? `
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #2a2a3a;">
                       <span style="color: #8a8a9a; font-size: 12px;">Home Airport:</span>
                       <span style="color: #f5a623; font-family: monospace; font-size: 14px; margin-left: 8px;">${entry.airport}</span>
                     </div>
-                    ` : ''}
+                    `
+                        : ''
+                    }
                   </td>
                 </tr>
               </table>

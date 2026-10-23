@@ -4,11 +4,11 @@ Mirrors hold **no third-party API keys or OAuth app secrets**. Everything that n
 through the SkyGlass cloud service: stateless Vercel functions deployed with the marketing site
 (`packages/website/api/`, served at `https://skyglass.dev`).
 
-| Area | Endpoints | Upstream | Code |
-|---|---|---|---|
-| Calendar sign-in | `/api/oauth/config`, `/api/oauth/google/token` | Google OAuth | `api/_lib/oauth.ts` |
-| NOTAMs | `/api/data/notams` | FAA NOTAM API | `api/_lib/data.ts` |
-| Stock quotes | `/api/data/stocks`, `/api/data/stock-profiles` | Finnhub | `api/_lib/data.ts` |
+| Area             | Endpoints                                      | Upstream      | Code                |
+| ---------------- | ---------------------------------------------- | ------------- | ------------------- |
+| Calendar sign-in | `/api/oauth/config`, `/api/oauth/google/token` | Google OAuth  | `api/_lib/oauth.ts` |
+| NOTAMs           | `/api/data/notams`                             | FAA NOTAM API | `api/_lib/data.ts`  |
+| Stock quotes     | `/api/data/stocks`, `/api/data/stock-profiles` | Finnhub       | `api/_lib/data.ts`  |
 
 Handlers in `api/oauth/**` and `api/data/**` are thin wrappers; the logic is in `api/_lib/`
 (not deployed as functions because the path contains `/_`).
@@ -39,14 +39,14 @@ out after 10 s.
   `X-Content-Type-Options: nosniff`.
 - **Errors** are JSON `{ "error": string, "error_description"?: string }`:
 
-| Status | `error` | When |
-|---|---|---|
-| 400 | `invalid_request` | Bad or missing parameter, unknown parameter, parameter repeated |
-| 405 | `method_not_allowed` | Not GET/HEAD (data) or not POST (token) |
-| 429 | `rate_limited` | Per-IP limit hit; `Retry-After` header in seconds |
-| 502 | `upstream_unavailable` | Upstream timeout, network error, non-2xx, bad JSON or unexpected shape |
-| 503 | `not_configured` | The variables for that upstream are not set on the deployment |
-| 500 | `internal_error` | Unexpected failure |
+| Status | `error`                | When                                                                   |
+| ------ | ---------------------- | ---------------------------------------------------------------------- |
+| 400    | `invalid_request`      | Bad or missing parameter, unknown parameter, parameter repeated        |
+| 405    | `method_not_allowed`   | Not GET/HEAD (data) or not POST (token)                                |
+| 429    | `rate_limited`         | Per-IP limit hit; `Retry-After` header in seconds                      |
+| 502    | `upstream_unavailable` | Upstream timeout, network error, non-2xx, bad JSON or unexpected shape |
+| 503    | `not_configured`       | The variables for that upstream are not set on the deployment          |
+| 500    | `internal_error`       | Unexpected failure                                                     |
 
 - **Upstream calls:** 10 s timeout, redirects refused, response bodies capped at 4 MB.
   Upstream bodies and error text are never passed through. The data endpoints return a
@@ -63,15 +63,15 @@ mirror asking for the same URL. Cache hits don't run the function, don't count t
 rate limit and don't use upstream quota. They do count toward the Vercel WAF rate limits
 below (the firewall runs before the cache).
 
-| Response | `Cache-Control` |
-|---|---|
-| `/api/data/notams` 200 | `public, max-age=0, s-maxage=600, stale-while-revalidate=1200` |
-| `/api/data/stocks` 200 | `public, max-age=0, s-maxage=60, stale-while-revalidate=60` |
-| `/api/data/stocks` or `stock-profiles` 200 with some items `status: "error"` | `public, max-age=0, s-maxage=15` |
-| `/api/data/stock-profiles` 200 | `public, max-age=0, s-maxage=86400, stale-while-revalidate=604800` |
-| 308 canonical redirect | `public, max-age=0, s-maxage=86400` |
-| any error (4xx/5xx) | `no-store` |
-| `/api/oauth/*` | `no-store` |
+| Response                                                                     | `Cache-Control`                                                    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `/api/data/notams` 200                                                       | `public, max-age=0, s-maxage=600, stale-while-revalidate=1200`     |
+| `/api/data/stocks` 200                                                       | `public, max-age=0, s-maxage=60, stale-while-revalidate=60`        |
+| `/api/data/stocks` or `stock-profiles` 200 with some items `status: "error"` | `public, max-age=0, s-maxage=15`                                   |
+| `/api/data/stock-profiles` 200                                               | `public, max-age=0, s-maxage=86400, stale-while-revalidate=604800` |
+| 308 canonical redirect                                                       | `public, max-age=0, s-maxage=86400`                                |
+| any error (4xx/5xx)                                                          | `no-store`                                                         |
+| `/api/oauth/*`                                                               | `no-store`                                                         |
 
 **Canonical URLs:** the CDN keys on the full URL. Input is normalized (trimmed, uppercased;
 symbols de-duplicated and sorted, each `encodeURIComponent`-encoded and joined with literal
@@ -91,13 +91,13 @@ are shared across every mirror's CDN cache rather than keyed by each user's own 
 - Best-effort **per function instance, per client IP** rate limits (in-memory, reset when an
   instance is recycled; IP from the first `x-forwarded-for` hop):
 
-| Endpoint | Limit |
-|---|---|
-| `GET /api/data/notams` | 60 / min |
-| `GET /api/data/stocks` | 120 / min |
-| `GET /api/data/stock-profiles` | 60 / min |
-| `GET /api/oauth/config` | 60 / min |
-| `POST /api/oauth/google/token` | 30 / min |
+| Endpoint                       | Limit     |
+| ------------------------------ | --------- |
+| `GET /api/data/notams`         | 60 / min  |
+| `GET /api/data/stocks`         | 120 / min |
+| `GET /api/data/stock-profiles` | 60 / min  |
+| `GET /api/oauth/config`        | 60 / min  |
+| `POST /api/oauth/google/token` | 30 / min  |
 
 - Finnhub calls within one request run at most 4 at a time.
 - The per-instance limiter does not share state across instances or regions, so the real
@@ -130,29 +130,30 @@ same name exists, so re-running after editing the JSON updates the rules). Publi
 separate, manual step. Edits made in the dashboard are overwritten the next time the script
 runs; change the JSON instead.
 
-| Rule | Paths (prefix) | Limit per IP | Over the limit |
-|---|---|---|---|
-| `skyglass-ratelimit-notams` | `/api/data/notams` | 60 / 10 min | 429 |
-| `skyglass-ratelimit-stocks` | `/api/data/stock` (`stocks`, `stock-profiles`) | 300 / 10 min | 429 |
-| `skyglass-ratelimit-oauth-config` | `/api/oauth/config` | 60 / 10 min | 429 |
-| `skyglass-ratelimit-oauth-token` | `/api/oauth/google/token` | 60 / 10 min | 429 |
+| Rule                              | Paths (prefix)                                 | Limit per IP | Over the limit |
+| --------------------------------- | ---------------------------------------------- | ------------ | -------------- |
+| `skyglass-ratelimit-notams`       | `/api/data/notams`                             | 60 / 10 min  | 429            |
+| `skyglass-ratelimit-stocks`       | `/api/data/stock` (`stocks`, `stock-profiles`) | 300 / 10 min | 429            |
+| `skyglass-ratelimit-oauth-config` | `/api/oauth/config`                            | 60 / 10 min  | 429            |
+| `skyglass-ratelimit-oauth-token`  | `/api/oauth/google/token`                      | 60 / 10 min  | 429            |
 
 All rules: key `ip`, fixed window of 600 s (the Pro maximum), every method counted.
 
 **How the numbers were picked.** One mirror is one IP; a household (or a CGNAT address) can
 put several mirrors and several face profiles behind one IP, and the WAF counts CDN cache hits.
 
-| Endpoint | One mirror, normal use | Sizing case for the limit |
-|---|---|---|
-| NOTAMs | 1 request per airport per 30 min (`services/notam.ts`), 5 min retry after a failure | 4 mirrors × ~8 airports, all restarting at once ≈ 32; limit 60 |
-| Stocks | 1 request per symbol per 5 min, up to 12 symbols (`services/finance.ts`); names once a day; 2 min retry after a failure | 2 mirrors × 3 profiles × 12 symbols × 2 refreshes ≈ 144 + profiles; limit 300 |
-| OAuth config | once per 10 min while calendars are used, 1 min after a failure (`calendar/auth-service.ts`) | 4 mirrors × 10 = 40; limit 60 |
-| OAuth token | 1 refresh per Google account per hour + rare sign-ins | 4 mirrors × a few accounts ≈ 10–20; limit 60 |
+| Endpoint     | One mirror, normal use                                                                                                  | Sizing case for the limit                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| NOTAMs       | 1 request per airport per 30 min (`services/notam.ts`), 5 min retry after a failure                                     | 4 mirrors × ~8 airports, all restarting at once ≈ 32; limit 60                |
+| Stocks       | 1 request per symbol per 5 min, up to 12 symbols (`services/finance.ts`); names once a day; 2 min retry after a failure | 2 mirrors × 3 profiles × 12 symbols × 2 refreshes ≈ 144 + profiles; limit 300 |
+| OAuth config | once per 10 min while calendars are used, 1 min after a failure (`calendar/auth-service.ts`)                            | 4 mirrors × 10 = 40; limit 60                                                 |
+| OAuth token  | 1 refresh per Google account per hour + rare sign-ins                                                                   | 4 mirrors × a few accounts ≈ 10–20; limit 60                                  |
 
 A mirror that does get a 429 serves its cached data and retries later, as for any upstream
 failure.
 
 **Caveats.**
+
 - Counters are per Vercel region. A single client always lands in the same region, so a
   single abuser gets the limit above; a distributed one gets up to that much per region per IP.
 - Per-IP limits don't stop a botnet, and the stock limit is per request, not per symbol: a
@@ -184,14 +185,22 @@ accepted.
   "icao": "KSAN",
   "fetchedAt": "2026-10-21T12:00:00.000Z",
   "totalCount": 3,
-  "notams": [{
-    "id": "NOTAM_1_1", "number": "10/123", "type": "N", "classification": "DOM",
-    "text": "RWY 09/27 CLSD",
-    "effectiveStart": "2026-10-20T10:00:00.000Z",
-    "effectiveEnd": "2026-10-25T10:00:00.000Z",
-    "location": "SAN", "affectedFir": "KZLA", "schedule": "DLY 0600-1400",
-    "minimumAltitude": null, "maximumAltitude": "FL180"
-  }]
+  "notams": [
+    {
+      "id": "NOTAM_1_1",
+      "number": "10/123",
+      "type": "N",
+      "classification": "DOM",
+      "text": "RWY 09/27 CLSD",
+      "effectiveStart": "2026-10-20T10:00:00.000Z",
+      "effectiveEnd": "2026-10-25T10:00:00.000Z",
+      "location": "SAN",
+      "affectedFir": "KZLA",
+      "schedule": "DLY 0600-1400",
+      "minimumAltitude": null,
+      "maximumAltitude": "FL180"
+    }
+  ]
 }
 ```
 
@@ -214,10 +223,24 @@ Upstream: `GET https://finnhub.io/api/v1/quote?symbol=X` per symbol.
   "version": 1,
   "fetchedAt": "2026-10-21T12:00:00.000Z",
   "quotes": [
-    { "symbol": "AAPL", "status": "ok", "price": 233.75, "change": 3.5, "changePercent": 1.52,
-      "previousClose": 230.25, "asOf": "2026-10-16T20:00:00.000Z" },
-    { "symbol": "ZZZZ", "status": "unknown_symbol", "price": null, "change": null,
-      "changePercent": null, "previousClose": null, "asOf": null }
+    {
+      "symbol": "AAPL",
+      "status": "ok",
+      "price": 233.75,
+      "change": 3.5,
+      "changePercent": 1.52,
+      "previousClose": 230.25,
+      "asOf": "2026-10-16T20:00:00.000Z"
+    },
+    {
+      "symbol": "ZZZZ",
+      "status": "unknown_symbol",
+      "price": null,
+      "change": null,
+      "changePercent": null,
+      "previousClose": null,
+      "asOf": null
+    }
   ]
 }
 ```
@@ -231,8 +254,19 @@ whole request returns 502.
 Upstream: `GET https://finnhub.io/api/v1/stock/profile2?symbol=X` per symbol.
 
 ```json
-{ "version": 1, "fetchedAt": "...",
-  "profiles": [{ "symbol": "AAPL", "status": "ok", "name": "Apple Inc", "currency": "USD", "exchange": "NASDAQ NMS - GLOBAL MARKET" }] }
+{
+  "version": 1,
+  "fetchedAt": "...",
+  "profiles": [
+    {
+      "symbol": "AAPL",
+      "status": "ok",
+      "name": "Apple Inc",
+      "currency": "USD",
+      "exchange": "NASDAQ NMS - GLOBAL MARKET"
+    }
+  ]
+}
 ```
 
 ### `GET /api/oauth/config` and `POST /api/oauth/google/token`
@@ -244,14 +278,14 @@ Both are `no-store`.
 
 See `packages/website/.env.example`.
 
-| Variable | Used by | Notes |
-|---|---|---|
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | `/api/oauth/*` | Google sign-in; both needed |
-| `GOOGLE_REDIRECT_URI` | `/api/oauth/*` | Optional, default `https://skyglass.dev/oauth/google` |
-| `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT` | `/api/oauth/config` | Public client; tenant optional (default `common`) |
-| `FAA_NOTAM_CLIENT_ID`, `FAA_NOTAM_CLIENT_SECRET` | `/api/data/notams` | FAA API portal credentials; both needed, else 503 `not_configured` |
-| `FAA_NOTAM_API_URL` | `/api/data/notams` | Optional https override of the FAA endpoint (e.g. if the FAA moves the API) |
-| `FINNHUB_API_KEY` | `/api/data/stocks`, `/api/data/stock-profiles` | Else 503 `not_configured` (mirrors fall back to Yahoo) |
+| Variable                                         | Used by                                        | Notes                                                                       |
+| ------------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`       | `/api/oauth/*`                                 | Google sign-in; both needed                                                 |
+| `GOOGLE_REDIRECT_URI`                            | `/api/oauth/*`                                 | Optional, default `https://skyglass.dev/oauth/google`                       |
+| `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT`        | `/api/oauth/config`                            | Public client; tenant optional (default `common`)                           |
+| `FAA_NOTAM_CLIENT_ID`, `FAA_NOTAM_CLIENT_SECRET` | `/api/data/notams`                             | FAA API portal credentials; both needed, else 503 `not_configured`          |
+| `FAA_NOTAM_API_URL`                              | `/api/data/notams`                             | Optional https override of the FAA endpoint (e.g. if the FAA moves the API) |
+| `FINNHUB_API_KEY`                                | `/api/data/stocks`, `/api/data/stock-profiles` | Else 503 `not_configured` (mirrors fall back to Yahoo)                      |
 
 ## Self-hosting
 

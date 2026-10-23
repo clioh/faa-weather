@@ -2,11 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db/index.js';
 import { protectedRoute } from '../middleware/clerk.js';
-import {
-  createLayoutSchema,
-  updateLayoutSchema,
-  syncPushSchema,
-} from '../validation/schemas.js';
+import { createLayoutSchema, updateLayoutSchema, syncPushSchema } from '../validation/schemas.js';
 import { getLayoutChangesSince, pushLayoutChanges } from '../services/sync.js';
 
 const router = Router();
@@ -64,10 +60,9 @@ router.post('/', async (req, res) => {
 
     // If this layout is active, deactivate others first
     if (isActive) {
-      await query(
-        'UPDATE user_layouts SET is_active = FALSE WHERE clerk_id = $1',
-        [req.clerkUserId]
-      );
+      await query('UPDATE user_layouts SET is_active = FALSE WHERE clerk_id = $1', [
+        req.clerkUserId,
+      ]);
     }
 
     const { rows } = await query<{
@@ -162,10 +157,10 @@ router.put('/:id', async (req, res) => {
 
     // If this layout is being activated, deactivate others first
     if (isActive) {
-      await query(
-        'UPDATE user_layouts SET is_active = FALSE WHERE clerk_id = $1 AND id != $2',
-        [req.clerkUserId, req.params.id]
-      );
+      await query('UPDATE user_layouts SET is_active = FALSE WHERE clerk_id = $1 AND id != $2', [
+        req.clerkUserId,
+        req.params.id,
+      ]);
     }
 
     // Build update query dynamically
@@ -222,10 +217,10 @@ router.put('/:id', async (req, res) => {
 // Delete layout
 router.delete('/:id', async (req, res) => {
   try {
-    const { rowCount } = await query(
-      'DELETE FROM user_layouts WHERE id = $1 AND clerk_id = $2',
-      [req.params.id, req.clerkUserId]
-    );
+    const { rowCount } = await query('DELETE FROM user_layouts WHERE id = $1 AND clerk_id = $2', [
+      req.params.id,
+      req.clerkUserId,
+    ]);
 
     if (rowCount === 0) {
       res.status(404).json({ error: 'Layout not found' });

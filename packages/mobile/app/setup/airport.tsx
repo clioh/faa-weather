@@ -4,12 +4,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { api, Airport } from '@/lib/api';
@@ -84,7 +79,11 @@ export default function AirportSetupScreen() {
       setResults(airports);
     } catch (err) {
       console.warn('[AirportSetup] search failed:', err);
-      setError(err instanceof Error ? `Failed to search airports: ${err.message}` : 'Failed to search airports');
+      setError(
+        err instanceof Error
+          ? `Failed to search airports: ${err.message}`
+          : 'Failed to search airports'
+      );
       setResults([]);
     } finally {
       setSearching(false);
@@ -142,7 +141,9 @@ export default function AirportSetupScreen() {
       selected={selectedRow}
       onPress={selectedRow ? undefined : () => handleSelect(item)}
       accessibilityLabel={`${item.icao}, ${item.name}, ${item.city}`}
-      trailing={selectedRow ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : undefined}
+      trailing={
+        selectedRow ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : undefined
+      }
       chevron={false}
     />
   );

@@ -77,7 +77,10 @@ export function Button({
       ]}
     >
       {loading ? (
-        <Spinner onAccent={variant === 'primary'} color={variant === 'primary' ? undefined : tint} />
+        <Spinner
+          onAccent={variant === 'primary'}
+          color={variant === 'primary' ? undefined : tint}
+        />
       ) : icon ? (
         <Ionicons name={icon} size={18} color={tint} />
       ) : null}
@@ -107,7 +110,15 @@ interface TextButtonProps {
 }
 
 /** Accent text with a 44pt touch target: "Set up later", "Skip for now", links. */
-export function TextButton({ label, onPress, icon, color = colors.primary, disabled, accessibilityLabel, style }: TextButtonProps) {
+export function TextButton({
+  label,
+  onPress,
+  icon,
+  color = colors.primary,
+  disabled,
+  accessibilityLabel,
+  style,
+}: TextButtonProps) {
   const tint = disabled ? colors.textDisabled : color;
   return (
     <Pressable

@@ -103,9 +103,7 @@ export default function LocationSetupScreen() {
   };
 
   const formatCoordinate = (value: number, isLat: boolean): string => {
-    const direction = isLat
-      ? value >= 0 ? 'N' : 'S'
-      : value >= 0 ? 'E' : 'W';
+    const direction = isLat ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W';
     return `${Math.abs(value).toFixed(4)}° ${direction}`;
   };
 
@@ -114,7 +112,8 @@ export default function LocationSetupScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Instructions */}
         <Text style={styles.instructionsText}>
-          Your location is used to calculate accurate sunrise, sunset, and twilight times for pilot currency tracking
+          Your location is used to calculate accurate sunrise, sunset, and twilight times for pilot
+          currency tracking
         </Text>
 
         {location ? (

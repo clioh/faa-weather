@@ -5,7 +5,13 @@
  * Microsoft directly.
  */
 
-import { CalendarAuthError, CalendarError, type DiscoveredCalendar, type RawEvent, type TimeWindow } from '../types.js';
+import {
+  CalendarAuthError,
+  CalendarError,
+  type DiscoveredCalendar,
+  type RawEvent,
+  type TimeWindow,
+} from '../types.js';
 import {
   FORM_HEADERS,
   form,
@@ -53,11 +59,11 @@ export async function startDeviceCode(cfg: MicrosoftConfig): Promise<DeviceCodeS
     error?: string;
   }>(res, SERVICE);
   if (!res.ok || !json.device_code || !json.user_code) {
-    console.warn(`[calendar] Microsoft device code request failed: ${res.status} ${json.error ?? ''}`);
+    console.warn(
+      `[calendar] Microsoft device code request failed: ${res.status} ${json.error ?? ''}`
+    );
     if (json.error === 'invalid_client' || json.error === 'unauthorized_client') {
-      throw new CalendarError(
-        "Outlook sign-in isn't available right now.",
-      );
+      throw new CalendarError("Outlook sign-in isn't available right now.");
     }
     throw new CalendarError("Couldn't start Microsoft sign-in. Please try again.");
   }
@@ -78,7 +84,10 @@ export type DevicePollResult =
   | { kind: 'denied' }
   | { kind: 'error'; message: string };
 
-export async function pollDeviceToken(cfg: MicrosoftConfig, deviceCode: string): Promise<DevicePollResult> {
+export async function pollDeviceToken(
+  cfg: MicrosoftConfig,
+  deviceCode: string
+): Promise<DevicePollResult> {
   const res = await httpRequest(`${authority(cfg)}/token`, SERVICE, {
     method: 'POST',
     headers: FORM_HEADERS,
@@ -91,7 +100,9 @@ export async function pollDeviceToken(cfg: MicrosoftConfig, deviceCode: string):
   const json = parseJson<OAuthTokenResponse>(res, SERVICE);
   if (res.ok) {
     const tokens = toTokenSet(json);
-    return tokens ? { kind: 'token', tokens } : { kind: 'error', message: 'Microsoft sign-in failed. Please try again.' };
+    return tokens
+      ? { kind: 'token', tokens }
+      : { kind: 'error', message: 'Microsoft sign-in failed. Please try again.' };
   }
   switch (json.error) {
     case 'authorization_pending':
@@ -105,12 +116,17 @@ export async function pollDeviceToken(cfg: MicrosoftConfig, deviceCode: string):
     case 'access_denied':
       return { kind: 'denied' };
     default:
-      console.warn(`[calendar] Microsoft device token poll failed: ${res.status} ${json.error ?? ''}`);
+      console.warn(
+        `[calendar] Microsoft device token poll failed: ${res.status} ${json.error ?? ''}`
+      );
       return { kind: 'error', message: 'Microsoft sign-in failed. Please try again.' };
   }
 }
 
-export async function refreshMicrosoftToken(cfg: MicrosoftConfig, refreshToken: string): Promise<TokenSet> {
+export async function refreshMicrosoftToken(
+  cfg: MicrosoftConfig,
+  refreshToken: string
+): Promise<TokenSet> {
   const res = await httpRequest(`${authority(cfg)}/token`, SERVICE, {
     method: 'POST',
     headers: FORM_HEADERS,
@@ -146,7 +162,7 @@ async function graphGet<T>(url: string, accessToken: string): Promise<T> {
 export async function fetchMicrosoftEmail(accessToken: string): Promise<string | null> {
   const me = await graphGet<{ mail?: string | null; userPrincipalName?: string | null }>(
     `${GRAPH_API}/me?$select=mail,userPrincipalName`,
-    accessToken,
+    accessToken
   );
   const email = me.mail || me.userPrincipalName;
   return email ? email.toLowerCase() : null;
@@ -163,9 +179,13 @@ const SYSTEM_NAME = /birthday|holiday/i;
 
 export async function listMicrosoftCalendars(accessToken: string): Promise<DiscoveredCalendar[]> {
   const out: DiscoveredCalendar[] = [];
-  let url: string | undefined = `${GRAPH_API}/me/calendars?$select=id,name,hexColor,isDefaultCalendar&$top=100`;
+  let url: string | undefined =
+    `${GRAPH_API}/me/calendars?$select=id,name,hexColor,isDefaultCalendar&$top=100`;
   for (let page = 0; url && page < 10; page++) {
-    const json: { value?: GraphCalendar[]; '@odata.nextLink'?: string } = await graphGet(url, accessToken);
+    const json: { value?: GraphCalendar[]; '@odata.nextLink'?: string } = await graphGet(
+      url,
+      accessToken
+    );
     for (const c of json.value ?? []) {
       if (!c.id) continue;
       const name = c.name || 'Calendar';
@@ -234,7 +254,7 @@ export async function fetchMicrosoftEvents(
   accessToken: string,
   calendarId: string,
   window: TimeWindow,
-  tz: string,
+  tz: string
 ): Promise<RawEvent[]> {
   const out: RawEvent[] = [];
   const p = new URLSearchParams({
@@ -243,9 +263,13 @@ export async function fetchMicrosoftEvents(
     $select: 'id,subject,isAllDay,isCancelled,start,end,location,responseStatus',
     $top: '200',
   });
-  let url: string | undefined = `${GRAPH_API}/me/calendars/${encodeURIComponent(calendarId)}/calendarView?${p}`;
+  let url: string | undefined =
+    `${GRAPH_API}/me/calendars/${encodeURIComponent(calendarId)}/calendarView?${p}`;
   for (let page = 0; url && page < 20; page++) {
-    const json: { value?: GraphEvent[]; '@odata.nextLink'?: string } = await graphGet(url, accessToken);
+    const json: { value?: GraphEvent[]; '@odata.nextLink'?: string } = await graphGet(
+      url,
+      accessToken
+    );
     for (const e of json.value ?? []) {
       const ev = mapGraphEvent(e, tz);
       if (ev) out.push(ev);

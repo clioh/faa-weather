@@ -90,7 +90,8 @@ function describeActivationError(err: unknown, supportEmail: string): ScreenErro
       case 'rate_limited':
         return {
           title: 'Too many attempts',
-          message: 'The license server is limiting requests from this network. Wait a while and try again.',
+          message:
+            'The license server is limiting requests from this network. Wait a while and try again.',
         };
       case 'server_error':
         return {
@@ -103,7 +104,8 @@ function describeActivationError(err: unknown, supportEmail: string): ScreenErro
     if (err.status === undefined) {
       return {
         title: "Can't reach your mirror",
-        message: 'Make sure your phone and the mirror are on the same WiFi network, then try again.',
+        message:
+          'Make sure your phone and the mirror are on the same WiFi network, then try again.',
       };
     }
     if (err.status >= 500) {
@@ -352,7 +354,9 @@ export default function LicenseSetupScreen() {
         title={
           <>
             License active
-            {status?.keyLast4 ? <Text style={styles.titleKey}>{` (…${status.keyLast4})`}</Text> : null}
+            {status?.keyLast4 ? (
+              <Text style={styles.titleKey}>{` (…${status.keyLast4})`}</Text>
+            ) : null}
           </>
         }
         body={[
@@ -360,13 +364,13 @@ export default function LicenseSetupScreen() {
             ? 'Your key is activated on this mirror. Keep the email it came in: you’ll need ' +
               'the key again if you move the license to another mirror.'
             : inSetupFlow
-            ? 'This mirror already has an active license, so there is no key to enter. ' +
-              'Kits come with the license pre-installed.'
-            : `${
-                status?.activatedAt
-                  ? `Activated ${new Date(status.activatedAt).toLocaleDateString()}. `
-                  : ''
-              }This mirror is licensed.`,
+              ? 'This mirror already has an active license, so there is no key to enter. ' +
+                'Kits come with the license pre-installed.'
+              : `${
+                  status?.activatedAt
+                    ? `Activated ${new Date(status.activatedAt).toLocaleDateString()}. `
+                    : ''
+                }This mirror is licensed.`,
         ]}
         footer={<Button label="Continue" onPress={continueOn} />}
       >
@@ -389,10 +393,7 @@ export default function LicenseSetupScreen() {
 
   return (
     <KeyboardAvoidingScreen style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.instructions}>
           <View style={styles.instructionsHeader}>
             <Ionicons name="key-outline" size={18} color={colors.primary} />
@@ -401,15 +402,19 @@ export default function LicenseSetupScreen() {
           <Text style={styles.instructionsText}>
             It's in your SkyGlass order confirmation email, in the form{' '}
             <Text style={styles.mono}>XXXX-XXXX-XXXX-XXXX</Text>. Bought a kit? The key comes
-            pre-installed and activates on its own once the mirror is online, so you shouldn't
-            need to type anything.
+            pre-installed and activates on its own once the mirror is online, so you shouldn't need
+            to type anything.
           </Text>
         </View>
 
         {notice && (
           <Notice tone={noticeTone} title={notice.title} message={notice.message}>
             {notice.showManageLink && (
-              <Pressable onPress={openManagePage} accessibilityRole="link" style={styles.noticeAction}>
+              <Pressable
+                onPress={openManagePage}
+                accessibilityRole="link"
+                style={styles.noticeAction}
+              >
                 <Text style={styles.noticeLink}>{manageUrl.replace(/^https?:\/\//, '')}</Text>
               </Pressable>
             )}
@@ -511,11 +516,23 @@ interface StatusScreenProps {
 }
 
 /** Icon, title and text at the top, actions pinned in the footer. */
-function StatusScreen({ icon, iconColor, accent, title, body, children, footer }: StatusScreenProps) {
+function StatusScreen({
+  icon,
+  iconColor,
+  accent,
+  title,
+  body,
+  children,
+  footer,
+}: StatusScreenProps) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.statusContent}>
-        <IconCircle icon={icon} color={iconColor} style={accent ? styles.accentCircle : undefined} />
+        <IconCircle
+          icon={icon}
+          color={iconColor}
+          style={accent ? styles.accentCircle : undefined}
+        />
         <View style={styles.statusText}>
           <Text style={styles.statusTitle} accessibilityRole="header">
             {title}

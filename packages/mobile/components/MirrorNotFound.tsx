@@ -86,8 +86,9 @@ export function MirrorNotFound({ visible, onFound }: MirrorNotFoundProps) {
         <Text style={styles.title}>Mirror not found</Text>
       </View>
       <Text style={styles.text}>
-        {missed ? 'Still no answer. ' : ''}Make sure the mirror is powered on and your phone is on the same WiFi network. If
-        your router changed, the mirror may need to be set up on the new network.
+        {missed ? 'Still no answer. ' : ''}Make sure the mirror is powered on and your phone is on
+        the same WiFi network. If your router changed, the mirror may need to be set up on the new
+        network.
       </Text>
       <Button label="Search again" icon="refresh" onPress={searchAgain} style={styles.button} />
       <Button

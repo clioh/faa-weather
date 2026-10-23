@@ -15,8 +15,23 @@ function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
     error: null,
     lastSyncAt: null,
     createdAt: '2026-10-21T00:00:00.000Z',
-    calendars: [{ id: 'primary', name: 'Pilot', color: '#7ad7ff', enabled: true, primary: true, colorLocked: true, url: 'https://x/y' }],
-    secrets: { accessToken: 'ya29.secret', refreshToken: '1//refresh-secret', expiresAt: 123, password: 'pw' },
+    calendars: [
+      {
+        id: 'primary',
+        name: 'Pilot',
+        color: '#7ad7ff',
+        enabled: true,
+        primary: true,
+        colorLocked: true,
+        url: 'https://x/y',
+      },
+    ],
+    secrets: {
+      accessToken: 'ya29.secret',
+      refreshToken: '1//refresh-secret',
+      expiresAt: 123,
+      password: 'pw',
+    },
     discoveredAt: 1,
     ...overrides,
   };
@@ -38,7 +53,17 @@ describe('CalendarAccountStore', () => {
   it('public shape has exactly the contract fields and no secrets', () => {
     const pub = toPublicAccount(account());
     expect(Object.keys(pub).sort()).toEqual(
-      ['calendars', 'createdAt', 'email', 'error', 'id', 'label', 'lastSyncAt', 'provider', 'status'].sort(),
+      [
+        'calendars',
+        'createdAt',
+        'email',
+        'error',
+        'id',
+        'label',
+        'lastSyncAt',
+        'provider',
+        'status',
+      ].sort()
     );
     expect(Object.keys(pub.calendars[0]).sort()).toEqual(['color', 'enabled', 'id', 'name']);
     const json = JSON.stringify(pub);
@@ -72,7 +97,10 @@ describe('CalendarAccountStore', () => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, '{not json');
     expect(new CalendarAccountStore(file).list()).toEqual([]);
-    fs.writeFileSync(file, JSON.stringify({ accounts: [account(), { id: 'x', provider: 'bogus' }] }));
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ accounts: [account(), { id: 'x', provider: 'bogus' }] })
+    );
     expect(new CalendarAccountStore(file).list().map((a) => a.id)).toEqual(['acc-1']);
   });
 });

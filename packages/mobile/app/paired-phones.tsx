@@ -17,7 +17,14 @@ import { api, type PairedDevice } from '@/lib/api';
 import { goHome } from '@/lib/navigation';
 import { colors, spacing, typography } from '@/lib/theme';
 import { ErrorToast, ScreenHeader, type ToastType } from '@/components';
-import { Field, Notice, PrimaryButton, SecondaryButton, Sheet, errorMessage } from '@/components/calendar/ui';
+import {
+  Field,
+  Notice,
+  PrimaryButton,
+  SecondaryButton,
+  Sheet,
+  errorMessage,
+} from '@/components/calendar/ui';
 
 const NAME_MAX = 60;
 
@@ -63,7 +70,11 @@ export default function PairedPhonesScreen() {
       const list = await api.getPairedDevices();
       // This phone first, then most recently used.
       list.sort((a, b) =>
-        a.current !== b.current ? (a.current ? -1 : 1) : (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? '')
+        a.current !== b.current
+          ? a.current
+            ? -1
+            : 1
+          : (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? '')
       );
       setDevices(list);
       setLoadError(null);
@@ -182,11 +193,17 @@ export default function PairedPhonesScreen() {
     body = (
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
       >
         <Text style={styles.intro}>
-          These phones can set up and control this mirror. A new phone pairs with a code shown on the mirror, so
-          only someone at the mirror can add one.
+          These phones can set up and control this mirror. A new phone pairs with a code shown on
+          the mirror, so only someone at the mirror can add one.
         </Text>
 
         {current ? (
@@ -203,7 +220,10 @@ export default function PairedPhonesScreen() {
             </RowGroup>
           </View>
         ) : (
-          <Notice tone="info" message="This phone isn’t in the mirror’s list (it may be connected as the mirror itself)." />
+          <Notice
+            tone="info"
+            message="This phone isn’t in the mirror’s list (it may be connected as the mirror itself)."
+          />
         )}
 
         <View>
@@ -261,13 +281,24 @@ export default function PairedPhonesScreen() {
           returnKeyType="done"
           autoCapitalize="words"
         />
-        <PrimaryButton label="Save" onPress={saveName} loading={savingName} style={styles.sheetButton} />
+        <PrimaryButton
+          label="Save"
+          onPress={saveName}
+          loading={savingName}
+          style={styles.sheetButton}
+        />
         <SecondaryButton label="Cancel" onPress={() => setRenaming(null)} disabled={savingName} />
       </Sheet>
 
       <Sheet
         visible={removing !== null}
-        title={removingSelf ? 'Unpair this phone?' : removing ? `Remove ${removing.name}?` : 'Remove phone?'}
+        title={
+          removingSelf
+            ? 'Unpair this phone?'
+            : removing
+              ? `Remove ${removing.name}?`
+              : 'Remove phone?'
+        }
         body={
           removingSelf
             ? 'This phone stops controlling the mirror. To use it again, pair it with a new code from the mirror.'
@@ -281,7 +312,11 @@ export default function PairedPhonesScreen() {
           tone="danger"
           onPress={confirmRemove}
           loading={removeBusy}
-          accessibilityLabel={removingSelf ? 'Confirm unpair this phone' : `Confirm remove ${removing?.name ?? 'phone'}`}
+          accessibilityLabel={
+            removingSelf
+              ? 'Confirm unpair this phone'
+              : `Confirm remove ${removing?.name ?? 'phone'}`
+          }
         />
         <SecondaryButton label="Keep it" onPress={() => setRemoving(null)} disabled={removeBusy} />
       </Sheet>
@@ -326,13 +361,35 @@ function DeviceRow({ device, onRemove }: { device: PairedDevice; onRemove?: () =
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: 26 },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    gap: 26,
+  },
   intro: { ...typography.body, color: colors.textSecondary },
   emptyRow: { opacity: 0.6 },
-  removeButton: { width: 44, height: 44, marginRight: -spacing.sm, alignItems: 'center', justifyContent: 'center' },
+  removeButton: {
+    width: 44,
+    height: 44,
+    marginRight: -spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyTitle: { ...typography.h3, color: colors.text, textAlign: 'center', marginTop: spacing.sm },
-  emptyText: { ...typography.bodySmall, color: colors.textMuted, textAlign: 'center', maxWidth: 320 },
+  emptyText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    textAlign: 'center',
+    maxWidth: 320,
+  },
   emptyButton: { marginTop: spacing.md, alignSelf: 'stretch' },
   sheetButton: { marginTop: spacing.xs },
 });

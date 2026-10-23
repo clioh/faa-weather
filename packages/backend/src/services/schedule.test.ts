@@ -26,7 +26,9 @@ describe('ScheduleService: the uploaded schedule survives a restart', () => {
 
   it('keeps the upload and restores it in a new service', async () => {
     const first = new ScheduleService({ columnMapping: {}, file });
-    const loaded = await first.loadScheduleFromBuffer(await roster([['2030-03-01', 'AA100', 'JFK', 'LAX', '08:00', '11:30']]));
+    const loaded = await first.loadScheduleFromBuffer(
+      await roster([['2030-03-01', 'AA100', 'JFK', 'LAX', '08:00', '11:30']])
+    );
     expect(loaded).toHaveLength(1);
     expect(fs.existsSync(file)).toBe(true);
     expect(fs.existsSync(`${file}.tmp`)).toBe(false);
@@ -41,16 +43,22 @@ describe('ScheduleService: the uploaded schedule survives a restart', () => {
 
   it('a rejected upload keeps the saved schedule', async () => {
     const service = new ScheduleService({ columnMapping: {}, file });
-    await service.loadScheduleFromBuffer(await roster([['2030-03-01', 'AA100', 'JFK', 'LAX', '08:00', '11:30']]));
+    await service.loadScheduleFromBuffer(
+      await roster([['2030-03-01', 'AA100', 'JFK', 'LAX', '08:00', '11:30']])
+    );
     const saved = fs.readFileSync(file);
-    await expect(service.loadScheduleFromBuffer(await roster([]))).rejects.toBeInstanceOf(ScheduleParseError);
+    await expect(service.loadScheduleFromBuffer(await roster([]))).rejects.toBeInstanceOf(
+      ScheduleParseError
+    );
     expect(fs.readFileSync(file).equals(saved)).toBe(true);
     expect(service.getFlightEvents()).toHaveLength(1);
   });
 
   it('clear() removes the schedule and the file', async () => {
     const service = new ScheduleService({ columnMapping: {}, file });
-    await service.loadScheduleFromBuffer(await roster([['2030-03-01', 'AA100', 'JFK', 'LAX', '08:00', '11:30']]));
+    await service.loadScheduleFromBuffer(
+      await roster([['2030-03-01', 'AA100', 'JFK', 'LAX', '08:00', '11:30']])
+    );
     service.clear();
     expect(service.getFlightEvents()).toEqual([]);
     expect(fs.existsSync(file)).toBe(false);

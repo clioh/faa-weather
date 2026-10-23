@@ -43,7 +43,11 @@ async function post<T>(action: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
     })
   } catch {
-    throw new LicenseApiError('network', "Couldn't reach SkyGlass. Check your connection and try again.", 0)
+    throw new LicenseApiError(
+      'network',
+      "Couldn't reach SkyGlass. Check your connection and try again.",
+      0
+    )
   }
 
   const data = (await response.json().catch(() => null)) as

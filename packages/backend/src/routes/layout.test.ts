@@ -16,9 +16,17 @@ const realWrite = fs.writeFileSync;
 vi.spyOn(fs, 'existsSync').mockImplementation(((p: fs.PathLike) =>
   isLayoutFile(p) ? files.has(p as string) : realExists(p)) as typeof fs.existsSync);
 vi.spyOn(fs, 'readFileSync').mockImplementation(((p: fs.PathOrFileDescriptor, o?: unknown) =>
-  isLayoutFile(p) ? files.get(p as string) : realRead(p, o as BufferEncoding)) as typeof fs.readFileSync);
-vi.spyOn(fs, 'writeFileSync').mockImplementation(((p: fs.PathOrFileDescriptor, d: string, o?: unknown) =>
-  isLayoutFile(p) ? void files.set(p as string, d) : realWrite(p, d, o as BufferEncoding)) as typeof fs.writeFileSync);
+  isLayoutFile(p)
+    ? files.get(p as string)
+    : realRead(p, o as BufferEncoding)) as typeof fs.readFileSync);
+vi.spyOn(fs, 'writeFileSync').mockImplementation(((
+  p: fs.PathOrFileDescriptor,
+  d: string,
+  o?: unknown
+) =>
+  isLayoutFile(p)
+    ? void files.set(p as string, d)
+    : realWrite(p, d, o as BufferEncoding)) as typeof fs.writeFileSync);
 
 // display.orientation as the route reads it from config.yaml.
 const display = vi.hoisted(() => ({ orientation: 'landscape' as string }));
@@ -46,12 +54,17 @@ const SIZES: Record<string, { cols: number; rows: number }> = {
 };
 
 /** Cells covered by each tile; throws on a tile off the grid or an overlap. */
-function coveredCells(modules: { position: { x: number; y: number }; size: string; instanceId: string }[]): number {
+function coveredCells(
+  modules: { position: { x: number; y: number }; size: string; instanceId: string }[]
+): number {
   const taken = new Set<string>();
   for (const m of modules) {
     const { cols, rows } = SIZES[m.size];
     const { x, y } = m.position;
-    expect(x >= 0 && y >= 0 && x + cols <= 12 && y + rows <= 8, `${m.instanceId} inside the grid`).toBe(true);
+    expect(
+      x >= 0 && y >= 0 && x + cols <= 12 && y + rows <= 8,
+      `${m.instanceId} inside the grid`
+    ).toBe(true);
     for (let r = y; r < y + rows; r++) {
       for (let c = x; c < x + cols; c++) {
         expect(taken.has(`${c},${r}`), `${m.instanceId} overlaps at ${c},${r}`).toBe(false);
@@ -138,7 +151,13 @@ describe('PUT /api/layout', () => {
 
   it('persists the layout and broadcasts layout-update with { layout }', async () => {
     const modules = [
-      { instanceId: 'clock-1', moduleId: 'digital-clock', position: { x: 0, y: 0 }, size: 'medium', config: {} },
+      {
+        instanceId: 'clock-1',
+        moduleId: 'digital-clock',
+        position: { x: 0, y: 0 },
+        size: 'medium',
+        config: {},
+      },
     ];
     const res = await fetch(`${base}/api/layout`, {
       method: 'PUT',
@@ -159,14 +178,23 @@ describe('PUT /api/layout', () => {
   });
 
   it('keeps the editor shelf with the layout', async () => {
-    const tile = (id: string) => ({ instanceId: id, moduleId: 'metar', position: { x: 0, y: 0 }, size: 'medium', config: {} });
+    const tile = (id: string) => ({
+      instanceId: id,
+      moduleId: 'metar',
+      position: { x: 0, y: 0 },
+      size: 'medium',
+      config: {},
+    });
     const res = await fetch(`${base}/api/layout`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ modules: [tile('placed')], shelf: [tile('parked')] }),
     });
     expect(res.status).toBe(200);
-    const stored = (await (await fetch(`${base}/api/layout`)).json()) as { modules: unknown[]; shelf: unknown[] };
+    const stored = (await (await fetch(`${base}/api/layout`)).json()) as {
+      modules: unknown[];
+      shelf: unknown[];
+    };
     expect(stored.modules).toEqual([tile('placed')]);
     expect(stored.shelf).toEqual([tile('parked')]);
   });

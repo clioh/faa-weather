@@ -6,7 +6,14 @@
 
 import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
-import { BottomSheet, Button, Field as UIField, Notice as UINotice, type FieldProps, type IconName } from '@/components/ui';
+import {
+  BottomSheet,
+  Button,
+  Field as UIField,
+  Notice as UINotice,
+  type FieldProps,
+  type IconName,
+} from '@/components/ui';
 import type { Tone } from '@/lib/theme';
 
 // ------------------------------------------------------------------ Sheet
@@ -45,7 +52,10 @@ export function PrimaryButton(props: ButtonProps) {
   return <Button {...props} variant="primary" />;
 }
 
-export function SecondaryButton({ tone = 'default', ...props }: ButtonProps & { tone?: 'default' | 'danger' }) {
+export function SecondaryButton({
+  tone = 'default',
+  ...props
+}: ButtonProps & { tone?: 'default' | 'danger' }) {
   return <Button {...props} variant={tone === 'danger' ? 'danger' : 'secondary'} />;
 }
 

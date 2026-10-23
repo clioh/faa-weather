@@ -22,10 +22,7 @@ const router = Router();
 const config = loadConfig();
 
 // Initialize astro manager with configured location
-const astroManager = new AstroDataManager(
-  config.location.latitude,
-  config.location.longitude
-);
+const astroManager = new AstroDataManager(config.location.latitude, config.location.longitude);
 
 /**
  * GET /api/aviation/metar/:icao
@@ -51,15 +48,10 @@ router.get('/metar/:icao', async (req, res) => {
         wind: formatWind(metar.parsed.wind),
         visibility: formatVisibility(metar.parsed.visibility),
         clouds: formatClouds(metar.parsed.clouds),
-        temperature: metar.parsed.temperature !== null
-          ? `${metar.parsed.temperature}°C`
-          : 'N/A',
-        dewpoint: metar.parsed.dewpoint !== null
-          ? `${metar.parsed.dewpoint}°C`
-          : 'N/A',
-        altimeter: metar.parsed.altimeter !== null
-          ? `${metar.parsed.altimeter.toFixed(2)}"`
-          : 'N/A',
+        temperature: metar.parsed.temperature !== null ? `${metar.parsed.temperature}°C` : 'N/A',
+        dewpoint: metar.parsed.dewpoint !== null ? `${metar.parsed.dewpoint}°C` : 'N/A',
+        altimeter:
+          metar.parsed.altimeter !== null ? `${metar.parsed.altimeter.toFixed(2)}"` : 'N/A',
       },
       fetchedAt: metar.fetchedAt.toISOString(),
     });
@@ -147,9 +139,7 @@ router.get('/notams/:icao', async (req, res) => {
   try {
     const { icao } = req.params;
     const activeOnly = req.query.active !== 'false';
-    const categories = req.query.categories
-      ? (req.query.categories as string).split(',')
-      : [];
+    const categories = req.query.categories ? (req.query.categories as string).split(',') : [];
 
     let notams = await notamData.getNotams(icao);
 

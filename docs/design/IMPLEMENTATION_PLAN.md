@@ -22,13 +22,13 @@ Build `Button`, `TextButton`, `RowGroup`/`Row`, `SectionLabel`, `Field`, `Notice
 
 Then re-point the existing ones at them:
 
-| Existing | Becomes |
-|---|---|
-| calendar `ui.tsx` `PrimaryButton` / `SecondaryButton` / `Field` / `Notice` / `Sheet` | Wrappers or re-exports |
-| `ErrorToast` / `InlineError` | `Toast` / `Notice` |
-| `OnboardingProgress` | `StepProgress` |
-| `ScreenHeader` | Restyled to the header spec |
-| `DiscardSheet` | `BottomSheet` |
+| Existing                                                                             | Becomes                     |
+| ------------------------------------------------------------------------------------ | --------------------------- |
+| calendar `ui.tsx` `PrimaryButton` / `SecondaryButton` / `Field` / `Notice` / `Sheet` | Wrappers or re-exports      |
+| `ErrorToast` / `InlineError`                                                         | `Toast` / `Notice`          |
+| `OnboardingProgress`                                                                 | `StepProgress`              |
+| `ScreenHeader`                                                                       | Restyled to the header spec |
+| `DiscardSheet`                                                                       | `BottomSheet`               |
 
 Optionally add a hidden dev route (`/dev/ui`) that renders every primitive and state, so you can compare it against `mockups/Foundations.dc.html`.
 
@@ -46,6 +46,7 @@ Follow `SCREENS.md` row by row and check each screen against its mockup.
 ## Phase 4: Website (`packages/website`)
 
 Rebuild `Home` to match `mockups/A-Site.dc.html` using the same tokens in `index.css` `@theme`:
+
 - Remove Chakra Petch, the amber CRT palette, scanlines, glow and radar animations.
 - Brand assets are in `docs/design/brand/`: use `favicon.svg` as the favicon and the horizontal lockup (`logo-lockup-horizontal.svg`) in the header.
 - Keep the existing data (FAQ, features, Stripe products, waitlist modal) and wire prices from `config/stripe.ts` instead of `[PRICE]`.
@@ -53,6 +54,7 @@ Rebuild `Home` to match `mockups/A-Site.dc.html` using the same tokens in `index
 ## Phase 5: Mirror onboarding and orientation
 
 Follow `MIRROR_AND_ORIENTATION.md`:
+
 - Restyle the mirror's setup components (`packages/frontend/src/components`) so one layout works in landscape and portrait (mockups `M-*-L` / `M-*-P`, styles in `mirror.css`).
 - Add the Orientation setup step end to end: app screen, setup status, config values, the mirror's rotate preview, and its place in the checklist and step lists.
 

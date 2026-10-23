@@ -577,7 +577,8 @@ export class UpdateService extends EventEmitter {
           phase: 'downloading',
           bytesDownloaded,
           totalBytes,
-          percent: totalBytes > 0 ? Math.min(100, Math.round((bytesDownloaded / totalBytes) * 100)) : 0,
+          percent:
+            totalBytes > 0 ? Math.min(100, Math.round((bytesDownloaded / totalBytes) * 100)) : 0,
           speed: Math.round(speed),
           eta: Math.round(eta),
         });

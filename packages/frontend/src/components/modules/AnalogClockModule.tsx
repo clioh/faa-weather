@@ -73,7 +73,11 @@ export function AnalogClockModule({ config, timezone }: ModuleProps) {
   return (
     <ModuleFrame className="aclock">
       <div className="aclock-face">
-        <svg viewBox="-50 -50 100 100" role="img" aria-label={`${p.hour}:${String(p.minute).padStart(2, '0')}`}>
+        <svg
+          viewBox="-50 -50 100 100"
+          role="img"
+          aria-label={`${p.hour}:${String(p.minute).padStart(2, '0')}`}
+        >
           <Face faceStyle={faceStyle} />
           <g transform={`rotate(${hourAngle})`}>
             <line className="aclock-hand hour" x1="0" y1="4" x2="0" y2={-R * 0.5} />

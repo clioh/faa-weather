@@ -10,7 +10,11 @@ import { spacing } from '@/lib/theme';
 
 export function Footer({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const insets = useSafeAreaInsets();
-  return <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }, style]}>{children}</View>;
+  return (
+    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }, style]}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

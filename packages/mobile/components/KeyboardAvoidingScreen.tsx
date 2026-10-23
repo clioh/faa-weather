@@ -40,7 +40,11 @@ interface KeyboardAvoidingScreenProps {
   avoidOnIOS?: boolean;
 }
 
-export function KeyboardAvoidingScreen({ children, style, avoidOnIOS = true }: KeyboardAvoidingScreenProps) {
+export function KeyboardAvoidingScreen({
+  children,
+  style,
+  avoidOnIOS = true,
+}: KeyboardAvoidingScreenProps) {
   const outerRef = useRef<ViewInstance>(null);
   const [offset, setOffset] = useState(0);
 

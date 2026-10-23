@@ -24,5 +24,7 @@ export function normalizeColor(input: unknown): string | null {
 
 /** Palette color for the n-th calendar without a provider color. */
 export function paletteColor(n: number): string {
-  return CALENDAR_PALETTE[((n % CALENDAR_PALETTE.length) + CALENDAR_PALETTE.length) % CALENDAR_PALETTE.length];
+  return CALENDAR_PALETTE[
+    ((n % CALENDAR_PALETTE.length) + CALENDAR_PALETTE.length) % CALENDAR_PALETTE.length
+  ];
 }

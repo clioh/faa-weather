@@ -199,14 +199,19 @@ function runMigrations(db: Database.Database): void {
  * Ensure the mirror has a unique identity
  */
 function ensureMirrorIdentity(db: Database.Database): void {
-  const existing = db.prepare('SELECT value FROM mirror_settings WHERE key = ?').get('mirrorId') as DbMirrorSetting | undefined;
+  const existing = db.prepare('SELECT value FROM mirror_settings WHERE key = ?').get('mirrorId') as
+    | DbMirrorSetting
+    | undefined;
 
   if (!existing) {
     const mirrorId = uuidv4();
     const mirrorName = `SkyGlass-${hostname().split('.')[0]}`;
 
     db.prepare('INSERT INTO mirror_settings (key, value) VALUES (?, ?)').run('mirrorId', mirrorId);
-    db.prepare('INSERT INTO mirror_settings (key, value) VALUES (?, ?)').run('mirrorName', mirrorName);
+    db.prepare('INSERT INTO mirror_settings (key, value) VALUES (?, ?)').run(
+      'mirrorName',
+      mirrorName
+    );
 
     console.log(`[Database] Generated mirror identity: ${mirrorId} (${mirrorName})`);
   }
@@ -216,7 +221,9 @@ function ensureMirrorIdentity(db: Database.Database): void {
  * Get mirror ID
  */
 export function getMirrorId(): string {
-  const row = getDb().prepare('SELECT value FROM mirror_settings WHERE key = ?').get('mirrorId') as DbMirrorSetting;
+  const row = getDb()
+    .prepare('SELECT value FROM mirror_settings WHERE key = ?')
+    .get('mirrorId') as DbMirrorSetting;
   return row?.value || 'unknown';
 }
 
@@ -224,7 +231,9 @@ export function getMirrorId(): string {
  * Get mirror name
  */
 export function getMirrorName(): string {
-  const row = getDb().prepare('SELECT value FROM mirror_settings WHERE key = ?').get('mirrorName') as DbMirrorSetting;
+  const row = getDb()
+    .prepare('SELECT value FROM mirror_settings WHERE key = ?')
+    .get('mirrorName') as DbMirrorSetting;
   return row?.value || 'SkyGlass';
 }
 
@@ -239,7 +248,7 @@ export function upsertUser(
   preferences: Record<string, unknown> = {},
   starterModules: unknown[] = [],
   /** Added by someone else's phone: stays unclaimed until they accept an invite. */
-  invited = false,
+  invited = false
 ): DbUser {
   const db = getDb();
   const now = new Date().toISOString();
@@ -248,15 +257,19 @@ export function upsertUser(
   const existing = db.prepare('SELECT id FROM users WHERE id = ?').get(id);
 
   if (existing) {
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE users SET name = ?, preferences = ?, updated_at = ?
       WHERE id = ?
-    `).run(name, prefsJson, now, id);
+    `
+    ).run(name, prefsJson, now, id);
   } else {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO users (id, name, preferences, created_at, updated_at, claimed_at)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, name, prefsJson, now, now, invited ? null : now);
+    `
+    ).run(id, name, prefsJson, now, now, invited ? null : now);
 
     // Create default layout for new user
     createDefaultLayout(id, starterModules);
@@ -289,22 +302,29 @@ export function markUserClaimed(id: string): void {
 /** Store a person's invite, replacing any earlier one (which stops working). */
 export function setUserInvite(userId: string, tokenHash: string, expiresAt: string): void {
   getDb()
-    .prepare(`
+    .prepare(
+      `
       INSERT INTO user_invites (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET token_hash = excluded.token_hash,
         expires_at = excluded.expires_at, created_at = excluded.created_at
-    `)
+    `
+    )
     .run(userId, tokenHash, expiresAt, new Date().toISOString());
 }
 
 export function getUserInvite(userId: string): DbUserInvite | null {
-  return (getDb().prepare('SELECT * FROM user_invites WHERE user_id = ?').get(userId) as DbUserInvite | undefined) ?? null;
+  return (
+    (getDb().prepare('SELECT * FROM user_invites WHERE user_id = ?').get(userId) as
+      | DbUserInvite
+      | undefined) ?? null
+  );
 }
 
 export function findInviteByTokenHash(tokenHash: string): DbUserInvite | null {
   return (
-    (getDb().prepare('SELECT * FROM user_invites WHERE token_hash = ?').get(tokenHash) as DbUserInvite | undefined) ??
-    null
+    (getDb().prepare('SELECT * FROM user_invites WHERE token_hash = ?').get(tokenHash) as
+      | DbUserInvite
+      | undefined) ?? null
   );
 }
 
@@ -338,43 +358,67 @@ export function updateUserLastSeen(id: string): void {
 function createDefaultLayout(userId: string, modules: unknown[]): void {
   const layoutId = uuidv4();
 
-  getDb().prepare(`
+  getDb()
+    .prepare(
+      `
     INSERT INTO user_layouts (id, user_id, name, modules, is_active)
     VALUES (?, ?, 'Default', ?, 1)
-  `).run(layoutId, userId, JSON.stringify(modules));
+  `
+    )
+    .run(layoutId, userId, JSON.stringify(modules));
 }
 
 /**
  * Get user's active layout
  */
 export function getUserActiveLayout(userId: string): DbUserLayout | null {
-  return getDb().prepare(`
+  return getDb()
+    .prepare(
+      `
     SELECT * FROM user_layouts WHERE user_id = ? AND is_active = 1
-  `).get(userId) as DbUserLayout | null;
+  `
+    )
+    .get(userId) as DbUserLayout | null;
 }
 
 /**
  * Get all layouts for a user
  */
 export function getUserLayouts(userId: string): DbUserLayout[] {
-  return getDb().prepare(`
+  return getDb()
+    .prepare(
+      `
     SELECT * FROM user_layouts WHERE user_id = ? ORDER BY name
-  `).all(userId) as DbUserLayout[];
+  `
+    )
+    .all(userId) as DbUserLayout[];
 }
 
 /**
  * Update a layout's modules
  */
-export function updateLayoutModules(layoutId: string, modules: unknown[], shelf?: unknown[]): boolean {
+export function updateLayoutModules(
+  layoutId: string,
+  modules: unknown[],
+  shelf?: unknown[]
+): boolean {
   const now = new Date().toISOString();
   const result =
     shelf === undefined
-      ? getDb().prepare(`
+      ? getDb()
+          .prepare(
+            `
           UPDATE user_layouts SET modules = ?, updated_at = ? WHERE id = ?
-        `).run(JSON.stringify(modules), now, layoutId)
-      : getDb().prepare(`
+        `
+          )
+          .run(JSON.stringify(modules), now, layoutId)
+      : getDb()
+          .prepare(
+            `
           UPDATE user_layouts SET modules = ?, shelf = ?, updated_at = ? WHERE id = ?
-        `).run(JSON.stringify(modules), JSON.stringify(shelf), now, layoutId);
+        `
+          )
+          .run(JSON.stringify(modules), JSON.stringify(shelf), now, layoutId);
   return result.changes > 0;
 }
 
@@ -388,7 +432,9 @@ export function setActiveLayout(userId: string, layoutId: string): boolean {
   db.prepare('UPDATE user_layouts SET is_active = 0 WHERE user_id = ?').run(userId);
 
   // Activate the specified layout
-  const result = db.prepare('UPDATE user_layouts SET is_active = 1 WHERE id = ? AND user_id = ?').run(layoutId, userId);
+  const result = db
+    .prepare('UPDATE user_layouts SET is_active = 1 WHERE id = ? AND user_id = ?')
+    .run(layoutId, userId);
   return result.changes > 0;
 }
 
@@ -399,10 +445,14 @@ export function createLayout(userId: string, name: string, modules: unknown[] = 
   const layoutId = uuidv4();
   const now = new Date().toISOString();
 
-  getDb().prepare(`
+  getDb()
+    .prepare(
+      `
     INSERT INTO user_layouts (id, user_id, name, modules, is_active, created_at, updated_at)
     VALUES (?, ?, ?, ?, 0, ?, ?)
-  `).run(layoutId, userId, name, JSON.stringify(modules), now, now);
+  `
+    )
+    .run(layoutId, userId, name, JSON.stringify(modules), now, now);
 
   return getDb().prepare('SELECT * FROM user_layouts WHERE id = ?').get(layoutId) as DbUserLayout;
 }

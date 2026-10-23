@@ -180,7 +180,9 @@ export default function MirrorsScreen() {
                         label="Connect"
                         size="small"
                         onPress={() => handleConnect(mirror)}
-                        disabled={loadingAction !== null && loadingAction !== `connect-${mirror.mirrorId}`}
+                        disabled={
+                          loadingAction !== null && loadingAction !== `connect-${mirror.mirrorId}`
+                        }
                         loading={loadingAction === `connect-${mirror.mirrorId}`}
                       />
                       <Button
@@ -188,7 +190,9 @@ export default function MirrorsScreen() {
                         size="small"
                         variant="danger"
                         onPress={() => handleRemoveMirror(mirror)}
-                        disabled={loadingAction !== null && loadingAction !== `remove-${mirror.mirrorId}`}
+                        disabled={
+                          loadingAction !== null && loadingAction !== `remove-${mirror.mirrorId}`
+                        }
                         loading={loadingAction === `remove-${mirror.mirrorId}`}
                       />
                     </View>

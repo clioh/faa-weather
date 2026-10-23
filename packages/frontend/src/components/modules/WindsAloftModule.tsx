@@ -41,7 +41,9 @@ const ALTITUDES = new Set(['9000', '12000', '18000', '30000']);
 
 export function WindsAloftModule({ config, size, latitude, longitude, timezone }: ModuleProps) {
   const location = resolveLocation(config, { latitude, longitude, timezone });
-  const maxAltitude = ALTITUDES.has(String(config.maxAltitude)) ? String(config.maxAltitude) : '12000';
+  const maxAltitude = ALTITUDES.has(String(config.maxAltitude))
+    ? String(config.maxAltitude)
+    : '12000';
   const url = location
     ? `/api/aviation/winds-aloft?lat=${location.latitude.toFixed(3)}&lon=${location.longitude.toFixed(3)}&maxAltitude=${maxAltitude}`
     : null;
@@ -74,7 +76,10 @@ export function WindsAloftModule({ config, size, latitude, longitude, timezone }
       ) : loading ? (
         <ModuleLoading />
       ) : !data ? (
-        <ModuleError title="Winds unavailable" hint={fetchErrorHint(error, 'No FB station nearby')} />
+        <ModuleError
+          title="Winds unavailable"
+          hint={fetchErrorHint(error, 'No FB station nearby')}
+        />
       ) : levels.length === 0 ? (
         <ModuleEmpty title="No levels reported" hint={`Station ${data.station}`} />
       ) : (

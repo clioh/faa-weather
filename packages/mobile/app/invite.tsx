@@ -87,7 +87,10 @@ export default function InviteScreen() {
     if (isLoading || started.current) return;
     started.current = true;
     if (!invite) {
-      setPhase({ kind: 'error', message: 'This invite link is incomplete. Open the link you were sent again.' });
+      setPhase({
+        kind: 'error',
+        message: 'This invite link is incomplete. Open the link you were sent again.',
+      });
     } else if (user) {
       setPhase({ kind: 'replace', currentName: user.name });
     } else {
@@ -117,8 +120,8 @@ export default function InviteScreen() {
           Welcome, {phase.name}
         </Text>
         <Text style={styles.subtitle}>
-          You’re set up on {phase.mirrorName}. Your face is already registered, so the mirror will show your layout when
-          it recognizes you. Make it yours.
+          You’re set up on {phase.mirrorName}. Your face is already registered, so the mirror will
+          show your layout when it recognizes you. Make it yours.
         </Text>
       </>
     ) : phase.kind === 'replace' ? (
@@ -128,8 +131,8 @@ export default function InviteScreen() {
           Accept the invite?
         </Text>
         <Text style={styles.subtitle}>
-          This phone is set up for {phase.currentName}. Accepting the invite makes it yours on this phone instead.{' '}
-          {phase.currentName} stays on their mirrors.
+          This phone is set up for {phase.currentName}. Accepting the invite makes it yours on this
+          phone instead. {phase.currentName} stays on their mirrors.
         </Text>
       </>
     ) : (

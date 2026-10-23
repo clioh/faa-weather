@@ -31,10 +31,16 @@ const captureBodies: unknown[] = [];
 let captureResult: Record<string, unknown> = { success: true, samples_captured: 1 };
 const presence = express();
 presence.use(express.json());
-presence.post('/api/start', (_req, res) => res.json({ enrollmentToken: 'tok-1', expiresAt: Date.now() + 60_000 }));
+presence.post('/api/start', (_req, res) =>
+  res.json({ enrollmentToken: 'tok-1', expiresAt: Date.now() + 60_000 })
+);
 presence.post('/api/reset', (_req, res) => res.json({ success: true }));
 presence.post('/api/capture', (req, res) => {
-  captureBodies.push({ body: req.body, contentType: req.headers['content-type'], internal: req.headers['x-skyglass-internal'] });
+  captureBodies.push({
+    body: req.body,
+    contentType: req.headers['content-type'],
+    internal: req.headers['x-skyglass-internal'],
+  });
   res.json(captureResult);
 });
 const presenceServer: Server = presence.listen(0, '127.0.0.1');
@@ -63,7 +69,9 @@ afterAll(async () => {
 type Registration = Record<string, unknown> & { action?: string };
 
 function registrationBroadcasts(): Registration[] {
-  return broadcastSpy.mock.calls.filter(([type]) => type === 'registration').map(([, data]) => data as Registration);
+  return broadcastSpy.mock.calls
+    .filter(([type]) => type === 'registration')
+    .map(([, data]) => data as Registration);
 }
 
 function post(p: string, body: unknown, internal = false) {
@@ -173,7 +181,9 @@ describe('POST /api/registration/capture (manual fallback)', () => {
     expect(Date.now() - t0).toBeLessThan(2000); // no backend sleep
     expect(await res.json()).toEqual({ success: true, samplesCollected: 1, complete: false });
 
-    expect(captureBodies).toEqual([{ body: { delay: 3 }, contentType: 'application/json', internal: getInternalToken() }]);
+    expect(captureBodies).toEqual([
+      { body: { delay: 3 }, contentType: 'application/json', internal: getInternalToken() },
+    ]);
     expect(registrationBroadcasts().map((b) => b.action)).toEqual(['started', 'capture-start']);
   });
 

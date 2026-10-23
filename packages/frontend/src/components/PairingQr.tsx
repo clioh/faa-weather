@@ -16,7 +16,10 @@ interface PairingQrProps {
   fallback?: ReactNode;
 }
 
-export function PairingQr({ caption = 'Scan with your phone camera to pair', fallback = null }: PairingQrProps) {
+export function PairingQr({
+  caption = 'Scan with your phone camera to pair',
+  fallback = null,
+}: PairingQrProps) {
   const qr = usePairingQr();
   if (!qr) return <>{fallback}</>;
 
@@ -26,11 +29,17 @@ export function PairingQr({ caption = 'Scan with your phone camera to pair', fal
   return (
     <div className="sg-pairing-qr">
       {/* Drawn at 1080p size; .sg-qr scales it with the panel. */}
-      <div className="sg-qr" role="img" aria-label="QR code that opens the SkyGlass app on this mirror">
+      <div
+        className="sg-qr"
+        role="img"
+        aria-label="QR code that opens the SkyGlass app on this mirror"
+      >
         <QRCodeSVG value={qr.url} size={336} level="M" marginSize={0} />
       </div>
       {caption && <p className="sg-caption">{caption}</p>}
-      {devBuild && <p className="sg-caption sg-faint sg-mono">Development build · opens in Expo Go</p>}
+      {devBuild && (
+        <p className="sg-caption sg-faint sg-mono">Development build · opens in Expo Go</p>
+      )}
     </div>
   );
 }

@@ -123,7 +123,11 @@ export function LinkConnect({ onConnected }: LinkConnectProps) {
         >
           <Ionicons name="help-circle-outline" size={18} color={colors.textSecondary} />
           <Text style={styles.helpToggleText}>Where do I find a calendar link?</Text>
-          <Ionicons name={helpOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+          <Ionicons
+            name={helpOpen ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color={colors.chevron}
+          />
         </TouchableOpacity>
         {helpOpen && (
           <View style={styles.helpList}>
@@ -138,7 +142,8 @@ export function LinkConnect({ onConnected }: LinkConnectProps) {
       </View>
       {helpOpen && (
         <Text style={styles.helpNote}>
-          Anyone with a private link can see that calendar, so keep it to yourself. It’s stored only on your mirror.
+          Anyone with a private link can see that calendar, so keep it to yourself. It’s stored only
+          on your mirror.
         </Text>
       )}
 

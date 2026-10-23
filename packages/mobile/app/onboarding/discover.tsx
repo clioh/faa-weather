@@ -123,7 +123,9 @@ export default function DiscoverScreen() {
       const connected = await connectToMirror(mirror);
 
       if (!connected) {
-        setConnectionError('Could not reach mirror. Check that it\'s powered on and on the same network.');
+        setConnectionError(
+          "Could not reach mirror. Check that it's powered on and on the same network."
+        );
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setConnecting(null);
         return;
@@ -132,7 +134,9 @@ export default function DiscoverScreen() {
       // Pair before anything else: every route past /api/discovery needs
       // this phone's token. A QR claim (connect) has already stored one.
       if (!mirror.provisioning && !(await ensurePaired({ mirrorName: mirror.name }))) {
-        setConnectionError('This phone needs to be paired with the mirror before it can set it up. Tap the mirror to try again.');
+        setConnectionError(
+          'This phone needs to be paired with the mirror before it can set it up. Tap the mirror to try again.'
+        );
         return;
       }
 
@@ -197,7 +201,7 @@ export default function DiscoverScreen() {
           message = 'No internet connection. Please check your network.';
           break;
         case ErrorType.NETWORK_ERROR:
-          message = 'Network error. Make sure you\'re on the same network as the mirror.';
+          message = "Network error. Make sure you're on the same network as the mirror.";
           break;
         default:
           message = ERROR_MESSAGES[errorType] || 'Connection failed. Please try again.';
@@ -335,7 +339,8 @@ export default function DiscoverScreen() {
             <View style={styles.helpStep}>
               <Text style={styles.helpStepNumber}>01</Text>
               <Text style={styles.helpStepText}>
-                For new mirrors, connect to the "<Text style={styles.mono}>SkyGlass-Setup</Text>" WiFi network
+                For new mirrors, connect to the "<Text style={styles.mono}>SkyGlass-Setup</Text>"
+                WiFi network
               </Text>
             </View>
             <View style={styles.helpStep}>
@@ -354,7 +359,11 @@ export default function DiscoverScreen() {
               title="Enter IP manually"
               onPress={() => setShowManual(!showManual)}
               trailing={
-                <Ionicons name={showManual ? 'chevron-up' : 'chevron-down'} size={14} color={colors.chevron} />
+                <Ionicons
+                  name={showManual ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color={colors.chevron}
+                />
               }
             />
           </RowGroup>
@@ -389,7 +398,13 @@ export default function DiscoverScreen() {
 
       {/* Footer */}
       <Footer>
-        <Button label="Scan Again" variant="secondary" icon="refresh" onPress={startScan} disabled={scanning} />
+        <Button
+          label="Scan Again"
+          variant="secondary"
+          icon="refresh"
+          onPress={startScan}
+          disabled={scanning}
+        />
         <TextButton label="Set up later" onPress={handleSkip} />
       </Footer>
     </KeyboardAvoidingScreen>

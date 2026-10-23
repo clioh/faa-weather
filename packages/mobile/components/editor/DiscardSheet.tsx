@@ -19,7 +19,12 @@ interface DiscardSheetProps {
   onDismissed: () => void;
 }
 
-export function DiscardSheet({ visible, onDiscard, onKeepEditing, onDismissed }: DiscardSheetProps) {
+export function DiscardSheet({
+  visible,
+  onDiscard,
+  onKeepEditing,
+  onDismissed,
+}: DiscardSheetProps) {
   return (
     <BottomSheet
       visible={visible}
@@ -30,7 +35,12 @@ export function DiscardSheet({ visible, onDiscard, onKeepEditing, onDismissed }:
       body="Your edits haven’t been saved. The mirror will go back to its saved layout."
     >
       <View style={styles.buttons}>
-        <Button label="Discard" variant="danger" onPress={onDiscard} accessibilityLabel="Discard changes" />
+        <Button
+          label="Discard"
+          variant="danger"
+          onPress={onDiscard}
+          accessibilityLabel="Discard changes"
+        />
         <Button label="Keep editing" variant="secondary" onPress={onKeepEditing} />
       </View>
     </BottomSheet>

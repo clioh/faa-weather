@@ -33,7 +33,17 @@ function weatherKind(code: number): Kind {
 const CLOUD = 'M13 34H35A7 7 0 0 0 35 20A10 10 0 0 0 16 18A8 8 0 0 0 13 34Z';
 const MOON = 'M28 10A14 14 0 1 0 38 30A11 11 0 0 1 28 10Z';
 
-function Sun({ cx = 24, cy = 24, r = 7, ray = 5 }: { cx?: number; cy?: number; r?: number; ray?: number }) {
+function Sun({
+  cx = 24,
+  cy = 24,
+  r = 7,
+  ray = 5,
+}: {
+  cx?: number;
+  cy?: number;
+  r?: number;
+  ray?: number;
+}) {
   const rays = Array.from({ length: 8 }, (_, i) => {
     const a = (i * Math.PI) / 4;
     const x1 = cx + Math.cos(a) * (r + 3);

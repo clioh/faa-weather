@@ -62,7 +62,24 @@ export function formatWind(wind: Wind | null | undefined): string {
   return unit ? `${value} ${unit}` : value;
 }
 
-const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+const COMPASS = [
+  'N',
+  'NNE',
+  'NE',
+  'ENE',
+  'E',
+  'ESE',
+  'SE',
+  'SSE',
+  'S',
+  'SSW',
+  'SW',
+  'WSW',
+  'W',
+  'WNW',
+  'NW',
+  'NNW',
+];
 
 /** 315 → "NW" */
 export function compassPoint(degrees: number | null | undefined): string {
@@ -123,7 +140,10 @@ function cloudLayerCode(layer: CloudLayer): string {
  * The layer a pilot cares about first: the ceiling (lowest BKN/OVC/VV) when
  * there is one, otherwise the lowest reported layer, otherwise "CLR".
  */
-export function formatCeiling(clouds: CloudLayer[] | undefined, ceiling: number | null | undefined): string {
+export function formatCeiling(
+  clouds: CloudLayer[] | undefined,
+  ceiling: number | null | undefined
+): string {
   const layers = clouds ?? [];
   if (ceiling !== null && ceiling !== undefined) {
     const layer = layers.find(
@@ -199,7 +219,9 @@ export function parseDayTime(stamp: string, reference: Date = new Date()): Date 
   );
   let best = candidates[1];
   for (const c of candidates) {
-    if (Math.abs(c.getTime() - reference.getTime()) < Math.abs(best.getTime() - reference.getTime())) {
+    if (
+      Math.abs(c.getTime() - reference.getTime()) < Math.abs(best.getTime() - reference.getTime())
+    ) {
       best = c;
     }
   }
@@ -246,7 +268,8 @@ export function distanceNm(lat1: number, lon1: number, lat2: number, lon2: numbe
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
-    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return 2 * 3440.065 * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
@@ -289,7 +312,10 @@ export function notamCategory(text: string, classification?: string): NotamCateg
   const index = NOTAM_CATEGORIES.findIndex((c) => c.pattern.test(body));
   if (index >= 0) return { label: NOTAM_CATEGORIES[index].label, rank: index };
   const fallback = (classification || 'NOTAM').toUpperCase();
-  return { label: fallback === 'UNKNOWN' ? 'NOTAM' : fallback.slice(0, 8), rank: NOTAM_CATEGORIES.length };
+  return {
+    label: fallback === 'UNKNOWN' ? 'NOTAM' : fallback.slice(0, 8),
+    rank: NOTAM_CATEGORIES.length,
+  };
 }
 
 /* -------------------------------------------------------------- Errors */

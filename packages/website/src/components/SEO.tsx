@@ -12,7 +12,8 @@ interface SEOProps {
 
 const defaultMeta = {
   title: 'SkyGlass | Smart Mirror for Pilots',
-  description: 'A smart mirror that displays live METAR, TFRs, and your flight schedule. Looks like a regular mirror until you walk up. Built by a pilot, for pilots.',
+  description:
+    'A smart mirror that displays live METAR, TFRs, and your flight schedule. Looks like a regular mirror until you walk up. Built by a pilot, for pilots.',
   siteUrl: 'https://skyglass.dev',
   image: 'https://skyglass.dev/og-image.png',
   twitterHandle: '@skyglassdev',
@@ -26,13 +27,9 @@ export function SEO({
   image = defaultMeta.image,
   noindex = false,
 }: SEOProps) {
-  const pageTitle = title
-    ? `${title} | SkyGlass`
-    : defaultMeta.title
+  const pageTitle = title ? `${title} | SkyGlass` : defaultMeta.title
 
-  const url = canonical
-    ? `${defaultMeta.siteUrl}${canonical}`
-    : defaultMeta.siteUrl
+  const url = canonical ? `${defaultMeta.siteUrl}${canonical}` : defaultMeta.siteUrl
 
   return (
     <Helmet>

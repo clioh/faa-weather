@@ -88,7 +88,10 @@ function instanceFor(moduleId: string, x: number, y: number, size: ModuleSize): 
 }
 
 /** Shown when the mirror has no layout yet. */
-const defaultTiles = () => [instanceFor('digital-clock', 0, 0, 'medium'), instanceFor('metar', 4, 0, 'medium')];
+const defaultTiles = () => [
+  instanceFor('digital-clock', 0, 0, 'medium'),
+  instanceFor('metar', 4, 0, 'medium'),
+];
 
 function sameGeometry(a: ModuleInstance[], b: ModuleInstance[]): boolean {
   return (
@@ -104,7 +107,11 @@ function sameGeometry(a: ModuleInstance[], b: ModuleInstance[]): boolean {
 }
 
 /** Resize on the mirror (where it must still fit) or on the shelf (always fits). */
-function resizeAnywhere(list: ModuleInstance[], id: string, size: ModuleSize): ModuleInstance[] | null {
+function resizeAnywhere(
+  list: ModuleInstance[],
+  id: string,
+  size: ModuleSize
+): ModuleInstance[] | null {
   const target = list.find((m) => m.instanceId === id);
   if (!target) return null;
   if (target.shelved) return list.map((m) => (m === target ? { ...m, size } : m));
@@ -134,7 +141,10 @@ export default function EditorScreen() {
   const user = useMemo(
     () =>
       typeof params.personId === 'string' && params.personId !== me?.id
-        ? { id: params.personId, name: typeof params.personName === 'string' ? params.personName : 'Their' }
+        ? {
+            id: params.personId,
+            name: typeof params.personName === 'string' ? params.personName : 'Their',
+          }
         : me,
     [params.personId, params.personName, me]
   );
@@ -232,7 +242,8 @@ export default function EditorScreen() {
       const shelved: ModuleInstance[] = (Array.isArray(loadedShelf) ? loadedShelf : [])
         .filter((m) => m && typeof m === 'object' && typeof m.moduleId === 'string')
         .map((m) => {
-          const instanceId = m.instanceId && !seen.has(m.instanceId) ? m.instanceId : generateInstanceId();
+          const instanceId =
+            m.instanceId && !seen.has(m.instanceId) ? m.instanceId : generateInstanceId();
           seen.add(instanceId);
           return { ...m, instanceId, config: m.config ?? {}, shelved: true };
         });
@@ -243,7 +254,10 @@ export default function EditorScreen() {
       setSelectedId(null);
       setIsLoading(false);
       if (dropped.length > 0) {
-        showToast(`${plural(dropped.length, 'widget')} didn’t fit and ${dropped.length === 1 ? 'was' : 'were'} left out`, 'info');
+        showToast(
+          `${plural(dropped.length, 'widget')} didn’t fit and ${dropped.length === 1 ? 'was' : 'were'} left out`,
+          'info'
+        );
       }
     };
     load();
@@ -261,7 +275,8 @@ export default function EditorScreen() {
       .getConfig()
       .then((config) => {
         // portrait-cw and portrait-ccw (and the legacy `portrait`) all draw the portrait canvas.
-        if (!cancelled) setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
+        if (!cancelled)
+          setOrientation(isPortrait(config?.display?.orientation) ? 'portrait' : 'landscape');
       })
       .catch(() => {
         // Unreachable mirror: keep the landscape default.
@@ -303,7 +318,9 @@ export default function EditorScreen() {
   // Waiting for the load keeps it from being overwritten when the editor is
   // opened straight from onboarding with a template.
   // `applyKey` lets the same template be applied again after an undo.
-  const templateRequest = params.templateId ? `${params.templateId}:${params.applyKey ?? ''}` : null;
+  const templateRequest = params.templateId
+    ? `${params.templateId}:${params.applyKey ?? ''}`
+    : null;
   useEffect(() => {
     if (!editable || !params.templateId || templateRequest === appliedTemplateId) return;
     setAppliedTemplateId(templateRequest);
@@ -617,7 +634,10 @@ export default function EditorScreen() {
     return def.sizes.map((size) => ({
       size,
       // Any size fits on the shelf.
-      fits: size === inst.size || inst.shelved === true || placementForSize(modules, inst, size) !== null,
+      fits:
+        size === inst.size ||
+        inst.shelved === true ||
+        placementForSize(modules, inst, size) !== null,
     }));
   };
 
@@ -706,7 +726,12 @@ export default function EditorScreen() {
       <View style={styles.empty}>
         <Text style={styles.emptyTitle}>Your mirror is empty</Text>
         <View style={styles.emptyButtons}>
-          <Button label="Add widget" size="small" onPress={() => setShowLibrary(true)} style={styles.emptyButton} />
+          <Button
+            label="Add widget"
+            size="small"
+            onPress={() => setShowLibrary(true)}
+            style={styles.emptyButton}
+          />
           <Button
             label="Start from a template"
             size="small"
@@ -747,7 +772,11 @@ export default function EditorScreen() {
         <Text style={[styles.statusText, dirty && styles.statusDirty]}>
           {dirty
             ? 'Unsaved changes'
-            : [plural(modules.length, 'widget'), shelf.length > 0 ? `${shelf.length} on shelf` : null, 'Saved']
+            : [
+                plural(modules.length, 'widget'),
+                shelf.length > 0 ? `${shelf.length} on shelf` : null,
+                'Saved',
+              ]
                 .filter(Boolean)
                 .join(' · ')}
         </Text>
@@ -779,7 +808,11 @@ export default function EditorScreen() {
         instance={selected}
         definition={selectedDef}
         sizeOptions={sizeOptionsFor(selected)}
-        needsSetup={selected && selectedDef ? missingRequiredFields(selectedDef, selected.config ?? {}).length > 0 : false}
+        needsSetup={
+          selected && selectedDef
+            ? missingRequiredFields(selectedDef, selected.config ?? {}).length > 0
+            : false
+        }
         empty={modules.length === 0}
         onSize={setSelectedSize}
         onConfigure={() => selected && openConfig(selected.instanceId)}

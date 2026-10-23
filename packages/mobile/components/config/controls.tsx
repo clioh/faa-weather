@@ -34,7 +34,15 @@ function clamp(n: number, min?: number, max?: number): number {
   return out;
 }
 
-export function NumberStepper({ label, value, min, max, step = 1, unit, onChange }: NumberStepperProps) {
+export function NumberStepper({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unit,
+  onChange,
+}: NumberStepperProps) {
   const [text, setText] = useState(String(value));
   const [focused, setFocused] = useState(false);
 
@@ -205,7 +213,10 @@ export function PickerRow({
           <Ionicons name={icon} size={18} color={value ? colors.text : colors.textMuted} />
         )}
         <View style={styles.pickerTextCol}>
-          <Text style={value ? fieldStyles.pickerValue : fieldStyles.pickerPlaceholder} numberOfLines={1}>
+          <Text
+            style={value ? fieldStyles.pickerValue : fieldStyles.pickerPlaceholder}
+            numberOfLines={1}
+          >
             {value ?? placeholder}
           </Text>
           {subvalue ? (
@@ -215,7 +226,12 @@ export function PickerRow({
           ) : null}
         </View>
         {!(value && onClear) && (
-          <Ionicons name="chevron-forward" size={14} color={colors.chevron} style={styles.chevron} />
+          <Ionicons
+            name="chevron-forward"
+            size={14}
+            color={colors.chevron}
+            style={styles.chevron}
+          />
         )}
       </TouchableOpacity>
       {value && onClear ? (
@@ -304,7 +320,10 @@ export function DateField({ label, value, onChange }: DateFieldProps) {
   const today = new Date();
   const quick: { label: string; date: Date }[] = [
     { label: 'Today', date: today },
-    { label: '+1 week', date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7) },
+    {
+      label: '+1 week',
+      date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7),
+    },
     { label: '+1 month', date: addMonthsClamped(today, 1) },
   ];
 
@@ -338,7 +357,9 @@ export function DateField({ label, value, onChange }: DateFieldProps) {
               accessibilityRole="button"
               accessibilityLabel={`Set ${label} to ${q.label}, ${iso}`}
             >
-              <Text style={[fieldStyles.chipText, active && fieldStyles.chipTextActive]}>{q.label}</Text>
+              <Text style={[fieldStyles.chipText, active && fieldStyles.chipTextActive]}>
+                {q.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -353,9 +374,14 @@ export function DateField({ label, value, onChange }: DateFieldProps) {
 const LIST_LIMITS: Record<string, number> = { symbol: 12, coin: 10, 'time zone': 8 };
 
 function normalizeList(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string' && v.trim() !== '');
+  if (Array.isArray(value))
+    return value.filter((v): v is string => typeof v === 'string' && v.trim() !== '');
   // Layouts saved before list fields existed stored comma-separated strings.
-  if (typeof value === 'string') return value.split(',').map((s) => s.trim()).filter(Boolean);
+  if (typeof value === 'string')
+    return value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
   return [];
 }
 
@@ -367,7 +393,13 @@ interface ListFieldProps {
   onChange: (items: string[]) => void;
 }
 
-export function ListField({ label, itemLabel = 'item', value, placeholder, onChange }: ListFieldProps) {
+export function ListField({
+  label,
+  itemLabel = 'item',
+  value,
+  placeholder,
+  onChange,
+}: ListFieldProps) {
   const items = normalizeList(value);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -469,7 +501,9 @@ export function ListField({ label, itemLabel = 'item', value, placeholder, onCha
             accessibilityRole="button"
             accessibilityLabel={`Add ${itemLabel}`}
           >
-            <Text style={[styles.listButtonText, !draft.trim() && styles.listButtonTextDisabled]}>Add</Text>
+            <Text style={[styles.listButtonText, !draft.trim() && styles.listButtonTextDisabled]}>
+              Add
+            </Text>
           </TouchableOpacity>
         </View>
       )}

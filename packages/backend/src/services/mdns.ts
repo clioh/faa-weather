@@ -57,12 +57,7 @@ class MdnsService {
       return;
     }
 
-    const {
-      name = `SkyGlass-${hostname()}`,
-      port,
-      mirrorId,
-      version = '0.1.0',
-    } = options;
+    const { name = `SkyGlass-${hostname()}`, port, mirrorId, version = '0.1.0' } = options;
 
     try {
       this.bonjour = new Bonjour();
@@ -114,11 +109,15 @@ class MdnsService {
     this.addressTimer = setInterval(() => {
       const current = this.getLocalIpAddresses().join(',');
       if (!this.isRunning || !this.options || current === this.publishedAddresses) return;
-      console.log(`[mDNS] Addresses changed (${this.publishedAddresses || 'none'} -> ${current || 'none'}); re-advertising`);
+      console.log(
+        `[mDNS] Addresses changed (${this.publishedAddresses || 'none'} -> ${current || 'none'}); re-advertising`
+      );
       const options = this.options;
-      void this.stop().then(() => this.start(options)).catch((error) => {
-        console.error('[mDNS] Failed to re-advertise:', error);
-      });
+      void this.stop()
+        .then(() => this.start(options))
+        .catch((error) => {
+          console.error('[mDNS] Failed to re-advertise:', error);
+        });
     }, ADDRESS_CHECK_MS);
     this.addressTimer.unref?.();
   }

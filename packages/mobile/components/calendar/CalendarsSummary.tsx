@@ -46,11 +46,15 @@ export function CalendarsSummary() {
         <View style={styles.nudge}>
           <Ionicons name="calendar-outline" size={20} color={colors.primary} />
           <Text style={styles.nudgeText}>
-            No calendars connected yet. Connect Google, Outlook, iCloud or a calendar link to show your events here.
-            Imported crew schedules show up either way.
+            No calendars connected yet. Connect Google, Outlook, iCloud or a calendar link to show
+            your events here. Imported crew schedules show up either way.
           </Text>
         </View>
-        <PrimaryButton label="Connect a calendar" icon="add" onPress={() => router.push('/add-calendar')} />
+        <PrimaryButton
+          label="Connect a calendar"
+          icon="add"
+          onPress={() => router.push('/add-calendar')}
+        />
       </View>
     );
   }
@@ -79,14 +83,22 @@ export function CalendarsSummary() {
             </View>
             <View style={styles.status}>
               <Ionicons name={status.icon} size={14} color={status.color} />
-              <Text style={[styles.statusText, a.status !== 'ok' && { color: status.color }]} numberOfLines={1}>
+              <Text
+                style={[styles.statusText, a.status !== 'ok' && { color: status.color }]}
+                numberOfLines={1}
+              >
                 {status.label}
               </Text>
             </View>
           </View>
         );
       })}
-      <SecondaryButton label="Manage calendars" icon="settings-outline" onPress={manage} style={styles.button} />
+      <SecondaryButton
+        label="Manage calendars"
+        icon="settings-outline"
+        onPress={manage}
+        style={styles.button}
+      />
     </View>
   );
 }

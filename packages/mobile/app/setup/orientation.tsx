@@ -151,7 +151,11 @@ export default function OrientationSetupScreen() {
           </Text>
         </View>
 
-        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="Mirror orientation">
+        <View
+          style={styles.options}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Mirror orientation"
+        >
           {OPTIONS.map((option) => {
             const isSelected = selected === option.value;
             return (
@@ -160,8 +164,14 @@ export default function OrientationSetupScreen() {
                 onPress={() => choose(option.value)}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: isSelected }}
-                accessibilityLabel={option.caption ? `${option.title}, ${option.caption}` : option.title}
-                style={({ pressed }) => [styles.option, isSelected && styles.optionSelected, pressed && styles.pressed]}
+                accessibilityLabel={
+                  option.caption ? `${option.title}, ${option.caption}` : option.title
+                }
+                style={({ pressed }) => [
+                  styles.option,
+                  isSelected && styles.optionSelected,
+                  pressed && styles.pressed,
+                ]}
               >
                 <MountPicture value={option.value} selected={isSelected} />
                 <View style={styles.optionText}>
@@ -191,7 +201,12 @@ export default function OrientationSetupScreen() {
       </ScrollView>
 
       <Footer>
-        <Button label="The arrow points up" onPress={handleConfirm} disabled={!selected} loading={saving} />
+        <Button
+          label="The arrow points up"
+          onPress={handleConfirm}
+          disabled={!selected}
+          loading={saving}
+        />
       </Footer>
     </View>
   );

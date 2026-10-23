@@ -76,7 +76,9 @@ export function useMirrorDiscovery() {
     discoveredRef.current.clear();
     setState({ mirrors: [], scanning: true, error: null, detailedError: null });
     if (!MDNS_AVAILABLE) {
-      console.log('[Discovery] mDNS native module not available (Expo Go?); probing known hosts only');
+      console.log(
+        '[Discovery] mDNS native module not available (Expo Go?); probing known hosts only'
+      );
     }
 
     // Saved mirrors' subnets: a mirror whose DHCP address changed is usually

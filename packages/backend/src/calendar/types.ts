@@ -132,7 +132,7 @@ export class CalendarAuthError extends Error {
 export class CalendarError extends Error {
   constructor(
     message: string,
-    public readonly status = 502,
+    public readonly status = 502
   ) {
     super(message);
     this.name = 'CalendarError';

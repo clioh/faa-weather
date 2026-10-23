@@ -58,7 +58,10 @@ describe('probeLinuxDisplay', () => {
   });
 
   it('falls back to the Wayland HDMI output when CEC gets no answer', async () => {
-    const { run, calls } = fakeRunner({ 'cec-client': 'power status: unknown\n', 'wlr-randr': WLR_RANDR });
+    const { run, calls } = fakeRunner({
+      'cec-client': 'power status: unknown\n',
+      'wlr-randr': WLR_RANDR,
+    });
     const method = await probeLinuxDisplay({
       run,
       env: {},
@@ -67,7 +70,10 @@ describe('probeLinuxDisplay', () => {
     });
     expect(method).toMatchObject({ kind: 'wayland', output: 'HDMI-A-1' });
     const wlr = calls.find((c) => c.file === 'wlr-randr');
-    expect(wlr?.env).toMatchObject({ WAYLAND_DISPLAY: 'wayland-0', XDG_RUNTIME_DIR: '/run/user/1000' });
+    expect(wlr?.env).toMatchObject({
+      WAYLAND_DISPLAY: 'wayland-0',
+      XDG_RUNTIME_DIR: '/run/user/1000',
+    });
   });
 
   it('uses X11 DPMS when there is no Wayland session', async () => {
@@ -83,7 +89,11 @@ describe('probeLinuxDisplay', () => {
 });
 
 describe('LinuxDisplayController', () => {
-  const wayland: LinuxDisplayMethod = { kind: 'wayland', output: 'HDMI-A-1', env: { WAYLAND_DISPLAY: 'wayland-0' } };
+  const wayland: LinuxDisplayMethod = {
+    kind: 'wayland',
+    output: 'HDMI-A-1',
+    env: { WAYLAND_DISPLAY: 'wayland-0' },
+  };
 
   it('switches the HDMI output off and on, once per change', async () => {
     const { run, calls } = fakeRunner({ 'wlr-randr': '' });
@@ -112,7 +122,11 @@ describe('LinuxDisplayController', () => {
     let clock = 0;
     const answers: (LinuxDisplayMethod | null)[] = [null, wayland];
     const { run, calls } = fakeRunner({ 'wlr-randr': '' });
-    const display = new LinuxDisplayController(async () => answers.shift() ?? null, run, () => clock);
+    const display = new LinuxDisplayController(
+      async () => answers.shift() ?? null,
+      run,
+      () => clock
+    );
     await display.init();
 
     await display.turnOff(); // too soon to probe again
@@ -128,13 +142,10 @@ describe('LinuxDisplayController', () => {
     let probes = 0;
     let finish: (m: LinuxDisplayMethod) => void = () => {};
     const { run, calls } = fakeRunner({ 'wlr-randr': '' });
-    const display = new LinuxDisplayController(
-      () => {
-        probes += 1;
-        return new Promise((resolve) => (finish = resolve));
-      },
-      run,
-    );
+    const display = new LinuxDisplayController(() => {
+      probes += 1;
+      return new Promise((resolve) => (finish = resolve));
+    }, run);
     const init = display.init();
     const off = display.turnOff();
     finish(wayland);
@@ -146,7 +157,11 @@ describe('LinuxDisplayController', () => {
   it('keeps its state and re-probes after a failed command', async () => {
     let probes = 0;
     const { run } = fakeRunner({ 'wlr-randr': new Error('compositor gone') });
-    const display = new LinuxDisplayController(async () => (probes++, wayland), run, () => probes * 60_000);
+    const display = new LinuxDisplayController(
+      async () => (probes++, wayland),
+      run,
+      () => probes * 60_000
+    );
     await display.init();
     await display.turnOff();
     expect(display.getState()).toBe('on');
