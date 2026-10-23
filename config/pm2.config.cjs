@@ -70,10 +70,10 @@ module.exports = {
       name: 'skyglass-admin',
       script: path.join(INSTALL_DIR, 'packages/presence/venv/bin/gunicorn'),
       cwd: path.join(INSTALL_DIR, 'packages/presence'),
+      // Listens on 0.0.0.0:5000 (gunicorn.conf.py); set GUNICORN_BIND here to change it
       args: '-c gunicorn.conf.py wsgi:app',
       env: {
         PYTHONUNBUFFERED: '1',
-        PORT: 5000,
       },
       autorestart: true,
       max_restarts: 10,

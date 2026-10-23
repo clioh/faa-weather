@@ -8,6 +8,5 @@ package-lock.json
 **/.turbo/
 packages/mobile/ios/
 packages/mobile/android/
-packages/website/storybook-static/
 packages/backend/data/
 data/

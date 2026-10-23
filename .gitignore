@@ -67,5 +67,9 @@ packages/mobile/web-build/
 .update-temp/
 .update-stage/
 .update-lock/
+.update-snapshot/
+.update-state
+.update-state.tmp
+.update-hltest.*
 .backup/
 .pytest_cache/

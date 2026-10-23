@@ -3,7 +3,8 @@
 Everything that still has to happen before SkyGlass ships to customers. Items are grouped by
 who has to act and roughly ordered by risk within each group. Tick them off as they land.
 
-Last reviewed: 2026-10-23, after update hardening, invites, the website restyle and closing the code gaps below.
+Last reviewed: 2026-10-23, after a full audit: WiFi provisioning on NetworkManager, kit cards, the cloud
+stack removed, the source-available license, and the website, app and backend fixes below.
 
 ## 1. Security blockers
 
@@ -66,6 +67,21 @@ Details are in `docs/CALENDAR.md` and `docs/CLOUD_SERVICE.md`.
       `/api/data/notams?icao=KSAN` and `/api/data/stocks?symbols=AAPL` return data, none of the
       `/api/oauth/*` or `/api/data/*` responses carry `Access-Control-Allow-Origin`, and
       `/oauth/google` serves the return page.
+- [ ] **Publish the WAF rate limits** (`packages/website/firewall/rate-limits.json`, now also covering
+      the license, checkout, promo, tax and waitlist endpoints): `node scripts/firewall-rules.mjs --stage`
+      in `packages/website`, `vercel firewall publish`, log mode first (see `docs/CLOUD_SERVICE.md`).
+- [ ] **Waitlist:** set `RESEND_AUDIENCE_ID` (without it `/api/waitlist` answers 503) and verify the
+      Resend sending domain for `orders@` and `licenses@`. When pre-orders open, send one Resend
+      broadcast with an unsubscribe link, as the site and the Privacy page promise.
+- [ ] **Stripe go-live:** live keys, Radar rules, Stripe Tax registrations for the states you ship to.
+- [ ] **Shipping and tracking.** The site and order email promise a separate tracking email when a kit
+      ships (lead time `KIT_SHIP_LEAD_TIME` in `packages/website/shared/catalog.ts`). Nothing sends one
+      yet: decide the process (by hand, Stripe, or a fulfilment service).
+- [ ] **Search and monitoring:** submit `sitemap.xml` in Search Console; add error monitoring for the
+      Vercel functions; a privacy (GDPR/CCPA) and cookie review of the site.
+- [ ] **Have a lawyer review `LICENSE`** (PolyForm Strict 1.0.0 plus SkyGlass's added permissions for
+      customers and contributors), the Terms' Software License section and the Privacy page. Name the
+      legal entity in the copyright line once it exists. Code published before 2026-10-23 stays MIT.
 
 ## 2b. Licensing setup (see `docs/LICENSING.md`)
 
@@ -87,7 +103,8 @@ Details are in `docs/CALENDAR.md` and `docs/CLOUD_SERVICE.md`.
       would live in `packages/website/shared/catalog.ts`.
 - [ ] **Remove the old `license:` block from existing `config/config.yaml` files.** `key` and `serverUrl` are
       ignored now, and `enabled: false` there turns licensing off.
-- [ ] **Test on a Pi:** pre-flashed key file (`scripts/provision-sd.sh`) activates on first boot; entering a
+- [ ] **Test on a Pi:** pre-flashed key file (`flash-sd.sh --license-id`, which runs
+      `scripts/provision-sd.sh`) activates on first boot; entering a
       key in the app; a release from skyglass.dev/license moves the mirror to the "released" screen at its next
       refresh; unplugging the network keeps the mirror running.
 
@@ -158,6 +175,68 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       machine; confirm `/video_feed` and the device routes refuse requests without a token; enroll a
       face from the phone and confirm the preview stops when the session ends; join WiFi with an
       SSID and passphrase containing quotes and spaces.
+- [ ] **WiFi provisioning on NetworkManager** (`packages/presence/nm_wifi.py`,
+      `wifi_provisioning.py`, `scripts/boot-mode.sh`). The old hostapd/wpa_supplicant code was
+      replaced with nmcli; only the unit tests (mocked nmcli argv) have run. On Bookworm and Trixie:
+  - [ ] Fresh card, no network configured: after about 30 s `SkyGlass-Setup` appears (open, 2.4 GHz),
+        the phone gets a 10.42.0.x address, the captive sheet opens on iOS and Android, and
+        `http://10.42.0.1` answers. `nmcli connection show --active` lists `skyglass-setup`;
+        the mirror screen keeps showing the hotspot instructions (skyglass-backend stays up,
+        skyglass-detector is stopped) and `journalctl -u skyglass-watchdog` shows "WiFi
+        provisioning active; not restarting skyglass-detector" with no restarts.
+  - [ ] The phone app's network list is populated (it is the scan taken just before the hotspot
+        came up; check it isn't empty on a Pi 3B+/4/5 and the Zero 2 W).
+  - [ ] Join from the phone: WPA2, WPA3-only (SAE; brcmfmac support varies by Pi and firmware),
+        WPA2/WPA3 mixed, an open network, a hidden SSID (captive page "Other network", since the
+        app has no hidden-network entry yet), and an SSID and passphrase with spaces, quotes and a
+        colon. Each time the hotspot goes down, `face_data/.wifi_configured` appears, the mirror
+        is reachable at `http://skyglass.local:3001`, the app finds it and pairs, and it rejoins
+        the network after a reboot.
+  - [ ] Wrong password: within about a minute `SkyGlass-Setup` comes back, `/api/discovery` reports
+        `wifi.state` "failed" with "password … was not accepted", no `skyglass-wifi` profile is
+        left in `nmcli connection show`, and a retry with the right password works.
+  - [ ] Card written with WiFi set in Raspberry Pi Imager, `setup-pi.sh` run over SSH: the hotspot
+        never starts (not at the first reboot, not after power cycles), `logs/boot-mode.log` says
+        "marked WiFi as configured", and the SSH session isn't dropped.
+  - [ ] Ethernet only, no flag: normal mode, no flag written.
+  - [ ] **Reconnect fallback** (flag present, saved network away; `wifi_provisioning.py`
+        `try_saved_networks`). Move a configured mirror to a place where its network doesn't exist:
+        after about 90 s `SkyGlass-Setup` appears and the mirror screen switches to the hotspot
+        screen with the "can't reach its saved Wi-Fi network" text; joining a new network from the
+        app works and the mirror stays on it after a reboot. Power-cut test: unplug the mirror and
+        the router together and power the router on 3–4 minutes after the mirror: the hotspot comes
+        up, and within about 5 minutes of the router being back the hotspot drops, the mirror is
+        on the old network in normal mode (`journalctl -u skyglass-provision` shows "Back on saved
+        network") and the display leaves the hotspot screen. With a phone joined to the hotspot the
+        retries pause (no drop while you're using it). Check that `iw` is installed and
+        `iw dev wlan0 station dump` lists the phone while it is connected. On a Pi set up before
+        this change, re-run `setup-pi.sh` (or copy `config/systemd/skyglass-provision.service`):
+        the old unit's `ConditionPathExists` keeps the hotspot off and `boot-mode.log` says so.
+  - [ ] `pm2 logs skyglass-admin` while changing WiFi from the app's settings on the home network:
+        the scan works and the network is saved without `sudo` (polkit rule
+        `/etc/polkit-1/rules.d/50-skyglass-networkmanager.rules`) and without dropping the
+        current connection.
+- [ ] **Kit cards** (`docs/KIT_CARDS.md`; only `bash -n` and the dry-run tests in
+      `scripts/tests/flash-sd.test.mjs` / `prepare-image.test.mjs` have run, never a real card):
+  - [ ] Build a golden image: fresh Raspberry Pi OS on the reference Pi, `setup-pi.sh --yes`,
+        reboot, then `sudo scripts/prepare-image.sh --yes`. Confirm `raspi-config nonint
+do_wifi_country`, `do_hostname` and `do_expand_rootfs` exist on that OS release, the
+        checklist prints and the Pi powers off. Capture it with
+        `flash-sd.sh --capture` on macOS and on Linux with PiShrink, and check the `.sha256`.
+  - [ ] Write two cards with `flash-sd.sh` (one on macOS through a USB reader and the built-in
+        SD slot, one on Linux), each with a different `--license-key-file` and one with
+        `--orientation portrait-cw`. Try `--device` on the Mac's internal disk and on a USB SSD:
+        both refused. Try a card smaller than the image: refused.
+  - [ ] Boot each card fresh with no known network: exactly one automatic reboot (first-boot
+        resize; `df -h /` shows the whole card), then `SkyGlass-Setup` appears with no network
+        needed; the portrait card's hotspot screen is the right way up; SSH is refused; from a
+        keyboard, `/etc/machine-id` and `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` differ
+        between the two cards; `nmcli connection show` lists no saved WiFi; `data/` holds only
+        `.gitkeep` before setup; desktop autologin and the kiosk still work with the locked password.
+  - [ ] Finish setup on each card from the app: the license key file is picked up and activated
+        without typing it, and the two mirrors show different mirror ids in the app.
+  - [ ] Trixie images written by Imager use cloud-init: check that a clone neither re-runs it nor
+        re-creates the reference Pi's user, WiFi or SSH keys (`/etc/cloud/cloud-init.disabled`).
 - [ ] A calendar-heavy week: recurring events, all-day and multi-day events, and time zone
       boundaries against the mirror's `location.timezone`.
 - [ ] Reset the local mirror layout. It was overwritten with a test layout during development.
@@ -176,8 +255,8 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
 - [ ] **Rotated UI performance.** On a landscape HDMI output with a portrait setting the whole UI is
       turned in CSS. Check that the radar, photo crossfade and clocks stay smooth in Chromium on a
       Pi 5, and that text stays sharp.
-- [ ] **Pre-flashed orientation.** Write `portrait-cw` to `/boot/firmware/skyglass-orientation.txt`
-      on a fresh card: the hotspot screen comes up the right way up on first boot, and the app's
+- [ ] **Pre-flashed orientation.** Write a card with `flash-sd.sh --orientation portrait-cw`
+      (`/boot/firmware/skyglass-orientation.txt`): the hotspot screen comes up the right way up on first boot, and the app's
       Orientation step starts on "Turned right".
 - [ ] **Hands-free face capture** (`packages/presence/auto_capture.py`). Register a face on the
       Pi with only the Start button: each photo is taken after about a second of holding still, the
@@ -213,13 +292,14 @@ backend `updater.test.ts` and presence `test_watchdog_updates.py`)
 
 ## 4. Repository and release hygiene
 
-- [ ] **Commit the work in reviewable pieces.** The working tree holds the release-prep pass,
-      the widget/editor overhaul and calendar sign-in, about 200 files. Suggested split: backend
-      services, mirror widgets, phone editor, calendar (backend + app + website), docs.
-- [x] **Rename the workspace packages.** Done 2026-10-21: backend, frontend, cloud-api and
-      license-server are now `@skyglass/*` (turbo filters in the root `package.json` updated).
+- [x] **Commit the work in reviewable pieces.** Done 2026-10-23: the release-prep pass, the
+      widget/editor overhaul and calendar sign-in went in as separate commits.
+- [x] **Rename the workspace packages.** Done 2026-10-21: backend and frontend are now
+      `@skyglass/*` (turbo filters in the root `package.json` updated); the phone app is
+      `skyglass-app` and the website `skyglass-website`. The license API lives in the website
+      (`packages/website/api/license`), not in a package of its own.
 - [x] **Rename the repository.** Done 2026-10-23: `clioh/faa-weather` is now `clioh/skyglass`
-      (GitHub redirects the old URL). The updater, `update.sh` and `flash-sd.sh` default to it.
+      (GitHub redirects the old URL). The updater and `update.sh` default to it.
 - [x] **Regenerate `packages/website/package-lock.json`.** Done 2026-10-21. Vercel installs
       `packages/website` on its own (`.npmrc` has `workspaces=false`), and a clean `npm ci && npm run build`
       there failed three ways, all fixed: `react-helmet-async` 2 rejected React 19 (now 3.0.0),
@@ -234,9 +314,21 @@ backend `updater.test.ts` and presence `test_watchdog_updates.py`)
       schedule with nothing; that now returns 400 and keeps the schedule.
 - [x] **Close the SSRF guard's timing gap.** Done: `safeFetchText` now connects through an undici
       Agent whose `lookup` checks every resolved address and dials only those, on every redirect hop.
+- [x] **Test before releasing.** Done 2026-10-23: tag pushes don't run `ci.yml`, so `release.yml`
+      now lints, type checks and runs the backend and updater tests on the tagged commit before it
+      builds the tarball. CI also checks the syntax of every `scripts/*.sh`.
+- [x] **Lint the presence tests.** Done 2026-10-23: CI's flake8 step covers `packages/presence/tests/` too.
 - [ ] **Remove leftover keys from existing installs.** `widgets:`, `notam_api_key`, `finance:`,
       `calendar.google`, `calendar.auth_service` and `schedule.email` in older `config/config.yaml`
       files are now ignored.
+
+- [ ] **Systemd units on update.** `update.sh` installs code, not units: a release that changes
+      `config/systemd/*` (as the provision and firstboot units did on 2026-10-23) only reaches a mirror
+      through `setup-pi.sh`. Before the first release that changes a unit, have `update.sh` install
+      changed units with `sudo -n` and `systemctl daemon-reload` (with rollback).
+- [x] **Shellcheck.** Done 2026-10-23: no errors in `scripts/`; the 12 warnings are intentional
+      (sudo redirects into logs the script owns, variables used by sourcing scripts). CI runs it at
+      error level.
 
 ## 5. Product follow-ups (not blocking)
 

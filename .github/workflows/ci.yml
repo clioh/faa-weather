@@ -75,19 +75,11 @@ jobs:
         env:
           NODE_ENV: test
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v7
-        if: always()
-        with:
-          files: packages/backend/coverage/lcov.info
-          flags: backend
-          fail_ci_if_error: false
-
   # ============================================================
-  # Frontend Tests
+  # Mobile (and frontend) Tests
   # ============================================================
   test-frontend:
-    name: Frontend Tests
+    name: Mobile & Frontend Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -136,7 +128,10 @@ jobs:
         run: command -v rsync || (sudo apt-get update && sudo apt-get install -y rsync)
 
       - name: Check shell syntax
-        run: bash -n scripts/update.sh scripts/boot-mode.sh
+        run: for f in scripts/*.sh; do bash -n "$f" || exit 1; done
+
+      - name: Shellcheck (errors)
+        run: npx --yes shellcheck@3.1.0 -S error -x scripts/*.sh scripts/lib/*.sh
 
       # No npm install needed: the harness uses node:test and stub pm2/npm/curl
       - name: Run update tests
@@ -204,7 +199,7 @@ jobs:
         run: |
           pip install flake8
           cd packages/presence
-          flake8 --max-line-length=120 --ignore=E501,W503 *.py
+          flake8 --max-line-length=120 --ignore=E501,W503 *.py tests/
 
       - name: Check Python imports
         run: |
