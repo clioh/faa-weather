@@ -56,3 +56,15 @@
 .notams-row.stacked .notams-until {
   justify-self: end;
 }
+
+/* Portrait stacked tiles are narrow but tall: wrap the notice instead of
+   cutting it to a few words. */
+html[data-orientation='portrait'] .notams-row.stacked .notams-text {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}

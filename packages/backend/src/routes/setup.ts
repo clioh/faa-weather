@@ -7,7 +7,7 @@ import { configWriteLimiter } from '../middleware/rateLimiter.js';
 import { searchAirports, nearbyAirports } from '../services/airports.js';
 import { validateBody } from '../middleware/validate.js';
 import { setupAirportSchema, setupLocationSchema, setupOrientationSchema } from '../validation/schemas.js';
-import { normalizeOrientation, notifyConfigChanged, type MirrorOrientation } from '../config/index.js';
+import { notifyConfigChanged, readBootOrientation, resolveOrientation, type MirrorOrientation } from '../config/index.js';
 import { licenseManager } from '../license/index.js';
 import { orientationPreview, type OrientationPreview } from '../services/orientation.js';
 
@@ -250,6 +250,8 @@ export interface OrientationRouteDeps {
   readConfig: () => ConfigDoc;
   writeConfig: (config: ConfigDoc) => void;
   preview: OrientationPreview;
+  /** Pre-flashed orientation file contents (config/index.ts); defaults to reading it. */
+  bootOrientation?: () => string | null;
 }
 
 /**
@@ -266,7 +268,9 @@ export interface OrientationRouteDeps {
  */
 export function createOrientationRouter(deps: OrientationRouteDeps): express.Router {
   const orientation = express.Router();
-  const saved = (): MirrorOrientation => normalizeOrientation(deps.readConfig().display?.orientation);
+  const bootOrientation = deps.bootOrientation ?? readBootOrientation;
+  const saved = (): MirrorOrientation =>
+    resolveOrientation(deps.readConfig().display?.orientation, bootOrientation());
 
   orientation.get('/', (_req, res) => {
     try {

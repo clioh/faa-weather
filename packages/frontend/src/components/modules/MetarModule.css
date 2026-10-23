@@ -102,3 +102,13 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Portrait tiles are narrow: wind ("280° 16G24kt") gets a row of its own
+   and the large grid drops to two columns. */
+html[data-orientation='portrait'] .metar-grid > .mf-metric:first-child {
+  grid-column: 1 / -1;
+}
+
+html[data-orientation='portrait'] .metar-grid-large {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

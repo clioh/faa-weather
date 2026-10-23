@@ -198,6 +198,10 @@ writes the key to `skyglass-license.txt` on the card's boot partition. The defau
 after 30 seconds. If it timed out or the response was lost after the key was issued, the next run
 gets `already_keyed`; run it again with `--rekey` (pending licenses only) to replace that key.
 
+A kit built for a portrait mount can also carry its orientation, so the first setup screen is
+the right way up: `echo portrait-cw > /Volumes/bootfs/skyglass-orientation.txt` (or
+`portrait-ccw`). The app's Orientation step still asks, starting on that value.
+
 ## Mirror (`packages/backend`)
 
 - Key sources, in order: the key saved in the DB (entered from the app), then

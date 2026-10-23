@@ -32,6 +32,7 @@ import requests
 import cv2
 from flask import Flask, Response, jsonify, request
 
+import rotation
 import security
 from admin_portal import admin
 from auth import device_auth_required, enrollment_required
@@ -189,6 +190,9 @@ def release_camera():
             camera.release()
             camera = None
 
+# Follows display.orientation (presence.camera_rotation overrides it).
+upright = rotation.CameraRotation()
+
 
 def get_frame():
     """Get a frame from the camera."""
@@ -198,7 +202,8 @@ def get_frame():
         ret, frame = camera.read()
         if not ret:
             return None
-        return frame
+        # Upright on a portrait mount, for the captures and the mirror's feed alike.
+        return upright.apply(frame)
 
 
 # One detector shared by the MJPEG stream thread and the capture endpoints

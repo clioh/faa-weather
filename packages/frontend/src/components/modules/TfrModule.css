@@ -67,3 +67,25 @@
 .tfr-small .tfr-where {
   display: none;
 }
+
+/* Portrait tiles are narrow but tall: wrap the description, and let the
+   window drop to its own line under type and facility. */
+html[data-orientation='portrait'] .tfr-desc {
+  white-space: normal;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+html[data-orientation='portrait'] .tfr-sub {
+  flex-wrap: wrap;
+  row-gap: calc(var(--mf-gap) * 0.35);
+}
+
+html[data-orientation='portrait'] .tfr-when {
+  flex-basis: 100%;
+  margin-left: 0;
+  white-space: normal;
+}

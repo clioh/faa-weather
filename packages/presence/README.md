@@ -43,6 +43,7 @@ within a couple of seconds without restarting the detector.
 |----------|------|---------|
 | `detection_method` | `--method` | `auto` |
 | `camera_index` | `--camera` | `0` |
+| `camera_rotation` | | `auto` |
 | `tolerance` | `--tolerance` | `0.6` |
 | `min_detection_frames` | `--min-frames` | `3` |
 | `timeout` | `--timeout` | `5` (seconds) |
@@ -51,6 +52,12 @@ At startup it logs each effective value and where it came from
 (`Setting tolerance = 0.6 (from ...)`). Invalid values (unknown method,
 tolerance outside (0, 1], non-positive frames/timeout) stop it with an error.
 Restart it after editing the YAML (`pm2 restart skyglass-detector`).
+
+`camera_rotation` turns camera frames upright for portrait mirrors
+(`rotation.py`; the detector and `web_server.py` both apply it). `auto`
+follows `display.orientation`, since the camera sits in the frame and turns
+with it; `0`, `90`, `180` or `270` (degrees clockwise) is for a camera mounted
+on its own. It is re-read when `config.yaml` changes, so no restart is needed.
 
 `pip install -r requirements.txt` compiles dlib on the first install. It
 needs CMake and a C++ compiler and takes several minutes on a Mac (much

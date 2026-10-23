@@ -75,6 +75,12 @@ npm run setup:dev -- face --camera --name "Dev Pilot"   # real capture via the p
 npm run setup:dev -- presence on | off | toggle    # wake / sleep the display
 ```
 
+A pre-flashed kit can carry its orientation in `/boot/firmware/skyglass-orientation.txt`
+(`portrait-cw`, `portrait-ccw` or `landscape`), used until `config/config.yaml` sets
+`display.orientation`. To try it, point `SKYGLASS_ORIENTATION_FILE` at a file of your own
+before starting the backend and the detector. The detector also turns camera frames to match
+(`presence.camera_rotation`, `packages/presence/rotation.py`).
+
 ### Watching it happen
 
 Open http://localhost:5173 next to your terminal and run the walkthrough. The

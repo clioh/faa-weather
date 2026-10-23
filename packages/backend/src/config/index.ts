@@ -27,6 +27,35 @@ export function normalizeOrientation(value: unknown): MirrorOrientation {
   return (MIRROR_ORIENTATIONS as readonly string[]).includes(v) ? (v as MirrorOrientation) : 'landscape';
 }
 
+/**
+ * Pre-flashed orientation for a kit whose mount is known before first boot.
+ * Used until config.yaml sets display.orientation, so the Wi-Fi screen (shown
+ * before the app's Orientation step) is already the right way up.
+ * packages/presence/rotation.py reads the same file for the camera.
+ */
+export const DEFAULT_ORIENTATION_FILE = '/boot/firmware/skyglass-orientation.txt';
+
+export function readBootOrientation(): string | null {
+  const path = process.env.SKYGLASS_ORIENTATION_FILE || DEFAULT_ORIENTATION_FILE;
+  try {
+    return existsSync(path) ? readFileSync(path, 'utf-8') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether `value` names an orientation (including the legacy `portrait`). */
+function isOrientation(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const v = value.trim().toLowerCase();
+  return v === 'portrait' || (MIRROR_ORIENTATIONS as readonly string[]).includes(v);
+}
+
+/** config.yaml's display.orientation, else the pre-flashed file's, else landscape. */
+export function resolveOrientation(configured: unknown, preflashed: string | null): MirrorOrientation {
+  return normalizeOrientation(!isOrientation(configured) && isOrientation(preflashed) ? preflashed : configured);
+}
+
 export interface Config {
   airport: string;
   /**
@@ -63,6 +92,8 @@ export interface Config {
   /** Read by packages/presence/detector.py (keep in sync with its PRESENCE_SETTINGS). */
   presence: {
     camera_index: number;
+    /** Turns camera frames upright (packages/presence/rotation.py): auto follows display.orientation, else degrees clockwise. */
+    camera_rotation?: 'auto' | 0 | 90 | 180 | 270;
     detection_method: 'face_recognition' | 'opencv' | 'auto';
     /** Face match tolerance 0-1, lower = stricter (face_recognition only). */
     tolerance: number;
@@ -115,23 +146,34 @@ export function loadConfig(): Config {
 
   return parseConfig(
     readFileSync(defaultPath, 'utf-8'),
-    existsSync(userPath) ? readFileSync(userPath, 'utf-8') : null
+    existsSync(userPath) ? readFileSync(userPath, 'utf-8') : null,
+    readBootOrientation()
   );
 }
 
-/** default.yaml with config.yaml (if any) merged over it, env vars applied. */
-export function parseConfig(defaultYaml: string, userYaml: string | null): Config {
+/**
+ * default.yaml with config.yaml (if any) merged over it, env vars applied.
+ * `bootOrientation` (the pre-flashed file's contents) stands in for
+ * display.orientation while config.yaml doesn't set a valid one.
+ */
+export function parseConfig(defaultYaml: string, userYaml: string | null, bootOrientation: string | null = null): Config {
   let config = parse(defaultYaml) as Config;
+  let userOrientation: unknown;
 
   // Merge user config if exists
   if (userYaml !== null) {
     const userConfig = parse(userYaml) as Record<string, unknown> | null;
     if (userConfig) config = deepMerge(config, userConfig);
+    userOrientation = (userConfig?.display as Record<string, unknown> | undefined)?.orientation;
   }
 
   // Substitute environment variables
   config = processConfig(config) as Config;
-  config.display = { ...config.display, orientation: normalizeOrientation(config.display?.orientation) };
+  const preflashed = isOrientation(bootOrientation) && !isOrientation(userOrientation);
+  config.display = {
+    ...config.display,
+    orientation: normalizeOrientation(preflashed ? bootOrientation : config.display?.orientation),
+  };
 
   return applyEnvOverrides(config);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeOrientation, parseConfig } from './index.js';
+import { normalizeOrientation, parseConfig, resolveOrientation } from './index.js';
 
 const DEFAULTS = `
 airport: KJFK
@@ -41,5 +41,22 @@ describe('display.orientation', () => {
   it('keeps landscape for a config.yaml with no display block, or an empty one', () => {
     expect(parseConfig(DEFAULTS, 'airport: KSFO\n').display.orientation).toBe('landscape');
     expect(parseConfig(DEFAULTS, '').airport).toBe('KJFK');
+  });
+
+  it('uses the pre-flashed orientation file until config.yaml sets one', () => {
+    expect(parseConfig(DEFAULTS, null, 'portrait-ccw\n').display.orientation).toBe('portrait-ccw');
+    expect(parseConfig(DEFAULTS, 'airport: KSFO\n', 'portrait').display.orientation).toBe('portrait-cw');
+    expect(parseConfig(DEFAULTS, 'display:\n  orientation: landscape\n', 'portrait-ccw').display.orientation).toBe(
+      'landscape'
+    );
+    expect(parseConfig(DEFAULTS, null, 'upside down').display.orientation).toBe('landscape');
+  });
+});
+
+describe('resolveOrientation', () => {
+  it('prefers config.yaml, then the pre-flashed file, then landscape', () => {
+    expect(resolveOrientation('portrait-cw', 'portrait-ccw')).toBe('portrait-cw');
+    expect(resolveOrientation(undefined, ' portrait-ccw\n')).toBe('portrait-ccw');
+    expect(resolveOrientation('bogus', null)).toBe('landscape');
   });
 });

@@ -144,6 +144,7 @@ describe('POST /api/setup/orientation', () => {
   const PHONE = { Authorization: `Bearer ${TOKEN}` };
   let stored: ConfigDoc;
   let writes: number;
+  let boot: string | null;
   let preview: OrientationPreview;
   let server: Server;
   let base: string;
@@ -151,6 +152,7 @@ describe('POST /api/setup/orientation', () => {
   beforeEach(async () => {
     stored = { airport: 'KSFO', display: { presence_timeout: 120, orientation: 'landscape' } };
     writes = 0;
+    boot = null;
     preview = new OrientationPreview(60_000);
     const app = express();
     app.set('trust proxy', 'loopback');
@@ -165,6 +167,7 @@ describe('POST /api/setup/orientation', () => {
           writes++;
         },
         preview,
+        bootOrientation: () => boot,
       })
     );
     server = app.listen(0, '127.0.0.1');
@@ -187,6 +190,14 @@ describe('POST /api/setup/orientation', () => {
     });
     return { status: res.status, body: (await res.json()) as Record<string, unknown> };
   }
+
+  it('reports the pre-flashed orientation until one is saved', async () => {
+    stored = { airport: 'KSFO' };
+    boot = 'portrait-ccw\n';
+    expect((await call('GET')).body.orientation).toBe('portrait-ccw');
+    stored = { display: { orientation: 'landscape' } };
+    expect((await call('GET')).body.orientation).toBe('landscape');
+  });
 
   it('requires a paired phone', async () => {
     const res = await call('POST', '', { orientation: 'portrait-cw', preview: true }, {});

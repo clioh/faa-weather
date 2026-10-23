@@ -79,3 +79,13 @@
 }
 .dclock-wide { --dclock-scale: 0.6; }
 .dclock-wide .dclock-meta { align-items: flex-end; text-align: right; }
+
+/* Portrait wide tiles are nearly square: stack the date under the time. */
+html[data-orientation='portrait'] .dclock-wide { --dclock-scale: 1; }
+html[data-orientation='portrait'] .dclock-wide .mf-body {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--mf-gap);
+}
+html[data-orientation='portrait'] .dclock-wide .dclock-meta { align-items: flex-start; text-align: left; }

@@ -136,3 +136,24 @@
     grid-column: 2;
   }
 }
+
+/* Portrait medium tiles are narrow too (four 90px columns): same stacking. */
+@container tile (max-width: 24rem) {
+  html[data-orientation='portrait'] .cal-event {
+    grid-template-columns: 0.22em minmax(0, 1fr);
+  }
+
+  html[data-orientation='portrait'] .cal-time,
+  html[data-orientation='portrait'] .cal-detail {
+    grid-column: 2;
+  }
+
+  /* The tile is tall enough for a second line of title. */
+  html[data-orientation='portrait'] .cal-title.cal-title-text {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}

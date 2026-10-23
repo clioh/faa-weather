@@ -68,6 +68,18 @@
   --mf-pad: clamp(0.5rem, 4cqmin, 1.25rem);
 }
 
+/* Portrait keeps the 12-column grid, so tiles of four columns or fewer come
+   out tall and narrow (240px wide on a 1080px panel) and cqmin is their
+   width. Size the reading text by width there, a step larger, so lists stay
+   legible; every portrait tile is at least ~430px high, so this never runs
+   out of height. Numerals (title/display/hero) stay on cqmin: they have to
+   fit the width. */
+html[data-orientation='portrait'] .module {
+  --mf-label: clamp(0.6rem, 6cqw, 0.95rem);
+  --mf-caption: clamp(0.65rem, 6.75cqw, 1rem);
+  --mf-body: clamp(0.8rem, 8.5cqw, 1.35rem);
+}
+
 /* While the phone is previewing an unsaved layout, outline every tile so
    placement can be checked on the glass. */
 .module-grid[data-preview='true'] .module {

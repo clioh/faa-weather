@@ -133,6 +133,25 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       boundaries against the mirror's `location.timezone`.
 - [ ] Reset the local mirror layout. It was overwritten with a test layout during development.
 
+**Portrait mounts** (`display.orientation`, the app's Orientation step)
+- [ ] **Rotation direction.** Mount the panel turned right (clockwise, seen from the front), pick
+      "Portrait · Turned right" in the app and check that the arrow points up; then turned left.
+      If either is upside down, swap the angles in `packages/frontend/src/orientation.ts`
+      (`uiRotation`) and `packages/presence/rotation.py` (`ORIENTATION_ROTATION`) together.
+- [ ] **Camera upright.** On each portrait mount, `pm2 logs skyglass-detector` shows `Camera frames
+      rotated …`, presence wakes the mirror, a face registers, and the live feed on the
+      registration screen is upright. A camera mounted apart from the panel needs
+      `presence.camera_rotation` instead. Change the orientation from Settings › Mirror while the
+      detector runs: it follows within about 5 s with no restart.
+- [ ] **Rotated UI performance.** On a landscape HDMI output with a portrait setting the whole UI is
+      turned in CSS. Check that the radar, photo crossfade and clocks stay smooth in Chromium on a
+      Pi 5, and that text stays sharp.
+- [ ] **Pre-flashed orientation.** Write `portrait-cw` to `/boot/firmware/skyglass-orientation.txt`
+      on a fresh card: the hotspot screen comes up the right way up on first boot, and the app's
+      Orientation step starts on "Turned right".
+- [ ] Run the app's Orientation step on a real phone (iOS and Android): previews follow each tap,
+      Back returns the mirror to the saved orientation, and Settings › Mirror › Orientation saves.
+
 ## 4. Repository and release hygiene
 
 - [ ] **Commit the work in reviewable pieces.** The working tree holds the release-prep pass,
@@ -170,5 +189,18 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
 - [ ] The phone app has no screen for the XLSX schedule upload (`POST /api/schedule/upload`); today
       only scripts can use it. Add one, or drop the route if calendar links cover airline rosters.
 - [ ] Add a calendar step to the phone onboarding flow.
+- [ ] Hands-free face capture: the phone starts the session, then the mirror takes each photo
+      itself once one face is centred and steady (the presence server already runs that check on
+      each tap) and shows "Move closer" or "Centre your face" live. The phone keeps progress and
+      Cancel.
+- [ ] The setup screen's face step (`SetupProgressScreen`) has no camera feed, unlike
+      `RegistrationOverlay`.
+- [ ] Portrait layouts: the 12 × 8 grid gives 240px-tall rows on a portrait panel, so every
+      template leaves a large empty band, and the default layout (`DEFAULT_LAYOUT` in
+      `packages/backend/src/routes/layout.ts`) uses only the top half. Add portrait variants (list
+      widgets at least 4 columns wide, METAR large and TAF at least 6) and a portrait default.
+- [ ] `DEFAULT_LAYOUT` pins `icao: 'KJFK'` and sets `showDecoded`; the per-user default in
+      `packages/backend/src/db/index.ts` uses a widget id (`aviation-weather`) the mirror doesn't
+      have, placed over the clock.
 - [ ] Google-only calendar sign-in through the cloud means SkyGlass's Google project quota and
       verification status affect every customer. Monitor the quota once verified.

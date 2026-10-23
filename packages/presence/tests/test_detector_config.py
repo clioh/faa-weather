@@ -19,6 +19,7 @@ def test_missing_files_fall_back_to_builtin_defaults(tmp_path):
     assert settings == {
         "detection_method": "auto",
         "camera_index": 0,
+        "camera_rotation": "auto",
         "tolerance": 0.6,
         "min_detection_frames": 3,
         "timeout": 5.0,
@@ -31,6 +32,7 @@ def test_yaml_values_are_used(tmp_path):
 presence:
   detection_method: opencv
   camera_index: 2
+  camera_rotation: 90
   tolerance: 0.45
   min_detection_frames: 5
   timeout: 12
@@ -39,6 +41,7 @@ presence:
     assert settings == {
         "detection_method": "opencv",
         "camera_index": 2,
+        "camera_rotation": "90",
         "tolerance": 0.45,
         "min_detection_frames": 5,
         "timeout": 12.0,
@@ -75,6 +78,7 @@ presence:
     assert settings == {
         "detection_method": "opencv",
         "camera_index": 1,
+        "camera_rotation": "auto",
         "tolerance": 0.3,
         "min_detection_frames": 2,
         "timeout": 7.0,

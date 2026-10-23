@@ -30,6 +30,8 @@ from typing import Optional
 import requests
 import yaml
 
+import rotation
+
 # Import gesture detection
 try:
     from gesture import GestureDetector
@@ -81,6 +83,7 @@ DETECTION_METHODS = ("face_recognition", "opencv", "auto")
 PRESENCE_SETTINGS = {
     "detection_method": ("auto", str),
     "camera_index": (0, int),
+    "camera_rotation": ("auto", str),  # see rotation.py
     "tolerance": (0.6, float),
     "min_detection_frames": (3, int),
     "timeout": (5.0, float),
@@ -132,6 +135,11 @@ def _coerce(key: str, value, source: str):
         raise ConfigError(f"presence.tolerance from {source}: {value} must be in (0, 1]")
     if key in ("min_detection_frames", "timeout") and value <= 0:
         raise ConfigError(f"presence.{key} from {source}: {value} must be positive")
+    if key == "camera_rotation":
+        try:
+            rotation.parse_rotation(value)
+        except ValueError as exc:
+            raise ConfigError(f"presence.camera_rotation from {source}: {exc}") from None
     if key == "camera_index" and value < 0:
         raise ConfigError(f"presence.camera_index from {source}: {value} must be >= 0")
     return value
@@ -633,6 +641,7 @@ class PresenceDetector:
         hb_closest: Optional[FaceMatch] = None  # nearest miss among unknown faces
         last_debug = last_dump = last_users_poll = 0.0
         trace = log.isEnabledFor(TRACE)
+        upright = rotation.CameraRotation()
         debug = log.isEnabledFor(logging.DEBUG)
 
         try:
@@ -644,6 +653,7 @@ class PresenceDetector:
                         log.warning("Camera read failed (%d so far)", hb_read_failures)
                     time.sleep(0.1)
                     continue
+                frame = upright.apply(frame)  # portrait mounts turn the camera too
 
                 now = time.time()
                 if now - last_users_poll >= self.USERS_POLL_SECONDS:
@@ -959,6 +969,7 @@ class OpenCVFaceDetector:
         last_debug = 0.0
         last_dump = 0.0
         trace = log.isEnabledFor(TRACE)
+        upright = rotation.CameraRotation()
         debug = log.isEnabledFor(logging.DEBUG)
 
         try:
@@ -970,6 +981,7 @@ class OpenCVFaceDetector:
                         log.warning("Camera read failed (%d so far)", hb_read_failures)
                     time.sleep(0.1)
                     continue
+                frame = upright.apply(frame)  # portrait mounts turn the camera too
 
                 t0 = time.perf_counter()
                 faces = self.face_detector.detect_faces(frame)

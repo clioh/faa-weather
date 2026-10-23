@@ -85,3 +85,37 @@
   justify-content: space-between;
   gap: var(--mf-gap);
 }
+
+/* Portrait medium is narrow: metrics as label / value rows, like wide. */
+html[data-orientation='portrait'] .cw-medium .cw-metrics {
+  grid-template-columns: 1fr;
+  gap: calc(var(--mf-gap) * 0.6);
+}
+
+html[data-orientation='portrait'] .cw-medium .cw-metrics .mf-metric {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--mf-gap);
+}
+
+/* Portrait wide is nearly square: no room for the metrics beside the hero,
+   so stack them underneath as in medium. */
+html[data-orientation='portrait'] .cw-wide .cw-body {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: calc(var(--mf-gap) * 1.5);
+}
+
+html[data-orientation='portrait'] .cw-wide .cw-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--mf-gap) calc(var(--mf-gap) * 2);
+  min-width: 0;
+}
+
+html[data-orientation='portrait'] .cw-wide .cw-metrics .mf-metric {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}

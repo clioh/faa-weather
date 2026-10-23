@@ -133,3 +133,9 @@
   height: auto;
   margin-top: calc(var(--mf-gap) * 0.5);
 }
+
+/* Portrait wide tiles are nearly square: stop the trend stretching into a
+   tall spike chart. */
+html[data-orientation='portrait'] .ticker-card .ticker-spark {
+  max-height: 40cqh;
+}

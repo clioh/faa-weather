@@ -154,3 +154,12 @@
   overflow: hidden;
   flex-shrink: 0;
 }
+
+/* Portrait wide tiles are as narrow as medium: wrap the same way. */
+html[data-orientation='portrait'] .taf-wide .taf-row {
+  grid-template-columns: auto auto auto;
+}
+
+html[data-orientation='portrait'] .taf-wide .taf-row-data {
+  grid-column: 1 / -1;
+}

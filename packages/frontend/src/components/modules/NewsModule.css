@@ -46,3 +46,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Portrait columns are narrow and tall: a third line keeps headlines whole. */
+html[data-orientation='portrait'] .news-headline {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
