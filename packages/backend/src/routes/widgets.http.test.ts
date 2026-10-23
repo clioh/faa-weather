@@ -20,6 +20,7 @@ const h = await vi.hoisted(async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skyglass-widgets-http-'));
   process.env.SKYGLASS_NO_LISTEN = '1';
   process.env.SKYGLASS_PAIRED_DEVICES_FILE = path.join(tmp, 'paired-devices.json');
+  process.env.SKYGLASS_SCHEDULE_FILE = path.join(tmp, 'flight-schedule.xlsx');
   process.env.SKYGLASS_INTERNAL_TOKEN_FILE = path.join(tmp, 'internal-token');
   return {
     tmp,

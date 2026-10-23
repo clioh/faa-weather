@@ -110,6 +110,12 @@ jobs:
         env:
           NODE_ENV: test
 
+      # Phone app: layout template validity (lib/templates.test.ts)
+      - name: Run mobile tests
+        run: npm test --workspace=packages/mobile
+        env:
+          NODE_ENV: test
+
   # ============================================================
   # Updater failure tests (scripts/update.sh, docs/UPDATES.md)
   # ============================================================

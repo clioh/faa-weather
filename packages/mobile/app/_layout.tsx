@@ -127,6 +127,7 @@ function RootLayoutNav() {
       <Stack.Screen name="templates" options={{ headerShown: false }} />
       <Stack.Screen name="calendars" options={{ headerShown: false }} />
       <Stack.Screen name="add-calendar" options={{ headerShown: false }} />
+      <Stack.Screen name="schedule" options={{ headerShown: false }} />
       {/* Opened by lib/pairing only; pops itself when paired. */}
       <Stack.Screen name="pair" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
       <Stack.Screen name="invite" options={{ headerShown: false }} />

@@ -5,6 +5,8 @@
  * sign-in, a device code, a password or a link), then choose which of its
  * calendars the mirror shows. Opened with ?provider=…&reconnect=<id> from a
  * "Reconnect" button, it skips the picker and replaces that account.
+ * Opened with ?from=setup (setup complete screen), Done returns there
+ * instead of to Calendars.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -41,7 +43,7 @@ function asProvider(value: string | undefined): CalendarProviderId | null {
 }
 
 export default function AddCalendarScreen() {
-  const params = useLocalSearchParams<{ provider?: string; reconnect?: string; username?: string }>();
+  const params = useLocalSearchParams<{ provider?: string; reconnect?: string; username?: string; from?: string }>();
   const fixedProvider = asProvider(params.provider);
   const reconnectId = params.reconnect || null;
 
@@ -99,7 +101,7 @@ export default function AddCalendarScreen() {
     [reconnectId]
   );
 
-  const finish = () => router.dismissTo('/calendars');
+  const finish = () => (params.from === 'setup' ? goBack('/calendars') : router.dismissTo('/calendars'));
 
   const providerName = (id: CalendarProviderId) =>
     providers?.find((p) => p.id === id)?.name || PROVIDER_META[id]?.name || 'Calendar';
@@ -162,7 +164,7 @@ export default function AddCalendarScreen() {
       <ScreenHeader
         title={title}
         onLeftPress={onBack}
-        backLabel={step.kind === 'connect' && !fixedProvider ? 'Back' : step.kind === 'choose' ? 'Calendars' : 'Back'}
+        backLabel={step.kind === 'choose' && params.from !== 'setup' ? 'Calendars' : 'Back'}
       />
       <KeyboardAvoidingScreen>
         <ScrollView

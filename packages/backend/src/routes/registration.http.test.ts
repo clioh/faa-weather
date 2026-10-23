@@ -23,6 +23,7 @@ import { WsHub } from '../pairing/ws.js';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skyglass-registration-'));
 process.env.SKYGLASS_NO_LISTEN = '1';
 process.env.SKYGLASS_PAIRED_DEVICES_FILE = path.join(tmp, 'paired-devices.json');
+process.env.SKYGLASS_SCHEDULE_FILE = path.join(tmp, 'flight-schedule.xlsx');
 process.env.SKYGLASS_INTERNAL_TOKEN_FILE = path.join(tmp, 'internal-token');
 
 // Fake presence server: must be listening before server.ts reads SKYGLASS_ADMIN_URL.

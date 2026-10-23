@@ -20,6 +20,7 @@ const h = await vi.hoisted(async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skyglass-calendar-http-'));
   process.env.SKYGLASS_NO_LISTEN = '1';
   process.env.SKYGLASS_PAIRED_DEVICES_FILE = path.join(tmp, 'paired-devices.json');
+  process.env.SKYGLASS_SCHEDULE_FILE = path.join(tmp, 'flight-schedule.xlsx');
   process.env.SKYGLASS_INTERNAL_TOKEN_FILE = path.join(tmp, 'internal-token');
   return {
     tmp,
@@ -476,6 +477,16 @@ describe('ICS accounts, account changes and /api/schedule', () => {
     const analyze = await api('/api/schedule/analyze', { method: 'POST', body: new FormData() });
     expect(analyze.status).toBe(400);
     expect(await analyze.json()).toEqual({ error: 'No file uploaded' });
+
+    const big = new FormData();
+    big.append('schedule', new Blob([new Uint8Array(10 * 1024 * 1024 + 1)]), 'roster.xlsx');
+    const tooLarge = await api('/api/schedule/upload', { method: 'POST', body: big });
+    expect(tooLarge.status).toBe(413);
+    expect(await tooLarge.json()).toEqual({ error: 'File must be 10 MB or smaller' });
+
+    const cleared = await api('/api/schedule', { method: 'DELETE' });
+    expect(cleared.status).toBe(200);
+    expect(await cleared.json()).toEqual({ success: true });
   });
 
   it('PATCH renames, recolors and disables calendars; the change persists and reads back', async () => {

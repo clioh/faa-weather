@@ -2,7 +2,15 @@
  * Flight schedule service: airline XLSX schedules (uploaded through
  * POST /api/schedule/upload). Calendar accounts live in src/calendar/; GET /api/schedule
  * merges both into the ScheduleEvent shape.
+ *
+ * The uploaded file itself is kept (data/flight-schedule.xlsx) and parsed again
+ * at startup, so a restart or update doesn't lose the schedule and parser fixes
+ * apply to it.
  */
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import { FlightEvent, parseFlightSchedule, ColumnMapping, ScheduleParseError } from './schedule-parser.js';
 import type { ScheduleEvent, TimeWindow } from '../calendar/types.js';
@@ -54,6 +62,8 @@ export function mergeScheduleEvents(...lists: ScheduleEvent[][]): ScheduleEvent[
 
 export interface ScheduleConfig {
   columnMapping: Partial<ColumnMapping>;
+  /** Where the uploaded XLSX is kept; null keeps the schedule in memory only. */
+  file: string | null;
 }
 
 export class ScheduleService {
@@ -74,8 +84,45 @@ export class ScheduleService {
     const events = await parseFlightSchedule(buffer, mapping || this.config.columnMapping);
     if (events.length === 0) throw new ScheduleParseError('No flights found in the file');
     this.flightEvents = events;
+    this.save(buffer);
     this.onChange?.();
     return events;
+  }
+
+  /** Load the schedule kept from the last upload, if any. Never throws. */
+  async restore(): Promise<void> {
+    const file = this.config.file;
+    if (!file || !fs.existsSync(file)) return;
+    try {
+      const events = await parseFlightSchedule(fs.readFileSync(file), this.config.columnMapping);
+      this.flightEvents = events;
+      console.log(`[Schedule] Restored ${events.length} flights from ${path.basename(file)}`);
+      this.onChange?.();
+    } catch (err) {
+      console.error('[Schedule] Could not read the saved schedule:', err);
+    }
+  }
+
+  /** Remove the flight schedule (and the kept file). */
+  clear(): void {
+    this.flightEvents = [];
+    if (this.config.file) fs.rmSync(this.config.file, { force: true });
+    this.onChange?.();
+  }
+
+  /** Keep the uploaded file; written to a temp file and renamed so a crash never leaves half a file. */
+  private save(buffer: Buffer): void {
+    const file = this.config.file;
+    if (!file) return;
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const tmp = `${file}.tmp`;
+      fs.writeFileSync(tmp, buffer);
+      fs.renameSync(tmp, file);
+    } catch (err) {
+      // The schedule is still loaded; it just won't survive a restart.
+      console.error('[Schedule] Could not save the schedule:', err);
+    }
   }
 
   /** Flight duties overlapping `window` (epoch ms), as ScheduleEvents. */
@@ -113,8 +160,13 @@ export class ScheduleService {
 // Create and export singleton
 let scheduleService: ScheduleService | null = null;
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Tests point this at a throwaway file (like SKYGLASS_PAIRED_DEVICES_FILE).
+const SCHEDULE_FILE =
+  process.env.SKYGLASS_SCHEDULE_FILE || path.resolve(__dirname, '../../../../data/flight-schedule.xlsx');
+
 export function initScheduleService(): ScheduleService {
-  scheduleService = new ScheduleService({ columnMapping: {} });
+  scheduleService = new ScheduleService({ columnMapping: {}, file: SCHEDULE_FILE });
   return scheduleService;
 }
 

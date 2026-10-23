@@ -8,7 +8,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { Footer, IconCircle, Notice, Spinner, Text } from '@/components/ui';
+import { Footer, IconCircle, Notice, Row, RowGroup, SectionLabel, Spinner, Text } from '@/components/ui';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +26,8 @@ export default function CalendarsScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  /** Flight duties in the uploaded airline schedule; null when unknown (older mirror, offline). */
+  const [flightCount, setFlightCount] = useState<number | null>(null);
 
   const [renaming, setRenaming] = useState<CalendarAccount | null>(null);
   const [nameDraft, setNameDraft] = useState('');
@@ -39,6 +41,11 @@ export default function CalendarsScreen() {
   const loadedOnce = useRef(false);
 
   const load = useCallback(async () => {
+    // Only for the airline schedule row's caption; never fails the screen.
+    api
+      .getFlightScheduleCount()
+      .then(setFlightCount)
+      .catch(() => setFlightCount(null));
     try {
       setAccounts(await api.getCalendarAccounts());
       setLoadError(null);
@@ -154,6 +161,25 @@ export default function CalendarsScreen() {
   };
 
   const addCalendar = () => router.push('/add-calendar');
+  const openSchedule = () => router.push('/schedule');
+
+  const scheduleSection = (
+    <View>
+      <SectionLabel>Airline schedule</SectionLabel>
+      <RowGroup>
+        <Row
+          icon="airplane-outline"
+          title="Upload a roster"
+          caption={
+            flightCount ? `${flightCount} ${flightCount === 1 ? 'flight' : 'flights'} loaded` : 'An .xlsx file from your airline'
+          }
+          chevron
+          onPress={openSchedule}
+          accessibilityHint="Upload your airline schedule as an Excel file"
+        />
+      </RowGroup>
+    </View>
+  );
 
   const reconnect = (account: CalendarAccount) =>
     router.push({
@@ -205,6 +231,7 @@ export default function CalendarsScreen() {
             Connect Google, Outlook, iCloud or a calendar link and the Schedule widget shows what’s coming up, next to the
             weather. Your mirror keeps the sign-in and refreshes events on its own; you choose which calendars it shows.
           </Text>
+          {scheduleSection}
         </ScrollView>
         <Footer>
           <PrimaryButton label="Add a calendar" icon="add" onPress={addCalendar} />
@@ -234,6 +261,7 @@ export default function CalendarsScreen() {
           />
         ))}
         <SecondaryButton label="Add another calendar" icon="add" onPress={addCalendar} />
+        {scheduleSection}
       </ScrollView>
     );
   }

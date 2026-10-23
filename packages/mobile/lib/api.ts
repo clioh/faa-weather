@@ -278,6 +278,34 @@ export interface CalDavCredentials {
 }
 
 // ============================================================
+// AIRLINE SCHEDULE (XLSX upload, see /api/schedule/*)
+// ============================================================
+
+/** An XLSX flight duty in the shared schedule event shape (GET /api/schedule/flights). */
+export interface FlightDuty {
+  id: string;
+  title: string;
+  /** ISO */
+  startTime: string;
+  /** ISO */
+  endTime: string;
+  flightNumber?: string;
+  departure?: string;
+  arrival?: string;
+  aircraftType?: string;
+  dutyType?: string;
+  /** ISO */
+  reportTime?: string;
+}
+
+/** POST /api/schedule/upload. `events` is a sample: the first 10 rows of the file. */
+export interface ScheduleUploadResult {
+  success: boolean;
+  eventsLoaded: number;
+  events: FlightDuty[];
+}
+
+// ============================================================
 // PAIRING (phone <-> mirror trust; docs: pairing contract)
 // ============================================================
 
@@ -1362,6 +1390,48 @@ class MirrorAPI {
       45000
     );
     return res.account;
+  }
+
+  // ============================================================
+  // AIRLINE SCHEDULE (XLSX)
+  // ============================================================
+
+  /** Flight duties in the mirror's current XLSX schedule (0 when none was uploaded). */
+  async getFlightScheduleCount(): Promise<number> {
+    const res = await this.request<{ flightSchedule?: { eventsLoaded?: number } }>('/api/schedule/status');
+    return res.flightSchedule?.eventsLoaded ?? 0;
+  }
+
+  /** Flight duties from today through the next `days` days (1..30). */
+  async getFlightDuties(days = 30): Promise<FlightDuty[]> {
+    const res = await this.request<{ flights: FlightDuty[] }>(`/api/schedule/flights?days=${days}`);
+    return res.flights ?? [];
+  }
+
+  async getNextFlightDuty(): Promise<FlightDuty | null> {
+    const res = await this.request<{ flight: FlightDuty | null }>('/api/schedule/next-flight');
+    return res.flight ?? null;
+  }
+
+  /**
+   * Replace the mirror's flight schedule with an XLSX file (multipart field
+   * "schedule", 10 MB max). A file the mirror can't read is a 400 and the
+   * current schedule stays.
+   */
+  async uploadFlightSchedule(uri: string, name: string, mimeType?: string): Promise<ScheduleUploadResult> {
+    const form = new FormData();
+    // React Native's FormData takes a { uri, name, type } descriptor instead of a Blob.
+    form.append('schedule', {
+      uri,
+      name,
+      type: mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    } as unknown as Blob);
+    return this.request<ScheduleUploadResult>('/api/schedule/upload', { method: 'POST', body: form }, 60000);
+  }
+
+  /** Remove the mirror's XLSX flight schedule (calendar accounts are untouched). */
+  async clearFlightSchedule(): Promise<void> {
+    await this.request('/api/schedule', { method: 'DELETE' });
   }
 
   /** Subscribe to an iCal/ICS link (webcal:// is accepted). */

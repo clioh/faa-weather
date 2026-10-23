@@ -162,6 +162,7 @@ orientationPreview.on('change', broadcastOrientation);
 // Initialize services
 const scheduleService = initScheduleService();
 scheduleService.onChange = () => calendarService.notifyChanged();
+void scheduleService.restore();
 
 // API Routes
 app.use('/api/aviation/winds-aloft', windsAloftRoutes); // FB winds/temps aloft

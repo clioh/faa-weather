@@ -1,11 +1,16 @@
 /**
  * Setup Complete Screen
  * Shown when all setup steps are finished
+ *
+ * Also offers the optional calendar step: connect a calendar or upload an
+ * airline schedule. Both open the regular screens (add-calendar, schedule)
+ * and come back here; the main button skips it. The mirror's setup status
+ * doesn't track calendars, so nothing here can hold up setup.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +27,23 @@ export default function SetupCompleteScreen() {
   const [isOnboarding, setIsOnboarding] = useState(false);
   /** Only list the license when the mirror actually uses one (not with licensing off). */
   const [licenseActive, setLicenseActive] = useState(false);
+  /** Calendar accounts and uploaded flights on the mirror; null until known. */
+  const [calendarCount, setCalendarCount] = useState<number | null>(null);
+  const [flightCount, setFlightCount] = useState<number | null>(null);
+
+  // Re-read on every focus so a calendar added from here shows as done.
+  useFocusEffect(
+    useCallback(() => {
+      api
+        .getCalendarAccounts()
+        .then((accounts) => setCalendarCount(accounts.length))
+        .catch(() => setCalendarCount(null));
+      api
+        .getFlightScheduleCount()
+        .then(setFlightCount)
+        .catch(() => setFlightCount(null));
+    }, [])
+  );
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -61,7 +83,7 @@ export default function SetupCompleteScreen() {
 
         {/* Success message */}
         <View style={styles.heading}>
-          <Text style={styles.title}>You're All Set!</Text>
+          <Text style={styles.title}>You're all set</Text>
           <Text style={styles.subtitle}>
             Your SkyGlass is configured and ready to use
           </Text>
@@ -76,9 +98,48 @@ export default function SetupCompleteScreen() {
           <Row leading={tick} title="Face registered" />
         </RowGroup>
 
+        {/* Optional calendar step */}
+        <View>
+          <SectionLabel>Add your schedule (optional)</SectionLabel>
+          <RowGroup>
+            {calendarCount ? (
+              <Row
+                leading={tick}
+                title="Calendars connected"
+                caption={`${calendarCount} ${calendarCount === 1 ? 'account' : 'accounts'} · Manage or add another`}
+                chevron
+                onPress={() => router.push('/calendars')}
+              />
+            ) : (
+              <Row
+                icon="calendar-outline"
+                title="Add a calendar"
+                caption="Google, Outlook, iCloud or a calendar link"
+                chevron
+                onPress={() => router.push({ pathname: '/add-calendar', params: { from: 'setup' } })}
+              />
+            )}
+            <Row
+              leading={flightCount ? tick : undefined}
+              icon={flightCount ? undefined : 'airplane-outline'}
+              title={flightCount ? 'Airline schedule loaded' : 'Upload an airline schedule'}
+              caption={
+                flightCount
+                  ? `${flightCount} ${flightCount === 1 ? 'flight' : 'flights'} · Replace it any time`
+                  : 'An .xlsx roster from Files'
+              }
+              chevron
+              onPress={() => router.push('/schedule')}
+            />
+          </RowGroup>
+          <Text style={styles.optionalNote}>
+            You can skip this and add calendars later in Settings, under Calendars.
+          </Text>
+        </View>
+
         {/* Next steps */}
         <View>
-          <SectionLabel>What's Next?</SectionLabel>
+          <SectionLabel>What's next</SectionLabel>
           <Text style={styles.nextStepsText}>
             Your mirror will now activate when it detects your face, displaying METAR/TAF data,
             your schedule, and astronomical information. Use this app anytime to manage settings
@@ -90,7 +151,7 @@ export default function SetupCompleteScreen() {
       {/* Done button */}
       <Footer>
         <Button
-          label={isOnboarding ? 'Choose Layout' : 'Go to Dashboard'}
+          label={isOnboarding ? 'Choose layout' : 'Go to dashboard'}
           trailingIcon="arrow-forward"
           onPress={handleContinue}
         />
@@ -130,6 +191,11 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  optionalNote: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   nextStepsText: {
     ...typography.bodySmall,
