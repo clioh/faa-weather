@@ -16,17 +16,8 @@ import time
 
 import cv2
 
+import cameras
 from face_detect import FaceDetector
-
-
-def get_camera_info(cap):
-    """Get camera properties."""
-    return {
-        "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-        "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-        "fps": cap.get(cv2.CAP_PROP_FPS),
-        "backend": cap.getBackendName(),
-    }
 
 
 def draw_text(frame, text, pos, color=(255, 255, 255), scale=0.6, thickness=1):
@@ -38,22 +29,31 @@ def draw_text(frame, text, pos, color=(255, 255, 255), scale=0.6, thickness=1):
     cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness)
 
 
+def open_or_explain(camera_index):
+    """Open the camera the way the detector does, or print what was found."""
+    cap = cameras.open_camera(camera_index)
+    if cap is not None:
+        return cap
+    print(f"ERROR: Could not open camera {camera_index}")
+    pi = cameras.pi_cameras()
+    usb = cameras.usb_cameras()
+    print(f"  Raspberry Pi cameras: {', '.join(c.get('Model', '?') for c in pi) or 'none'}")
+    print(f"  USB cameras: {', '.join(usb) or 'none'}")
+    if cameras.camera_claimed():
+        print("  The presence/admin server holds the camera for a face registration.")
+    print("  On a Pi the detector (pm2 stop skyglass-detector) must not be running during this test.")
+    print("  On a Mac, grant camera access in System Settings > Privacy & Security > Camera.")
+    return None
+
+
 def test_camera_basic(camera_index=0):
     """Basic camera test - just shows the feed."""
     print(f"Testing camera {camera_index}...")
 
-    cap = cv2.VideoCapture(camera_index)
-
-    if not cap.isOpened():
-        print(f"ERROR: Could not open camera {camera_index}")
-        print("Try granting camera permission in System Settings > Privacy & Security > Camera")
+    cap = open_or_explain(camera_index)
+    if cap is None:
         return False
-
-    info = get_camera_info(cap)
-    print("Camera opened successfully!")
-    print(f"  Resolution: {info['width']}x{info['height']}")
-    print(f"  FPS: {info['fps']}")
-    print(f"  Backend: {info['backend']}")
+    print(f"Camera opened: {cap.description}")
     print()
     print("Controls:")
     print("  q - Quit")
@@ -98,14 +98,10 @@ def test_camera_with_faces(camera_index=0):
     """Camera test with face detection using OpenCV's YuNet model."""
     print(f"Testing camera {camera_index} with face detection...")
 
-    cap = cv2.VideoCapture(camera_index)
-
-    if not cap.isOpened():
-        print(f"ERROR: Could not open camera {camera_index}")
+    cap = open_or_explain(camera_index)
+    if cap is None:
         return False
-
-    info = get_camera_info(cap)
-    print(f"Camera opened: {info['width']}x{info['height']} @ {info['fps']} FPS")
+    print(f"Camera opened: {cap.description}")
 
     # YuNet face detector; also gives eye landmarks, so no separate eye model
     face_detector = FaceDetector(min_size=80)

@@ -5,8 +5,9 @@ WSGI entry point for the SkyGlass presence/admin server (web_server.py).
 Production (PM2 app skyglass-admin):
     gunicorn -c gunicorn.conf.py wsgi:app
 
-gunicorn.conf.py runs a single worker (the camera is single-process) and its
-post_fork/worker_exit hooks open and release the camera in that worker.
+gunicorn.conf.py runs a single worker (the camera is single-process). The
+worker opens the camera only during a face registration (web_server.py) and
+its worker_exit hook releases it.
 For local development run `python web_server.py` instead.
 """
 

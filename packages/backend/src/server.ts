@@ -428,6 +428,14 @@ app.post('/api/registration/start', authLimiter, validateBody(registrationStartS
       body: JSON.stringify({ userId, name: userName ?? null }),
       signal: AbortSignal.timeout(5000),
     });
+    if (response.status === 503) {
+      // Reachable, but the camera could not be opened (packages/presence/cameras.py).
+      registrationMode = idleRegistration(registrationMode);
+      return res.status(503).json({
+        ...registrationMode,
+        error: 'The mirror camera is not available. Check that it is connected, then try again.',
+      });
+    }
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }

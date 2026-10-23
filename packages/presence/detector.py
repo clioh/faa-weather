@@ -44,6 +44,7 @@ try:
     import cv2
     import numpy as np
     from face_detect import Face, FaceDetector, dlib_locations
+    import cameras
     CV_AVAILABLE = True
 except ImportError:
     CV_AVAILABLE = False
@@ -174,6 +175,55 @@ def resolve_settings(args: argparse.Namespace, config_dir: Path = CONFIG_DIR) ->
     return settings, sources
 
 
+class CameraOwner:
+    """Opens the camera and lends it to a face registration.
+
+    The presence/admin server claims the camera while the phone app registers
+    a face (cameras.claim_camera). Only one process can stream a camera on a
+    Pi, so the detector releases it until the claim ends, then reopens it.
+    """
+
+    CLAIM_POLL_SECONDS = 0.5
+    REOPEN_RETRY_SECONDS = 2.0
+
+    camera_index: int
+    cap: Optional["cameras.Camera"]
+    _claim_checked_at = 0.0
+
+    def start_camera(self) -> bool:
+        """Open camera `camera_index` (Raspberry Pi camera, USB webcam or OpenCV device)."""
+        if not CV_AVAILABLE:
+            return False
+        self.cap = cameras.open_camera(self.camera_index)
+        if self.cap is None:
+            log.error("Failed to open camera %d", self.camera_index)
+            return False
+        log.info("Camera %d opened: %s", self.camera_index, self.cap.description)
+        return True
+
+    def stop_camera(self) -> None:
+        """Release camera resources."""
+        if self.cap:
+            self.cap.release()
+            self.cap = None
+
+    def lend_camera_if_claimed(self) -> None:
+        """While a face registration holds the camera, release it and wait; then reopen it."""
+        now = time.monotonic()
+        if now - self._claim_checked_at < self.CLAIM_POLL_SECONDS:
+            return
+        self._claim_checked_at = now
+        if not cameras.camera_claimed():
+            return
+        log.info("Camera lent to face registration")
+        self.stop_camera()
+        while cameras.camera_claimed():
+            time.sleep(self.CLAIM_POLL_SECONDS)
+        while not self.start_camera():
+            time.sleep(self.REOPEN_RETRY_SECONDS)
+        log.info("Camera back from face registration")
+
+
 class PresenceState(Enum):
     ABSENT = "absent"
     DETECTING = "detecting"
@@ -203,7 +253,7 @@ class FaceMatch:
         return self.user_id is not None
 
 
-class PresenceDetector:
+class PresenceDetector(CameraOwner):
     """Recognises enrolled users with face_recognition (dlib) and reports who is present.
 
     Faces are located with the YuNet detector shared with the opencv mode and
@@ -245,7 +295,7 @@ class PresenceDetector:
         self.last_transition_reason = ""
         self.report_successes = 0
         self.report_failures = 0
-        self.cap: Optional[cv2.VideoCapture] = None
+        self.cap: Optional["cameras.Camera"] = None
         self.frame_count = 0
 
         self.face_detector = FaceDetector(min_size=min_face_size, score_threshold=score_threshold)
@@ -342,33 +392,6 @@ class PresenceDetector:
         log.info("Face data changed on disk; reloading users")
         self._load_all_users()
         return True
-
-    # --- Camera --------------------------------------------------------------
-
-    def start_camera(self) -> bool:
-        """Initialize camera capture."""
-        if not CV_AVAILABLE:
-            return False
-        self.cap = cv2.VideoCapture(self.camera_index)
-        if not self.cap.isOpened():
-            log.error("Failed to open camera %d", self.camera_index)
-            return False
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        log.info(
-            "Camera %d opened: %dx%d @ %.0f fps (requested 640x480)",
-            self.camera_index,
-            self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),
-            self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT),
-            self.cap.get(cv2.CAP_PROP_FPS),
-        )
-        return True
-
-    def stop_camera(self) -> None:
-        """Release camera resources."""
-        if self.cap:
-            self.cap.release()
-            self.cap = None
 
     # --- Recognition ---------------------------------------------------------
 
@@ -646,6 +669,7 @@ class PresenceDetector:
 
         try:
             while True:
+                self.lend_camera_if_claimed()
                 ret, frame = self.cap.read()
                 if not ret:
                     hb_read_failures += 1
@@ -743,7 +767,7 @@ class PresenceDetector:
                 cv2.destroyAllWindows()
 
 
-class OpenCVFaceDetector:
+class OpenCVFaceDetector(CameraOwner):
     """
     Simple face detection using OpenCV's bundled YuNet model (see face_detect.py).
     Detects ANY face (no enrollment/recognition) - good for testing.
@@ -777,7 +801,7 @@ class OpenCVFaceDetector:
         self.last_transition_reason = ""
         self.report_successes = 0
         self.report_failures = 0
-        self.cap: Optional[cv2.VideoCapture] = None
+        self.cap: Optional["cameras.Camera"] = None
 
         # Faces narrower than min_face_size px are too far away to count as present
         self.face_detector = FaceDetector(min_size=min_face_size, score_threshold=score_threshold)
@@ -787,29 +811,6 @@ class OpenCVFaceDetector:
         if self.enable_gestures:
             self.gesture_detector = GestureDetector()
             log.info("Gesture detection enabled (swipe to sleep)")
-
-    def start_camera(self) -> bool:
-        """Initialize camera capture."""
-        self.cap = cv2.VideoCapture(self.camera_index)
-        if not self.cap.isOpened():
-            log.error("Failed to open camera %d", self.camera_index)
-            return False
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        log.info(
-            "Camera %d opened: %dx%d @ %.0f fps (requested 640x480)",
-            self.camera_index,
-            self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),
-            self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT),
-            self.cap.get(cv2.CAP_PROP_FPS),
-        )
-        return True
-
-    def stop_camera(self) -> None:
-        """Release camera resources."""
-        if self.cap:
-            self.cap.release()
-            self.cap = None
 
     def detect_face(self, frame: np.ndarray) -> bool:
         """Detect any face in the frame."""
@@ -974,6 +975,7 @@ class OpenCVFaceDetector:
 
         try:
             while True:
+                self.lend_camera_if_claimed()
                 ret, frame = self.cap.read()
                 if not ret:
                     hb_read_failures += 1

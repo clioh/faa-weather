@@ -36,3 +36,36 @@ def _clean_auth_state():
         sys.modules["admin_portal"].login_limiter.reset()
     if "web_server" in sys.modules:
         sys.modules["web_server"].end_enrollment(notify=False)
+
+
+class FakeCamera:
+    """Stands in for cameras.open_camera's result: black 640x480 frames."""
+
+    description = "fake camera"
+
+    def __init__(self):
+        self.released = False
+
+    def read(self):
+        import numpy as np
+
+        return True, np.zeros((480, 640, 3), dtype=np.uint8)
+
+    def release(self):
+        self.released = True
+
+
+@pytest.fixture(autouse=True)
+def fake_camera(monkeypatch):
+    """Tests never open a real camera. Returns the FakeCameras opened so far."""
+    import cameras
+
+    opened = []
+
+    def open_camera(index=0):
+        cam = FakeCamera()
+        opened.append(cam)
+        return cam
+
+    monkeypatch.setattr(cameras, "open_camera", open_camera)
+    return opened

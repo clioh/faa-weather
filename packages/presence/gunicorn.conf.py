@@ -47,19 +47,9 @@ def on_starting(server):
     print("Starting SkyGlass admin server...")
 
 
-def post_fork(server, worker):
-    """Called just after a worker has been forked."""
-    # Import and initialize camera in worker
-    from web_server import init_camera
-    camera_index = int(os.environ.get("CAMERA_INDEX", "0"))
-    if not init_camera(camera_index):
-        print(f"WARNING: Worker {worker.pid} failed to initialize camera")
-    else:
-        print(f"Worker {worker.pid} initialized camera {camera_index}")
-
-
 def worker_exit(server, worker):
-    """Called when a worker exits."""
+    """Called when a worker exits. The camera is only open during a face
+    registration; close it so the detector gets it back."""
     from web_server import release_camera
     release_camera()
     print(f"Worker {worker.pid} released camera")

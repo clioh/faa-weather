@@ -111,6 +111,15 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       every sheet has a visible close button.
 
 **Mirror on a Raspberry Pi**
+- [ ] **Camera Module 3 on a Pi 5** (`packages/presence/cameras.py`, Picamera2 through the venv's
+      `--system-site-packages`): `pm2 logs skyglass-detector` shows `Camera 0 opened: Raspberry Pi
+      camera imx708 via libcamera`, presence wakes the mirror, and autofocus settles at arm's length.
+      Then repeat with only a USB webcam connected (`USB camera /dev/videoN via OpenCV`).
+- [ ] **Camera hand-off during face registration.** Register a face from the phone while the
+      detector runs: the detector logs `Camera lent to face registration`, the preview streams, and
+      `Camera back from face registration` follows when the session ends or expires. Check that
+      `/api/registration/start` answers within the backend's 5 s timeout, and that killing
+      skyglass-admin mid-session gives the camera back (stale claim in `data/camera-claim.json`).
 - [ ] Rendering performance with a busy layout: radar animation, photo crossfade, clocks.
 - [ ] Live data through the deployed cloud service: NOTAMs, stocks via Finnhub, and stocks with the
       service unreachable (Yahoo fallback; Yahoo throttles per IP and the widget then shows

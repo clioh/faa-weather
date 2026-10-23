@@ -276,6 +276,7 @@ LOGIN_HTML = """
 # Routes
 # ============================================================
 
+
 @admin.route('/admin')
 @admin_page
 def dashboard():

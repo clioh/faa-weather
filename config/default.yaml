@@ -43,7 +43,7 @@ calendar:
 # Read by packages/presence/detector.py at startup (restart skyglass-detector
 # after editing); its CLI flags override these values.
 presence:
-  camera_index: 0              # Camera device index (0 = default)
+  camera_index: 0              # 0 = first camera: a Raspberry Pi camera if one is connected, else the first USB webcam
   # Turns camera frames upright: auto follows display.orientation (the camera
   # sits in the frame and turns with it); 0 | 90 | 180 | 270 = degrees clockwise,
   # for a camera mounted on its own

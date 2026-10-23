@@ -13,6 +13,10 @@ token (the backend) or an admin session; the camera (/video_feed, capture)
 needs the token of the active enrollment session, which only the backend can
 open and which the mirror always shows as a full-screen overlay.
 
+The camera is opened only while an enrollment session is open. The detector
+holds it the rest of the time and lets go when this server claims it
+(cameras.claim_camera): only one process can stream a camera on a Pi.
+
 Production: gunicorn -c gunicorn.conf.py wsgi:app
 Development: python web_server.py [--port 5000] [--camera 0]
 """
@@ -32,10 +36,12 @@ import requests
 import cv2
 from flask import Flask, Response, jsonify, request
 
+import cameras
 import rotation
 import security
 from admin_portal import admin
 from auth import device_auth_required, enrollment_required
+from detector import ConfigError, resolve_settings
 
 from face_detect import FaceDetector, dlib_locations
 
@@ -127,8 +133,13 @@ MAX_VIDEO_STREAMS = 3
 _stream_slots = threading.BoundedSemaphore(MAX_VIDEO_STREAMS)
 
 camera_lock = threading.Lock()
-camera: Optional[cv2.VideoCapture] = None
-camera_index = 0
+camera: Optional[cameras.Camera] = None
+# --camera in development; otherwise presence.camera_index from config.yaml,
+# read at each session so it always matches the detector.
+camera_index: Optional[int] = None
+# The detector checks for a claim every CameraOwner.CLAIM_POLL_SECONDS and
+# needs a moment to close the camera; the backend gives /api/start 5 s.
+CAMERA_OPEN_TIMEOUT = 3.5
 registration_state = {
     "active": False,
     "user_id": None,     # app profile id, required by /api/start
@@ -161,34 +172,47 @@ def notify_backend(endpoint: str, data: dict) -> bool:
         return False
 
 
-def init_camera(index: int = 0) -> bool:
-    """Initialize the camera."""
-    global camera, camera_index
-    camera_index = index
+def configured_camera_index() -> int:
+    if camera_index is not None:
+        return camera_index
+    try:
+        settings, _ = resolve_settings(argparse.Namespace())
+    except ConfigError as e:
+        print(f"Invalid presence settings ({e}); using camera 0")
+        return 0
+    return settings["camera_index"]
 
+
+def acquire_camera() -> bool:
+    """Take the camera from the detector and open it for an enrollment session."""
+    global camera
+    cameras.claim_camera(enrollment_gate.ttl + 5)
     with camera_lock:
         if camera is not None:
-            camera.release()
-
-        camera = cv2.VideoCapture(index)
-        if not camera.isOpened():
-            print(f"Failed to open camera {index}")
-            return False
-
-        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        camera.set(cv2.CAP_PROP_FPS, 30)
-        print(f"Camera {index} initialized")
-        return True
+            return True
+        index = configured_camera_index()
+        deadline = time.monotonic() + CAMERA_OPEN_TIMEOUT
+        while True:
+            camera = cameras.open_camera(index)
+            if camera is not None:
+                print(f"Camera {index} opened: {camera.description}")
+                return True
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.25)
+    cameras.release_claim()
+    print(f"Failed to open camera {index}")
+    return False
 
 
 def release_camera():
-    """Release the camera."""
+    """Close the camera and hand it back to the detector."""
     global camera
     with camera_lock:
         if camera is not None:
             camera.release()
             camera = None
+    cameras.release_claim()
 
 # Follows display.orientation (presence.camera_rotation overrides it).
 upright = rotation.CameraRotation()
@@ -197,7 +221,7 @@ upright = rotation.CameraRotation()
 def get_frame():
     """Get a frame from the camera."""
     with camera_lock:
-        if camera is None or not camera.isOpened():
+        if camera is None:
             return None
         ret, frame = camera.read()
         if not ret:
@@ -254,6 +278,7 @@ def end_enrollment(notify: bool) -> None:
     registration_state["active"] = False
     registration_state["samples_captured"] = 0
     registration_state["encodings"] = []
+    release_camera()
     if notify and was_active:
         # Hide the mirror overlay. source=presence-server stops the backend
         # from calling /api/reset back.
@@ -355,9 +380,10 @@ def video_feed():
 
 @app.route('/api/health')
 def api_health():
-    """Quick health check endpoint."""
+    """Quick health check endpoint. The camera is closed outside face
+    registrations, so it does not count."""
     return jsonify({
-        "status": "ok" if camera is not None and camera.isOpened() else "degraded",
+        "status": "ok",
         "timestamp": int(time.time() * 1000),
     })
 
@@ -366,8 +392,8 @@ def api_health():
 def api_status():
     """Get detailed server status."""
     return jsonify({
-        "status": "healthy" if camera is not None and camera.isOpened() else "degraded",
-        "camera_ready": camera is not None and camera.isOpened(),
+        "status": "healthy",
+        "camera_open": camera is not None,  # only during a face registration
         "face_recognition_available": FR_AVAILABLE,
         "registration_active": enrollment_active(),
         "samples_captured": registration_state["samples_captured"],
@@ -395,6 +421,8 @@ def api_start():
     except ValueError:
         return jsonify({"success": False, "message": "A valid userId is required"}), 400
     name = data.get("name") or data.get("userName")
+    if not acquire_camera():
+        return jsonify({"success": False, "message": "Camera not available"}), 503
 
     registration_state["active"] = True
     registration_state["user_id"] = user_id
@@ -629,15 +657,14 @@ def api_list_enrolled_users():
 def main():
     parser = argparse.ArgumentParser(description="SkyGlass presence/admin server (development)")
     parser.add_argument("--port", "-p", type=int, default=5000, help="Port to run on (default: 5000)")
-    parser.add_argument("--camera", "-c", type=int, default=0, help="Camera index (default: 0)")
+    parser.add_argument("--camera", "-c", type=int,
+                        help="Camera index (default: presence.camera_index from config.yaml)")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
 
     args = parser.parse_args()
 
-    # Initialize camera
-    if not init_camera(args.camera):
-        print("Failed to initialize camera. Exiting.")
-        return
+    global camera_index
+    camera_index = args.camera
 
     print(f"SkyGlass presence/admin server on http://{args.host}:{args.port} (admin portal at /admin)")
     print("Face enrollment is driven by the phone app.")

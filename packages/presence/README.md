@@ -109,6 +109,25 @@ On the Pi both processes run under PM2 (`config/pm2.config.cjs`, started by
 For development run them directly: `npm run dev:admin` (`python web_server.py`,
 `--port`/`--camera` flags) and `npm run dev:detector` (`detector.py --preview`).
 
+### Camera
+
+`cameras.py` opens the camera for all three programs (`detector.py`,
+`web_server.py`, `test_camera.py`):
+
+- A Raspberry Pi camera (ribbon cable, e.g. Camera Module 3) is used when one is
+  connected. It is read with Picamera2 from apt (`python3-picamera2`), which is
+  why `setup-pi.sh` creates the venv with `--system-site-packages`.
+- Otherwise a USB webcam. On Linux `camera_index` counts USB webcams, so `0` is
+  the first webcam even on a Pi 5, whose camera and codec hardware also create
+  `/dev/video*` nodes.
+- Elsewhere (macOS) `camera_index` is the OpenCV device number.
+
+Only one process can stream a camera on a Pi. The detector holds it; when the
+phone app starts a face registration, `web_server.py` writes a claim
+(`data/camera-claim.json`), the detector releases the camera within half a
+second, and takes it back when the session ends. Both use
+`presence.camera_index`.
+
 `web_server.py` is the enrollment backend for the phone app: the app calls the
 mirror backend's `POST /api/registration/start` (with a `userId`), and the
 backend drives this server's `/api/start` and `/api/capture`, which store the
@@ -208,12 +227,16 @@ Grant camera permission in: System Settings > Privacy & Security > Camera > Term
 
 ### Camera not working on Raspberry Pi
 ```bash
-# Add user to video group
-sudo usermod -a -G video $USER
-
-# Enable camera in raspi-config
-sudo raspi-config  # Interface Options > Camera > Enable
+pm2 logs skyglass-detector --lines 20   # "Camera 0 opened: ..." names the camera in use
+rpicam-hello --list-cameras             # does libcamera see the Pi camera?
+pm2 stop skyglass-detector              # free the camera, then:
+venv/bin/python test_camera.py          # lists the cameras it found if none opens
+pm2 start skyglass-detector
 ```
+A Pi camera that `rpicam-hello` lists but SkyGlass ignores usually means the
+venv cannot see Picamera2: recreate it with
+`python3 -m venv --system-site-packages venv`. For a USB webcam, check that your
+user is in the `video` group (`sudo usermod -a -G video $USER`).
 
 ### face_recognition install fails
 This library requires dlib which compiles from source. Ensure you have:
