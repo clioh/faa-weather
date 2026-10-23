@@ -17,7 +17,7 @@ Marketing website and e-commerce platform for SkyGlass - a smart mirror for pilo
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24+
 - Stripe account (test mode for development)
 - Resend account (for emails)
 

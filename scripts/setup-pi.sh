@@ -80,23 +80,30 @@ update_system() {
     sudo apt-get install -y rsync curl
 }
 
-# Install Node.js 20
+# Node.js major the mirror runs on (keep in sync with engines in package.json;
+# existing installs move up with scripts/update.sh --upgrade-node)
+NODE_MAJOR=24
+# Set when this run replaced an older Node.js (native modules need a rebuild)
+NODE_UPGRADED=false
+
 install_node() {
-    log_info "Installing Node.js 20..."
+    log_info "Installing Node.js $NODE_MAJOR..."
 
     if command -v node &> /dev/null; then
         NODE_VERSION=$(node -v)
         log_info "Node.js already installed: $NODE_VERSION"
 
-        # Check if version is 20+
-        if [[ "$NODE_VERSION" =~ ^v2[0-9] ]]; then
+        local major="${NODE_VERSION#v}"
+        major="${major%%.*}"
+        if [ "$major" -ge "$NODE_MAJOR" ] 2>/dev/null; then
             log_info "Node.js version is compatible"
             return
         fi
+        NODE_UPGRADED=true
     fi
 
     # Install Node.js via NodeSource
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | sudo -E bash -
     sudo apt-get install -y nodejs
 
     log_info "Node.js installed: $(node -v)"
@@ -242,6 +249,8 @@ install_pm2() {
     log_info "Installing PM2 process manager..."
 
     sudo npm install -g pm2
+    # A running PM2 daemon keeps the Node.js it started with
+    [ "$NODE_UPGRADED" = true ] && { pm2 update > /dev/null 2>&1 || true; }
 
     # Set up PM2 to start on boot
     pm2 startup systemd -u $USER --hp $HOME
@@ -303,6 +312,11 @@ setup_skyglass() {
     # Install npm dependencies
     log_info "Installing npm dependencies..."
     npm install
+    if [ "$NODE_UPGRADED" = true ]; then
+        # node_modules from the old Node.js: recompile native modules (better-sqlite3)
+        log_info "Rebuilding native modules for $(node -v)..."
+        npm rebuild
+    fi
 
     # Build backend + frontend (the backend serves packages/frontend/dist
     # on port 3001 in production)
@@ -473,7 +487,7 @@ main() {
 
     echo ""
     log_info "This script will install:"
-    echo "  - Node.js 20"
+    echo "  - Node.js $NODE_MAJOR"
     echo "  - Python 3 with OpenCV and face_recognition"
     echo "  - Chromium browser (kiosk mode)"
     echo "  - PM2 process manager"

@@ -30,12 +30,12 @@ See `UPDATE_EXCLUDES` in `scripts/update.sh`.
 
 ## State and lock files
 
-| File                | Meaning                                                                                                                                                                                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.update-lock/pid`  | The PID (bare decimal) of the running `update.sh`, held for a whole apply or a whole `--recover`. A second update is refused while that process is alive. A lock whose PID is dead, or isn't an `update.sh` process, is taken over                                        |
-| `.update-state`     | `key=value` (`phase`, `version`, `from`, `pid`, `started`, `attempts`). It exists from just before the services stop until the update has succeeded or been rolled back. If it exists and no `update.sh` holds the lock, the update was interrupted (power loss, SIGKILL) |
-| `.backup/`          | The previous version's code. Kept after success, for manual rollback                                                                                                                                                                                                      |
-| `.update-snapshot/` | `node_modules` and venv snapshots. Removed on success or after a completed rollback                                                                                                                                                                                       |
+| File                | Meaning                                                                                                                                                                                                                                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.update-lock/pid`  | The PID (bare decimal) of the running `update.sh`, held for a whole apply or a whole `--recover`. A second update is refused while that process is alive. A lock whose PID is dead, or isn't an `update.sh` process, is taken over                                                                                      |
+| `.update-state`     | `key=value` (`phase`, `version`, `from`, `pid`, `started`, `attempts`, and `kind`/`node_from` for a Node.js upgrade). It exists from just before the services stop until the update has succeeded or been rolled back. If it exists and no `update.sh` holds the lock, the update was interrupted (power loss, SIGKILL) |
+| `.backup/`          | The previous version's code. Kept after success, for manual rollback                                                                                                                                                                                                                                                    |
+| `.update-snapshot/` | `node_modules` and venv snapshots. Removed on success or after a completed rollback                                                                                                                                                                                                                                     |
 
 ## Recovery: `update.sh --recover`
 
@@ -50,12 +50,33 @@ It runs automatically:
 - **From the watchdog.** While `.update-lock/pid` names a live process, or `.update-state` exists, `watchdog_service.py` does not restart PM2 apps. If `.update-state` has had no live lock holder for more than 60 s, the watchdog runs `update.sh --recover` as the PM2 user.
 - **On the next update.** If `.update-state` is found, that update recovers first and then exits so it can be retried.
 
+## Node.js upgrades
+
+The mirror runs the Node.js major in the root `package.json` `engines` (24; `.nvmrc` matches, and
+`scripts/setup-pi.sh` installs it from NodeSource). Moving an installed mirror to a newer major is
+an update of its own:
+
+- `scripts/update.sh --upgrade-node [MAJOR]` (default: the `engines` minimum), or automatically when
+  a release's `package.json` needs a newer major than the one installed: Node.js is upgraded first,
+  health-checked on the current release, and then the release installs.
+- It snapshots `node_modules`, records `.update-state` (`kind=node`, `node_from=<old major>`), stops
+  the services, installs the major from NodeSource (`sudo -n`, apt), runs `npm rebuild` for native
+  modules (`better-sqlite3`), refreshes the PM2 daemon (`pm2 update`) and requires the usual stable
+  health check.
+- On failure, a signal, or `--recover` after a crash, it reinstalls the previous major and puts the
+  `node_modules` snapshot back. Reinstalling needs the network; if it fails, `.update-state` stays
+  and the boot and watchdog `--recover` runs retry it later.
+
+Upgrade Node.js in its own release (bump `engines`, nothing else), so a problem is clearly the
+runtime and not the code.
+
 ## Tuning (env)
 
 `SKYGLASS_HEALTH_URL`, `SKYGLASS_UI_URL` (default: `/` on the same host),
 `SKYGLASS_HEALTH_TIMEOUT` (120), `SKYGLASS_HEALTH_INTERVAL` (5), `SKYGLASS_HEALTH_STABLE_CHECKS` (6),
 `SKYGLASS_NPM_TIMEOUT` / `SKYGLASS_PIP_TIMEOUT` (1800), `SKYGLASS_UPDATE_DISK_MARGIN_MB` (200),
-`SKYGLASS_MAX_RECOVER_ATTEMPTS` (3). Without `pm2` installed (a dev machine) the health check is
+`SKYGLASS_MAX_RECOVER_ATTEMPTS` (3), `SKYGLASS_NODE_INSTALLER` (command that installs the Node.js
+major given as its argument; tests only). Without `pm2` installed (a dev machine) the health check is
 skipped with a warning.
 
 ## Failure tests
@@ -65,13 +86,16 @@ npm run test:update     # node --test scripts/tests/*.test.mjs (~15 s, also runs
 ```
 
 Each test builds a fake install and release tarballs in a temp dir and puts stub `pm2`, `npm` and
-`curl` first on `PATH` (`scripts/tests/lib/world.mjs`). The scenarios cover:
+`curl`, `node` and a Node.js installer first on `PATH` (`scripts/tests/lib/world.mjs`). The scenarios cover:
 
 - the happy paths (lockfile unchanged or changed, and `--apply` with a checksum)
 - corrupt, truncated and incomplete tarballs, a checksum mismatch, a missing checksum, and low disk space
 - a network drop or hang during `npm install`, health that never comes up, a crash loop, the UI returning 500, and pm2 failing to start
 - SIGTERM, SIGKILL followed by `--recover`, and lock contention
 - interrupted rollbacks and a missing backup
+- Node.js upgrades: success, already current, a failed rebuild, an unhealthy new runtime, an offline
+  rollback finished later by `--recover`, SIGKILL right after the switch, and a release that needs a
+  newer Node.js (upgraded first, or not installed when that upgrade fails)
 
 The tests run on macOS (bash 3.2, openrsync, BSD tools) and on Linux.
 

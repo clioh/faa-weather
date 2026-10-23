@@ -38,7 +38,7 @@ A smart mirror built for pilots that displays aviation weather, flight schedules
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24+
 - Python 3.11+
 - Camera (Pi Camera Module or USB webcam)
 

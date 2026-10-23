@@ -204,6 +204,10 @@ backend `updater.test.ts` and presence `test_watchdog_updates.py`)
       watchdog logs "Update in progress; pausing service restarts" and never restarts apps mid-update.
 - [ ] **Bad release.** Ship a release whose backend crashes a few seconds after starting: the
       stability check (6 checks, 5 s apart) rolls it back.
+- [ ] **Node.js 24.** A fresh `setup-pi.sh` installs Node.js 24 and `better-sqlite3` builds or
+      downloads for it. On a Pi still on Node.js 20, `scripts/update.sh --upgrade-node` moves it to
+      24 (check `logs/update.log`, `node -v`, and that the mirror comes back); pull the network
+      while it runs and check that it goes back to 20.
 - [ ] Run `npm run test:update` on the Pi itself (Raspberry Pi OS: GNU rsync and coreutils), and
       check that the CI `test-update` job passes on its first Linux run.
 

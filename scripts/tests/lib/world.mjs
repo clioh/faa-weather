@@ -65,6 +65,23 @@ case "\${NPM_MODE:-ok}" in
 esac
 exit 0
 `,
+  // node: reports the major in <world>/node-major (default 20); only `node -v` is used
+  node: `#!/bin/bash
+major=$(cat "$PROJECT/../node-major" 2>/dev/null || echo 20)
+[ "$1" = "-v" ] && { echo "v$major.0.0"; exit 0; }
+exit 0
+`,
+  // Node installer (SKYGLASS_NODE_INSTALLER): NODE_INSTALL_MODE = ok | fail |
+  // fail-to:N (only installing N fails) | kill9 (SIGKILL the lock holder after switching)
+  'install-node': `#!/bin/bash
+echo "$1" >> "$STUB_LOGS/install-node.log"
+mode="\${NODE_INSTALL_MODE:-ok}"
+[ "$mode" = fail ] && exit 1
+[ "$mode" = "fail-to:$1" ] && exit 1
+echo "$1" > "$PROJECT/../node-major"
+[ "$mode" = kill9 ] && kill -9 "$(cat "$PROJECT/.update-lock/pid")"
+exit 0
+`,
   // curl: health/UI of the mirror and the GitHub API/asset downloads.
   // HEALTH_MODE = healthy | never | flap:K (K healthy answers then down) |
   // ui500. It only applies while VERSION on disk is BAD_VERSION (if set), so
@@ -137,6 +154,7 @@ export class World {
       SKYGLASS_HEALTH_STABLE_CHECKS: '3',
       SKYGLASS_UPDATE_DISK_MARGIN_MB: '0',
       SKYGLASS_NPM_TIMEOUT: '20',
+      SKYGLASS_NODE_INSTALLER: path.join(this.bin, 'install-node'),
     };
   }
 
@@ -169,7 +187,7 @@ export class World {
    *   omit: relative paths left out
    *   kind: 'random' (random bytes) | 'truncated' (first half of a real one)
    */
-  release({ version = NEW, lockChanged = false, omit = [], kind } = {}) {
+  release({ version = NEW, lockChanged = false, omit = [], kind, nodeEngine } = {}) {
     const name = `skyglass-v${version}-${crypto.randomBytes(3).toString('hex')}.tar.gz`;
     const tarball = path.join(this.releases, name);
     if (kind === 'random') {
@@ -178,8 +196,9 @@ export class World {
     }
     const src = fs.mkdtempSync(path.join(this.dir, 'src-'));
     const s = (p) => path.join(src, p);
+    const engines = nodeEngine ? `,\n  "engines": { "node": ">=${nodeEngine}.0.0" }` : '';
     const files = {
-      'package.json': '{\n  "name": "skyglass",\n  "version": "0.1.0"\n}\n',
+      'package.json': `{\n  "name": "skyglass",\n  "version": "0.1.0"${engines}\n}\n`,
       'package-lock.json': lockChanged
         ? '{"lockfileVersion": 3, "deps": "v2"}\n'
         : '{"lockfileVersion": 3, "deps": "v1"}\n',
@@ -262,6 +281,11 @@ export class World {
 
   version() {
     return (this.read('VERSION') || '').trim();
+  }
+
+  nodeMajor() {
+    const f = path.join(this.dir, 'node-major');
+    return fs.existsSync(f) ? fs.readFileSync(f, 'utf8').trim() : '20';
   }
 
   marker() {

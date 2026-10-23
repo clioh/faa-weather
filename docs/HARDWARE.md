@@ -249,7 +249,7 @@ cd ~/SkyGlass
 
 This will install (natively; there is no Docker image):
 
-- Node.js 20
+- Node.js 24
 - Python 3 venv with face_recognition and OpenCV
 - PM2, running `skyglass-backend` (port 3001, also serves the display UI),
   `skyglass-detector` and `skyglass-admin` (port 5000) from `config/pm2.config.cjs`

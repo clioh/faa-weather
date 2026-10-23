@@ -14,6 +14,9 @@
 #                                     # tarball (used by the backend updater)
 #   ./scripts/update.sh --recover    # Roll back an interrupted update (run at
 #                                     # boot and by the watchdog; no-op if none)
+#   ./scripts/update.sh --upgrade-node [MAJOR]
+#                                     # Move to a newer Node.js major (default:
+#                                     # the minimum in package.json engines)
 #
 # Release updates never touch runtime state: node_modules, Python venvs,
 # packages/presence/face_data (enrolled faces, .wifi_configured), data/
@@ -25,6 +28,13 @@
 # Crash safety: .update-state exists from just before services are stopped
 # until the update has succeeded or been rolled back. If it is found with no
 # live lock holder (power loss, SIGKILL), --recover restores the backup.
+#
+# Node.js upgrades (--upgrade-node, or automatically before a release whose
+# package.json engines needs a newer major) are an update of their own: the
+# same lock, state file, node_modules snapshots and health check; native
+# modules are rebuilt, and a failure reinstalls the previous major and puts
+# the snapshot back. Node comes from NodeSource apt packages (passwordless
+# sudo, as on Raspberry Pi OS).
 #
 # Must stay compatible with bash 3.2 (macOS dev machines) and BSD tools.
 #
@@ -53,6 +63,8 @@ NPM_TIMEOUT="${SKYGLASS_NPM_TIMEOUT:-1800}"                # s; 0 = no limit
 PIP_TIMEOUT="${SKYGLASS_PIP_TIMEOUT:-1800}"
 DISK_MARGIN_MB="${SKYGLASS_UPDATE_DISK_MARGIN_MB:-200}"
 MAX_RECOVER_ATTEMPTS="${SKYGLASS_MAX_RECOVER_ATTEMPTS:-3}"
+# Command that installs a Node.js major given as $1 (tests); default NodeSource + apt
+NODE_INSTALLER="${SKYGLASS_NODE_INSTALLER:-}"
 VENV_REL="packages/presence/venv"
 
 # Runtime state that an update must never overwrite, delete, back up or
@@ -110,6 +122,8 @@ CHECK_ONLY=false
 FORCE_APPLY=false
 RECOVER=false
 APPLY_TARBALL=""
+UPGRADE_NODE=false
+UPGRADE_NODE_TO=""
 TARBALL_VERSION=""
 TARBALL_SHA256=""
 START_DELAY=0
@@ -142,6 +156,12 @@ while [ $# -gt 0 ]; do
         --recover)
             RECOVER=true
             ;;
+        --upgrade-node)
+            UPGRADE_NODE=true
+            case "${2:-}" in
+                [0-9]*) UPGRADE_NODE_TO="$2"; shift ;;
+            esac
+            ;;
         --help|-h)
             echo "SkyGlass Update Script"
             echo ""
@@ -155,6 +175,7 @@ while [ $# -gt 0 ]; do
             echo "  --version X           Version to record with --apply-tarball"
             echo "  --delay N             Wait N seconds before stopping services"
             echo "  --recover             Roll back an interrupted update (no-op if there is none)"
+            echo "  --upgrade-node [N]    Upgrade Node.js to major N (default: package.json engines)"
             echo "  --help                Show this help message"
             echo ""
             echo "Environment variables:"
@@ -262,6 +283,9 @@ STATE_VERSION=""
 STATE_FROM=""
 STATE_STARTED=""
 STATE_ATTEMPTS=0
+# "node" for a Node.js upgrade (STATE_NODE_FROM = the major to go back to)
+STATE_KIND=""
+STATE_NODE_FROM=""
 
 state_get() {
     sed -n "s/^$1=//p" "$STATE_FILE" 2>/dev/null | head -1
@@ -274,6 +298,8 @@ load_state() {
     STATE_STARTED="$(state_get started)"
     STATE_ATTEMPTS="$(state_get attempts)"
     case "$STATE_ATTEMPTS" in ''|*[!0-9]*) STATE_ATTEMPTS=0 ;; esac
+    STATE_KIND="$(state_get kind)"
+    STATE_NODE_FROM="$(state_get node_from)"
 }
 
 write_state() {
@@ -285,6 +311,8 @@ write_state() {
         echo "pid=$$"
         echo "started=$STATE_STARTED"
         echo "attempts=$STATE_ATTEMPTS"
+        echo "kind=$STATE_KIND"
+        echo "node_from=$STATE_NODE_FROM"
     } > "$tmp"
     mv -f "$tmp" "$STATE_FILE"
     sync 2>/dev/null || true
@@ -430,6 +458,45 @@ wait_for_stable_health() {
 }
 
 #
+# Node.js
+#
+node_major() {
+    node -v 2>/dev/null | sed -n 's/^v\([0-9][0-9]*\).*/\1/p'
+}
+
+# Minimum Node.js major in a package.json's engines ("node": ">=24.0.0" -> 24)
+required_node_major() {
+    [ -f "$1" ] || return 0
+    sed -n 's/.*"node"[[:space:]]*:[[:space:]]*"[^0-9"]*\([0-9][0-9]*\).*/\1/p' "$1" | head -1
+}
+
+# Install Node.js major $1 from NodeSource (also downgrades, for a rollback)
+install_node_major() {
+    local major="$1"
+    if [ -n "$NODE_INSTALLER" ]; then
+        "$NODE_INSTALLER" "$major"
+        return
+    fi
+    # Kept with the snapshots: removed once the upgrade or rollback is done
+    local setup="$SNAP_DIR/nodesource_setup_$major.sh"
+    mkdir -p "$SNAP_DIR"
+    curl -fsSL -m 120 -o "$setup" "https://deb.nodesource.com/setup_${major}.x" || return 1
+    sudo -n -E bash "$setup" >> "$UPDATE_LOG" 2>&1 || return 1
+    local ver
+    ver=$(apt-cache madison nodejs 2>/dev/null | awk -v m="$major." 'index($3, m) == 1 {print $3; exit}')
+    [ -n "$ver" ] || return 1
+    sudo -n apt-get install -y --allow-downgrades "nodejs=$ver" >> "$UPDATE_LOG" 2>&1
+}
+
+# PM2's daemon keeps running on the Node.js it started with; restart it
+refresh_pm2() {
+    if pm2_available; then
+        pm2 update > /dev/null 2>&1 || true
+    fi
+    return 0
+}
+
+#
 # Integrity, disk and filesystem helpers
 #
 sha256_of() {
@@ -558,7 +625,9 @@ do_rollback() {
     stop_services
 
     local ok=true msg="" rc
-    if [ -f "$BACKUP_MARKER" ]; then
+    if [ "$STATE_KIND" = node ]; then
+        : # a Node.js upgrade changes no code
+    elif [ -f "$BACKUP_MARKER" ]; then
         # --delete removes files the update added; excluded runtime state is
         # never deleted (no --delete-excluded).
         rsync -a --checksum --delete "${UPDATE_EXCLUDES[@]}" "$BACKUP_DIR/" "$PROJECT_DIR/"
@@ -575,6 +644,16 @@ do_rollback() {
         ok=false
         msg="${msg:+$msg; }restoring node_modules/venv snapshots failed"
     fi
+    if [ "$STATE_KIND" = node ] && [ -n "$STATE_NODE_FROM" ] && [ "$(node_major)" != "$STATE_NODE_FROM" ]; then
+        log_info "Reinstalling Node.js $STATE_NODE_FROM..."
+        if run_child "$NPM_TIMEOUT" install_node_major "$STATE_NODE_FROM" && [ "$(node_major)" = "$STATE_NODE_FROM" ]; then
+            log_info "Node.js back on $(node -v)"
+        else
+            ok=false
+            msg="${msg:+$msg; }reinstalling Node.js $STATE_NODE_FROM failed (network?)"
+        fi
+    fi
+    [ "$STATE_KIND" = node ] && refresh_pm2
 
     log_info "Restarting services..."
     start_services || log_error "Failed to restart services after rollback"
@@ -590,7 +669,7 @@ do_rollback() {
 
     rm -rf "$STAGE_DIR"
     if [ "$ok" = true ]; then
-        log_warn "Rolled back to v$(get_current_version)$health"
+        log_warn "Rolled back to v$(get_current_version)${STATE_KIND:+ on Node.js $(node -v 2>/dev/null)}$health"
         clear_state
         rm -rf "$SNAP_DIR"
         return 0
@@ -648,11 +727,106 @@ recover() {
         exit 0
     fi
     load_state
-    log_warn "Found an interrupted update (v${STATE_FROM:-?} -> v${STATE_VERSION:-?}, phase ${STATE_PHASE:-unknown}, started $STATE_STARTED); rolling back"
+    if [ "$STATE_KIND" = node ]; then
+        log_warn "Found an interrupted Node.js upgrade (from Node.js ${STATE_NODE_FROM:-?}, phase ${STATE_PHASE:-unknown}, started $STATE_STARTED); rolling back"
+    else
+        log_warn "Found an interrupted update (v${STATE_FROM:-?} -> v${STATE_VERSION:-?}, phase ${STATE_PHASE:-unknown}, started $STATE_STARTED); rolling back"
+    fi
     if do_rollback "recovering an interrupted update"; then
         exit 0
     fi
     exit 1
+}
+
+#
+# Node.js upgrade. The caller holds the lock and has no interrupted update.
+# Returns 0 when Node.js is at (or above) major $1; a failure after services
+# were stopped rolls back and exits.
+#
+node_upgrade_txn() {
+    local target="$1" from_major
+    from_major=$(node_major)
+    if [ -z "$from_major" ]; then
+        log_error "node not found on PATH; nothing was changed"
+        exit 1
+    fi
+    if [ "$from_major" -ge "$target" ]; then
+        log_info "Node.js $(node -v) already satisfies major $target"
+        return 0
+    fi
+    if [ -z "$NODE_INSTALLER" ]; then
+        if ! command -v apt-get > /dev/null 2>&1 || ! sudo -n true 2>/dev/null; then
+            log_error "Upgrading Node.js needs apt and passwordless sudo; nothing was changed"
+            exit 1
+        fi
+    fi
+
+    rm -rf "$SNAP_DIR"
+    mkdir -p "$SNAP_DIR"
+    : > "$SNAP_DIR/list"
+    local rel
+    for rel in $(node_modules_dirs); do
+        if ! snapshot_path "$rel"; then
+            log_error "Could not snapshot $rel; nothing was changed"
+            exit 1
+        fi
+    done
+    sync 2>/dev/null || true
+
+    STATE_KIND=node
+    STATE_NODE_FROM="$from_major"
+    STATE_VERSION="node-$target"
+    STATE_FROM="$(get_current_version)"
+    STATE_STARTED="$(date +%s)"
+    STATE_ATTEMPTS=0
+    write_state node_upgrading
+    trap 'on_signal TERM' TERM
+    trap 'on_signal INT' INT
+    trap 'on_signal HUP' HUP
+    trap 'on_error $LINENO' ERR
+
+    log_info "Upgrading Node.js $(node -v) -> $target..."
+    stop_services
+    run_child "$NPM_TIMEOUT" install_node_major "$target" \
+        || fail "Installing Node.js $target failed (exit $?; network?)"
+    hash -r
+    [ "$(node_major)" = "$target" ] || fail "Node.js $target did not install (node -v: $(node -v 2>&1))"
+    log_info "Rebuilding native modules for Node.js $(node -v)..."
+    run_child "$NPM_TIMEOUT" npm rebuild --no-audit --no-fund \
+        || fail "npm rebuild failed (exit $?)"
+    refresh_pm2
+    start_services || fail "Failed to start services"
+    wait_for_stable_health || fail "Health check failed: $HEALTH_FAIL_REASON"
+
+    trap - ERR TERM INT HUP
+    clear_state
+    rm -rf "$SNAP_DIR"
+    STATE_KIND=""
+    STATE_NODE_FROM=""
+    log_info "Node.js upgraded to $(node -v)"
+}
+
+# --upgrade-node [MAJOR]
+upgrade_node() {
+    local target="${UPGRADE_NODE_TO:-$(required_node_major "$PROJECT_DIR/package.json")}"
+    if [ -z "$target" ]; then
+        log_error "No Node.js major given and none in package.json engines"
+        exit 1
+    fi
+    trap 'abort_signal TERM' TERM
+    trap 'abort_signal INT' INT
+    trap 'abort_signal HUP' HUP
+    if ! acquire_lock; then
+        log_error "Another update is already running (pid $LOCK_OTHER)"
+        exit 1
+    fi
+    if [ -f "$STATE_FILE" ]; then
+        log_warn "An earlier update was interrupted; recovering it before anything else"
+        do_rollback "earlier update was interrupted"
+        log_error "Recovered the interrupted update; not upgrading Node.js now, please retry"
+        exit 1
+    fi
+    node_upgrade_txn "$target"
 }
 
 #
@@ -736,6 +910,18 @@ apply_release_tarball() {
         needs_pip=true
     fi
 
+    # A release that needs a newer Node.js: upgrade Node first (its own
+    # update, health-checked on the current release), then install
+    local need_node
+    need_node=$(required_node_major "$src/package.json")
+    if [ -n "$need_node" ] && [ "$(node_major)" ] && [ "$(node_major)" -lt "$need_node" ]; then
+        log_info "v${version:-?} needs Node.js $need_node (installed: $(node -v)); upgrading Node.js first"
+        node_upgrade_txn "$need_node"
+        trap 'abort_signal TERM' TERM
+        trap 'abort_signal INT' INT
+        trap 'abort_signal HUP' HUP
+    fi
+
     # Free space: backup + new files ~ 2x the release, plus a margin (plus
     # full copies of node_modules/venv if hardlinks are unavailable)
     local staged_kb need_kb avail_kb
@@ -793,6 +979,8 @@ apply_release_tarball() {
 
     # 5. Point of no return: record the update, then any failure, signal or
     # crash (via --recover) restores the backup
+    STATE_KIND=""
+    STATE_NODE_FROM=""
     STATE_VERSION="${version:-unknown}"
     STATE_FROM="$from_version"
     STATE_STARTED="$(date +%s)"
@@ -938,6 +1126,9 @@ update_via_releases() {
 #
 if [ "$RECOVER" = true ]; then
     recover
+elif [ "$UPGRADE_NODE" = true ]; then
+    upgrade_node
+    exit 0
 elif [ -n "$APPLY_TARBALL" ]; then
     apply_release_tarball "$APPLY_TARBALL" "$TARBALL_VERSION" "$TARBALL_SHA256"
     exit 0
