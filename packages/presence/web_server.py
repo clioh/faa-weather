@@ -219,6 +219,7 @@ def release_camera():
             camera = None
     cameras.release_claim()
 
+
 # Follows display.orientation (presence.camera_rotation overrides it).
 upright = rotation.CameraRotation()
 

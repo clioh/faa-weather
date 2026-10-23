@@ -182,6 +182,7 @@ class HardwareWatchdog:
             self.fd = None
             self.enabled = False
 
+
 def pid_alive(pid: int) -> bool:
     """True if a process with ``pid`` exists.
 

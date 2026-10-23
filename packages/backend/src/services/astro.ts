@@ -119,7 +119,8 @@ export function formatZulu(date: Date): string {
       hour: '2-digit',
       minute: '2-digit',
       timeZone: 'UTC',
-      hour12: false,
+      // hour12: false renders midnight as "24:00" in some ICU builds (Linux Node).
+      hourCycle: 'h23',
     }) + 'Z'
   );
 }
