@@ -423,6 +423,56 @@ describe('updater apply', () => {
   });
 });
 
+describe('updater settings', () => {
+  const configFile = () => path.join(root, 'data', 'update-config.json');
+
+  it('auto-installs through the verified apply path when autoUpdate is on', async () => {
+    svc.setConfig({ autoUpdate: true }); // autoDownload stays off
+    await svc.checkForUpdates();
+    expect(launches).toEqual([
+      ['--apply-tarball', finalPath(), '--delay', '3', '--version', VERSION, '--sha256', SHA],
+    ]);
+  });
+
+  it('only downloads when autoUpdate is off', async () => {
+    svc.setConfig({ autoUpdate: false, autoDownload: true });
+    await svc.checkForUpdates();
+    expect(svc.getStatus().downloadReady).toBe(true);
+    expect(launches).toEqual([]);
+  });
+
+  it('persists phone settings and loads them on the next start', async () => {
+    svc.setConfig({ autoUpdate: true, checkInterval: 12 });
+    expect(JSON.parse(fs.readFileSync(configFile(), 'utf-8'))).toEqual({
+      autoUpdate: true,
+      autoDownload: false,
+      checkInterval: 12,
+    });
+    svc.stop();
+
+    const restarted = new UpdateService({ projectRoot: root, tempDir });
+    await restarted.init({ checkInterval: 0 });
+    restarted.stop();
+    expect(restarted.getConfig()).toMatchObject({ autoUpdate: true, autoDownload: false });
+    expect(restarted.getStatus().autoUpdateEnabled).toBe(true);
+  });
+
+  it('keeps settings the request left out', () => {
+    svc.setConfig({ autoUpdate: true });
+    svc.setConfig({ autoDownload: true });
+    expect(svc.getConfig()).toMatchObject({ autoUpdate: true, autoDownload: true });
+  });
+
+  it('ignores a damaged settings file', async () => {
+    fs.mkdirSync(path.dirname(configFile()), { recursive: true });
+    fs.writeFileSync(configFile(), '{"autoUpdate": "yes", "checkInterval": 9999');
+    const s = new UpdateService({ projectRoot: root, tempDir });
+    await s.init({ checkInterval: 0 });
+    s.stop();
+    expect(s.getConfig()).toMatchObject({ autoUpdate: false, autoDownload: true });
+  });
+});
+
 describe('updateDownload helpers', () => {
   it('parses sha256sum output', () => {
     expect(parseChecksum(`${SHA.toUpperCase()}  ${ASSET}\n`, ASSET)).toBe(SHA);

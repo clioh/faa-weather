@@ -104,21 +104,12 @@ export function useFetch<T>(
 
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch data';
 
-        // If we have stale data and keepStaleData is true, keep showing it
-        if (!keepStaleData || data === null) {
-          setError(errorMessage);
-        } else {
-          // Mark as stale but keep the data
-          setError(errorMessage);
-        }
+        // Old data stays in `data`; with keepStaleData it reads as stale (isStale).
+        setError(errorMessage);
 
         // Retry with exponential backoff
         if (currentRetry < maxRetries) {
           const delay = retryDelay * Math.pow(2, currentRetry);
-          console.log(
-            `Fetch failed, retrying in ${delay}ms (attempt ${currentRetry + 1}/${maxRetries})`
-          );
-
           setRetryCount(currentRetry + 1);
 
           retryTimeoutRef.current = setTimeout(() => {
@@ -141,7 +132,7 @@ export function useFetch<T>(
         fetchingRef.current = false;
       }
     },
-    [getUrl, data, keepStaleData, maxRetries, retryDelay, skip]
+    [getUrl, data, maxRetries, retryDelay, skip]
   );
 
   // Manual refresh

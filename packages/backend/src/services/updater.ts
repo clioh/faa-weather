@@ -16,7 +16,6 @@ import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { EventEmitter } from 'events';
 import {
   DEFAULT_CONNECT_TIMEOUT_MS,
   DEFAULT_STALL_TIMEOUT_MS,
@@ -59,6 +58,11 @@ export interface UpdateServiceOptions {
   githubApiBase?: string;
   /** Default `<projectRoot>/scripts/update.sh`. */
   updateScript?: string;
+  /**
+   * Where the phone's update settings are kept across restarts.
+   * Default $SKYGLASS_UPDATE_CONFIG_FILE or `<projectRoot>/data/update-config.json`.
+   */
+  configFile?: string;
   /** Abort a download when no bytes arrive for this long. Default 60 s. */
   stallTimeoutMs?: number;
   /** Abort when the server does not answer with headers within this long. Default 30 s. */
@@ -134,8 +138,34 @@ export interface UpdateConfig {
   autoUpdate: boolean;
   autoDownload: boolean; // Download updates automatically but don't install
   checkInterval: number;
-  notifyOnly: boolean;
   githubRepo: string;
+}
+
+/** The settings a paired phone may change; the only ones persisted. */
+type PersistedUpdateConfig = Pick<UpdateConfig, 'autoUpdate' | 'autoDownload' | 'checkInterval'>;
+
+/** Reads data/update-config.json, keeping only well-formed values. */
+function readPersistedConfig(file: string): Partial<PersistedUpdateConfig> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return {};
+  }
+  if (!raw || typeof raw !== 'object') return {};
+  const r = raw as Record<string, unknown>;
+  const out: Partial<PersistedUpdateConfig> = {};
+  if (typeof r.autoUpdate === 'boolean') out.autoUpdate = r.autoUpdate;
+  if (typeof r.autoDownload === 'boolean') out.autoDownload = r.autoDownload;
+  if (
+    typeof r.checkInterval === 'number' &&
+    Number.isInteger(r.checkInterval) &&
+    r.checkInterval >= 1 &&
+    r.checkInterval <= 168
+  ) {
+    out.checkInterval = r.checkInterval;
+  }
+  return out;
 }
 
 /**
@@ -161,7 +191,7 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-export class UpdateService extends EventEmitter {
+export class UpdateService {
   private status: UpdateStatus = {
     updateAvailable: false,
     currentVersion: '',
@@ -188,7 +218,6 @@ export class UpdateService extends EventEmitter {
     autoUpdate: false,
     autoDownload: true, // Download automatically by default
     checkInterval: 24,
-    notifyOnly: true,
     githubRepo: GITHUB_REPO,
   };
 
@@ -204,11 +233,11 @@ export class UpdateService extends EventEmitter {
   private readonly githubApiBase: string;
   private readonly updateScript: string;
   private readonly launcher: UpdateLauncher;
+  private readonly configFile: string;
   private stallTimeoutMs: number;
   private connectTimeoutMs: number;
 
   constructor(options: UpdateServiceOptions = {}) {
-    super();
     this.projectRoot = options.projectRoot ?? DEFAULT_PROJECT_ROOT;
     this.tempDir =
       options.tempDir ??
@@ -221,6 +250,10 @@ export class UpdateService extends EventEmitter {
     ).replace(/\/+$/, '');
     this.updateScript = options.updateScript ?? path.join(this.projectRoot, 'scripts', 'update.sh');
     this.launcher = options.launcher ?? defaultLauncher;
+    this.configFile =
+      options.configFile ??
+      process.env.SKYGLASS_UPDATE_CONFIG_FILE ??
+      path.join(this.projectRoot, 'data', 'update-config.json');
     this.stallTimeoutMs = options.stallTimeoutMs ?? DEFAULT_STALL_TIMEOUT_MS;
     this.connectTimeoutMs = options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
   }
@@ -232,12 +265,11 @@ export class UpdateService extends EventEmitter {
   }
 
   /**
-   * Initialize the update service
+   * Initialize the update service: built-in defaults, then the settings saved
+   * from the phone (data/update-config.json), then `config` (tests).
    */
   async init(config?: Partial<UpdateConfig>): Promise<void> {
-    if (config) {
-      this.config = { ...this.config, ...config };
-    }
+    this.config = { ...this.config, ...readPersistedConfig(this.configFile), ...config };
     this.status.autoUpdateEnabled = this.config.autoUpdate;
     this.status.autoDownloadEnabled = this.config.autoDownload;
 
@@ -257,7 +289,9 @@ export class UpdateService extends EventEmitter {
   private scheduleCheck(): void {
     if (this.checkTimer) {
       clearInterval(this.checkTimer);
+      this.checkTimer = null;
     }
+    if (this.config.checkInterval <= 0) return;
 
     const intervalMs = this.config.checkInterval * 60 * 60 * 1000;
     this.checkTimer = setInterval(() => {
@@ -430,7 +464,6 @@ export class UpdateService extends EventEmitter {
 
   private setProgress(progress: DownloadProgress): void {
     this.status.downloadProgress = progress;
-    this.emit('downloadProgress', this.status.downloadProgress);
   }
 
   /**
@@ -496,16 +529,15 @@ export class UpdateService extends EventEmitter {
       if (updateAvailable) {
         console.log(`Update available: ${currentVersion} → ${latestVersion}`);
 
-        this.emit('updateAvailable', this.status);
-
-        // Auto-download if configured (but not installed)
-        if (this.config.autoDownload && !this.status.downloadReady) {
+        // Auto-download if configured; auto-install needs the download too.
+        if ((this.config.autoDownload || this.config.autoUpdate) && !this.status.downloadReady) {
           console.log('Auto-downloading update...');
           await this.downloadUpdate();
         }
 
-        // Auto-apply if configured
-        if (this.config.autoUpdate && !this.config.notifyOnly && this.status.downloadReady) {
+        // "Auto-install updates" on the phone. Same path as POST /api/update/apply:
+        // re-verifies the download and hands update.sh the digest.
+        if (this.config.autoUpdate && this.status.downloadReady) {
           console.log('Auto-update enabled. Applying updates...');
           await this.applyUpdates();
         }
@@ -625,7 +657,6 @@ export class UpdateService extends EventEmitter {
       });
 
       console.log('Update downloaded and verified');
-      this.emit('downloadComplete', this.status);
 
       return { success: true, message: 'Update downloaded successfully' };
     } catch (error) {
@@ -740,7 +771,6 @@ export class UpdateService extends EventEmitter {
 
       const message = `Update to v${version} started; SkyGlass will restart shortly`;
       console.log(`${message} (log: ${outLog})`);
-      this.emit('updateStarted', { version });
       return { success: true, message };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Update failed';
@@ -766,13 +796,35 @@ export class UpdateService extends EventEmitter {
     return { ...this.status };
   }
 
-  setConfig(config: Partial<UpdateConfig>): void {
-    this.config = { ...this.config, ...config };
+  /**
+   * Change the phone-editable settings. Keys left undefined keep their value.
+   * Saved to data/update-config.json so they survive a restart.
+   */
+  setConfig(config: Partial<PersistedUpdateConfig>): void {
+    const changes: Partial<PersistedUpdateConfig> = {};
+    if (config.autoUpdate !== undefined) changes.autoUpdate = config.autoUpdate;
+    if (config.autoDownload !== undefined) changes.autoDownload = config.autoDownload;
+    if (config.checkInterval !== undefined) changes.checkInterval = config.checkInterval;
+
+    this.config = { ...this.config, ...changes };
     this.status.autoUpdateEnabled = this.config.autoUpdate;
     this.status.autoDownloadEnabled = this.config.autoDownload;
+    this.saveConfig();
 
-    if (config.checkInterval !== undefined) {
+    if (changes.checkInterval !== undefined) {
       this.scheduleCheck();
+    }
+  }
+
+  private saveConfig(): void {
+    const { autoUpdate, autoDownload, checkInterval } = this.config;
+    try {
+      fs.mkdirSync(path.dirname(this.configFile), { recursive: true });
+      const tmp = `${this.configFile}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify({ autoUpdate, autoDownload, checkInterval }, null, 2));
+      fs.renameSync(tmp, this.configFile);
+    } catch (error) {
+      console.error('Failed to save update settings:', error);
     }
   }
 

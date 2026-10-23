@@ -28,6 +28,20 @@ Runtime state is never copied, backed up, restored or deleted: `data/`, `logs/`,
 `config/config.yaml`, `face_data/`, `node_modules/`, `venv/`, `.env*` and the updater's own files.
 See `UPDATE_EXCLUDES` in `scripts/update.sh`.
 
+## Automatic updates
+
+The backend checks GitHub Releases every `checkInterval` hours (default 24). The phone app's update
+settings (`POST /api/update/config`) are saved to `data/update-config.json` and loaded at startup:
+
+| Setting         | Default | Effect                                                                                           |
+| --------------- | ------- | ------------------------------------------------------------------------------------------------ |
+| `autoDownload`  | `true`  | Download and verify a new release in the background; installing still waits for the user         |
+| `autoUpdate`    | `false` | "Auto-install updates": download (even with `autoDownload` off), verify, install via `update.sh` |
+| `checkInterval` | `24`    | Hours between checks (1-168)                                                                     |
+
+Auto-install takes the same path as the Install button (`applyUpdates()`): the download is
+re-verified and `update.sh` gets the digest via `--sha256`.
+
 ## State and lock files
 
 | File                | Meaning                                                                                                                                                                                                                                                                                                                 |

@@ -18,6 +18,8 @@ export function ProvisioningScreen({
   onConnected,
 }: ProvisioningScreenProps) {
   const [dots, setDots] = useState('');
+  // Set up before; the saved network is gone and retried in the background
+  const [reconnecting, setReconnecting] = useState(false);
   const { version } = useMirrorInfo();
 
   // WiFi QR code format (open network, no password)
@@ -39,7 +41,10 @@ export function ProvisioningScreen({
           signal: AbortSignal.timeout(3000),
         });
         const data = await res.json();
-        if (data.wifiConfigured) {
+        setReconnecting(data.reconnecting === true);
+        // The hotspot is gone once the mirror is online (joined from the
+        // phone, or back on its saved network)
+        if (data.provisioning === false) {
           onConnected?.();
         }
       } catch {
@@ -47,6 +52,7 @@ export function ProvisioningScreen({
       }
     };
 
+    void checkStatus();
     const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
   }, [onConnected]);
@@ -62,7 +68,9 @@ export function ProvisioningScreen({
           <div className="sg-kicker">SkyGlass setup</div>
           <h1 className="sg-headline">Let’s get your mirror online.</h1>
           <p className="sg-body">
-            Once the mirror is online, finish setup in the SkyGlass app on your phone.
+            {reconnecting
+              ? 'The mirror can’t reach its saved Wi-Fi network and keeps retrying it. To use a different network, join the mirror’s setup network.'
+              : 'Once the mirror is online, finish setup in the SkyGlass app on your phone.'}
           </p>
           <div className="sg-hotspot__waiting" role="status">
             Waiting for setup{dots}

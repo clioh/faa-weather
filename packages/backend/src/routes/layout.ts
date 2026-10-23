@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { validateBody } from '../middleware/validate.js';
-import { layoutSchema, oauthTokenSchema } from '../validation/schemas.js';
+import { layoutSchema } from '../validation/schemas.js';
 import { broadcast } from '../server.js';
 import { loadConfig, type MirrorOrientation } from '../config/index.js';
 
@@ -14,7 +14,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '../../../../data');
 const LAYOUTS_DIR = path.join(DATA_DIR, 'layouts');
 const CURRENT_LAYOUT_FILE = path.join(LAYOUTS_DIR, 'current.json');
-const OAUTH_TOKENS_FILE = path.join(DATA_DIR, 'oauth_tokens.json');
 
 // Ensure data directories exist
 if (!fs.existsSync(DATA_DIR)) {
@@ -48,15 +47,6 @@ interface MirrorLayout {
   shelf?: ModuleInstance[];
   createdAt: string;
   updatedAt: string;
-}
-
-interface OAuthTokens {
-  [widgetInstanceId: string]: {
-    provider: string;
-    accessToken: string;
-    refreshToken?: string;
-    tokenExpiry?: number;
-  };
 }
 
 // Default layout for new installations: what the mirror shows until a layout
@@ -120,31 +110,6 @@ function currentOrientation(): MirrorOrientation {
 }
 
 /**
- * Load OAuth tokens from storage
- */
-function loadOAuthTokens(): OAuthTokens {
-  try {
-    if (fs.existsSync(OAUTH_TOKENS_FILE)) {
-      return JSON.parse(fs.readFileSync(OAUTH_TOKENS_FILE, 'utf-8'));
-    }
-  } catch (err) {
-    console.error('Failed to load OAuth tokens:', err);
-  }
-  return {};
-}
-
-/**
- * Save OAuth tokens to storage
- */
-function saveOAuthTokens(tokens: OAuthTokens): void {
-  try {
-    fs.writeFileSync(OAUTH_TOKENS_FILE, JSON.stringify(tokens, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to save OAuth tokens:', err);
-  }
-}
-
-/**
  * Load current layout from storage
  */
 export function loadCurrentLayout(): MirrorLayout {
@@ -192,22 +157,12 @@ router.put('/', validateBody(layoutSchema), (req, res) => {
   try {
     const layout: MirrorLayout = req.body;
 
-    // Preserve OAuth tokens when updating layout
-    loadOAuthTokens(); // Ensure tokens are loaded
     const existingLayout = loadCurrentLayout();
 
     // Validate each module
     for (const module of layout.modules) {
       if (!module.instanceId || !module.moduleId || !module.position || !module.size) {
         return res.status(400).json({ error: 'Invalid module structure' });
-      }
-
-      // Preserve OAuth tokens from existing modules
-      const existingModule = existingLayout.modules.find((m) => m.instanceId === module.instanceId);
-      if (existingModule?.config.accessToken) {
-        module.config.accessToken = existingModule.config.accessToken;
-        module.config.refreshToken = existingModule.config.refreshToken;
-        module.config.tokenExpiry = existingModule.config.tokenExpiry;
       }
     }
 
@@ -223,78 +178,13 @@ router.put('/', validateBody(layoutSchema), (req, res) => {
     }
 
     saveCurrentLayout(layout);
-    // The mirror UI (frontend App.tsx) swaps to the new layout on this message.
+    // The mirror UI (frontend App.tsx) shows it now, or, while a recognized
+    // user's own layout is up, once they leave.
     broadcast('layout-update', { layout });
     res.json({ success: true, layout });
   } catch (err) {
     console.error('Failed to update layout:', err);
     res.status(500).json({ error: 'Failed to save layout' });
-  }
-});
-
-/**
- * POST /api/layout/oauth/:instanceId
- * Store OAuth tokens for a widget (called by mobile app after OAuth flow)
- */
-router.post('/oauth/:instanceId', validateBody(oauthTokenSchema), (req, res) => {
-  try {
-    const instanceId = req.params.instanceId as string;
-    const { provider, accessToken, refreshToken, tokenExpiry } = req.body;
-
-    // Store in OAuth tokens file
-    const oauthTokens = loadOAuthTokens();
-    oauthTokens[instanceId] = {
-      provider: provider || 'unknown',
-      accessToken,
-      refreshToken,
-      tokenExpiry,
-    };
-    saveOAuthTokens(oauthTokens);
-
-    // Also update the module config
-    const layout = loadCurrentLayout();
-    const module = layout.modules.find((m) => m.instanceId === instanceId);
-    if (module) {
-      module.config.accessToken = accessToken;
-      module.config.refreshToken = refreshToken;
-      module.config.tokenExpiry = tokenExpiry;
-      saveCurrentLayout(layout);
-    }
-
-    res.json({ success: true });
-  } catch {
-    res.status(500).json({ error: 'Failed to store OAuth tokens' });
-  }
-});
-
-/**
- * DELETE /api/layout/oauth/:instanceId
- * Remove OAuth tokens for a widget (disconnect account)
- */
-router.delete('/oauth/:instanceId', (req, res) => {
-  try {
-    const { instanceId } = req.params;
-
-    // Remove from OAuth tokens file
-    const oauthTokens = loadOAuthTokens();
-    if (oauthTokens[instanceId]) {
-      delete oauthTokens[instanceId];
-      saveOAuthTokens(oauthTokens);
-    }
-
-    // Also update the module config
-    const layout = loadCurrentLayout();
-    const module = layout.modules.find((m) => m.instanceId === instanceId);
-    if (module) {
-      delete module.config.accessToken;
-      delete module.config.refreshToken;
-      delete module.config.tokenExpiry;
-      saveCurrentLayout(layout);
-    }
-
-    res.json({ success: true });
-  } catch {
-    res.status(500).json({ error: 'Failed to remove OAuth tokens' });
   }
 });
 

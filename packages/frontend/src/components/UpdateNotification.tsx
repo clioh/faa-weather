@@ -23,10 +23,6 @@ interface UpdateStatus {
   downloadProgress: DownloadProgress;
 }
 
-interface UpdateNotificationProps {
-  wsConnected?: boolean;
-}
-
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -251,7 +247,7 @@ function PhaseIcon({ phase }: { phase: DownloadProgress['phase'] }) {
   return null;
 }
 
-export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotificationProps) {
+export function UpdateNotification() {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [dismissed, setDismissed] = useState(false);

@@ -8,7 +8,6 @@ interface WSMessage {
 }
 
 interface UseWebSocketReturn {
-  lastMessage: WSMessage | null;
   isConnected: boolean;
   send: (data: unknown) => void;
 }
@@ -16,7 +15,6 @@ interface UseWebSocketReturn {
 const RECONNECT_DELAY_MS = 3000;
 
 export function useWebSocket(url: string): UseWebSocketReturn {
-  const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -67,10 +65,9 @@ export function useWebSocket(url: string): UseWebSocketReturn {
         console.error('Failed to parse WebSocket message:', e);
         return;
       }
-      setLastMessage(message);
-      // Dispatched here rather than from App's lastMessage effect: React
-      // batches state updates, so two messages in one tick would leave App
-      // seeing only the second, and widgets (todos, photos) would miss one.
+      // Every message is its own window event (listened to with useWsEvent).
+      // Not React state: batching would let the second of two messages in one
+      // tick replace the first before anything saw it.
       window.dispatchEvent(new CustomEvent(WS_EVENT, { detail: message }));
     };
 
@@ -107,5 +104,5 @@ export function useWebSocket(url: string): UseWebSocketReturn {
     }
   }, []);
 
-  return { lastMessage, isConnected, send };
+  return { isConnected, send };
 }

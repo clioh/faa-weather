@@ -14,7 +14,6 @@ import updateRoutes from './routes/update.js';
 import layoutRoutes from './routes/layout.js';
 import usersRoutes from './routes/users.js';
 import licenseRoutes from './routes/license.js';
-import cloudRoutes from './routes/cloud.js';
 import newsRoutes from './routes/news.js';
 import financeRoutes from './routes/finance.js';
 import weatherRoutes from './routes/weather.js';
@@ -27,7 +26,6 @@ import {
   isValidInternalToken,
   INTERNAL_TOKEN_HEADER,
 } from './services/internal-token.js';
-import { relayClient } from './services/relay-client.js';
 import { aviationData } from './services/aviation.js';
 import { updateService } from './services/updater.js';
 import { initScheduleService } from './services/schedule.js';
@@ -190,11 +188,10 @@ app.use('/api/update', updateRoutes);
 app.use('/api/layout', layoutRoutes); // Widget layout management
 app.use('/api/users', usersRoutes); // User management
 app.use('/api/license', licenseRoutes); // License management
-app.use('/api/cloud', cloudRoutes); // Cloud registration and relay
 app.use('/api/wifi', wifiRoutes); // WiFi provisioning (proxied to admin portal)
 app.use('/api/presence/faces', presenceFaceRoutes); // Enrolled faces (proxied to presence server)
 app.use('/api/news', newsRoutes); // RSS/Atom headlines
-app.use('/api/finance', financeRoutes); // Stocks (Stooq) + crypto (CoinGecko)
+app.use('/api/finance', financeRoutes); // Stocks (SkyGlass service, Yahoo fallback) + crypto (CoinGecko)
 app.use('/api/weather', weatherRoutes); // General weather (Open-Meteo)
 app.use('/api/todos', todosRoutes); // Todo list widget (data/todos.json)
 app.use('/api/photos', photosRoutes); // Photo frame widget (data/photos/)
@@ -242,10 +239,17 @@ app.get('/api/provisioning/status', (_req, res) => {
   );
 
   const wifiConfigured = existsSync(wifiConfiguredFlag);
+  // Written by scripts/boot-mode.sh while the SkyGlass-Setup hotspot runs,
+  // also on a mirror that was set up before but found no network at boot
+  // (it then retries the saved network; packages/presence/wifi_provisioning.py).
+  const hotspotActive = existsSync(
+    process.env.SKYGLASS_PROVISIONING_MARKER || '/run/skyglass/provisioning'
+  );
 
   res.json({
-    provisioning: !wifiConfigured,
+    provisioning: !wifiConfigured || hotspotActive,
     wifiConfigured,
+    reconnecting: wifiConfigured && hotspotActive,
     hotspotSSID: 'SkyGlass-Setup',
     setupUrl: 'http://10.42.0.1',
   });
@@ -671,7 +675,7 @@ app.post('/api/gesture', validateBody(gestureSchema), async (req, res) => {
 // SKYGLASS_SERVE_FRONTEND=1, and packages/frontend/dist exists.
 const REPO_ROOT = join(__dirname, '..', '..', '..'); // src/ or dist/ -> packages/backend -> packages -> repo
 const FRONTEND_DIST = join(REPO_ROOT, 'packages', 'frontend', 'dist');
-const SPA_EXCLUDED_PREFIXES = ['/api', '/ws', '/admin'];
+const SPA_EXCLUDED_PREFIXES = ['/api', '/ws'];
 
 const wantFrontend =
   process.env.NODE_ENV === 'production' || process.env.SKYGLASS_SERVE_FRONTEND === '1';
@@ -728,7 +732,8 @@ cron.schedule('*/15 * * * *', async () => {
   console.log('Refreshing TFR data...');
   try {
     const tfrs = await aviationData.getTfrs(true);
-    broadcast('tfrs', { count: tfrs.length, tfrs });
+    // TfrModule refetches its own area on this; the list itself isn't needed.
+    broadcast('tfrs', { count: tfrs.length });
     console.log(`TFRs updated: ${tfrs.length} active`);
   } catch (error) {
     console.error('Failed to refresh TFR data:', error);
@@ -768,12 +773,9 @@ async function start() {
     console.log('[License] Licensing disabled');
   }
 
-  // Initialize update service (check every 24 hours, notify only by default)
-  await updateService.init({
-    autoUpdate: false,
-    checkInterval: 24,
-    notifyOnly: true,
-  });
+  // Update service: checks daily by default; the phone's settings are
+  // loaded from data/update-config.json.
+  await updateService.init();
 
   server.listen(PORT, async () => {
     console.log(`SkyGlass backend running on http://localhost:${PORT}`);
@@ -796,15 +798,6 @@ async function start() {
 
     // Calendar accounts: background sync every calendar.refresh_minutes
     calendarService.start();
-
-    // Connect to cloud relay if token exists
-    setTimeout(() => {
-      const status = relayClient.getStatus();
-      if (status.hasToken) {
-        console.log('[Cloud] Attempting to connect to cloud relay...');
-        relayClient.connect();
-      }
-    }, 3000);
   });
 }
 
@@ -813,7 +806,6 @@ process.on('SIGINT', async () => {
   console.log('\nShutting down...');
   calendarService.stop();
   licenseManager.stop();
-  relayClient.disconnect();
   await mdnsService.stop();
   process.exit(0);
 });
@@ -822,7 +814,6 @@ process.on('SIGTERM', async () => {
   console.log('\nShutting down...');
   calendarService.stop();
   licenseManager.stop();
-  relayClient.disconnect();
   await mdnsService.stop();
   process.exit(0);
 });

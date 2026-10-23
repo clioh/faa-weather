@@ -9,14 +9,14 @@ Third-party calls share `services/upstream.ts`: each has an `AbortSignal` timeou
 in-memory TTL cache per key, in-flight de-duplication, and serves the last good value
 (up to 24 h old) if the upstream fails. Raw upstream errors are never returned.
 
-| Endpoint                                | Provider                                      | Cache                                        |
-| --------------------------------------- | --------------------------------------------- | -------------------------------------------- |
-| `GET /api/news`                         | RSS / Atom feeds                              | 10 min per feed URL                          |
-| `GET /api/finance/stocks`               | Finnhub (with key) or Yahoo Finance chart API | 5 min per symbol (Finnhub names 24 h)        |
-| `GET /api/finance/crypto`               | CoinGecko `simple/price`                      | 2 min per coin set + currency                |
-| `GET /api/weather/current`, `/forecast` | Open-Meteo                                    | 10 min per (lat, lon rounded to 2 dp, units) |
-| `GET /api/aviation/winds-aloft`         | AWC `api/data/windtemp` (FB)                  | 30 min per region/level product              |
-| `GET /api/aviation/tfrs`                | FAA `tfrapi/getTfrList` + TFR GeoServer WFS   | 15 min                                       |
+| Endpoint                                | Provider                                    | Cache                                        |
+| --------------------------------------- | ------------------------------------------- | -------------------------------------------- |
+| `GET /api/news`                         | RSS / Atom feeds                            | 10 min per feed URL                          |
+| `GET /api/finance/stocks`               | SkyGlass service (Finnhub) or Yahoo         | 5 min per symbol (Finnhub names 24 h)        |
+| `GET /api/finance/crypto`               | CoinGecko `simple/price`                    | 2 min per coin set + currency                |
+| `GET /api/weather/current`, `/forecast` | Open-Meteo                                  | 10 min per (lat, lon rounded to 2 dp, units) |
+| `GET /api/aviation/winds-aloft`         | AWC `api/data/windtemp` (FB)                | 30 min per region/level product              |
+| `GET /api/aviation/tfrs`                | FAA `tfrapi/getTfrList` + TFR GeoServer WFS | 15 min                                       |
 
 ## News
 
@@ -175,6 +175,6 @@ layout editor (`packages/mobile/components/config/PhotoManager.tsx`).
 
 `GET /api/config` (and the `config` WebSocket broadcast after a config reload) returns
 `{ airport, location, display: { orientation, fade_duration, presence_timeout } }`.
-`display.orientation` (`landscape` | `portrait`, default `landscape`) is set in
-`config/config.yaml`. The legacy `widgets` section has been removed; layouts live in
+`display.orientation` (`landscape` | `portrait-cw` | `portrait-ccw`, default `landscape`; the
+legacy value `portrait` reads as `portrait-cw`) is set in `config/config.yaml`. The legacy `widgets` section has been removed; layouts live in
 `data/layouts/`.

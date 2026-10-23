@@ -19,7 +19,7 @@ import {
   mergeScheduleEvents,
   scheduleWindow,
 } from '../services/schedule.js';
-import { getXlsxHeaders, ScheduleParseError } from '../services/schedule-parser.js';
+import { ScheduleParseError } from '../services/schedule-parser.js';
 import { uploadLimiter } from '../middleware/rateLimiter.js';
 import { calendarService } from '../calendar/instance.js';
 import type { TimeWindow } from '../calendar/types.js';
@@ -114,19 +114,6 @@ router.post('/upload', uploadLimiter, singleFile('schedule'), async (req, res) =
     }
     console.error('Upload route error:', error);
     res.status(500).json({ error: 'Failed to process schedule file' });
-  }
-});
-
-router.post('/analyze', uploadLimiter, singleFile('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    const headers = await getXlsxHeaders(req.file.buffer);
-    res.json({ success: true, headers });
-  } catch (error) {
-    console.error('Analyze route error:', error);
-    res.status(500).json({ error: 'Failed to analyze file' });
   }
 });
 

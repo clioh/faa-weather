@@ -21,6 +21,7 @@ const h = await vi.hoisted(async () => {
   process.env.SKYGLASS_NO_LISTEN = '1';
   process.env.SKYGLASS_PAIRED_DEVICES_FILE = path.join(tmp, 'paired-devices.json');
   process.env.SKYGLASS_SCHEDULE_FILE = path.join(tmp, 'flight-schedule.xlsx');
+  process.env.SKYGLASS_UPDATE_CONFIG_FILE = path.join(tmp, 'update-config.json');
   process.env.SKYGLASS_INTERNAL_TOKEN_FILE = path.join(tmp, 'internal-token');
   return {
     tmp,

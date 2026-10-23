@@ -77,6 +77,8 @@ async function fetchLicenseStatus(): Promise<LicenseStatus | null> {
 
 /** While the license screen is up, re-check this often in case a WS event was missed. */
 const LICENSE_RECHECK_MS = 60_000;
+/** How often a mirror past WiFi setup checks whether the setup hotspot came up. */
+const PROVISIONING_RECHECK_MS = 30_000;
 /** Greeting on recognition; matches the .user-greeting animations in theme.css. */
 const GREETING_MS = 2800;
 
@@ -131,10 +133,11 @@ function App() {
   const [registrationMode, setRegistrationMode] = useState(false);
   const registrationEndTimer = useRef<number | undefined>(undefined);
   const [appMode, setAppMode] = useState<AppMode>('loading');
-  const { lastMessage, isConnected } = useWebSocket(WS_URL);
+  // Bumped to run the mode check again (after the hotspot screen)
+  const [modeCheck, setModeCheck] = useState(0);
+  const { isConnected } = useWebSocket(WS_URL);
 
   // Multi-user state
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [showGreeting, setShowGreeting] = useState(false);
   // Switching to the shared layout after someone leaves waits for the sleep
@@ -142,6 +145,12 @@ function App() {
   // Bumped on every user change so a late switch never replaces a newcomer's layout.
   const leaveTimer = useRef<number | undefined>(undefined);
   const userChange = useRef(0);
+  // The recognized user's id. A ref, not state: two WebSocket messages can
+  // arrive before React re-renders, and the second must see the first one's user.
+  const currentUserRef = useRef<string | null>(null);
+  // The recognized user's own layout is on screen; a saved shared layout
+  // (layout-update) then waits until they leave.
+  const userLayoutShown = useRef(false);
 
   // Latest GET /api/license/status (or WS `license` payload); null until known.
   const [license, setLicense] = useState<LicenseStatus | null>(null);
@@ -210,6 +219,33 @@ function App() {
       cancelled = true;
       window.clearTimeout(retryTimer);
     };
+  }, [modeCheck]);
+
+  // A mirror that was set up can lose its network later (moved, new router):
+  // boot-mode.sh then starts the SkyGlass-Setup hotspot, and the mirror shows
+  // how to join it until it is back online (ProvisioningScreen).
+  useEffect(() => {
+    if (appMode !== 'ready' && appMode !== 'setup') return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/provisioning/status', { signal: AbortSignal.timeout(3000) });
+        const data = await res.json();
+        if (!cancelled && data.provisioning) setAppMode('provisioning');
+      } catch {
+        // Backend restarting; try again next time
+      }
+    }, PROVISIONING_RECHECK_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [appMode]);
+
+  // Back online after the hotspot screen: setup or the mirror, as at startup
+  const handleProvisioningDone = useCallback(() => {
+    setAppMode('loading');
+    setModeCheck((n) => n + 1);
   }, []);
 
   // The server sends the current license status to every new socket, and
@@ -244,7 +280,7 @@ function App() {
     // Sent only when the config changes, so the first one compares with the loaded config.
     const previous = savedOrientation.current ?? config?.display?.orientation ?? 'landscape';
     savedOrientation.current = orientation;
-    if (previous === orientation || currentUserId) return;
+    if (previous === orientation || currentUserRef.current) return;
     const change = userChange.current;
     void fetchDefaultLayout().then((defaultLayout) => {
       if (userChange.current === change) setLayout(defaultLayout);
@@ -320,9 +356,10 @@ function App() {
         setPresenceState(data.present ? 'present' : 'absent');
         // Reloaded while someone is recognized: show their layout, not the shared one.
         if (cancelled || !data.userId) return;
-        setCurrentUserId(data.userId);
+        currentUserRef.current = data.userId;
         setCurrentUserName(data.userName || null);
         if (data.userLayout) {
+          userLayoutShown.current = true;
           setLayout({
             id: data.userLayout.id,
             name: data.userLayout.name,
@@ -341,132 +378,132 @@ function App() {
     };
   }, [appMode, licenseBlocked]);
 
-  // Handle WebSocket messages
-  useEffect(() => {
-    if (!lastMessage) return;
+  // WebSocket messages. Each one arrives as its own window event (useWsEvent),
+  // so a burst such as layout-preview {modules: null} followed by presence in
+  // the same tick is never lost to React batching.
+  useWsEvent('presence', (raw) => {
+    const data = raw as {
+      present: boolean;
+      state?: PresenceState;
+      displayState?: string;
+      /** The phone app is holding the display on (layout editing). */
+      hold?: boolean;
+      userId?: string | null;
+      userName?: string | null;
+      userLayout?: {
+        id: string;
+        name: string;
+        modules: MirrorLayout['modules'];
+        createdAt?: string;
+        updatedAt?: string;
+      } | null;
+    };
 
-    if (lastMessage.type === 'presence') {
-      const data = lastMessage.data as {
-        present: boolean;
-        state?: PresenceState;
-        displayState?: string;
-        /** The phone app is holding the display on (layout editing). */
-        hold?: boolean;
-        userId?: string | null;
-        userName?: string | null;
-        userLayout?: {
-          id: string;
-          name: string;
-          modules: MirrorLayout['modules'];
-          createdAt?: string;
-          updatedAt?: string;
-        } | null;
-      };
-
-      setIsPresent(data.present || Boolean(data.hold));
-      if (data.state) {
-        setPresenceState(data.state);
-      } else {
-        setPresenceState(data.present ? 'present' : 'absent');
-      }
-
-      // Handle user change
-      const newUserId = data.userId || null;
-      const previousUserId = currentUserId;
-
-      if (newUserId !== previousUserId) {
-        window.clearTimeout(leaveTimer.current);
-        const change = ++userChange.current;
-        setCurrentUserId(newUserId);
-        setCurrentUserName(data.userName || null);
-
-        // User changed - show greeting and load their layout
-        if (newUserId && data.present) {
-          console.log(`User recognized: ${data.userName} (${newUserId})`);
-
-          // Show greeting for new user
-          setShowGreeting(true);
-          setTimeout(() => setShowGreeting(false), GREETING_MS);
-
-          // Load user's layout if provided
-          if (data.userLayout) {
-            const userLayout: MirrorLayout = {
-              id: data.userLayout.id,
-              name: data.userLayout.name,
-              modules: data.userLayout.modules,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            setLayout(userLayout);
-            setLayoutLoaded(true);
-            console.log(`Loaded layout for ${data.userName}:`, userLayout.name);
-          }
-        } else if (!newUserId && previousUserId) {
-          console.log('User left, loading default layout');
-          const showDefault = () =>
-            fetchDefaultLayout().then((defaultLayout) => {
-              if (userChange.current === change) setLayout(defaultLayout);
-            });
-          const goingDark = !data.present && !data.hold;
-          if (goingDark) {
-            leaveTimer.current = window.setTimeout(showDefault, fadeMs.current + 200);
-          } else {
-            void showDefault();
-          }
-        }
-      }
+    setIsPresent(data.present || Boolean(data.hold));
+    if (data.state) {
+      setPresenceState(data.state);
+    } else {
+      setPresenceState(data.present ? 'present' : 'absent');
     }
 
-    if (lastMessage.type === 'registration') {
-      const data = lastMessage.data as { active: boolean; action?: string };
-      window.clearTimeout(registrationEndTimer.current);
-      if (data.action === 'completed') {
-        // `active` is already false: keep the overlay up for its welcome screen.
-        registrationEndTimer.current = window.setTimeout(
-          () => setRegistrationMode(false),
-          WELCOME_MS
-        );
-      } else {
-        setRegistrationMode(data.active);
-      }
-    }
+    // Handle user change
+    const newUserId = data.userId || null;
+    const previousUserId = currentUserRef.current;
+    if (newUserId === previousUserId) return;
 
-    // Handle layout updates from mobile app
-    if (lastMessage.type === 'layout-update') {
-      const data = lastMessage.data as { layout: MirrorLayout };
-      if (data.layout) {
-        setLayout(data.layout);
-        setLayoutLoaded(true);
-        console.log('Layout updated via WebSocket');
-      }
-    }
+    window.clearTimeout(leaveTimer.current);
+    const change = ++userChange.current;
+    currentUserRef.current = newUserId;
+    userLayoutShown.current = false;
+    setCurrentUserName(data.userName || null);
 
-    // Live preview from the phone's layout editor; null clears it
-    if (lastMessage.type === 'layout-preview') {
-      const data = lastMessage.data as { modules: MirrorLayout['modules'] | null };
-      setPreviewModules(data.modules);
-    }
+    // User changed - show greeting and load their layout
+    if (newUserId && data.present) {
+      console.log(`User recognized: ${data.userName} (${newUserId})`);
 
-    // Handle user-specific layout updates
-    if (lastMessage.type === 'user-layout-update') {
-      const data = lastMessage.data as { userId: string; modules: MirrorLayout['modules'] };
-      // Only apply if it's for the current user
-      if (data.userId === currentUserId) {
-        setLayout((prev) => ({
-          ...(prev ?? EMPTY_LAYOUT),
-          modules: data.modules,
+      // Show greeting for new user
+      setShowGreeting(true);
+      setTimeout(() => setShowGreeting(false), GREETING_MS);
+
+      // Load user's layout if provided
+      if (data.userLayout) {
+        const userLayout: MirrorLayout = {
+          id: data.userLayout.id,
+          name: data.userLayout.name,
+          modules: data.userLayout.modules,
+          createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        }));
-        console.log('User layout updated via WebSocket');
+        };
+        userLayoutShown.current = true;
+        setLayout(userLayout);
+        setLayoutLoaded(true);
+        console.log(`Loaded layout for ${data.userName}:`, userLayout.name);
+      }
+    } else if (!newUserId && previousUserId) {
+      // Re-reads /api/layout, so a shared layout saved while they were here shows now.
+      console.log('User left, loading default layout');
+      const showDefault = () =>
+        fetchDefaultLayout().then((defaultLayout) => {
+          if (userChange.current === change) setLayout(defaultLayout);
+        });
+      const goingDark = !data.present && !data.hold;
+      if (goingDark) {
+        leaveTimer.current = window.setTimeout(showDefault, fadeMs.current + 200);
+      } else {
+        void showDefault();
       }
     }
+  });
 
-    // Backend reloaded config/config.yaml (setup wrote a new airport or
-    // location): apply it live instead of waiting for a reload.
-    if (lastMessage.type === 'config') {
-      setConfig(lastMessage.data as Config);
+  useWsEvent('registration', (raw) => {
+    const data = raw as { active: boolean; action?: string };
+    window.clearTimeout(registrationEndTimer.current);
+    if (data.action === 'completed') {
+      // `active` is already false: keep the overlay up for its welcome screen.
+      registrationEndTimer.current = window.setTimeout(
+        () => setRegistrationMode(false),
+        WELCOME_MS
+      );
+    } else {
+      setRegistrationMode(data.active);
     }
-  }, [lastMessage, currentUserId]);
+  });
+
+  // The shared layout was saved in the app. While a recognized user's own
+  // layout is on screen it stays there; the leave path above loads the new
+  // shared layout.
+  useWsEvent('layout-update', (raw) => {
+    const data = raw as { layout?: MirrorLayout };
+    if (!data?.layout || userLayoutShown.current) return;
+    setLayout(data.layout);
+    setLayoutLoaded(true);
+    console.log('Layout updated via WebSocket');
+  });
+
+  // Live preview from the phone's layout editor; null clears it
+  useWsEvent('layout-preview', (raw) => {
+    const data = raw as { modules: MirrorLayout['modules'] | null };
+    setPreviewModules(data.modules);
+  });
+
+  // A user's own layout was saved; applied only if they are the one on screen.
+  useWsEvent('user-layout-update', (raw) => {
+    const data = raw as { userId: string; modules: MirrorLayout['modules'] };
+    if (!currentUserRef.current || data.userId !== currentUserRef.current) return;
+    userLayoutShown.current = true;
+    setLayout((prev) => ({
+      ...(prev ?? EMPTY_LAYOUT),
+      modules: data.modules,
+      updatedAt: new Date().toISOString(),
+    }));
+    console.log('User layout updated via WebSocket');
+  });
+
+  // Backend reloaded config/config.yaml (setup wrote a new airport or
+  // location): apply it live instead of waiting for a reload.
+  useWsEvent('config', (data) => {
+    setConfig(data as Config);
+  });
 
   // Show loading while checking app mode
   if (appMode === 'loading') {
@@ -479,7 +516,7 @@ function App() {
 
   // Show provisioning screen (WiFi setup via QR code)
   if (appMode === 'provisioning') {
-    return <ProvisioningScreen onConnected={() => setAppMode('setup')} />;
+    return <ProvisioningScreen onConnected={handleProvisioningDone} />;
   }
 
   // Registration takes over every screen past WiFi, setup included, so the
@@ -572,7 +609,7 @@ function App() {
       </div>
 
       {/* Update notification */}
-      <UpdateNotification wsConnected={isConnected} />
+      <UpdateNotification />
     </div>
   );
 }

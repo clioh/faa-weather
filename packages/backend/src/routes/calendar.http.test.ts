@@ -21,6 +21,7 @@ const h = await vi.hoisted(async () => {
   process.env.SKYGLASS_NO_LISTEN = '1';
   process.env.SKYGLASS_PAIRED_DEVICES_FILE = path.join(tmp, 'paired-devices.json');
   process.env.SKYGLASS_SCHEDULE_FILE = path.join(tmp, 'flight-schedule.xlsx');
+  process.env.SKYGLASS_UPDATE_CONFIG_FILE = path.join(tmp, 'update-config.json');
   process.env.SKYGLASS_INTERNAL_TOKEN_FILE = path.join(tmp, 'internal-token');
   return {
     tmp,
@@ -599,9 +600,6 @@ describe('ICS accounts, account changes and /api/schedule', () => {
     const none = await api('/api/schedule/upload', { method: 'POST', body: new FormData() });
     expect(none.status).toBe(400);
     expect(await none.json()).toEqual({ error: 'No file uploaded' });
-    const analyze = await api('/api/schedule/analyze', { method: 'POST', body: new FormData() });
-    expect(analyze.status).toBe(400);
-    expect(await analyze.json()).toEqual({ error: 'No file uploaded' });
 
     const big = new FormData();
     big.append('schedule', new Blob([new Uint8Array(10 * 1024 * 1024 + 1)]), 'roster.xlsx');
@@ -736,20 +734,6 @@ describe('/api/schedule with an XLSX roster', () => {
       'B738',
     ]);
     const xlsx = Buffer.from(await wb.xlsx.writeBuffer());
-
-    const analyzeForm = new FormData();
-    analyzeForm.append('file', new Blob([new Uint8Array(xlsx)]), 'roster.xlsx');
-    const analyze = await api('/api/schedule/analyze', { method: 'POST', body: analyzeForm });
-    expect(analyze.status).toBe(200);
-    expect((await analyze.json()).headers).toEqual([
-      'Date',
-      'Flight',
-      'Dep',
-      'Arr',
-      'ETD',
-      'ETA',
-      'Aircraft',
-    ]);
 
     const form = new FormData();
     form.append('schedule', new Blob([new Uint8Array(xlsx)]), 'roster.xlsx');

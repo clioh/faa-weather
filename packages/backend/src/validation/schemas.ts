@@ -102,18 +102,6 @@ export const layoutSchema = z.object({
 
 export type LayoutInput = z.infer<typeof layoutSchema>;
 
-/**
- * OAuth token storage schema.
- */
-export const oauthTokenSchema = z.object({
-  provider: z.string().max(50).optional(),
-  accessToken: z.string().min(1),
-  refreshToken: z.string().optional(),
-  tokenExpiry: z.number().optional(),
-});
-
-export type OAuthTokenInput = z.infer<typeof oauthTokenSchema>;
-
 // ============= Setup Schemas =============
 
 /**
@@ -222,8 +210,9 @@ export const updateConfigSchema = z.object({
   autoUpdate: z.boolean().optional(),
   autoDownload: z.boolean().optional(),
   checkInterval: z.number().int().min(1).max(168).optional(), // 1-168 hours (1 week)
-  notifyOnly: z.boolean().optional(),
-  githubRepo: z.string().max(200).optional(),
+  // No notifyOnly: older phones still send it; zod drops unknown keys.
+  // No githubRepo: the release source comes only from GITHUB_REPO on the
+  // device. Letting a paired phone change it would let it install any code.
 });
 
 export type UpdateConfigInput = z.infer<typeof updateConfigSchema>;

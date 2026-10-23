@@ -192,6 +192,9 @@ function runMigrations(db: Database.Database): void {
     db.exec("ALTER TABLE user_layouts ADD COLUMN shelf TEXT NOT NULL DEFAULT '[]'");
   }
 
+  // The cloud relay was removed; drop its stored token.
+  db.exec("DELETE FROM mirror_settings WHERE key = 'relayToken'");
+
   console.log('[Database] Migrations complete');
 }
 

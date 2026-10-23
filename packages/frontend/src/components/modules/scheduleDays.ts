@@ -50,7 +50,7 @@ export interface PlacedEvent {
  * tonight are dropped (and ones that carry on move to tomorrow) so the list
  * leads with tomorrow — what a pilot checking the mirror before bed wants.
  */
-export const EVENING_HOUR = 20;
+const EVENING_HOUR = 20;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -67,10 +67,7 @@ export function keyToUtcNoon(key: string): Date {
 }
 
 /** First and last (inclusive) days an all-day event covers, or null if unreadable. */
-export function allDaySpan(
-  event: ScheduleEvent,
-  tz?: string
-): { first: string; last: string } | null {
+function allDaySpan(event: ScheduleEvent, tz?: string): { first: string; last: string } | null {
   if (event.startDate && DATE_RE.test(event.startDate)) {
     const first = event.startDate;
     const end = event.endDate && DATE_RE.test(event.endDate) ? event.endDate : null;

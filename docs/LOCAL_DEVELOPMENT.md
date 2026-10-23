@@ -7,14 +7,14 @@ with `npm run setup:dev`.
 
 ## What runs where
 
-| Service                                 | Port       | Started by                                 | Needed for                                                                    |
-| --------------------------------------- | ---------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
-| Backend API + WebSocket                 | 3001       | `npm run dev`                              | everything                                                                    |
-| Mirror UI (Vite)                        | 5173       | `npm run dev`                              | watching the display                                                          |
-| Presence / admin server (Flask, camera) | 5000       | `npm run dev:admin`                        | camera-based face enrollment, `/admin` page                                   |
-| Presence detector (OpenCV)              | -          | `npm run dev:e2e` / `npm run dev:detector` | real presence detection from the webcam; `dev:detector` adds a preview window |
-| Cloud API, website (incl. license API)  | 3003, 5174 | `npm run dev`                              | optional; not part of mirror setup                                            |
-| Expo dev server (phone app, Metro)      | 8081       | `npm run dev:e2e`                          | running the phone app from source in Expo Go                                  |
+| Service                                 | Port | Started by                                 | Needed for                                                                    |
+| --------------------------------------- | ---- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| Backend API + WebSocket                 | 3001 | `npm run dev`                              | everything                                                                    |
+| Mirror UI (Vite)                        | 5173 | `npm run dev`                              | watching the display                                                          |
+| Presence / admin server (Flask, camera) | 5000 | `npm run dev:admin`                        | camera-based face enrollment, `/admin` page                                   |
+| Presence detector (OpenCV)              | -    | `npm run dev:e2e` / `npm run dev:detector` | real presence detection from the webcam; `dev:detector` adds a preview window |
+| Website (incl. license API)             | 5174 | `npm run dev`                              | optional; not part of mirror setup                                            |
+| Expo dev server (phone app, Metro)      | 8081 | `npm run dev:e2e`                          | running the phone app from source in Expo Go                                  |
 
 `npm run dev:mirror` starts only the backend and the mirror UI.
 `npm run dev:all` (`scripts/dev.sh`) starts the backend, UI, presence server
@@ -22,21 +22,53 @@ and the camera detector (which waits for registrations); `--simulate` skips the
 detector. `npm run dev:admin` and `npm run dev:detector` run the Python
 servers directly from `packages/presence/venv`.
 
+## Environment variables
+
+Read by the backend (`packages/backend/src`) and the mirror UI's Vite config. None are needed
+for `npm run dev`; there is no `.env` file (nothing loads one). The `npm run dev*` scripts set
+`SKYGLASS_LICENSE=off`. Variables marked _test_ exist so tests can point the backend at
+throwaway files.
+
+| Variable                          | Default                                   | What it does                                                                                   |
+| --------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `PORT`                            | `3001`                                    | Backend port                                                                                   |
+| `NODE_ENV`                        | -                                         | `production` serves the built mirror UI and allows the skyglass.dev CORS origins               |
+| `SKYGLASS_SERVE_FRONTEND`         | -                                         | `1` serves `packages/frontend/dist` on the backend port outside production                     |
+| `CORS_ALLOWED_ORIGINS`            | -                                         | Extra comma-separated CORS origins (`middleware/cors.ts`)                                      |
+| `SKYGLASS_LICENSE`                | on                                        | `off` disables licensing (the mirror never shows the license screen)                           |
+| `SKYGLASS_LICENSE_FILE`           | `/boot/firmware/skyglass-license.txt`     | Pre-flashed license key file                                                                   |
+| `SKYGLASS_LICENSE_KEYFILE_MARKER` | `~/.skyglass/license-keyfile-used`        | Marks the key file as consumed                                                                 |
+| `SKYGLASS_LICENSE_PUBLIC_KEY`     | embedded key                              | PEM (or base64 PEM) that license tokens are verified with                                      |
+| `SKYGLASS_ORIENTATION_FILE`       | `/boot/firmware/skyglass-orientation.txt` | Pre-flashed orientation, used until `config.yaml` sets one                                     |
+| `SKYGLASS_ADMIN_URL`              | `http://127.0.0.1:5000`                   | Presence/admin server the backend proxies to                                                   |
+| `SKYGLASS_DEV_APP_URL`            | -                                         | Deep link in the pairing QR (`npm run dev:e2e` sets it so Expo Go opens the dev build)         |
+| `GITHUB_REPO`                     | `clioh/skyglass`                          | Repository whose releases the updater installs                                                 |
+| `GITHUB_API_BASE`                 | `https://api.github.com`                  | GitHub API base for the updater (_test_: a local fake)                                         |
+| `SKYGLASS_UPDATE_TEMP_DIR`        | `.update-temp/`                           | Where the updater downloads releases                                                           |
+| `SKYGLASS_UPDATE_CONFIG_FILE`     | `data/update-config.json`                 | Update settings saved from the phone (_test_)                                                  |
+| `SKYGLASS_DB_FILE`                | `data/skyglass.db`                        | SQLite database (_test_)                                                                       |
+| `SKYGLASS_SCHEDULE_FILE`          | `data/flight-schedule.xlsx`               | Imported airline schedule (_test_)                                                             |
+| `SKYGLASS_PAIRED_DEVICES_FILE`    | `data/paired-devices.json`                | Paired phones (_test_; see `SECURITY.md`)                                                      |
+| `SKYGLASS_INTERNAL_TOKEN_FILE`    | `data/internal-token`                     | Backend ↔ presence server token; set it for both processes (see `SECURITY.md`)                 |
+| `SKYGLASS_NO_LISTEN`              | -                                         | `1`: importing `server.ts` starts nothing and doesn't listen (_test_, HTTP route tests)        |
+| `VITE_BACKEND_URL`                | `http://localhost:3001`                   | Where the Vite dev server (5173) proxies `/api` and `/ws` (`packages/frontend/vite.config.ts`) |
+
 ## How the setup screen decides what to show
 
 The mirror UI polls `GET /api/setup/status` every two seconds while on the
 setup screen. The backend derives that status from files (and, for the license,
-its database); the response is camelCase (`wifiConfigured`, `licenseActivated`,
-`locationConfigured`, `airportConfigured`, `faceEnrolled`, `setupComplete`,
-`step`). Steps in order:
+its database); the response is camelCase (`wifiConfigured`, `orientationConfigured`,
+`licenseActivated`, `locationConfigured`, `airportConfigured`, `faceEnrolled`,
+`setupComplete`, `step`). Steps in order (`routes/setup.ts`, `computeSetupStatus`):
 
-| Step     | Satisfied when                                                                                                    | Written by (on a Pi)                           |
-| -------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| WiFi     | `packages/presence/face_data/.wifi_configured` exists                                                             | `wifi_provisioning.py` after joining a network |
-| License  | the license is activated (always, with `SKYGLASS_LICENSE=off`, which the `npm run dev*` scripts set)              | phone app via `POST /api/license/key`          |
-| Location | `config/config.yaml` lists `location` under `setup.completed`                                                     | phone app via `POST /api/setup/location`       |
-| Airport  | `config/config.yaml` lists `airport` under `setup.completed`                                                      | phone app via `POST /api/setup/airport`        |
-| Face     | `face_data/users/<id>/encodings.pkl` (one encoding per sample; empty only if face_recognition was missing) exists | presence server after a capture session        |
+| Step        | Satisfied when                                                                                                                            | Written by (on a Pi)                           |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| WiFi        | `packages/presence/face_data/.wifi_configured` exists                                                                                     | `wifi_provisioning.py` after joining a network |
+| Orientation | `config/config.yaml` lists `orientation` under `setup.completed`, or `config/config.yaml` exists at all (mirrors set up before this step) | phone app via `POST /api/setup/orientation`    |
+| License     | the license is activated (always, with `SKYGLASS_LICENSE=off`, which the `npm run dev*` scripts set)                                      | phone app via `POST /api/license/key`          |
+| Location    | `config/config.yaml` lists `location` under `setup.completed`                                                                             | phone app via `POST /api/setup/location`       |
+| Airport     | `config/config.yaml` lists `airport` under `setup.completed`                                                                              | phone app via `POST /api/setup/airport`        |
+| Face        | `face_data/users/<id>/encodings.pkl` (one encoding per sample; empty only if face_recognition was missing) exists                         | presence server after a capture session        |
 
 The display leaves the setup screen once `config/config.yaml` exists, the
 license is activated and a face is enrolled. The phone app follows `step` (the
@@ -89,8 +121,8 @@ turns back once the orientation is saved, then moves from "Location Setup" to
 "Airport Setup" to "Face Registration" to "Setup Complete", then switches to
 the live mirror with the chosen airport.
 `presence on` wakes the display and shows the greeting for the enrolled user.
-`presence off` reports absence; the display sleeps after
-`display.presence_timeout` from `config/config.yaml` (120 s by default).
+`presence off` reports absence; the picture fades out at once, and the panel
+powers off `display.presence_timeout` seconds later (`config/config.yaml`, 120 by default).
 
 ## Face enrollment: three ways
 

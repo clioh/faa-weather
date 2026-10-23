@@ -90,9 +90,9 @@ router.get('/config', (_req, res) => {
  * Update configuration
  */
 router.post('/config', validateBody(updateConfigSchema), (req, res) => {
-  const { autoUpdate, autoDownload, checkInterval, notifyOnly, githubRepo } = req.body;
+  const { autoUpdate, autoDownload, checkInterval } = req.body;
 
-  updateService.setConfig({ autoUpdate, autoDownload, checkInterval, notifyOnly, githubRepo });
+  updateService.setConfig({ autoUpdate, autoDownload, checkInterval });
   res.json(updateService.getConfig());
 });
 

@@ -18,9 +18,13 @@ location:
 
 # Display settings
 display:
-  presence_timeout: 120 # Seconds before display sleeps after you leave
+  # The picture fades out as soon as the detector reports you absent
+  # (presence.timeout below). This only delays powering the panel off after that.
+  presence_timeout: 120 # Seconds
   fade_duration: 1000 # Fade animation in milliseconds
-  brightness: 80 # Default brightness percentage
+  # Backlight level for the macOS dev display controller only (`brightness` CLI);
+  # the Pi has no dimming control and ignores it.
+  brightness: 80 # Percent
   # How the panel is mounted: landscape | portrait-cw (turned right) | portrait-ccw
   # (turned left), seen from the front. The mirror rotates its own UI to match;
   # set from the phone app (setup, or Settings > Mirror > Orientation).

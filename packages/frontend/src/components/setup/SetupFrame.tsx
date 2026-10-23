@@ -44,7 +44,7 @@ export function SetupFrame({
   );
 }
 
-export function SetupBrand() {
+function SetupBrand() {
   return (
     <div className="sg-brand">
       <LogoMark className="sg-brand__mark" />

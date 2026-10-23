@@ -18,7 +18,7 @@ export interface OrientationState {
 }
 
 /** Same reading as the backend: the legacy value `portrait` is portrait-cw. */
-export function normalizeOrientation(value: unknown): MirrorOrientation {
+function normalizeOrientation(value: unknown): MirrorOrientation {
   if (value === 'portrait') return 'portrait-cw';
   return value === 'portrait-cw' || value === 'portrait-ccw' ? value : 'landscape';
 }
