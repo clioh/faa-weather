@@ -5,7 +5,7 @@
 #
 # Usage: curl -sSL https://raw.githubusercontent.com/.../setup-pi.sh | bash
 #    or: ./scripts/setup-pi.sh
-#    or: ./scripts/setup-pi.sh --yes     # non-interactive (used by first boot)
+#    or: ./scripts/setup-pi.sh --yes     # non-interactive (e.g. the kit reference Pi, docs/KIT_CARDS.md)
 #
 # When run from inside ~/SkyGlass the repository is installed in place; the
 # script never deletes the directory it is running from.
@@ -172,23 +172,51 @@ install_mdns() {
     log_info "mDNS installed. Mirror will be discoverable as $(hostname).local"
 }
 
-# Install WiFi provisioning dependencies
+# WiFi provisioning runs on NetworkManager, which Raspberry Pi OS Bookworm and
+# Trixie use for wlan0: the SkyGlass-Setup hotspot is an NM profile in shared
+# mode (NM's own dnsmasq does DHCP and the captive-portal DNS) and the home
+# network is joined with nmcli (packages/presence/nm_wifi.py). No hostapd,
+# no dnsmasq service, no wpa_supplicant.conf.
 install_wifi_provisioning() {
-    log_info "Installing WiFi provisioning dependencies..."
+    log_info "Setting up WiFi provisioning (NetworkManager)..."
 
-    # Install hostapd (creates access point) and dnsmasq (DHCP/DNS)
-    sudo apt-get install -y hostapd dnsmasq
+    if ! command -v nmcli &> /dev/null; then
+        log_warn "nmcli not found: WiFi setup through the SkyGlass-Setup hotspot needs NetworkManager"
+        log_warn "(Raspberry Pi OS Bookworm or Trixie). Not installing it here: switching the"
+        log_warn "network stack could cut off this session."
+    elif ! systemctl is-active --quiet NetworkManager; then
+        log_warn "NetworkManager is installed but not running: the setup hotspot needs it"
+    fi
 
-    # Stop and disable them from auto-starting (we control them manually)
-    sudo systemctl stop hostapd 2>/dev/null || true
-    sudo systemctl stop dnsmasq 2>/dev/null || true
-    sudo systemctl disable hostapd 2>/dev/null || true
-    sudo systemctl disable dnsmasq 2>/dev/null || true
+    # Shared mode needs dnsmasq-base (the binary only, no system-wide DNS
+    # service) and nft for the hotspot's firewall rules; polkitd applies the
+    # rule below. iw tells wifi_provisioning.py whether a phone is on the
+    # hotspot before it leaves it to retry a saved network.
+    sudo apt-get install -y dnsmasq-base nftables iw
+    if apt_has polkitd; then
+        sudo apt-get install -y polkitd
+    fi
 
-    # Unmask hostapd (it's masked by default on some systems)
-    sudo systemctl unmask hostapd 2>/dev/null || true
+    # The admin server (PM2, runs as $USER) scans and saves WiFi networks
+    # with nmcli for the phone app's WiFi settings. Allow exactly those
+    # NetworkManager actions for this user, instead of sudo. The hotspot
+    # itself is run by skyglass-provision.service as root.
+    sudo mkdir -p /etc/polkit-1/rules.d
+    sudo tee /etc/polkit-1/rules.d/50-skyglass-networkmanager.rules > /dev/null << EOF
+// SkyGlass (scripts/setup-pi.sh): let $USER scan for and save WiFi networks
+// with nmcli (packages/presence/admin_portal.py runs as $USER under PM2).
+polkit.addRule(function(action, subject) {
+    if (subject.user == "$USER" &&
+        (action.id == "org.freedesktop.NetworkManager.wifi.scan" ||
+         action.id == "org.freedesktop.NetworkManager.settings.modify.system" ||
+         action.id == "org.freedesktop.NetworkManager.settings.modify.own")) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+    sudo chmod 644 /etc/polkit-1/rules.d/50-skyglass-networkmanager.rules
 
-    log_info "WiFi provisioning dependencies installed"
+    log_info "WiFi provisioning configured"
 }
 
 # Enable hardware watchdog
@@ -388,7 +416,11 @@ setup_boot_mode() {
     sudo systemctl enable skyglass-watchdog.service
 
     log_info "Boot mode detection and watchdog configured"
-    log_info "On first boot without WiFi, device will create setup hotspot"
+    if command -v nmcli &> /dev/null && nmcli -t -f TYPE,STATE device status 2>/dev/null | grep -q '^wifi:connected'; then
+        log_info "Already on WiFi: the mirror keeps this network and never starts the setup hotspot"
+    else
+        log_info "On boot without a network, the mirror creates the SkyGlass-Setup hotspot"
+    fi
 }
 
 # Set up auto-start with PM2
@@ -451,7 +483,7 @@ print_instructions() {
     echo "  OUT-OF-BOX EXPERIENCE"
     echo "========================================"
     echo ""
-    echo "On first boot (or when WiFi is not configured):"
+    echo "On first boot without a network (WiFi set in Raspberry Pi Imager is kept):"
     echo ""
     echo "1. The mirror creates a WiFi hotspot: 'SkyGlass-Setup'"
     echo ""

@@ -21,7 +21,9 @@ Its source is [`docs/build-guide/bom.html`](build-guide/bom.html); rebuild the P
 `npm run docs:bom` after editing it.
 
 Parts cost is about $490 (22", acrylic) to $1,050 (27", smart-mirror glass); the recommended
-24" build is about $645. Part codes in this guide (A1, D1, ...) refer to that document.
+24" build is about $645. Part codes in this guide (A1, D1, ...) refer to that document:
+A = Raspberry Pi and camera, B = display, C = mounting hardware and power, D = mirror,
+E = frame materials, F = wall mounting and power options.
 
 ---
 
@@ -95,17 +97,17 @@ Before cutting or buying anything:
 
 ### Step 3: Install the Mirror
 
-1. **Clean the mirror** with glass cleaner
+1. **Clean the mirror** (D1) with glass cleaner (D4)
 2. **Place mirror** reflective side facing OUT (front)
 3. **Secure with clips** or silicone adhesive
 4. **Test visibility:** Turn on monitor behind it - you should see text clearly
 
 ### Step 4: Mount the Monitor
 
-1. **Position monitor** face-down against the mirror
+1. **Position monitor** (B1) face-down against the mirror
 2. **Center it** within the visible area
 3. **Secure with:**
-   - Velcro strips (removable)
+   - Dual Lock or hook-and-loop strips (C2, removable)
    - L-brackets screwed to frame
    - Or foam padding pressed against backing
 
@@ -120,14 +122,15 @@ Before cutting or buying anything:
 1. **Install heatsinks/cooler:**
    - Clean CPU surface
    - Apply thermal pad or paste
-   - Attach active cooler (Pi 5) or heatsinks (Pi 4)
+   - Attach the Active Cooler (A3; Pi 5) or heatsinks (Pi 4)
 
-2. **Connect camera ribbon cable:**
+2. **Connect the camera ribbon cable (A6) to the Camera Module 3 (A5):**
+   - A USB webcam (A5b) needs no ribbon; plug it into a USB port
    - Lift the connector latch
    - Insert ribbon (blue side facing USB ports on Pi 5)
    - Press latch down firmly
 
-3. **Insert microSD card** (we'll flash it in software setup)
+3. **Insert the microSD card** (A4; we'll flash it in software setup)
 
 ### Step 2: Plan Cable Routing
 
@@ -153,13 +156,13 @@ Before cutting or buying anything:
 
 ### Step 3: Mount Components
 
-1. **Mount the Pi:**
-   - Use velcro strips or 3D-printed mount
+1. **Mount the Pi (A1):**
+   - Use Dual Lock strips (C2), standoffs (A8) or a 3D-printed mount
    - Position near monitor's HDMI input
    - Ensure camera ribbon can reach front
 
-2. **Mount power strip:**
-   - Use velcro or screws
+2. **Mount the power strip (C4):**
+   - Use Dual Lock strips (C2) or screws
    - Position where all power cables can reach
 
 3. **Route the camera:**
@@ -174,10 +177,10 @@ Before cutting or buying anything:
 
 ### Step 4: Connect Everything
 
-1. **HDMI:** Pi → Monitor
+1. **HDMI:** Pi → Monitor (micro-HDMI cable, A7)
 2. **Power:**
    - Monitor → Power strip
-   - Pi PSU → Power strip
+   - Pi PSU (A2) → Power strip
 3. **Camera:** Already connected to Pi
 4. **Power strip:** → Wall outlet
 
@@ -193,6 +196,10 @@ Before cutting or buying anything:
 ---
 
 ## Software Setup
+
+These steps are for a DIY build. A Hardware Kit or Complete Kit card is already set up: insert it,
+power on, and follow the SkyGlass phone app (the mirror opens the `SkyGlass-Setup` WiFi network).
+How kit cards are made: [KIT_CARDS.md](KIT_CARDS.md).
 
 ### Step 1: Flash Raspberry Pi OS
 
@@ -215,10 +222,10 @@ Before cutting or buying anything:
 
 ### Step 2: Initial Pi Configuration
 
-SSH into your Pi or connect keyboard/mouse:
+SSH into your Pi (use the username you set in Raspberry Pi Imager) or connect keyboard/mouse:
 
 ```bash
-ssh pi@skyglass.local
+ssh <your-user>@skyglass.local
 ```
 
 Update the system:
@@ -240,7 +247,7 @@ Clone and run the setup script:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/SkyGlass.git ~/SkyGlass
+git clone https://github.com/clioh/skyglass.git ~/SkyGlass
 cd ~/SkyGlass
 
 # Run the Pi setup script
@@ -253,8 +260,10 @@ This will install (natively; there is no Docker image):
 - Python 3 venv with face_recognition and OpenCV
 - PM2, running `skyglass-backend` (port 3001, also serves the display UI),
   `skyglass-detector` and `skyglass-admin` (port 5000) from `config/pm2.config.cjs`
-- The `skyglass-boot`, `skyglass-provision` (WiFi hotspot) and
-  `skyglass-watchdog` systemd units
+- The `skyglass-boot`, `skyglass-provision` (WiFi hotspot, run with
+  NetworkManager) and `skyglass-watchdog` systemd units. A Pi that is already
+  on WiFi (set in Raspberry Pi Imager above) keeps that network and never
+  starts the hotspot
 - Chromium in kiosk mode and mDNS (`skyglass.local`)
 
 ### Step 4: Configure Your Mirror
@@ -315,7 +324,7 @@ sudo reboot
 
 ## Mounting on Wall
 
-### Option 1: French Cleat (Recommended)
+### Option 1: French Cleat (Recommended, F1 or F1b)
 
 Most secure for heavy mirrors:
 
@@ -332,7 +341,7 @@ Wall:          Frame:
  ────┘             └────
 ```
 
-### Option 2: Z-Bar Hangers
+### Option 2: Z-Bar Hangers (F1c)
 
 Available at hardware stores. Good for medium-weight frames.
 
@@ -373,11 +382,12 @@ Only for lighter builds (<15 lbs).
 
 ### Network Issues
 
-| Problem                         | Solution                                                         |
-| ------------------------------- | ---------------------------------------------------------------- |
-| Phone app can't find the mirror | Check the Pi's IP with `hostname -I` and open `http://<ip>:3001` |
-| Aviation data not loading       | Check internet, verify API endpoints                             |
-| WebSocket disconnecting         | Check for network stability                                      |
+| Problem                         | Solution                                                                                                         |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Phone app can't find the mirror | Check the Pi's IP with `hostname -I` and open `http://<ip>:3001`                                                 |
+| Mirror moved to a new network   | Reboot it: after 90 s without its saved network it opens `SkyGlass-Setup` again; pick the new network in the app |
+| Aviation data not loading       | Check internet, verify API endpoints                                                                             |
+| WebSocket disconnecting         | Check for network stability                                                                                      |
 
 ### Heat Issues
 
@@ -409,7 +419,8 @@ npm run update                 # check and prompt
 ```
 
 Updates come from GitHub release tarballs; `config/config.yaml`, `data/` and
-registered faces are kept. Details in the README's _Updating_ section.
+registered faces are kept. Details in the README's _Updating_ section and
+[`docs/UPDATES.md`](UPDATES.md).
 
 ---
 

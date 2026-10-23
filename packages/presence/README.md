@@ -172,6 +172,53 @@ WiFi provisioning (`wifi_provisioning.py`) and the watchdog
 (`watchdog_service.py`); there is no systemd unit for the detector or the
 presence server.
 
+### WiFi (NetworkManager)
+
+Raspberry Pi OS Bookworm and Trixie manage `wlan0` with NetworkManager, so all
+WiFi goes through `nmcli` (`nm_wifi.py`, argv lists only, terse output):
+
+- **Boot** (`scripts/boot-mode.sh`): normal mode when a WiFi or Ethernet link is
+  connected with an IPv4 address. Online over WiFi without
+  `face_data/.wifi_configured` (WiFi set in Raspberry Pi Imager) writes the
+  flag. Otherwise it waits (90 s with the flag, 30 s without) and then starts
+  provisioning: it writes `/run/skyglass/provisioning`, stops
+  `skyglass-detector` (the watchdog leaves it alone while that file exists),
+  keeps `skyglass-backend` (hotspot screen on :3001; `/api/provisioning/status`
+  reports `provisioning` while that file exists, and `reconnecting` when the
+  flag exists too) and `skyglass-admin`, and starts `skyglass-provision`.
+- **Hotspot** (`wifi_provisioning.py`, root): scans first (an access point
+  can't scan, so the phone gets this list), then brings up the in-memory
+  profile `skyglass-setup`: open `SkyGlass-Setup`, band bg, channel 7,
+  `ipv4.method shared` on 10.42.0.1/24. NM's own dnsmasq does DHCP; the
+  captive-portal DNS (every name → 10.42.0.1) is
+  `/etc/NetworkManager/dnsmasq-shared.d/skyglass-captive.conf`, present only
+  while the hotspot is up.
+- **Join**: the hotspot goes down, a `skyglass-wifi` profile is added (WPA2
+  PSK, SAE for WPA3-only networks, open, or hidden when the SSID isn't in a
+  scan), activated with `nmcli --wait 45 connection up`, and checked for an
+  IPv4 address. Success writes the flag and re-runs `skyglass-boot`; failure
+  deletes the profile, reports the reason to the phone (`/api/discovery`
+  `wifi.error`) and brings the hotspot back.
+- **Saved network away** (mirror moved, new router, or the router boots slower
+  than the mirror after a power cut): the hotspot comes up as above, and every
+  5 minutes (`RECONNECT_INTERVAL_SECONDS`), while no phone is on the hotspot
+  (`iw dev wlan0 station dump` shows no station and no request reached the
+  server in the last 2 minutes) and no join is running, the hotspot goes down
+  and the saved autoconnect WiFi profiles (`skyglass-wifi` first, by
+  autoconnect priority) are tried with `nmcli --wait connection up` for up to
+  45 s. One that connects with an IPv4 address re-runs `skyglass-boot` (normal
+  mode, as after a join from the phone); otherwise the hotspot comes back.
+  Saved profiles are never changed by a retry. Joining a new network from the
+  app replaces `skyglass-wifi` as usual.
+- **Admin API** (`/api/admin/wifi/*`, install user): scan, status, and saving a
+  network without leaving the current one, allowed by the polkit rule from
+  `setup-pi.sh`.
+
+A mirror out of reach of its saved network opens the hotspot on its own after
+the boot wait (above), so moving it needs no shell. To forget the saved
+network for good: `nmcli connection delete skyglass-wifi` (or the Imager
+profile `preconfigured`), `rm face_data/.wifi_configured`, and reboot.
+
 ## Troubleshooting
 
 ### Mirror does not wake (presence detection)

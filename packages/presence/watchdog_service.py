@@ -13,6 +13,8 @@ Features:
 - Restarts an app via PM2 after --max-failures consecutive failed checks
 - Pauses restarts while a software update runs (scripts/update.sh), and runs
   `scripts/update.sh --recover` if an update was left half-applied
+- Leaves alone the apps scripts/boot-mode.sh stopped for WiFi provisioning
+  (the SkyGlass-Setup hotspot) while provisioning is active
 - Logs health status
 
 Update contract with scripts/update.sh (paths relative to the install root,
@@ -20,6 +22,13 @@ Update contract with scripts/update.sh (paths relative to the install root,
 - .update-lock/pid   PID of the running updater (the directory may be stale)
 - .update-state      exists from just before the apps are stopped until the
                      update succeeded or was rolled back (key=value lines)
+
+Provisioning contract with scripts/boot-mode.sh:
+- /run/skyglass/provisioning (--provisioning-marker) lists, one per line, the
+  PM2 apps boot-mode.sh stopped while the setup hotspot is up. It is honoured
+  while it exists and systemd doesn't report skyglass-provision.service
+  inactive; /run is cleared at boot and boot-mode.sh removes it when it
+  starts normal mode.
 
 Usage (systemd unit skyglass-watchdog.service):
     sudo python watchdog_service.py --pm2-user <install user>
@@ -49,6 +58,8 @@ except ImportError:
 
 
 DEFAULT_PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
+DEFAULT_PROVISIONING_MARKER = Path("/run/skyglass/provisioning")
+PROVISION_UNIT = "skyglass-provision.service"
 
 
 def log(message: str):
@@ -367,6 +378,63 @@ class UpdateGuard:
         return self.IDLE
 
 
+def systemd_unit_active(unit: str) -> Optional[bool]:
+    """True/False from `systemctl is-active`, None if systemd can't be asked."""
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", "--quiet", unit],
+            capture_output=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.returncode == 0
+
+
+class ProvisioningGuard:
+    """PM2 apps deliberately stopped for WiFi provisioning (scripts/boot-mode.sh).
+
+    ``held_apps()`` is the set of app names in the marker file, or empty when
+    there is no marker or the provisioning unit is known to be inactive (a
+    stale marker must not switch restarts off for good).
+    """
+
+    def __init__(
+        self,
+        marker: Path = DEFAULT_PROVISIONING_MARKER,
+        unit: str = PROVISION_UNIT,
+        unit_active: Callable[[str], Optional[bool]] = systemd_unit_active,
+    ):
+        self.marker = Path(marker)
+        self.unit = unit
+        self.unit_active = unit_active
+        self.held: frozenset = frozenset()
+
+    def read_marker(self) -> Optional[frozenset]:
+        try:
+            text = self.marker.read_text()
+        except FileNotFoundError:
+            return None
+        except (OSError, UnicodeDecodeError):
+            text = ""
+        return frozenset(
+            line.strip() for line in text.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        )
+
+    def held_apps(self) -> frozenset:
+        apps = self.read_marker()
+        if apps is not None and self.unit_active(self.unit) is False:
+            apps = None
+        apps = apps or frozenset()
+        if apps != self.held:
+            if apps:
+                log(f"WiFi provisioning active; not restarting {', '.join(sorted(apps))}")
+            else:
+                log("WiFi provisioning over; monitoring all apps again")
+            self.held = apps
+        return apps
+
+
 class WatchdogService:
     """Main watchdog service that monitors health and feeds the timer."""
 
@@ -382,6 +450,7 @@ class WatchdogService:
         update_grace: float = 90,
         update_stale_after: float = 60,
         recover_backoff: float = 600,
+        provisioning_marker: Optional[Path] = None,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
     ):
@@ -406,6 +475,11 @@ class WatchdogService:
             recover_backoff=recover_backoff,
         )
 
+        # Apps boot-mode.sh stopped for the setup hotspot
+        if provisioning_marker is None:
+            provisioning_marker = Path(os.environ.get("SKYGLASS_PROVISIONING_MARKER") or DEFAULT_PROVISIONING_MARKER)
+        self.provisioning_guard = ProvisioningGuard(provisioning_marker)
+
         # Services to monitor
         # (names match config/pm2.config.cjs; the display UI is served by the backend)
         self.services = [
@@ -419,12 +493,24 @@ class WatchdogService:
         self.system_healthy = True
         self.unhealthy_since: Optional[datetime] = None
 
-    def check_services(self) -> bool:
-        """Check all services and return overall health."""
+    def held_for_provisioning(self) -> frozenset:
+        try:
+            return self.provisioning_guard.held_apps()
+        except Exception as e:
+            log(f"Provisioning detection failed: {e}")
+            return frozenset()
+
+    def check_services(self, skip: frozenset = frozenset()) -> bool:
+        """Check all services (except ``skip``, by PM2 name) and return overall health."""
         all_healthy = True
         status_parts = []
 
         for service in self.services:
+            if service.pm2_name in skip:
+                # Stopped on purpose while the setup hotspot is up.
+                service.consecutive_failures = 0
+                status_parts.append(f"{service.name}:PROVISIONING")
+                continue
             healthy = service.check()
             status = "OK" if healthy else f"FAIL({service.last_error})"
             status_parts.append(f"{service.name}:{status}")
@@ -481,7 +567,7 @@ class WatchdogService:
                     service.consecutive_failures = 0
                 return
 
-            all_healthy = self.check_services()
+            all_healthy = self.check_services(self.held_for_provisioning())
             if status == UpdateGuard.GRACE:
                 for service in self.services:
                     service.consecutive_failures = 0
@@ -628,6 +714,11 @@ def main():
         help="Minimum seconds between update.sh --recover attempts (default: 600)"
     )
     parser.add_argument(
+        "--provisioning-marker",
+        type=Path,
+        help="File listing PM2 apps stopped for WiFi provisioning (default: $SKYGLASS_PROVISIONING_MARKER or /run/skyglass/provisioning)"
+    )
+    parser.add_argument(
         "--no-hardware",
         action="store_true",
         help="Disable hardware watchdog (software monitoring only)"
@@ -660,6 +751,7 @@ def main():
         update_grace=args.update_grace,
         update_stale_after=args.update_stale_after,
         recover_backoff=args.recover_backoff,
+        provisioning_marker=args.provisioning_marker,
     )
     service.run()
 

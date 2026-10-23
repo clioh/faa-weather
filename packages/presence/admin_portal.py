@@ -15,13 +15,12 @@ the first password is set on the device with set_admin_password.py.
 
 import os
 import platform
-import re
-import subprocess
 from collections import deque
 from pathlib import Path
 
 from flask import Blueprint, render_template_string, request, jsonify, session, redirect, url_for
 
+import nm_wifi
 import security
 from auth import admin_page, device_auth_required, render_portal_disabled
 
@@ -352,122 +351,72 @@ def api_logs():
     return jsonify({"logs": [line.rstrip('\n') for line in tail]})
 
 
+def _nm() -> nm_wifi.NetworkManager:
+    return nm_wifi.NetworkManager()
+
+
 @admin.route('/api/admin/wifi/status')
 @device_auth_required
 def api_wifi_status():
-    """Get current WiFi status."""
+    """Get current WiFi status: {connected, ssid, ip}."""
     if platform.system() != 'Linux':
         return jsonify({"connected": False, "error": "WiFi management only on Linux"})
-
     try:
-        result = subprocess.run(['iwgetid', '-r'], capture_output=True, text=True, timeout=5)
-        ssid = result.stdout.strip()
-
-        result = subprocess.run(['hostname', '-I'], capture_output=True, text=True, timeout=5)
-        ip = result.stdout.strip().split()[0] if result.stdout.strip() else ''
-
-        return jsonify({
-            "connected": bool(ssid),
-            "ssid": ssid,
-            "ip": ip
-        })
-    except Exception as e:
+        return jsonify(_nm().status())
+    except nm_wifi.NMError as e:
         return jsonify({"connected": False, "error": str(e)})
 
 
 @admin.route('/api/admin/wifi/scan')
 @device_auth_required
 def api_wifi_scan():
-    """Scan for WiFi networks."""
+    """Scan for WiFi networks: {networks: [{ssid, signal, secure, security, connected}]}."""
     if platform.system() != 'Linux':
         return jsonify({"networks": [], "error": "WiFi scan only on Linux"})
-
     try:
-        result = subprocess.run(
-            ['sudo', 'iwlist', 'wlan0', 'scan'],
-            capture_output=True, text=True, timeout=30
-        )
-
-        networks = []
-        current_signal = 0
-
-        for line in result.stdout.split('\n'):
-            if 'ESSID:' in line:
-                ssid = line.split('ESSID:')[1].strip().strip('"')
-                if ssid and ssid not in [n['ssid'] for n in networks]:
-                    networks.append({
-                        'ssid': ssid,
-                        'signal': current_signal,
-                        'connected': False
-                    })
-            elif 'Signal level' in line:
-                try:
-                    # Parse signal level (varies by system)
-                    if 'dBm' in line:
-                        dbm = int(line.split('Signal level=')[1].split(' ')[0])
-                        current_signal = max(0, min(100, 2 * (dbm + 100)))
-                    else:
-                        current_signal = int(line.split('Signal level=')[1].split('/')[0])
-                except (IndexError, ValueError):
-                    current_signal = 50
-
-        return jsonify({"networks": sorted(networks, key=lambda x: -x['signal'])})
-    except Exception as e:
+        networks = _nm().scan(rescan=True)
+    except nm_wifi.NMError as e:
         return jsonify({"networks": [], "error": str(e)})
-
-
-# SSID: 1-32 bytes. Passphrase: empty (open network) or 8-63 printable ASCII.
-_PASSPHRASE_RE = re.compile(r"^[\x20-\x7e]{8,63}$")
-
-
-def wpa_psk(ssid: str, passphrase: str) -> str:
-    """WPA2 PSK (hex) for ``passphrase``, as wpa_passphrase computes it."""
-    import hashlib
-    return hashlib.pbkdf2_hmac("sha1", passphrase.encode("ascii"), ssid.encode("utf-8"), 4096, 32).hex()
+    return jsonify({"networks": [
+        {
+            'ssid': n.ssid,
+            'signal': n.signal,
+            'secure': n.secure,
+            'security': n.security,
+            'connected': n.connected,
+        }
+        for n in networks if n.ssid != nm_wifi.HOTSPOT_SSID
+    ]})
 
 
 @admin.route('/api/admin/wifi/connect', methods=['POST'])
 @device_auth_required
 def api_wifi_connect():
-    """Connect to a WiFi network.
+    """Save a WiFi network for the mirror to use.
 
-    SSID and key are passed to wpa_cli hex-encoded / as a PSK, so no quoting
-    is involved and nothing in them can inject wpa_supplicant directives.
+    As before (wpa_cli add/enable_network), this remembers the network
+    (NetworkManager profile "skyglass-wifi", autoconnect with priority) and
+    does not leave the current one, so the phone keeps reaching the mirror.
+    The SSID and passphrase go to nmcli as separate argv elements: no shell,
+    no quoting. First-time setup over the hotspot uses wifi_provisioning.py.
     """
     data = request.get_json(silent=True) or {}
     ssid = data.get('ssid')
     password = data.get('password') or ''
 
-    if not isinstance(ssid, str) or not ssid or len(ssid.encode('utf-8')) > 32 or '\x00' in ssid:
-        return jsonify({"success": False, "error": "SSID must be 1-32 bytes"}), 400
-    if not isinstance(password, str) or (password and not _PASSPHRASE_RE.fullmatch(password)):
+    problem = nm_wifi.ssid_problem(ssid)
+    if problem:
+        return jsonify({"success": False, "error": problem}), 400
+    if nm_wifi.password_problem(password):
         return jsonify({"success": False, "error": "Password must be 8-63 printable ASCII characters"}), 400
 
     if platform.system() != 'Linux':
         return jsonify({"success": False, "error": "WiFi only on Linux"})
 
-    def wpa_cli(*args: str) -> str:
-        result = subprocess.run(
-            ['sudo', 'wpa_cli', '-i', 'wlan0', *args],
-            capture_output=True, text=True, timeout=10,
-        )
-        return result.stdout.strip()
-
     try:
-        # add_network prints the new network id; configure that id, not 0.
-        match = re.search(r'^(\d+)$', wpa_cli('add_network'), re.MULTILINE)
-        if not match:
-            return jsonify({"success": False, "error": "wpa_cli add_network failed"})
-        net_id = match.group(1)
-        wpa_cli('set_network', net_id, 'ssid', ssid.encode('utf-8').hex())
-        if password:
-            wpa_cli('set_network', net_id, 'psk', wpa_psk(ssid, password))
-        else:
-            wpa_cli('set_network', net_id, 'key_mgmt', 'NONE')
-        wpa_cli('enable_network', net_id)
-        wpa_cli('save_config')
+        _nm().save_network(ssid, password)
         return jsonify({"success": True})
-    except (OSError, subprocess.SubprocessError) as e:
+    except nm_wifi.NMError as e:
         return jsonify({"success": False, "error": str(e)})
 
 

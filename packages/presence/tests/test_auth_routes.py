@@ -39,7 +39,7 @@ def env(monkeypatch, tmp_path):
     (users / "u1" / "encodings.pkl").write_bytes(b"x")
     monkeypatch.setattr(ws, "USERS_DIR", users)
     monkeypatch.setattr(ap, "LOG_DIR", tmp_path / "logs")
-    monkeypatch.setattr(ap.platform, "system", lambda: "Darwin")  # never run wpa_cli
+    monkeypatch.setattr(ap.platform, "system", lambda: "Darwin")  # never run nmcli
     notified = []
     monkeypatch.setattr(ws, "notify_backend", lambda ep, data: notified.append((ep, data)) or True)
     monkeypatch.setattr(ws, "get_frame", lambda: np.zeros((480, 640, 3), dtype=np.uint8))
@@ -210,12 +210,6 @@ def test_wifi_connect_validates_input(env, internal):
     for body in ({"ssid": ""}, {"ssid": "x" * 33}, {"ssid": "home", "password": "short"},
                  {"ssid": "home", "password": 'abc"\nnetwork={'}):
         assert call(client, "POST", "/api/admin/wifi/connect", headers=internal, json=body).status_code == 400
-
-
-def test_wpa_psk_matches_wpa_passphrase():
-    # wpa_passphrase "IEEE" "password" (IEEE 802.11i test vector)
-    assert ap.wpa_psk("IEEE", "password") == \
-        "f42c6fc52df0ebef9ebb4b90b38a5f902e83fe1b135a70e23aed762e9710a12e"
 
 
 # ------------------------------------------------------------ enrollment

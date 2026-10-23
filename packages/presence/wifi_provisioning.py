@@ -3,9 +3,9 @@
 WiFi Provisioning Service for SkyGlass.
 
 Creates a WiFi hotspot with a captive portal for initial device setup.
-When the device has no WiFi configured, it:
-1. Creates an access point "SkyGlass-Setup"
-2. Runs a captive portal web server
+When the device has no working network, it:
+1. Creates an open access point "SkyGlass-Setup" on 10.42.0.1
+2. Runs a captive portal web server on port 80
 3. Lets users select their home WiFi and enter credentials
 4. Connects to the home network and disables the hotspot
 
@@ -22,12 +22,26 @@ stops this service and starts the mirror's apps on the home network (where
 the app finds the mirror again by its id). On failure the hotspot comes back
 and /api/discovery reports wifi.state "failed" with the reason.
 
-Usage:
+Saved networks: boot-mode.sh also starts the hotspot on a mirror that was set
+up before but found no network at boot (moved to a new router, or the router
+is still booting after a power cut). While the hotspot is up NetworkManager
+can't retry the saved network on wlan0, so every RECONNECT_INTERVAL_SECONDS,
+when no phone is on the hotspot and no setup is in progress, the hotspot goes
+down for up to RECONNECT_TIMEOUT_SECONDS while the saved WiFi profiles are
+tried. If one connects, the mirror goes to normal mode exactly as after a
+join from the phone; otherwise the hotspot comes back.
+
+Networking is NetworkManager (nm_wifi.py): the hotspot is an in-memory NM
+profile (mode ap, ipv4.method shared; NM's own dnsmasq does DHCP and, through
+/etc/NetworkManager/dnsmasq-shared.d/skyglass-captive.conf, the captive-portal
+DNS redirect). The radio can't scan while it is an access point, so the list
+the phone sees is the scan taken just before the hotspot came up.
+
+Usage (skyglass-provision.service, started by scripts/boot-mode.sh):
     sudo python wifi_provisioning.py
 
-Requirements (installed by setup-pi.sh):
-    - hostapd (creates access point)
-    - dnsmasq (DHCP + DNS for captive portal)
+Requirements: NetworkManager with dnsmasq-base (Raspberry Pi OS Bookworm and
+Trixie; scripts/setup-pi.sh installs them).
 """
 
 import os
@@ -37,35 +51,36 @@ import sqlite3
 import subprocess
 import time
 import signal
-import re
 import uuid
 from pathlib import Path
 from typing import Optional, List, Tuple
-from dataclasses import dataclass
-from threading import Lock, Thread
+from threading import Event, Lock, Thread
 
 from flask import Flask, render_template_string, request, jsonify, redirect
 
-# Constants
-AP_SSID = "SkyGlass-Setup"
-AP_PASSWORD = ""  # Open network for easy setup
-AP_CHANNEL = 7
-# Using 10.42.0.x subnet - less likely to conflict with home networks
-# (most home routers use 192.168.0.x or 192.168.1.x)
-AP_IP = "10.42.0.1"
-AP_NETMASK = "255.255.255.0"
-AP_DHCP_START = "10.42.0.10"
-AP_DHCP_END = "10.42.0.50"
+import nm_wifi
+from nm_wifi import NMError, WiFiNetwork, password_problem, ssid_problem  # noqa: F401 (re-exported)
 
-WPA_SUPPLICANT_CONF = "/etc/wpa_supplicant/wpa_supplicant.conf"
-HOSTAPD_CONF = "/tmp/skyglass_hostapd.conf"
-DNSMASQ_CONF = "/tmp/skyglass_dnsmasq.conf"
+# Constants (the phone app, frontend ProvisioningScreen and backend
+# /api/provisioning/status all expect these)
+AP_SSID = nm_wifi.HOTSPOT_SSID
+AP_PASSWORD = ""  # Open network for easy setup
+AP_IP = nm_wifi.HOTSPOT_ADDRESS
 
 PROVISIONING_COMPLETE_FLAG = Path(__file__).parent / "face_data" / ".wifi_configured"
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # Seconds between answering POST /api/wifi/connect and dropping the hotspot,
 # so the response reaches the phone first.
 JOIN_DELAY_SECONDS = 2
+# Attempts to bring the hotspot back after a failed join before exiting
+# (systemd then restarts this service, which starts the hotspot again).
+AP_RESTART_ATTEMPTS = 3
+# Retrying saved networks while the hotspot is up (see the module docstring)
+RECONNECT_INTERVAL_SECONDS = 300
+RECONNECT_TIMEOUT_SECONDS = 45
+# A request to this server within this many seconds means a phone is using the
+# hotspot (on top of `iw station dump`, which may be unavailable)
+PHONE_ACTIVITY_SECONDS = 120
 
 
 def _data_dir() -> Path:
@@ -121,363 +136,123 @@ def mirror_identity() -> Tuple[str, str]:
     return mirror_id, name or "SkyGlass"
 
 
-def ssid_problem(ssid: object) -> Optional[str]:
-    """Why an SSID can't be used, or None. It ends up in wpa_supplicant.conf."""
-    if not isinstance(ssid, str) or not ssid:
-        return "SSID required"
-    if len(ssid.encode("utf-8")) > 32:
-        return "SSID must be 1-32 bytes"
-    if any(c in ssid for c in '"\n\r\x00'):
-        return "SSID contains unsupported characters"
-    return None
-
-
-def password_problem(password: object) -> Optional[str]:
-    """Empty (open network) or a WPA passphrase of 8-63 printable ASCII characters."""
-    if not isinstance(password, str):
-        return "Password must be text"
-    if password and not re.fullmatch(r"[\x20-\x7e]{8,63}", password):
-        return "WiFi passwords are 8-63 characters"
-    return None
-
-
-@dataclass
-class WiFiNetwork:
-    """Represents a discovered WiFi network."""
-    ssid: str
-    signal: int  # Signal strength 0-100
-    security: str  # "open", "wpa", "wpa2", etc.
-    connected: bool = False
+def _chown_to_repo_owner(path: Path) -> None:
+    """Files this root service writes belong to the install user."""
+    if os.geteuid() != 0:
+        return
+    try:
+        owner = REPO_ROOT.stat()
+        os.chown(path, owner.st_uid, owner.st_gid)
+    except OSError:
+        pass
 
 
 class WiFiProvisioning:
-    """Manages WiFi provisioning via captive portal."""
+    """Manages WiFi provisioning via captive portal (NetworkManager underneath)."""
 
-    def __init__(self, interface: str = "wlan0"):
+    def __init__(self, interface: str = "wlan0", nm: Optional[nm_wifi.NetworkManager] = None):
         self.interface = interface
+        self.nm = nm or nm_wifi.NetworkManager(interface)
         self.ap_active = False
+        self.captive_dns = True
         self.flask_app: Optional[Flask] = None
         self.server_thread: Optional[Thread] = None
         self.running = False
+        # Last scan taken in station mode (the radio can't scan as an AP).
+        self.scan_cache: List[WiFiNetwork] = []
         # Progress of the last join started from the app or captive portal.
         self._join_lock = Lock()
         self.join_state = {"state": "idle", "ssid": None, "error": None}
         self.last_join_error: Optional[str] = None
+        # Saved-network retry (reconnect_loop)
+        self.clock = time.monotonic
+        self.reconnecting = False
+        self.last_request: Optional[float] = None
+        self._stop = Event()
 
     def is_wifi_configured(self) -> bool:
-        """Check if WiFi credentials are already configured."""
-        # Check our flag file first
-        if PROVISIONING_COMPLETE_FLAG.exists():
-            # Verify we're actually connected
-            if self._is_connected():
-                return True
-
-        # Check wpa_supplicant for configured networks
-        try:
-            if Path(WPA_SUPPLICANT_CONF).exists():
-                content = Path(WPA_SUPPLICANT_CONF).read_text()
-                if "network=" in content and "ssid=" in content:
-                    return True
-        except PermissionError:
-            pass
-
-        return False
+        """True if the mirror is online (WiFi or Ethernet, not via the hotspot)."""
+        return self._is_connected()
 
     def _is_connected(self) -> bool:
-        """Check if currently connected to a WiFi network."""
         try:
-            result = subprocess.run(
-                ["iwgetid", "-r"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            return bool(result.stdout.strip())
-        except Exception:
+            return self.nm.online() is not None
+        except NMError:
             return False
 
     def _get_current_ssid(self) -> Optional[str]:
         """Get currently connected SSID."""
         try:
-            result = subprocess.run(
-                ["iwgetid", "-r"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            return result.stdout.strip() or None
-        except Exception:
+            return self.nm.current_ssid()
+        except NMError:
             return None
 
-    def scan_networks(self) -> List[WiFiNetwork]:
-        """Scan for available WiFi networks."""
-        networks = []
-        current_ssid = self._get_current_ssid()
-
+    def refresh_scan_cache(self) -> List[WiFiNetwork]:
+        """Scan now (station mode only) and remember the result."""
         try:
-            # Bring interface up if needed
-            subprocess.run(
-                ["sudo", "ip", "link", "set", self.interface, "up"],
-                capture_output=True,
-                timeout=5
-            )
-
-            # Scan for networks
-            result = subprocess.run(
-                ["sudo", "iwlist", self.interface, "scan"],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-
-            # Parse scan results
-            current_cell = {}
-            for line in result.stdout.split('\n'):
-                line = line.strip()
-
-                if line.startswith("Cell "):
-                    if current_cell.get("ssid"):
-                        networks.append(WiFiNetwork(
-                            ssid=current_cell["ssid"],
-                            signal=current_cell.get("signal", 0),
-                            security=current_cell.get("security", "open"),
-                            connected=current_cell["ssid"] == current_ssid
-                        ))
-                    current_cell = {}
-
-                elif "ESSID:" in line:
-                    ssid = line.split('ESSID:')[1].strip().strip('"')
-                    if ssid:  # Skip hidden networks
-                        current_cell["ssid"] = ssid
-
-                elif "Signal level=" in line:
-                    try:
-                        if "dBm" in line:
-                            dbm = int(re.search(r'Signal level=(-?\d+)', line).group(1))
-                            current_cell["signal"] = max(0, min(100, 2 * (dbm + 100)))
-                        else:
-                            match = re.search(r'Signal level=(\d+)/(\d+)', line)
-                            if match:
-                                current_cell["signal"] = int(100 * int(match.group(1)) / int(match.group(2)))
-                    except Exception:
-                        current_cell["signal"] = 50
-
-                elif "Encryption key:" in line:
-                    if "on" in line.lower():
-                        current_cell["security"] = "wpa"
-                    else:
-                        current_cell["security"] = "open"
-
-                elif "WPA" in line or "WPA2" in line:
-                    current_cell["security"] = "wpa2"
-
-            # Don't forget the last cell
-            if current_cell.get("ssid"):
-                networks.append(WiFiNetwork(
-                    ssid=current_cell["ssid"],
-                    signal=current_cell.get("signal", 0),
-                    security=current_cell.get("security", "open"),
-                    connected=current_cell["ssid"] == current_ssid
-                ))
-
-        except Exception as e:
+            networks = [n for n in self.nm.scan(rescan=True) if n.ssid != AP_SSID]
+        except NMError as e:
             print(f"Scan error: {e}")
+            return self.scan_cache
+        if networks:
+            self.scan_cache = networks
+        return self.scan_cache
 
-        # Remove duplicates and sort by signal strength
-        seen = set()
-        unique_networks = []
-        for net in sorted(networks, key=lambda x: -x.signal):
-            if net.ssid not in seen:
-                seen.add(net.ssid)
-                unique_networks.append(net)
-
-        return unique_networks
+    def scan_networks(self) -> List[WiFiNetwork]:
+        """Networks for the phone's list, strongest first, one entry per SSID."""
+        if not self.ap_active:
+            return self.refresh_scan_cache()
+        # As an access point the radio doesn't scan; NM's list (if it kept
+        # one) is no newer than our cache.
+        try:
+            live = [n for n in self.nm.scan(rescan=False) if n.ssid != AP_SSID]
+        except NMError:
+            live = []
+        return live or self.scan_cache
 
     def start_ap(self) -> bool:
         """Start the WiFi access point."""
         print(f"Starting access point: {AP_SSID}")
-
+        # Scan while we still can (see scan_networks).
+        self.nm.radio_on()
+        self.refresh_scan_cache()
         try:
-            # Stop any existing network services
-            subprocess.run(["sudo", "systemctl", "stop", "wpa_supplicant"], capture_output=True)
-            subprocess.run(["sudo", "systemctl", "stop", "dhcpcd"], capture_output=True)
-            subprocess.run(["sudo", "killall", "hostapd"], capture_output=True)
-            subprocess.run(["sudo", "killall", "dnsmasq"], capture_output=True)
-            time.sleep(1)
-
-            # Configure interface
-            subprocess.run([
-                "sudo", "ip", "addr", "flush", "dev", self.interface
-            ], capture_output=True)
-            subprocess.run([
-                "sudo", "ip", "addr", "add", f"{AP_IP}/24", "dev", self.interface
-            ], capture_output=True)
-            subprocess.run([
-                "sudo", "ip", "link", "set", self.interface, "up"
-            ], capture_output=True)
-
-            # Create hostapd config
-            hostapd_config = f"""
-interface={self.interface}
-driver=nl80211
-ssid={AP_SSID}
-hw_mode=g
-channel={AP_CHANNEL}
-wmm_enabled=0
-macaddr_acl=0
-auth_algs=1
-ignore_broadcast_ssid=0
-wpa=0
-"""
-            Path(HOSTAPD_CONF).write_text(hostapd_config)
-
-            # Create dnsmasq config (DHCP + DNS redirect for captive portal)
-            dnsmasq_config = f"""
-interface={self.interface}
-dhcp-range={AP_DHCP_START},{AP_DHCP_END},{AP_NETMASK},24h
-address=/#/{AP_IP}
-"""
-            Path(DNSMASQ_CONF).write_text(dnsmasq_config)
-
-            # Start hostapd
-            subprocess.Popen(
-                ["sudo", "hostapd", HOSTAPD_CONF],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            time.sleep(2)
-
-            # Start dnsmasq
-            subprocess.Popen(
-                ["sudo", "dnsmasq", "-C", DNSMASQ_CONF, "-x", "/tmp/dnsmasq.pid"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            time.sleep(1)
-
-            self.ap_active = True
-            print(f"Access point started: {AP_SSID}")
-            print(f"Connect to WiFi '{AP_SSID}' and open http://{AP_IP}")
-            return True
-
-        except Exception as e:
+            self.nm.start_hotspot(captive_dns=self.captive_dns)
+        except NMError as e:
             print(f"Failed to start AP: {e}")
+            self.nm.stop_hotspot()
             return False
+        self.ap_active = True
+        print(f"Access point started: {AP_SSID}")
+        print(f"Connect to WiFi '{AP_SSID}' and open http://{AP_IP}")
+        return True
 
     def stop_ap(self):
-        """Stop the access point and restore normal networking."""
+        """Stop the access point (NetworkManager then manages wlan0 as usual)."""
         if not self.ap_active:
             # Already on the home network (e.g. stopped by boot-mode.sh after
-            # a successful join): flushing wlan0 now would drop that link.
+            # a successful join): touching wlan0 now would drop that link.
             return
         print("Stopping access point...")
-
-        try:
-            # Stop hostapd and dnsmasq
-            subprocess.run(["sudo", "killall", "hostapd"], capture_output=True)
-            subprocess.run(["sudo", "killall", "dnsmasq"], capture_output=True)
-
-            # Clean up config files
-            Path(HOSTAPD_CONF).unlink(missing_ok=True)
-            Path(DNSMASQ_CONF).unlink(missing_ok=True)
-
-            # Reset interface
-            subprocess.run([
-                "sudo", "ip", "addr", "flush", "dev", self.interface
-            ], capture_output=True)
-
-            # Restart normal networking
-            subprocess.run(["sudo", "systemctl", "start", "dhcpcd"], capture_output=True)
-            subprocess.run(["sudo", "systemctl", "start", "wpa_supplicant"], capture_output=True)
-
-            self.ap_active = False
-            print("Access point stopped")
-
-        except Exception as e:
-            print(f"Error stopping AP: {e}")
+        self.nm.stop_hotspot()
+        self.ap_active = False
+        print("Access point stopped")
 
     def connect_to_network(self, ssid: str, password: str) -> bool:
-        """Connect to a WiFi network."""
+        """Connect to a WiFi network (the hotspot is dropped first)."""
         print(f"Connecting to: {ssid}")
-
-        try:
-            # Stop AP mode
-            self.stop_ap()
-            time.sleep(2)
-
-            # Create wpa_supplicant entry
-            if password:
-                # Use wpa_passphrase to generate secure config
-                result = subprocess.run(
-                    ["wpa_passphrase", ssid, password],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                network_block = result.stdout
-            else:
-                network_block = f'''
-network={{
-    ssid="{ssid}"
-    key_mgmt=NONE
-}}
-'''
-
-            # Read existing config
-            wpa_conf = Path(WPA_SUPPLICANT_CONF)
-            if wpa_conf.exists():
-                existing = wpa_conf.read_text()
-                # Remove any existing network blocks for this SSID
-                existing = re.sub(
-                    rf'network=\s*\{{[^}}]*ssid="{re.escape(ssid)}"[^}}]*\}}',
-                    '',
-                    existing
-                )
-            else:
-                existing = """ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-update_config=1
-country=US
-
-"""
-
-            # Append new network
-            new_config = existing.strip() + "\n\n" + network_block.strip() + "\n"
-
-            # Write config
-            subprocess.run(
-                ["sudo", "tee", WPA_SUPPLICANT_CONF],
-                input=new_config.encode(),
-                capture_output=True
-            )
-
-            # Restart wpa_supplicant
-            subprocess.run(["sudo", "systemctl", "restart", "wpa_supplicant"], capture_output=True)
-            subprocess.run(["sudo", "systemctl", "restart", "dhcpcd"], capture_output=True)
-
-            # Wait for connection
-            print("Waiting for connection...")
-            for i in range(30):
-                time.sleep(1)
-                if self._is_connected():
-                    current = self._get_current_ssid()
-                    if current == ssid:
-                        print(f"Connected to {ssid}!")
-                        # Mark provisioning complete
-                        PROVISIONING_COMPLETE_FLAG.parent.mkdir(parents=True, exist_ok=True)
-                        PROVISIONING_COMPLETE_FLAG.write_text(ssid)
-                        return True
-
-            print("Connection timeout")
-            self.last_join_error = (
-                f"The mirror couldn't join \"{ssid}\" within 30 seconds. "
-                "Check the password and that the network has a 2.4 GHz band."
-            )
+        self.stop_ap()
+        time.sleep(2)
+        ok, error = self.nm.join(ssid, password)
+        if not ok:
+            print(f"Join failed: {error}")
+            self.last_join_error = error
             return False
-
-        except Exception as e:
-            print(f"Connection error: {e}")
-            self.last_join_error = f"Connection error: {e}"
-            return False
+        print(f"Connected to {ssid}!")
+        PROVISIONING_COMPLETE_FLAG.parent.mkdir(parents=True, exist_ok=True)
+        PROVISIONING_COMPLETE_FLAG.write_text(ssid)
+        _chown_to_repo_owner(PROVISIONING_COMPLETE_FLAG)
+        return True
 
     def get_join_state(self) -> dict:
         with self._join_lock:
@@ -486,7 +261,7 @@ country=US
     def start_join(self, ssid: str, password: str) -> bool:
         """Join ``ssid`` in the background. False if a join is already running."""
         with self._join_lock:
-            if self.join_state["state"] == "connecting":
+            if self.join_state["state"] == "connecting" or self.reconnecting:
                 return False
             self.join_state = {"state": "connecting", "ssid": ssid, "error": None}
         Thread(target=self._join, args=(ssid, password), daemon=True).start()
@@ -495,7 +270,12 @@ country=US
     def _join(self, ssid: str, password: str) -> None:
         time.sleep(JOIN_DELAY_SECONDS)
         self.last_join_error = None
-        ok = self.connect_to_network(ssid, password)
+        try:
+            ok = self.connect_to_network(ssid, password)
+        except Exception as e:  # never leave the mirror without hotspot or network
+            print(f"Connection error: {e}")
+            self.last_join_error = f"Connection error: {e}"
+            ok = False
         with self._join_lock:
             self.join_state = {
                 "state": "connected" if ok else "failed",
@@ -507,7 +287,82 @@ country=US
         else:
             # Bring the hotspot back so the phone can rejoin it and retry.
             print("Join failed; restarting the setup hotspot")
-            self.start_ap()
+            self.restart_ap()
+
+    def restart_ap(self) -> None:
+        for attempt in range(AP_RESTART_ATTEMPTS):
+            if self.start_ap():
+                return
+            time.sleep(5)
+        # systemd (Restart=on-failure) starts the service, and the hotspot, again.
+        print("Could not bring the setup hotspot back; exiting for a restart")
+        os._exit(1)
+
+    # ---- saved networks while the hotspot is up
+
+    def note_request(self) -> None:
+        """A phone talked to this server (captive portal probe, app or setup page)."""
+        self.last_request = self.clock()
+
+    def phone_present(self) -> bool:
+        """A phone is on the hotspot, or used it recently, or a join is running."""
+        if self.get_join_state()["state"] == "connecting":
+            return True
+        if self.last_request is not None and self.clock() - self.last_request < PHONE_ACTIVITY_SECONDS:
+            return True
+        clients = self.nm.hotspot_clients()
+        return bool(clients)
+
+    def try_saved_networks(self) -> bool:
+        """Take the hotspot down and try the saved WiFi profiles; True if one connected.
+
+        Does nothing (False) unless the hotspot is up, a WiFi network is saved
+        and no phone is using the hotspot. On success the mirror goes to normal
+        mode, as after a join from the phone; otherwise the hotspot comes back.
+        """
+        if not self.ap_active or self.phone_present():
+            return False
+        try:
+            profiles = self.nm.saved_wifi_profiles()
+        except NMError as e:
+            print(f"Could not list saved networks: {e}")
+            return False
+        if not profiles:
+            return False
+        with self._join_lock:
+            if self.join_state["state"] == "connecting":
+                return False
+            self.reconnecting = True
+
+        names = ", ".join(name for name, _ in profiles)
+        print(f"No phone on the hotspot; trying saved network(s) for {RECONNECT_TIMEOUT_SECONDS}s: {names}")
+        connected = None
+        try:
+            self.stop_ap()
+            connected = self.nm.reconnect_saved(profiles, RECONNECT_TIMEOUT_SECONDS)
+        except Exception as e:  # never leave the mirror without hotspot or network
+            print(f"Saved network retry failed: {e}")
+        if connected:
+            print(f"Back on saved network {connected}; entering normal mode")
+            self.enter_normal_mode()
+            return True
+        print("Saved networks still unavailable; restarting the setup hotspot")
+        with self._join_lock:
+            self.reconnecting = False
+        self.restart_ap()
+        return False
+
+    def reconnect_loop(self, interval: float = RECONNECT_INTERVAL_SECONDS) -> None:
+        """Call try_saved_networks every ``interval`` seconds until stop() or success."""
+        while not self._stop.wait(interval):
+            try:
+                if self.try_saved_networks():
+                    return
+            except Exception as e:
+                print(f"Saved network retry error: {e}")
+
+    def stop(self) -> None:
+        self._stop.set()
 
     def enter_normal_mode(self) -> None:
         """Hand over to scripts/boot-mode.sh: it stops this service and starts the apps."""
@@ -520,22 +375,12 @@ country=US
             print(f"Could not re-run boot mode detection: {e}")
 
     def get_ip_address(self) -> Optional[str]:
-        """Get current IP address."""
+        """IPv4 address on the home network (not the hotspot's), or None."""
         try:
-            result = subprocess.run(
-                ["hostname", "-I"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            ips = result.stdout.strip().split()
-            # Return first non-AP IP
-            for ip in ips:
-                if not ip.startswith("10.42.0."):
-                    return ip
-            return ips[0] if ips else None
-        except Exception:
+            found = self.nm.online()
+        except NMError:
             return None
+        return found[1] if found else None
 
 
 # ============================================================
@@ -775,14 +620,19 @@ CAPTIVE_PORTAL_HTML = """
                     Scanning for networks...
                 </p>
             </div>
+            <button class="refresh-btn" onclick="otherNetwork()" style="margin-top: 10px;">Other network (hidden)…</button>
         </div>
 
         <!-- Step 2: Enter Password -->
         <div id="step-password" class="card hidden">
             <h2>Enter Password</h2>
             <div id="error-msg" class="error hidden"></div>
-            <div class="form-group">
+            <div class="form-group" id="known-ssid">
                 <label>Network: <strong id="selected-network"></strong></label>
+            </div>
+            <div class="form-group hidden" id="hidden-ssid">
+                <label for="ssid">Network name (SSID)</label>
+                <input type="text" id="ssid" placeholder="Network name" autocomplete="off" autocapitalize="off">
             </div>
             <div class="form-group">
                 <label for="password">WiFi Password</label>
@@ -882,7 +732,20 @@ CAPTIVE_PORTAL_HTML = """
             }
         }
 
+        function otherNetwork() {
+            selectedNetwork = { ssid: '', security: 'unknown', hidden: true };
+            document.getElementById('known-ssid').classList.add('hidden');
+            document.getElementById('hidden-ssid').classList.remove('hidden');
+            document.getElementById('ssid').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('error-msg').classList.add('hidden');
+            showStep('password');
+            document.getElementById('ssid').focus();
+        }
+
         function selectNetwork(index) {
+            document.getElementById('known-ssid').classList.remove('hidden');
+            document.getElementById('hidden-ssid').classList.add('hidden');
             selectedNetwork = networks[index];
             document.getElementById('selected-network').textContent = selectedNetwork.ssid;
             document.getElementById('password').value = '';
@@ -903,8 +766,16 @@ CAPTIVE_PORTAL_HTML = """
 
         async function connect() {
             const password = document.getElementById('password').value;
+            if (selectedNetwork.hidden) {
+                selectedNetwork.ssid = document.getElementById('ssid').value;
+                if (!selectedNetwork.ssid) {
+                    document.getElementById('error-msg').textContent = 'Please enter the network name';
+                    document.getElementById('error-msg').classList.remove('hidden');
+                    return;
+                }
+            }
 
-            if (selectedNetwork.security !== 'open' && !password) {
+            if (selectedNetwork.security !== 'open' && !selectedNetwork.hidden && !password) {
                 document.getElementById('error-msg').textContent = 'Please enter the WiFi password';
                 document.getElementById('error-msg').classList.remove('hidden');
                 return;
@@ -966,6 +837,12 @@ def create_flask_app(provisioning: WiFiProvisioning, use_captive_portal: bool = 
                            If False, return "success" responses and users navigate manually.
     """
     app = Flask(__name__)
+
+    @app.before_request
+    def note_phone():
+        # Any request means a phone is on the hotspot: don't take it down to
+        # retry the saved network (WiFiProvisioning.phone_present)
+        provisioning.note_request()
 
     @app.route('/')
     def index():
@@ -1063,7 +940,7 @@ def create_flask_app(provisioning: WiFiProvisioning, use_captive_portal: bool = 
                 'ssid': n.ssid,
                 'signal': n.signal,
                 'security': n.security,
-                'secure': n.security != 'open',
+                'secure': n.secure,
                 'connected': n.connected
             }
             for n in networks
@@ -1122,16 +999,20 @@ def run_provisioning():
         print("Mode: Manual navigation")
         print(f"      Users scan QR code then open http://{AP_IP}")
 
-    provisioning = WiFiProvisioning()
+    if not nm_wifi.NetworkManager.available():
+        print("ERROR: nmcli not found; WiFi provisioning needs NetworkManager")
+        sys.exit(1)
 
-    # Check if already configured
+    provisioning = WiFiProvisioning()
+    provisioning.captive_dns = use_captive_portal
+
+    # Online already (the network came up after boot-mode.sh checked):
+    # no hotspot; let boot-mode.sh start normal mode.
     if provisioning.is_wifi_configured():
-        print("WiFi is already configured!")
+        print("Already online; handing back to normal mode")
         print(f"Connected to: {provisioning._get_current_ssid()}")
         print(f"IP address: {provisioning.get_ip_address()}")
-        print()
-        print("To reconfigure, delete the flag file:")
-        print(f"  rm {PROVISIONING_COMPLETE_FLAG}")
+        provisioning.enter_normal_mode()
         sys.exit(0)
 
     # Start access point
@@ -1142,9 +1023,13 @@ def run_provisioning():
     # Create Flask app
     app = create_flask_app(provisioning, use_captive_portal=use_captive_portal)
 
+    # Retry saved networks now and then (mirror set up before, network away)
+    Thread(target=provisioning.reconnect_loop, daemon=True).start()
+
     # Signal handler for clean shutdown
     def shutdown(sig, frame):
         print("\nShutting down...")
+        provisioning.stop()
         provisioning.stop_ap()
         sys.exit(0)
 

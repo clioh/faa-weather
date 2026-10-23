@@ -484,3 +484,129 @@ def test_reused_pid_is_not_an_updater(tmp_path):
     assert ws.is_update_script(44, str(proc)) is False
     # No /proc at all (macOS): fall back to plain liveness.
     assert ws.is_update_script(42, str(tmp_path / "no-proc")) is True
+
+
+# --- WiFi provisioning (scripts/boot-mode.sh stops the detector) -----------
+
+
+class Provisioning:
+    """Marker file + fake `systemctl is-active skyglass-provision.service`."""
+
+    def __init__(self, h):
+        self.marker = h.root / "run" / "provisioning"
+        self.unit = True  # True/False/None (systemctl unavailable)
+        self.asked = []
+        h.svc.provisioning_guard = ws.ProvisioningGuard(self.marker, unit_active=self._unit_active)
+
+    def _unit_active(self, unit):
+        self.asked.append(unit)
+        return self.unit
+
+    def start(self, apps="skyglass-detector\n"):
+        self.marker.parent.mkdir(exist_ok=True)
+        self.marker.write_text(apps)
+
+    def end(self):
+        self.marker.unlink()
+
+
+@pytest.fixture
+def p(h):
+    return Provisioning(h)
+
+
+def test_provisioning_skips_restarts_of_stopped_apps(h, p):
+    p.start()
+    h.healthy["detector"] = False  # pm2 status "stopped"
+    for t in range(6):
+        h.tick(t * 15)
+    assert h.restarts() == []
+    assert p.asked and set(p.asked) == {"skyglass-provision.service"}
+    assert "WiFi provisioning active; not restarting skyglass-detector" in h.output()
+
+
+def test_provisioning_still_restarts_the_backend(h, p):
+    p.start()
+    h.healthy["backend"] = False
+    for t in range(3):
+        h.tick(t * 15)
+    assert h.restarts() == [("restart", "skyglass-backend")]
+
+
+def test_provisioning_end_resumes_monitoring_with_fresh_counts(h, p):
+    p.start()
+    h.healthy["detector"] = False
+    h.tick(0)
+    h.tick(15)
+    p.end()
+    h.tick(30)
+    h.tick(45)
+    assert h.restarts() == []  # failures while provisioning were not counted
+    h.tick(60)
+    assert h.restarts() == [("restart", "skyglass-detector")]
+    assert "WiFi provisioning over; monitoring all apps again" in h.output()
+
+
+def test_stale_marker_ignored_when_provision_unit_inactive(h, p):
+    p.start()
+    p.unit = False
+    h.healthy["detector"] = False
+    for t in range(3):
+        h.tick(t * 15)
+    assert h.restarts() == [("restart", "skyglass-detector")]
+
+
+def test_marker_honoured_without_systemd(h, p):
+    p.start()
+    p.unit = None
+    h.healthy["detector"] = False
+    for t in range(4):
+        h.tick(t * 15)
+    assert h.restarts() == []
+
+
+def test_marker_ignores_blank_lines_and_comments(h, p):
+    p.start("# stopped by boot-mode.sh\n\n skyglass-detector \n")
+    assert h.svc.provisioning_guard.held_apps() == frozenset({"skyglass-detector"})
+
+
+def test_no_marker_never_asks_systemd(h, p):
+    for t in range(3):
+        h.tick(t * 15)
+    assert p.asked == []
+
+
+def test_provisioning_detection_failure_monitors_everything(h, p):
+    def boom():
+        raise RuntimeError("bad")
+
+    h.svc.provisioning_guard.held_apps = boom
+    h.healthy["detector"] = False
+    for t in range(3):
+        h.tick(t * 15)
+    assert h.restarts() == [("restart", "skyglass-detector")]
+
+
+def test_provisioning_marker_cli_flag_and_env(monkeypatch, tmp_path):
+    real = ws.WatchdogService
+    captured = {}
+
+    class Fake:
+        def __init__(self, **kw):
+            captured.update(kw)
+
+        def run(self):
+            pass
+
+    monkeypatch.setattr(ws, "WatchdogService", Fake)
+    monkeypatch.setattr(ws, "REQUESTS_AVAILABLE", True)
+    monkeypatch.setattr("sys.argv", ["watchdog_service.py", "--provisioning-marker", str(tmp_path / "m")])
+    ws.main()
+    assert captured["provisioning_marker"] == tmp_path / "m"
+
+    monkeypatch.setenv("SKYGLASS_PROVISIONING_MARKER", str(tmp_path / "env-marker"))
+    svc = real(use_hardware_watchdog=False, project_dir=tmp_path)
+    assert svc.provisioning_guard.marker == tmp_path / "env-marker"
+    monkeypatch.delenv("SKYGLASS_PROVISIONING_MARKER")
+    assert real(use_hardware_watchdog=False).provisioning_guard.marker == \
+        ws.DEFAULT_PROVISIONING_MARKER

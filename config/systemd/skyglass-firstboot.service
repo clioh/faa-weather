@@ -1,0 +1,28 @@
+[Unit]
+Description=SkyGlass first boot of a kit card (new SSH host keys, grow the root filesystem)
+# Armed by scripts/prepare-image.sh on the golden image (docs/KIT_CARDS.md):
+# every card cloned from it runs this once. Not installed by setup-pi.sh.
+# /etc/machine-id is empty on the image, so systemd writes a new one for each
+# card by itself.
+ConditionPathExists=/etc/skyglass-firstboot
+After=local-fs.target systemd-remount-fs.service
+Before=skyglass-boot.service ssh.service
+
+[Service]
+Type=oneshot
+# Unique host keys per card (SSH is off on a kit; this matters once the owner
+# turns it on with raspi-config)
+ExecStart=-/usr/bin/ssh-keygen -A
+# The image's root partition ends where the reference card's did (or where
+# PiShrink cut it); grow it to this card. Finishes on the reboot below.
+ExecStart=-/usr/bin/raspi-config nonint do_expand_rootfs
+ExecStart=/bin/rm -f /etc/skyglass-firstboot
+ExecStart=/bin/systemctl disable skyglass-firstboot.service
+ExecStart=/bin/sync
+ExecStart=/bin/systemctl --no-block reboot
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=skyglass-firstboot
+
+[Install]
+WantedBy=multi-user.target

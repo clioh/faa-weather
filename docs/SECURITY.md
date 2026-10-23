@@ -261,15 +261,6 @@ Messages keep the `{ type, data, timestamp }` envelope. Events go to every
 authenticated socket, except the `pairing` family, which only local sockets
 receive. The server handles no inbound messages.
 
-### Cloud relay
-
-The optional cloud relay (`services/relay-client.ts`, handlers in
-`routes/cloud.ts`) is an **outbound** WebSocket the mirror opens to
-skyglass.dev with its relay token; commands (`getLayout`, `updateLayout`,
-`getStatus`, `displayOn`, `displayOff`) run in-process and never pass
-through the HTTP gate. Configuring the relay (`/api/cloud/*`) needs a
-trusted caller.
-
 ## Who can call what on port 5000
 
 | Route                                                  | Internal token |         Admin session         |   Enrollment token    | Nothing |
@@ -302,10 +293,22 @@ server, carry no cookies and skip the check. Every response also sends
 
 ### WiFi connect
 
-SSID and passphrase are validated (SSID 1-32 bytes, passphrase empty or 8-63
-printable ASCII) and handed to `wpa_cli` in hex/PSK form, so quotes or
-newlines cannot inject extra `wpa_supplicant` directives. Nothing is written
+SSID and passphrase are validated (SSID 1-32 bytes without control
+characters, passphrase empty or 8-63 printable ASCII) and handed to `nmcli`
+as separate argv elements (`packages/presence/nm_wifi.py`), never through a
+shell, so quotes, spaces or colons are just part of the value. NetworkManager
+stores the passphrase in its root-only profile
+(`/etc/NetworkManager/system-connections/`). While `nmcli` runs, the
+passphrase is visible in its command line to other local processes; on the
+mirror every local process is already trusted (see below). Nothing is written
 to `/tmp`.
+
+The admin server runs as the install user and calls `nmcli` without sudo: a
+polkit rule written by `setup-pi.sh`
+(`/etc/polkit-1/rules.d/50-skyglass-networkmanager.rules`) allows that user
+only the NetworkManager `wifi.scan`, `settings.modify.system` and
+`settings.modify.own` actions. The setup hotspot is run by
+`skyglass-provision.service` as root.
 
 ## Known gaps
 
@@ -316,8 +319,15 @@ http://localhost:3001/api/pairing/devices/<id>`).
 - Anyone who can stand in front of the mirror can pair (that is the design:
   physical presence). Codes and the QR are only shown on the screen.
 - The WiFi provisioning captive portal (`wifi_provisioning.py`) runs on an open
-  `SkyGlass-Setup` hotspot only during first setup; anyone in radio range can
-  use it while it is up.
+  `SkyGlass-Setup` hotspot whenever the mirror finds no network at boot: during
+  first setup, and on a set-up mirror whose saved network is away (moved, new
+  router, power cut; it keeps retrying the saved network). Anyone in radio
+  range can use it while it is up, including pointing the mirror at another
+  network; pairing still needs the mirror's screen.
+- Kit cards (`docs/KIT_CARDS.md`) ship with SSH disabled and the install
+  user's and root's passwords locked (`scripts/prepare-image.sh`); each card
+  gets its own machine-id and SSH host keys on first boot. A DIY install keeps
+  whatever SSH login was set in Raspberry Pi Imager.
 - Traffic is plain HTTP on the LAN, so pairing secrets, phone tokens,
   enrollment tokens and the admin password are visible to someone who can
   sniff the network.

@@ -4,7 +4,9 @@
 #
 # Assigns a key to an unkeyed kit license through the admin API and writes it
 # to skyglass-license.txt on a flashed SD card's boot partition. The mirror
-# activates it on the first boot that has network.
+# activates it on the first boot that has network. scripts/flash-sd.sh runs
+# this after writing a card when given --license-id (docs/KIT_CARDS.md); a key
+# you already have goes on the card with flash-sd.sh --license-key instead.
 #
 # Usage:
 #   ADMIN_PASSWORD=… ./scripts/provision-sd.sh <licenseId> [bootVolume] [--force] [--rekey]
@@ -26,6 +28,9 @@
 
 set -euo pipefail
 
+# shellcheck source=lib/sd-card.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/sd-card.sh"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -40,7 +45,7 @@ for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
     --rekey) REKEY=1 ;;
-    -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) die "Unknown option: $arg" ;;
     *) POSITIONAL+=("$arg") ;;
   esac
@@ -61,12 +66,9 @@ command -v curl >/dev/null || die "curl is required"
 command -v node >/dev/null || die "node is required"
 
 # Check the card before issuing a key: a key is only ever returned once.
-[ -d "$BOOT_VOLUME" ] || die "Boot volume not found: $BOOT_VOLUME (is the SD card mounted?)"
-[ -f "$BOOT_VOLUME/config.txt" ] || [ -f "$BOOT_VOLUME/cmdline.txt" ] \
-  || die "$BOOT_VOLUME doesn't look like a Raspberry Pi boot partition (no config.txt or cmdline.txt)"
-[ -w "$BOOT_VOLUME" ] || die "Boot volume is not writable: $BOOT_VOLUME"
+PROBLEM="$(sd_boot_volume_problem "$BOOT_VOLUME")" || die "$PROBLEM"
 
-KEY_FILE="$BOOT_VOLUME/skyglass-license.txt"
+KEY_FILE="$BOOT_VOLUME/$SD_LICENSE_FILE_NAME"
 if [ -e "$KEY_FILE" ] && [ "$FORCE" -ne 1 ]; then
   die "$KEY_FILE already exists. Use --force to overwrite it."
 fi
@@ -103,8 +105,7 @@ if [ "$HTTP_STATUS" != "200" ]; then
   die "Provision failed (HTTP $HTTP_STATUS): ${MESSAGE:-$(cat "$RESPONSE_FILE")}"
 fi
 
-LICENSE_KEY="$(json_field licenseKey)"
-[[ "$LICENSE_KEY" =~ ^[A-HJ-NP-Z2-9]{4}(-[A-HJ-NP-Z2-9]{4}){3}$ ]] \
+LICENSE_KEY="$(sd_normalize_license_key "$(json_field licenseKey)")" \
   || die "Unexpected response: $(cat "$RESPONSE_FILE")"
 
 if ! printf '%s\n' "$LICENSE_KEY" > "$KEY_FILE"; then

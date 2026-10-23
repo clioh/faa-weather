@@ -1,8 +1,11 @@
 [Unit]
 Description=SkyGlass WiFi Provisioning
-After=network.target
-Before=skyglass-boot.service
-ConditionPathExists=!/home/pi/SkyGlass/packages/presence/face_data/.wifi_configured
+# Started by scripts/boot-mode.sh (skyglass-boot.service) when the mirror has
+# no network after its boot wait, set up before or not (a mirror that was set
+# up keeps retrying its saved network from here). The hotspot is a
+# NetworkManager profile.
+After=network.target NetworkManager.service
+Wants=NetworkManager.service
 
 [Service]
 Type=simple
@@ -16,6 +19,10 @@ Environment="PYTHONUNBUFFERED=1"
 
 # Run WiFi provisioning (creates hotspot + captive portal)
 ExecStart=/home/pi/SkyGlass/packages/presence/venv/bin/python wifi_provisioning.py
+# If it was killed before cleaning up: no hotspot profile or captive DNS left
+# behind (both are recreated on the next start)
+ExecStopPost=-/usr/bin/nmcli connection delete id skyglass-setup
+ExecStopPost=-/bin/rm -f /etc/NetworkManager/dnsmasq-shared.d/skyglass-captive.conf
 
 # Restart on failure (but not too quickly)
 Restart=on-failure
