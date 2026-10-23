@@ -209,6 +209,9 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
   const [showDetails, setShowDetails] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [restart, setRestart] = useState<RestartState | null>(null);
+  // Shown in the panel: the mirror is a kiosk, so a blocking alert() could
+  // never be dismissed.
+  const [actionError, setActionError] = useState<string | null>(null);
   const unmounted = useRef(false);
   useEffect(() => () => { unmounted.current = true; }, []);
   // expanded state reserved for future use with detailed update info
@@ -232,21 +235,20 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
   }, [checkForUpdates]);
 
   const downloadUpdate = async () => {
+    setActionError(null);
+    // Poll for progress while the download runs
+    const pollInterval = setInterval(checkForUpdates, 500);
     try {
-      // Start polling for progress
-      const pollInterval = setInterval(checkForUpdates, 500);
-
       const response = await fetch('/api/update/download', { method: 'POST' });
       const result = await response.json();
-
+      if (!result.success) {
+        setActionError(`Download failed: ${result.message}`);
+      }
+    } catch {
+      setActionError('Download failed. Check the network connection and try again.');
+    } finally {
       clearInterval(pollInterval);
       checkForUpdates();
-
-      if (!result.success) {
-        alert(`Download failed: ${result.message}`);
-      }
-    } catch (error) {
-      alert('Failed to download update. Check the logs for details.');
     }
   };
 
@@ -275,6 +277,7 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
 
   const applyUpdate = async () => {
     const previousVersion = updateStatus?.currentVersion ?? '';
+    setActionError(null);
     try {
       const response = await fetch('/api/update/apply', { method: 'POST' });
       const result = await response.json();
@@ -283,11 +286,11 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
         setRestart({ phase: 'restarting', message: result.message || 'Update started' });
         void waitForRestart(previousVersion);
       } else {
-        alert(`Update failed: ${result.message}`);
+        setActionError(`Update failed: ${result.message}`);
         checkForUpdates();
       }
     } catch {
-      alert('Failed to start update. Check the logs for details.');
+      setActionError('Couldn\u2019t start the update. Try again, or check logs/update.log.');
     }
   };
 
@@ -333,7 +336,8 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
   const { downloadProgress } = updateStatus;
   const isDownloading = downloadProgress.phase === 'downloading';
   const isProcessing = ['extracting', 'installing'].includes(downloadProgress.phase);
-  const hasError = downloadProgress.phase === 'error';
+  const errorMessage =
+    actionError ?? (downloadProgress.phase === 'error' ? downloadProgress.error || 'Something went wrong' : null);
   const isActive = isDownloading || isProcessing;
 
   // Phase labels
@@ -420,10 +424,10 @@ export function UpdateNotification({ wsConnected: _wsConnected }: UpdateNotifica
         )}
 
         {/* Error display */}
-        {hasError && (
-          <div style={styles.errorBox}>
+        {errorMessage && !isActive && (
+          <div style={styles.errorBox} role="alert">
             <PhaseIcon phase="error" />
-            <span>{downloadProgress.error || 'An error occurred'}</span>
+            <span>{errorMessage}</span>
           </div>
         )}
 
