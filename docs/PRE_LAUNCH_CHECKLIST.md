@@ -125,6 +125,12 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       with a TV. Walk away: the monitor goes to sleep and wakes when you come back, and the Chromium
       kiosk is still full screen afterwards. Also test with the backend started before the desktop
       session (it re-probes every 30 s).
+- [ ] **Fresh install on current Raspberry Pi OS** (Trixie, and Bookworm if you support it), both a
+      desktop and a Lite image: `scripts/setup-pi.sh --yes` finishes without apt errors, and after
+      the reboot the Pi logs in to labwc and `scripts/kiosk.sh` shows the mirror full screen with no
+      panel, no mouse pointer and no keyring prompt. Kill Chromium and check that it comes back,
+      leave it idle for an hour and check that the screen never blanks, and confirm that
+      `raspi-config nonint do_wayland W3` and `do_boot_behaviour B4` exist on that image.
 - [ ] Rendering performance with a busy layout: radar animation, photo crossfade, clocks.
 - [ ] Live data through the deployed cloud service: NOTAMs, stocks via Finnhub, and stocks with the
       service unreachable (Yahoo fallback; Yahoo throttles per IP and the widget then shows

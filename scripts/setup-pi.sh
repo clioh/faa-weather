@@ -50,6 +50,11 @@ confirm() {
     [[ $REPLY =~ ^[Yy] ]]
 }
 
+# apt_has <package> -> 0 if apt can install it
+apt_has() {
+    apt-cache policy "$1" 2>/dev/null | grep -q 'Candidate: [0-9]'
+}
+
 # Resolve a directory to its canonical physical path (empty if missing)
 canonical_dir() {
     (cd "$1" 2>/dev/null && pwd -P) || true
@@ -98,7 +103,11 @@ install_node() {
     log_info "npm installed: $(npm -v)"
 }
 
-# Install Python and dependencies
+# Install Python and the build dependencies of the presence venv.
+# OpenCV comes from the opencv-python wheel, which bundles its own codecs and
+# only needs libGL from the system; dlib (face_recognition) compiles against
+# cmake, BLAS/LAPACK and the image libraries below. Every package name here
+# exists on Raspberry Pi OS Bookworm and Trixie.
 install_python() {
     log_info "Installing Python 3 and dependencies..."
 
@@ -112,58 +121,35 @@ install_python() {
         libopenblas-dev \
         liblapack-dev \
         libjpeg-dev \
-        libpng-dev
+        libpng-dev \
+        libgl1
 
     log_info "Python installed: $(python3 --version)"
-}
-
-# Install OpenCV and face_recognition dependencies
-install_cv_deps() {
-    log_info "Installing OpenCV and face recognition dependencies..."
-
-    sudo apt-get install -y \
-        libatlas-base-dev \
-        libhdf5-dev \
-        libhdf5-serial-dev \
-        libharfbuzz0b \
-        libwebp-dev \
-        libtiff5-dev \
-        libjasper-dev \
-        libilmbase-dev \
-        libopenexr-dev \
-        libgstreamer1.0-dev \
-        libavcodec-dev \
-        libavformat-dev \
-        libswscale-dev \
-        libv4l-dev \
-        libxvidcore-dev \
-        libx264-dev \
-        libgtk-3-dev
 }
 
 # Install Pi camera support
 install_camera() {
     log_info "Installing camera support..."
 
+    # Ribbon cameras are detected at boot (camera_auto_detect=1 in
+    # config.txt); there is nothing to enable.
     sudo apt-get install -y \
-        libcamera-apps \
+        rpicam-apps \
         python3-picamera2 \
         python3-libcamera
 
-    # Enable camera interface
-    if command -v raspi-config &> /dev/null; then
-        log_info "Enabling camera interface..."
-        sudo raspi-config nonint do_camera 0
-    fi
+    log_info "Camera support installed. List cameras with: rpicam-hello --list-cameras"
 }
 
-# Install CEC for display control
-install_cec() {
-    log_info "Installing HDMI CEC support..."
+# Install display power control: HDMI-CEC for TVs, and switching the HDMI
+# output off (Wayland: wlr-randr, X11: xset) for monitors without CEC.
+# packages/backend/src/services/display.ts picks whichever works.
+install_display_control() {
+    log_info "Installing display power control..."
 
-    sudo apt-get install -y cec-utils
+    sudo apt-get install -y cec-utils wlr-randr x11-xserver-utils
 
-    log_info "CEC installed. Test with: echo 'scan' | cec-client -s -d 1"
+    log_info "Display control installed. Test CEC with: echo 'pow 0' | cec-client -s -d 1"
 }
 
 # Install mDNS/Avahi for network discovery
@@ -236,14 +222,19 @@ enable_watchdog() {
     fi
 }
 
-# Install Chromium for kiosk mode
+# Install Chromium and the labwc desktop for kiosk mode. Raspberry Pi OS
+# desktop images already include both.
 install_chromium() {
     log_info "Installing Chromium browser..."
 
-    sudo apt-get install -y \
-        chromium-browser \
-        unclutter \
-        xdotool
+    if command -v chromium &> /dev/null || command -v chromium-browser &> /dev/null; then
+        log_info "Chromium already installed"
+    elif apt_has chromium; then
+        sudo apt-get install -y chromium
+    else
+        sudo apt-get install -y chromium-browser
+    fi
+    sudo apt-get install -y labwc
 }
 
 # Install PM2 for process management
@@ -322,12 +313,14 @@ setup_skyglass() {
         exit 1
     fi
 
-    # Set up Python virtual environment (kept if it already exists)
+    # Set up Python virtual environment (packages already in it are kept).
+    # --system-site-packages exposes apt's python3-picamera2/python3-libcamera,
+    # which Raspberry Pi cameras need and pip cannot install; packages installed
+    # in the venv take precedence. Re-running venv on an existing one only
+    # updates this setting.
     log_info "Setting up Python virtual environment..."
     cd packages/presence
-    if [ ! -x venv/bin/python ]; then
-        python3 -m venv venv
-    fi
+    python3 -m venv --system-site-packages venv
     venv/bin/pip install --upgrade pip
     venv/bin/pip install -r requirements.txt
 
@@ -401,38 +394,34 @@ setup_autostart() {
     log_info "Services configured to start on boot"
 }
 
-# Configure kiosk mode
+# Configure kiosk mode: log in to the labwc desktop automatically and run
+# only scripts/kiosk.sh in it (Chromium on the mirror UI). Raspberry Pi OS has
+# used labwc since late 2024.
 setup_kiosk() {
     log_info "Setting up kiosk mode..."
 
     INSTALL_DIR="${HOME}/SkyGlass"
-    AUTOSTART_DIR="${HOME}/.config/lxsession/LXDE-pi"
+    chmod +x "$INSTALL_DIR/scripts/kiosk.sh"
 
-    mkdir -p "$AUTOSTART_DIR"
+    if command -v raspi-config &> /dev/null; then
+        # W3 = labwc, B4 = desktop with automatic login
+        sudo raspi-config nonint do_wayland W3 || log_warn "Could not select the labwc desktop"
+        sudo raspi-config nonint do_boot_behaviour B4 || log_warn "Could not enable desktop autologin"
+    else
+        log_warn "raspi-config not found: set the desktop to labwc with automatic login yourself"
+    fi
 
-    # Create autostart file
-    cat > "$AUTOSTART_DIR/autostart" << EOF
-@lxpanel --profile LXDE-pi
-@pcmanfm --desktop --profile LXDE-pi
-@xset s off
-@xset -dpms
-@xset s noblank
-@unclutter -idle 0.5 -root
-@chromium-browser --noerrdialogs --disable-infobars --kiosk http://localhost:3001
+    # A user autostart file replaces the desktop's default one, so no panel,
+    # desktop icons or screen blanker (swayidle) run behind the mirror.
+    # kanshi keeps any display layout set in Screen Configuration.
+    mkdir -p "$HOME/.config/labwc"
+    cat > "$HOME/.config/labwc/autostart" << EOF
+# SkyGlass kiosk, written by scripts/setup-pi.sh
+command -v kanshi > /dev/null && kanshi &
+"$INSTALL_DIR/scripts/kiosk.sh" &
 EOF
 
-    log_info "Kiosk mode configured"
-    log_info "The browser will auto-start on next reboot"
-}
-
-# Disable screen blanking
-disable_screensaver() {
-    log_info "Disabling screen blanking..."
-
-    # Disable screen blanking in lightdm
-    sudo sed -i 's/#xserver-command=X/xserver-command=X -s 0 -dpms/' /etc/lightdm/lightdm.conf 2>/dev/null || true
-
-    log_info "Screen blanking disabled"
+    log_info "Kiosk mode configured; the mirror display starts on next reboot"
 }
 
 # Print post-install instructions
@@ -488,7 +477,7 @@ main() {
     echo "  - Python 3 with OpenCV and face_recognition"
     echo "  - Chromium browser (kiosk mode)"
     echo "  - PM2 process manager"
-    echo "  - CEC utilities (display control)"
+    echo "  - Display power control (CEC, wlr-randr, xset)"
     echo ""
 
     if ! confirm "Continue with installation? (Y/n)" y; then
@@ -499,9 +488,8 @@ main() {
     update_system
     install_node
     install_python
-    install_cv_deps
     install_camera
-    install_cec
+    install_display_control
     install_mdns
     install_wifi_provisioning
     install_chromium
@@ -511,7 +499,6 @@ main() {
     setup_boot_mode
     setup_autostart
     setup_kiosk
-    disable_screensaver
     enable_watchdog
     print_instructions
 }
