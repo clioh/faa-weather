@@ -59,8 +59,9 @@ out after 10 s.
 ## Caching
 
 The data endpoints set `Cache-Control` so Vercel's CDN serves one upstream response to every
-mirror asking for the same URL. Cache hits don't run the function, don't count toward the rate
-limit and don't use upstream quota.
+mirror asking for the same URL. Cache hits don't run the function, don't count toward the in-function
+rate limit and don't use upstream quota. They do count toward the Vercel WAF rate limits
+below (the firewall runs before the cache).
 
 | Response | `Cache-Control` |
 |---|---|
@@ -99,8 +100,74 @@ are shared across every mirror's CDN cache rather than keyed by each user's own 
 | `POST /api/oauth/google/token` | 30 / min |
 
 - Finnhub calls within one request run at most 4 at a time.
-- For stronger, global protection add Vercel Firewall rate-limit rules on `/api/data/*`.
-  The per-instance limiter does not share state across instances or regions.
+- The per-instance limiter does not share state across instances or regions, so the real
+  cap is a multiple of these numbers. It is the second line of defence; the global cap is
+  the Vercel WAF rules below.
+
+## Global rate limits (Vercel WAF)
+
+The cross-instance cap is a set of Vercel Firewall (WAF) custom rules with a rate-limit
+action, counted per client IP at Vercel's edge, before the CDN cache and before any function
+runs. Requests over the limit never reach a function or an upstream and are not billed.
+
+**Source of truth:** `packages/website/firewall/rate-limits.json`. `vercel.json` cannot declare
+these (its only firewall hook is `routes[].mitigate` with `deny`/`challenge`, no rate limit, and
+`routes` cannot be combined with the `rewrites`/`headers` this project uses), so the rules are
+kept in that file and pushed with a script the owner runs:
+
+```bash
+cd packages/website            # linked to the Vercel project (vercel link)
+node scripts/firewall-rules.mjs                      # dry run: prints the vercel commands
+node scripts/firewall-rules.mjs --stage              # stage as drafts, over-limit action = log
+vercel firewall diff && vercel firewall publish --yes
+# ...watch Firewall > Traffic (filter by rule) for a few days, adjust the JSON...
+node scripts/firewall-rules.mjs --stage --enforce    # over-limit action = 429
+vercel firewall diff && vercel firewall publish --yes
+```
+
+The script only stages drafts (`vercel firewall rules add`, or `rules edit` when a rule of the
+same name exists, so re-running after editing the JSON updates the rules). Publishing is a
+separate, manual step. Edits made in the dashboard are overwritten the next time the script
+runs; change the JSON instead.
+
+| Rule | Paths (prefix) | Limit per IP | Over the limit |
+|---|---|---|---|
+| `skyglass-ratelimit-notams` | `/api/data/notams` | 60 / 10 min | 429 |
+| `skyglass-ratelimit-stocks` | `/api/data/stock` (`stocks`, `stock-profiles`) | 300 / 10 min | 429 |
+| `skyglass-ratelimit-oauth-config` | `/api/oauth/config` | 60 / 10 min | 429 |
+| `skyglass-ratelimit-oauth-token` | `/api/oauth/google/token` | 60 / 10 min | 429 |
+
+All rules: key `ip`, fixed window of 600 s (the Pro maximum), every method counted.
+
+**How the numbers were picked.** One mirror is one IP; a household (or a CGNAT address) can
+put several mirrors and several face profiles behind one IP, and the WAF counts CDN cache hits.
+
+| Endpoint | One mirror, normal use | Sizing case for the limit |
+|---|---|---|
+| NOTAMs | 1 request per airport per 30 min (`services/notam.ts`), 5 min retry after a failure | 4 mirrors × ~8 airports, all restarting at once ≈ 32; limit 60 |
+| Stocks | 1 request per symbol per 5 min, up to 12 symbols (`services/finance.ts`); names once a day; 2 min retry after a failure | 2 mirrors × 3 profiles × 12 symbols × 2 refreshes ≈ 144 + profiles; limit 300 |
+| OAuth config | once per 10 min while calendars are used, 1 min after a failure (`calendar/auth-service.ts`) | 4 mirrors × 10 = 40; limit 60 |
+| OAuth token | 1 refresh per Google account per hour + rare sign-ins | 4 mirrors × a few accounts ≈ 10–20; limit 60 |
+
+A mirror that does get a 429 serves its cached data and retries later, as for any upstream
+failure.
+
+**Caveats.**
+- Counters are per Vercel region. A single client always lands in the same region, so a
+  single abuser gets the limit above; a distributed one gets up to that much per region per IP.
+- Per-IP limits don't stop a botnet, and the stock limit is per request, not per symbol: a
+  request may carry 20 symbols (20 Finnhub calls) while the mirror always sends one. If
+  Finnhub quota is abused, lowering the symbol cap in `api/_lib/data.ts` to a few is the
+  next step.
+- Rate limiting is usage-billed on Pro (blocked requests are not billed as function or
+  bandwidth usage). Pro allows 40 rate-limit rules per project, windows 10 s to 10 min.
+
+**Alternative considered: a shared counter in Neon Postgres** (`DATABASE_URL`, already
+planned for licensing). It would be exact across regions and could count per symbol, but it
+adds a database round trip to every function call, keeps the function (and its cost) running
+for abusive traffic, makes the data endpoints depend on the database being up, and needs code
+plus a table and cleanup. The WAF rejects abuse before any of that and needs no code. The
+in-function limiter stays as a second line for anything the WAF lets through.
 
 ## Endpoints
 
