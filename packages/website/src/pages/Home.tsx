@@ -1,31 +1,29 @@
 import {
   SEO,
   Hero,
-  Features,
   HowItWorks,
+  Features,
   Customization,
-  InteractiveDemo,
+  PrivacyBand,
   Pricing,
   FAQ,
-  Footer,
+  Waitlist,
 } from '../components'
 
-interface HomeProps {
-  onWaitlistClick: () => void
-}
-
-export function Home({ onWaitlistClick }: HomeProps) {
+export function Home() {
   return (
     <>
       <SEO canonical="/" />
-      <Hero onWaitlistClick={onWaitlistClick} />
-      <Features />
-      <HowItWorks />
-      <Customization />
-      <InteractiveDemo />
-      <Pricing onWaitlistClick={onWaitlistClick} />
-      <FAQ />
-      <Footer onWaitlistClick={onWaitlistClick} />
+      <div id="top" className="site-container scroll-mt-24">
+        <Hero />
+        <HowItWorks />
+        <Features />
+        <Customization />
+        <PrivacyBand />
+        <Pricing />
+        <FAQ />
+        <Waitlist />
+      </div>
     </>
   )
 }

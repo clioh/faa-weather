@@ -11,7 +11,7 @@ const meta: Meta<typeof ShippingForm> = {
   tags: ['autodocs'],
   decorators: [
     (Story) => (
-      <div className="w-[500px] p-6 bg-void">
+      <div className="w-[500px] p-6 bg-bg">
         <Story />
       </div>
     ),

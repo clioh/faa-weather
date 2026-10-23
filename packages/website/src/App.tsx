@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
-import { Navigation, WaitlistModal, CartDrawer } from './components'
-import { Home, Privacy, Terms, Team, Checkout, CheckoutSuccess, NotFound, Admin, License } from './pages'
+import { Navigation, CartDrawer, SiteFooter } from './components'
+import { Home, Privacy, Terms, Team, Checkout, CheckoutSuccess, NotFound, Admin, License, Invite } from './pages'
 import { canPurchase } from './config/features'
 
-// /license?token=… is a sign-in link from email. Never send the token to analytics.
-function redactLicenseToken<T extends { url: string }>(event: T): T {
+// /license?token=… is a sign-in link from email, and /invite#…&t=… carries a single-use
+// invite token in the fragment. Never send either token to analytics.
+function redactTokens<T extends { url: string }>(event: T): T {
   const url = new URL(event.url)
-  if (!url.searchParams.has('token')) return event
+  const hasToken = url.searchParams.has('token')
+  if (!hasToken && !url.hash) return event
   url.searchParams.delete('token')
+  if (url.pathname.startsWith('/invite')) url.hash = ''
   return { ...event, url: url.toString() }
 }
 
@@ -19,8 +22,14 @@ function redactLicenseToken<T extends { url: string }>(event: T): T {
 function ScrollToHash() {
   const { pathname, hash, key } = useLocation()
   useEffect(() => {
-    if (!hash) return
-    const id = decodeURIComponent(hash.slice(1))
+    // /invite keeps its parameters in the hash; it is not an element id.
+    if (!hash || pathname.startsWith('/invite')) return
+    let id: string
+    try {
+      id = decodeURIComponent(hash.slice(1))
+    } catch {
+      return
+    }
     let frame = 0
     let tries = 0
     const tryScroll = () => {
@@ -35,25 +44,21 @@ function ScrollToHash() {
 }
 
 export default function App() {
-  const [isWaitlistOpen, setIsWaitlistOpen] = useState(false)
-
-  const openWaitlist = () => setIsWaitlistOpen(true)
-  const closeWaitlist = () => setIsWaitlistOpen(false)
-
   const ecommerceEnabled = canPurchase()
 
   return (
-    <div className="relative noise">
+    <div>
       <ScrollToHash />
       <Routes>
         <Route
           path="/"
           element={
             <>
-              <Navigation onWaitlistClick={openWaitlist} />
+              <Navigation />
               <main>
-                <Home onWaitlistClick={openWaitlist} />
+                <Home />
               </main>
+              <SiteFooter />
             </>
           }
         />
@@ -62,6 +67,7 @@ export default function App() {
         <Route path="/team" element={<Team />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/license" element={<License />} />
+        <Route path="/invite" element={<Invite />} />
         {/* E-commerce routes - only available when feature flag is enabled */}
         {ecommerceEnabled && (
           <>
@@ -72,9 +78,8 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      <WaitlistModal isOpen={isWaitlistOpen} onClose={closeWaitlist} />
       {ecommerceEnabled && <CartDrawer />}
-      <Analytics beforeSend={redactLicenseToken} />
+      <Analytics beforeSend={redactTokens} />
     </div>
   )
 }

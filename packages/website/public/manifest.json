@@ -4,8 +4,8 @@
   "description": "A smart mirror that displays live METAR, TFRs, and your flight schedule. Built by a pilot, for pilots.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0f",
-  "theme_color": "#0a0a0f",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
   "icons": [
     {

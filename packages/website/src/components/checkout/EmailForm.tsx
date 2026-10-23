@@ -19,29 +19,30 @@ export function EmailForm({ defaultEmail, onSubmit }: EmailFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <h2 className="font-display text-2xl font-bold text-light">Contact Information</h2>
+      <h2 className="text-[28px] font-light tracking-[-0.01em] text-fg">Contact information</h2>
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-muted mb-2">
-          Email <span className="text-ifr">*</span>
+        <label htmlFor="email" className="field-label">
+          Email <span className="text-fg-3" aria-hidden="true">*</span>
         </label>
         <input
           {...register('email')}
           id="email"
           type="email"
-          className="form-input"
+          className="field-input"
           autoComplete="email"
+          aria-invalid={errors.email ? 'true' : undefined}
           placeholder="your@email.com"
         />
-        {errors.email && <p className="mt-1 text-sm text-ifr">{errors.email.message}</p>}
+        {errors.email && <p className="field-error">{errors.email.message}</p>}
       </div>
 
-      <p className="text-xs text-muted">
+      <p className="text-xs text-fg-3">
         We&apos;ll send your receipt and shipping updates to this email.
       </p>
 
-      <button type="submit" className="w-full btn-primary">
-        Continue to Shipping
+      <button type="submit" className="btn btn-primary w-full">
+        Continue to shipping
       </button>
     </form>
   )

@@ -34,77 +34,77 @@ export function OrderSummary({
   const isFreeShipping = shipping === 0
 
   return (
-    <div className="instrument-card p-6 lg:sticky lg:top-6">
+    <div className="panel p-5 sm:p-7 lg:sticky lg:top-6">
       {/* Items */}
-      <div className="space-y-4 pb-6 border-b border-border">
+      <ul className="pb-2">
         {items.map((item) => (
-          <div key={item.product.id} className="flex gap-4">
-            <div className="w-16 h-16 bg-panel border border-border rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg className="w-8 h-8 text-amber/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <li key={item.product.id} className="flex gap-4 py-4 border-b border-line last:border-b-0">
+            <div className="w-14 h-14 rounded-xl border border-line bg-tint flex items-center justify-center flex-shrink-0">
+              <svg className="w-7 h-7 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="3" y="2" width="18" height="20" rx="2" strokeWidth={1.5} />
                 <circle cx="18" cy="5" r="1.5" fill="currentColor" />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-light font-medium truncate">{item.product.name}</p>
-              <p className="text-sm text-muted">Qty: {item.quantity}</p>
+              <p className="text-fg font-medium truncate">{item.product.name}</p>
+              <p className="text-sm text-fg-2">
+                Qty: <span className="font-mono">{item.quantity}</span>
+              </p>
             </div>
-            <p className="text-light font-medium">{formatPrice(item.product.price * item.quantity)}</p>
-          </div>
+            <p className="font-mono text-fg">{formatPrice(item.product.price * item.quantity)}</p>
+          </li>
         ))}
-      </div>
+      </ul>
 
-      {/* Totals */}
-      <div className="pt-6 space-y-3">
-        <div className="flex justify-between text-muted">
-          <span>Subtotal</span>
-          <span>{formatPrice(subtotal)}</span>
+      {/* Totals: hairline rows */}
+      <dl className="text-sm">
+        <div className="flex justify-between gap-4 py-3 border-t border-line">
+          <dt className="text-fg-2">Subtotal</dt>
+          <dd className="font-mono text-fg">{formatPrice(subtotal)}</dd>
         </div>
 
         {/* Promo discount */}
         {promoData && promoData.discountAmount > 0 && (
-          <div className="flex justify-between text-green-400">
-            <span className="flex items-center gap-2">
-              Discount ({promoData.code})
+          <div className="flex items-center justify-between gap-4 py-1 border-t border-line">
+            <dt className="flex items-center gap-1 text-fg-2">
+              Discount (<span className="font-mono">{promoData.code}</span>)
               {onRemovePromo && (
                 <button
                   onClick={onRemovePromo}
-                  className="text-muted hover:text-ifr transition-colors"
+                  className="w-11 h-11 flex items-center justify-center rounded-full text-fg-3 hover:text-danger transition-colors"
                   aria-label="Remove promo code"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}
-            </span>
-            <span>-{formatPrice(discount)}</span>
+            </dt>
+            <dd className="font-mono text-fg">-{formatPrice(discount)}</dd>
           </div>
         )}
 
-        <div className="flex justify-between text-muted">
-          <span className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-4 py-3 border-t border-line">
+          <dt className="flex items-center gap-2 text-fg-2">
             Shipping
-            {isFreeShipping && (
-              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">FREE</span>
-            )}
-          </span>
-          <span>{isFreeShipping ? 'Free' : formatPrice(shipping)}</span>
+            {isFreeShipping && <span className="badge">FREE</span>}
+          </dt>
+          <dd className="font-mono text-fg">{isFreeShipping ? 'Free' : formatPrice(shipping)}</dd>
         </div>
 
-        <div className="flex justify-between text-muted">
-          <span className="flex items-center gap-1">
+        <div className="flex justify-between gap-4 py-3 border-t border-line">
+          <dt className="flex items-center gap-1 text-fg-2">
             Tax
-            {taxSource === 'estimating' && <span className="text-xs text-muted">(estimated)</span>}
-          </span>
-          <span>{formatPrice(tax)}</span>
+            {taxSource === 'estimating' && <span className="text-xs text-fg-3">(estimated)</span>}
+          </dt>
+          <dd className="font-mono text-fg">{formatPrice(tax)}</dd>
         </div>
 
-        <div className="flex justify-between text-light font-bold text-lg pt-3 border-t border-border">
-          <span>Total</span>
-          <span>{formatPrice(total)}</span>
+        <div className="flex items-baseline justify-between gap-4 pt-4 pb-1 border-t border-line-strong">
+          <dt className="text-base font-medium text-fg">Total</dt>
+          <dd className="font-mono text-2xl font-light text-fg">{formatPrice(total)}</dd>
         </div>
-      </div>
+      </dl>
     </div>
   )
 }

@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
-import { SEO } from '../components'
+import { SEO, PageHeader, SiteFooter } from '../components'
 import { useCart, formatPrice, cartRequiresShipping } from '../store/cart'
-import { stripePromise, stripeAppearance } from '../config/stripe'
+import { stripePromise, stripeAppearance, stripeFonts } from '../config/stripe'
 import { FALLBACK_TAX_RATE, isUsZip, shippingCostFor, type BillingAddress } from '../../shared/catalog'
 
 type CheckoutStep = 'information' | 'shipping' | 'payment'
@@ -108,48 +108,46 @@ function PaymentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-2xl font-bold text-light">Payment</h2>
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-sm text-amber hover:underline"
-        >
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-[28px] font-light tracking-[-0.01em] text-fg">Payment</h2>
+        <button type="button" onClick={onBack} className="link min-h-11 inline-flex items-center text-sm">
           {needsShipping ? 'Edit shipping' : 'Edit contact'}
         </button>
       </div>
 
       {/* Delivery summary */}
       {needsShipping ? (
-        <div className="p-4 bg-panel border border-border rounded-lg">
-          <p className="text-sm text-muted mb-1">Shipping to</p>
-          <p className="text-light">
+        <div className="rounded-2xl border border-line bg-tint p-4">
+          <p className="text-[13px] text-fg-3 mb-1">Shipping to</p>
+          <p className="text-fg">
             {shippingData.firstName} {shippingData.lastName}
           </p>
-          <p className="text-muted text-sm">
+          <p className="text-fg-2 text-sm">
             {shippingData.address}
             {shippingData.apartment && `, ${shippingData.apartment}`}
             <br />
-            {shippingData.city}, {shippingData.state} {shippingData.zip}
+            {shippingData.city}, {shippingData.state} <span className="font-mono">{shippingData.zip}</span>
           </p>
         </div>
       ) : (
-        <div className="p-4 bg-panel border border-border rounded-lg">
-          <p className="text-sm text-muted mb-1">License key will be emailed to</p>
-          <p className="text-light font-mono break-all">{shippingData.email}</p>
+        <div className="rounded-2xl border border-line bg-tint p-4">
+          <p className="text-[13px] text-fg-3 mb-1">License key will be emailed to</p>
+          <p className="text-fg break-all">{shippingData.email}</p>
           {billingAddress && (
-            <p className="text-muted text-sm mt-1">Billing ZIP {billingAddress.postal_code}</p>
+            <p className="text-fg-2 text-sm mt-1">
+              Billing ZIP <span className="font-mono">{billingAddress.postal_code}</span>
+            </p>
           )}
         </div>
       )}
 
       {/* Stripe Payment Element */}
-      <div className="instrument-card p-6">
+      <div>
         <div className="flex items-center gap-2 mb-4">
-          <svg className="w-5 h-5 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-fg-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
           </svg>
-          <span className="font-display font-semibold text-light">Payment Details</span>
+          <span className="section-label">Payment details</span>
         </div>
 
         <PaymentElement
@@ -173,21 +171,21 @@ function PaymentForm({
 
       {/* Error message */}
       {error && (
-        <div className="px-4 py-3 bg-ifr/10 border border-ifr/30 rounded-lg text-ifr text-sm flex items-start gap-3">
-          <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div role="alert" className="notice notice-error flex items-start gap-3">
+          <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           {error}
         </div>
       )}
 
-      <p className="text-xs text-muted text-center">
+      <p className="text-xs text-fg-3 text-center">
         By placing your order you agree to the{' '}
-        <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline">
+        <Link to="/terms" target="_blank" rel="noopener noreferrer" className="link">
           Terms of Service
         </Link>{' '}
         and{' '}
-        <Link to="/terms#refunds" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline">
+        <Link to="/terms#refunds" target="_blank" rel="noopener noreferrer" className="link">
           Refund Policy
         </Link>
         .
@@ -197,11 +195,11 @@ function PaymentForm({
       <button
         type="submit"
         disabled={isProcessing || !stripe || !elements}
-        className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+        className="btn btn-primary w-full"
       >
         {isProcessing ? (
           <>
-            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
@@ -209,15 +207,15 @@ function PaymentForm({
           </>
         ) : (
           <>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            Pay Now
+            Pay now
           </>
         )}
       </button>
 
-      <p className="text-xs text-muted text-center">
+      <p className="text-xs text-fg-3 text-center">
         Your payment is secured by Stripe. We never store your card details.
       </p>
     </form>
@@ -587,97 +585,104 @@ export function Checkout() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-void flex items-center justify-center p-6">
+      <div className="min-h-screen bg-bg flex flex-col">
         <SEO title="Checkout" description="Complete your SkyGlass order" />
-        <div className="text-center">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-panel border border-border flex items-center justify-center">
-            <svg className="w-10 h-10 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
+        <PageHeader />
+        <main className="page-container flex-1 flex items-center justify-center py-16">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full border border-line flex items-center justify-center">
+              <svg className="w-8 h-8 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <h1 className="display-3 text-fg mb-3">Your cart is empty</h1>
+            <p className="text-fg-2 mb-8">Add some items to your cart to checkout.</p>
+            <Link to="/#pricing" className="btn btn-primary">
+              View products
+            </Link>
           </div>
-          <h1 className="font-display text-2xl font-bold text-light mb-2">Your cart is empty</h1>
-          <p className="text-muted mb-6">Add some items to your cart to checkout.</p>
-          <Link to="/#pricing" className="btn-primary">
-            View Products
-          </Link>
-        </div>
+        </main>
+        <SiteFooter />
       </div>
     )
   }
 
+  const stepClass = (s: CheckoutStep) => (step === s ? 'text-fg' : 'text-fg-3')
+  const chevron = (
+    <svg className="w-3.5 h-3.5 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  )
+
   return (
-    <div className="min-h-screen bg-void">
+    <div className="min-h-screen bg-bg flex flex-col">
       <SEO title="Checkout" description="Complete your SkyGlass order" />
 
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3" aria-label="SkyGlass - Back to home">
-            <div className="w-10 h-10 bg-instrument border border-amber/30 rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 text-amber" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <rect x="3" y="2" width="18" height="20" rx="2" />
-                <circle cx="18" cy="5" r="1.5" fill="currentColor" />
-              </svg>
+      <PageHeader
+        right={
+          <>
+            {/* Progress indicator */}
+            <div className="hidden md:flex items-center gap-2 text-sm">
+              <span className={stepClass('information')} aria-current={step === 'information' ? 'step' : undefined}>
+                Information
+              </span>
+              {chevron}
+              {needsShipping && (
+                <>
+                  <span className={stepClass('shipping')} aria-current={step === 'shipping' ? 'step' : undefined}>
+                    Shipping
+                  </span>
+                  {chevron}
+                </>
+              )}
+              <span className={stepClass('payment')} aria-current={step === 'payment' ? 'step' : undefined}>
+                Payment
+              </span>
             </div>
-            <span className="font-display text-xl font-bold">
-              <span className="text-light">Sky</span>
-              <span className="text-amber">Glass</span>
-            </span>
-          </Link>
+            <div className="md:hidden flex items-center gap-2 text-sm text-fg-2 min-h-11">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              Secure checkout
+            </div>
+          </>
+        }
+      />
 
-          {/* Progress indicator */}
-          <div className="hidden md:flex items-center gap-2 text-sm">
-            <span className={step === 'information' ? 'text-amber' : 'text-muted'}>Information</span>
-            <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            {needsShipping && (
-              <>
-                <span className={step === 'shipping' ? 'text-amber' : 'text-muted'}>Shipping</span>
-                <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </>
-            )}
-            <span className={step === 'payment' ? 'text-amber' : 'text-muted'}>Payment</span>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid lg:grid-cols-2 gap-12">
+      <main className="site-container flex-1 pt-4 pb-20 sm:pt-8">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:gap-16">
           {/* Form Section */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
+            className="min-w-0"
           >
             {/* Information Step */}
             {step === 'information' && (
               <form onSubmit={handleInformationSubmit} className="space-y-6">
-                <h2 className="font-display text-2xl font-bold text-light">Contact</h2>
+                <h2 className="text-[28px] font-light tracking-[-0.01em] text-fg">Contact</h2>
                 <div>
-                  <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
-                    Email Address
+                  <label htmlFor="checkout-email" className="field-label">
+                    Email address
                   </label>
                   <input
+                    id="checkout-email"
                     type="email"
+                    autoComplete="email"
                     value={shippingData.email}
                     onChange={(e) => updateField('email', e.target.value)}
                     placeholder="pilot@example.com"
                     required
-                    className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50 font-mono"
+                    className="field-input"
                   />
                 </div>
 
                 {!needsShipping && (
                   <>
                     <div>
-                      <label
-                        htmlFor="billing-zip"
-                        className="block font-mono text-xs text-amber uppercase tracking-wider mb-2"
-                      >
-                        Billing ZIP Code
+                      <label htmlFor="billing-zip" className="field-label">
+                        Billing ZIP code
                       </label>
                       <input
                         id="billing-zip"
@@ -691,11 +696,11 @@ export function Checkout() {
                         pattern="\d{5}(-\d{4})?"
                         title="5-digit ZIP code or ZIP+4"
                         required
-                        className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50 font-mono"
+                        className="field-input font-mono"
                       />
-                      <p className="text-xs text-muted mt-2">Used to calculate sales tax. US only.</p>
+                      <p className="field-hint">Used to calculate sales tax. US only.</p>
                     </div>
-                    <p className="text-sm text-muted">
+                    <p className="text-sm text-fg-2">
                       Nothing ships with a Software License. Your license key is emailed here
                       after checkout.
                     </p>
@@ -703,13 +708,13 @@ export function Checkout() {
                 )}
 
                 {error && (
-                  <div className="px-4 py-3 bg-ifr/10 border border-ifr/30 rounded-lg text-ifr text-sm">
+                  <div role="alert" className="notice notice-error">
                     {error}
                   </div>
                 )}
 
-                <button type="submit" className="w-full btn-primary">
-                  {needsShipping ? 'Continue to Shipping' : 'Continue to Payment'}
+                <button type="submit" className="btn btn-primary w-full">
+                  {needsShipping ? 'Continue to shipping' : 'Continue to payment'}
                 </button>
               </form>
             )}
@@ -717,12 +722,12 @@ export function Checkout() {
             {/* Shipping Step */}
             {step === 'shipping' && needsShipping && (
               <form onSubmit={handleShippingSubmit} className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-display text-2xl font-bold text-light">Shipping</h2>
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-[28px] font-light tracking-[-0.01em] text-fg">Shipping</h2>
                   <button
                     type="button"
                     onClick={() => setStep('information')}
-                    className="text-sm text-amber hover:underline"
+                    className="link min-h-11 inline-flex items-center text-sm"
                   >
                     Edit contact
                   </button>
@@ -730,120 +735,137 @@ export function Checkout() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
-                      First Name
+                    <label htmlFor="ship-first-name" className="field-label">
+                      First name
                     </label>
                     <input
+                      id="ship-first-name"
                       type="text"
+                      autoComplete="given-name"
                       value={shippingData.firstName}
                       onChange={(e) => updateField('firstName', e.target.value)}
                       required
-                      className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50"
+                      className="field-input"
                     />
                   </div>
                   <div>
-                    <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
-                      Last Name
+                    <label htmlFor="ship-last-name" className="field-label">
+                      Last name
                     </label>
                     <input
+                      id="ship-last-name"
                       type="text"
+                      autoComplete="family-name"
                       value={shippingData.lastName}
                       onChange={(e) => updateField('lastName', e.target.value)}
                       required
-                      className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50"
+                      className="field-input"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
+                  <label htmlFor="ship-address" className="field-label">
                     Address
                   </label>
                   <input
+                    id="ship-address"
                     type="text"
+                    autoComplete="address-line1"
                     value={shippingData.address}
                     onChange={(e) => updateField('address', e.target.value)}
                     placeholder="123 Flight St"
                     required
-                    className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50"
+                    className="field-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
+                  <label htmlFor="ship-apartment" className="field-label">
                     Apartment, suite, etc. (optional)
                   </label>
                   <input
+                    id="ship-apartment"
                     type="text"
+                    autoComplete="address-line2"
                     value={shippingData.apartment}
                     onChange={(e) => updateField('apartment', e.target.value)}
-                    className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50"
+                    className="field-input"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label htmlFor="ship-city" className="field-label">
                       City
                     </label>
                     <input
+                      id="ship-city"
                       type="text"
+                      autoComplete="address-level2"
                       value={shippingData.city}
                       onChange={(e) => updateField('city', e.target.value)}
                       required
-                      className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50"
+                      className="field-input"
                     />
                   </div>
                   <div>
-                    <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
+                    <label htmlFor="ship-state" className="field-label">
                       State
                     </label>
                     <input
+                      id="ship-state"
                       type="text"
+                      autoComplete="address-level1"
                       value={shippingData.state}
                       onChange={(e) => updateField('state', e.target.value)}
                       placeholder="CA"
                       maxLength={2}
                       required
-                      className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50 uppercase"
+                      className="field-input font-mono uppercase"
                     />
                   </div>
                   <div>
-                    <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
+                    <label htmlFor="ship-zip" className="field-label">
                       ZIP
                     </label>
                     <input
+                      id="ship-zip"
                       type="text"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
                       value={shippingData.zip}
                       onChange={(e) => updateField('zip', e.target.value)}
                       placeholder="94102"
                       required
-                      className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50"
+                      className="field-input font-mono"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
+                  <label htmlFor="ship-phone" className="field-label">
                     Phone (optional)
                   </label>
                   <input
+                    id="ship-phone"
                     type="tel"
+                    autoComplete="tel"
                     value={shippingData.phone}
                     onChange={(e) => updateField('phone', e.target.value)}
                     placeholder="(555) 123-4567"
-                    className="w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50"
+                    className="field-input font-mono"
                   />
                 </div>
 
                 {error && (
-                  <div className="px-4 py-3 bg-ifr/10 border border-ifr/30 rounded-lg text-ifr text-sm">
+                  <div role="alert" className="notice notice-error">
                     {error}
                   </div>
                 )}
 
-                <button type="submit" className="w-full btn-primary">
-                  Continue to Payment
+                <button type="submit" className="btn btn-primary w-full">
+                  Continue to payment
                 </button>
               </form>
             )}
@@ -852,30 +874,30 @@ export function Checkout() {
             {step === 'payment' && (
               <>
                 {isLoadingPayment ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <svg className="w-8 h-8 animate-spin text-amber mb-4" fill="none" viewBox="0 0 24 24">
+                  <div className="flex flex-col items-center justify-center py-12" role="status">
+                    <svg className="w-8 h-8 animate-spin text-accent mb-4" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    <p className="text-muted">Preparing secure checkout...</p>
+                    <p className="text-fg-2">Preparing secure checkout...</p>
                   </div>
                 ) : error && !clientSecret ? (
                   <div className="text-center py-12">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-ifr/10 border border-ifr/30 flex items-center justify-center">
-                      <svg className="w-8 h-8 text-ifr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full border border-danger/40 bg-danger/[0.08] flex items-center justify-center">
+                      <svg className="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <p className="text-ifr mb-4">{error}</p>
+                    <p role="alert" className="text-danger mb-6">{error}</p>
                     <button
                       onClick={() => {
                         setError(null)
                         setClientSecret(null)
                         setStep('payment')
                       }}
-                      className="btn-secondary"
+                      className="btn btn-secondary"
                     >
-                      Try Again
+                      Try again
                     </button>
                   </div>
                 ) : clientSecret ? (
@@ -886,6 +908,7 @@ export function Checkout() {
                     options={{
                       clientSecret,
                       appearance: stripeAppearance,
+                      fonts: stripeFonts,
                     }}
                   >
                     <PaymentForm
@@ -903,50 +926,51 @@ export function Checkout() {
           </motion.div>
 
           {/* Order Summary */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
+          <motion.aside
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="lg:pl-12 lg:border-l lg:border-border"
+            className="panel p-5 sm:p-7 self-start min-w-0"
+            aria-label="Order summary"
           >
-            <h2 className="font-display text-xl font-bold text-light mb-6">Order Summary</h2>
+            <h2 className="text-xl font-normal text-fg mb-2">Order summary</h2>
 
-            <div className="space-y-4 mb-6">
+            <ul>
               {items.map((item) => (
-                <div key={item.product.id} className="flex gap-4">
-                  <div className="relative w-16 h-16 bg-instrument border border-border rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-8 h-8 text-amber/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <li key={item.product.id} className="flex gap-4 py-4 border-b border-line last:border-b-0">
+                  <div className="relative w-14 h-14 rounded-xl border border-line bg-tint flex items-center justify-center flex-shrink-0">
+                    <svg className="w-7 h-7 text-fg-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <rect x="3" y="2" width="18" height="20" rx="2" strokeWidth={1.5} />
                       <circle cx="18" cy="5" r="1.5" fill="currentColor" />
                     </svg>
                     {item.quantity > 1 && (
-                      <span className="absolute -top-2 -right-2 w-5 h-5 bg-amber text-void text-xs font-bold rounded-full flex items-center justify-center">
+                      <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-fg text-bg font-mono text-[11px] font-medium flex items-center justify-center">
                         {item.quantity}
                       </span>
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-display font-semibold text-light">{item.product.name}</h3>
-                    <p className="text-sm text-muted">{item.product.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-fg">{item.product.name}</h3>
+                    <p className="text-sm text-fg-2">{item.product.description}</p>
                   </div>
-                  <div className="font-mono text-light">
+                  <div className="font-mono text-fg">
                     {formatPrice(item.product.price * item.quantity)}
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
 
             {/* Promo Code Input */}
-            <div className="border-t border-border pt-4">
+            <div className="border-t border-line py-4">
               {promoData.code ? (
                 // Applied promo code
-                <div className="flex items-center justify-between bg-vfr/10 border border-vfr/30 rounded-lg px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center justify-between gap-3 rounded-[14px] border border-accent/40 bg-accent-muted pl-4 pr-1 min-h-[52px]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="font-mono text-sm text-vfr">{promoData.code}</span>
-                    <span className="text-xs text-vfr/70">
+                    <span className="font-mono text-sm text-fg truncate">{promoData.code}</span>
+                    <span className="font-mono text-xs text-fg-2">
                       {promoData.discountType === 'percent'
                         ? `${promoData.percentOff}% off`
                         : `-${formatPrice(promoData.amountOff! / 100)}`}
@@ -955,10 +979,10 @@ export function Checkout() {
                   <button
                     onClick={removePromoCode}
                     disabled={promoLocked}
-                    className="text-muted hover:text-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full text-fg-2 hover:text-fg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Remove promo code"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -982,15 +1006,17 @@ export function Checkout() {
                         }
                       }}
                       placeholder="Promo code"
-                      className="flex-1 px-3 py-2 bg-panel border border-border rounded-lg text-light placeholder:text-muted text-sm font-mono focus:outline-none focus:border-amber/50 uppercase disabled:opacity-50"
+                      aria-label="Promo code"
+                      aria-invalid={promoData.error ? 'true' : undefined}
+                      className="field-input flex-1 min-w-0 font-mono uppercase disabled:opacity-50"
                     />
                     <button
                       onClick={validatePromoCode}
                       disabled={promoLocked || promoData.isValidating || !promoInput.trim()}
-                      className="px-4 py-2 bg-instrument border border-border rounded-lg text-sm text-light hover:bg-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="btn btn-secondary btn-sm h-[52px] rounded-[26px] flex-shrink-0"
                     >
                       {promoData.isValidating ? (
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-label="Checking code">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
@@ -1000,87 +1026,90 @@ export function Checkout() {
                     </button>
                   </div>
                   {promoData.error && (
-                    <p className="text-ifr text-xs mt-2">{promoData.error}</p>
+                    <p role="alert" className="field-error">{promoData.error}</p>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="border-t border-border pt-4 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted">Subtotal</span>
-                <span className="text-light font-mono">{formatPrice(subtotal)}</span>
+            {/* Totals: hairline rows */}
+            <dl className="text-sm">
+              <div className="flex justify-between gap-4 py-3 border-t border-line">
+                <dt className="text-fg-2">Subtotal</dt>
+                <dd className="text-fg font-mono">{formatPrice(subtotal)}</dd>
               </div>
               {discountCents > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-vfr">Discount</span>
-                  <span className="text-vfr font-mono">-{formatPrice(discountCents / 100)}</span>
+                <div className="flex justify-between gap-4 py-3 border-t border-line">
+                  <dt className="text-fg-2">Discount</dt>
+                  <dd className="text-fg font-mono">-{formatPrice(discountCents / 100)}</dd>
                 </div>
               )}
               {needsShipping && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">Shipping</span>
-                  <span className="text-light font-mono">
+                <div className="flex justify-between gap-4 py-3 border-t border-line">
+                  <dt className="text-fg-2">Shipping</dt>
+                  <dd className="text-fg font-mono">
                     {shipping === 0 ? 'Free' : formatPrice(shipping)}
-                  </span>
+                  </dd>
                 </div>
               )}
-              <div className="flex justify-between text-sm">
-                <span className="text-muted flex items-center gap-2">
+              <div className="flex justify-between gap-4 py-3 border-t border-line">
+                <dt className="text-fg-2 flex items-center gap-2">
                   Tax
                   {taxData.isCalculating && (
-                    <svg className="w-3 h-3 animate-spin text-amber" fill="none" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 animate-spin text-accent" fill="none" viewBox="0 0 24 24" aria-label="Calculating tax">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                   )}
                   {taxData.taxSource === 'estimating' && !taxData.isCalculating && (
-                    <span className="text-xs text-muted/60">(est.)</span>
+                    <span className="text-xs text-fg-3">(est.)</span>
                   )}
-                </span>
-                <span className="text-light font-mono">{formatPrice(tax)}</span>
+                </dt>
+                <dd className="text-fg font-mono">{formatPrice(tax)}</dd>
               </div>
-              <div className="flex justify-between pt-3 border-t border-border">
-                <span className="font-display font-semibold text-light">Total</span>
-                <span className="font-display text-xl font-bold text-amber">{formatPrice(orderTotal)}</span>
+              <div className="flex items-baseline justify-between gap-4 pt-4 pb-1 border-t border-line-strong">
+                <dt className="text-base font-medium text-fg">Total</dt>
+                <dd className="font-mono text-2xl font-light text-fg">{formatPrice(orderTotal)}</dd>
               </div>
-            </div>
+            </dl>
 
             {/* Trust badges */}
-            <div className="mt-8 pt-6 border-t border-border">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-2 text-muted">
-                  <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="mt-6 pt-4 border-t border-line">
+              <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 text-sm">
+                <div className="flex items-center gap-2 text-fg-2 min-h-11">
+                  <svg className="w-5 h-5 text-fg-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                   <span>Secure checkout</span>
                 </div>
                 {/* The hardware warranty only applies to kits */}
                 {needsShipping && (
-                  <Link to="/terms#warranty" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted hover:text-light transition-colors">
-                    <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <Link to="/terms#warranty" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-fg-2 hover:text-fg transition-colors min-h-11">
+                    <svg className="w-5 h-5 text-fg-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                     <span>1-year warranty</span>
                   </Link>
                 )}
-                <div className="flex items-center gap-2 text-muted">
-                  <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center gap-2 text-fg-2 min-h-11">
+                  <svg className="w-5 h-5 text-fg-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                   <span>Powered by Stripe</span>
                 </div>
-                <Link to="/terms#refunds" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted hover:text-light transition-colors">
-                  <svg className="w-5 h-5 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <Link to="/terms#refunds" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-fg-2 hover:text-fg transition-colors min-h-11">
+                  <svg className="w-5 h-5 text-fg-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
                   </svg>
                   <span>{needsShipping ? '30-day returns' : '30-day hassle-free refund'}</span>
                 </Link>
               </div>
             </div>
-          </motion.div>
+          </motion.aside>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

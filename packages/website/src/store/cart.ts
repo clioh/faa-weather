@@ -182,10 +182,13 @@ export const useCart = create<CartState>()(
 export const cartRequiresShipping = (items: CartItem[]) =>
   items.some((item) => item.product.physical)
 
+// Whole dollars print without cents ($549); anything else always shows two ($56.70).
 export const formatPrice = (price: number) => {
+  const fractionDigits = Number.isInteger(price) ? 0 : 2
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 0,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(price)
 }

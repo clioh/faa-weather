@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { Link, useNavigate } from 'react-router-dom'
-import { SEO } from '../components'
+import { useNavigate } from 'react-router-dom'
+import { PageHeader, SEO, SiteFooter } from '../components'
 import { getProduct } from '../store/cart'
 import {
   LicenseApiError,
@@ -17,13 +17,10 @@ import {
 const SUPPORT_EMAIL = 'support@skyglass.dev'
 const MAX_RELEASES = 3
 
-const inputClass =
-  'w-full px-4 py-3 bg-panel border border-border rounded-lg text-light placeholder:text-muted focus:outline-none focus:border-amber/50 font-mono'
-
 const statusStyles: Record<LicenseStatus, { dot: string; text: string; label: string }> = {
-  active: { dot: 'bg-vfr', text: 'text-vfr', label: 'Active' },
-  pending: { dot: 'bg-amber', text: 'text-amber', label: 'Not activated' },
-  revoked: { dot: 'bg-ifr', text: 'text-ifr', label: 'Revoked' },
+  active: { dot: 'bg-accent', text: 'text-accent', label: 'Active' },
+  pending: { dot: 'bg-warning', text: 'text-warning', label: 'Not activated' },
+  revoked: { dot: 'bg-danger', text: 'text-danger', label: 'Revoked' },
 }
 
 const maskKey = (last4: string | null) => (last4 ? `••••-••••-••••-${last4}` : 'Not assigned yet')
@@ -52,31 +49,22 @@ function Spinner({ className = 'w-5 h-5' }: { className?: string }) {
 
 function ErrorBox({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      role="alert"
-      className="px-4 py-3 bg-ifr/10 border border-ifr/30 rounded-lg text-ifr text-sm flex items-start gap-3"
-    >
-      <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <div>{children}</div>
+    <div role="alert" className="notice notice-error">
+      {children}
     </div>
   )
 }
 
 function NoticeBox({ children }: { children: React.ReactNode }) {
   return (
-    <div role="status" className="px-4 py-3 bg-vfr/10 border border-vfr/30 rounded-lg text-vfr text-sm flex items-start gap-3">
-      <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
-      <div>{children}</div>
+    <div role="status" className="notice notice-info">
+      {children}
     </div>
   )
 }
 
 const supportLink = (
-  <a href={`mailto:${SUPPORT_EMAIL}`} className="underline hover:text-light">
+  <a href={`mailto:${SUPPORT_EMAIL}`} className="underline underline-offset-2 hover:text-fg">
     {SUPPORT_EMAIL}
   </a>
 )
@@ -117,13 +105,13 @@ function RequestLinkForm({ notice }: { notice: string | null }) {
 
   if (sent) {
     return (
-      <div className="instrument-card p-6 md:p-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 bg-vfr rounded-full animate-pulse" />
-          <span className="font-mono text-sm text-vfr uppercase tracking-wider">Check your inbox</span>
+      <div className="border-y border-line py-6 space-y-4">
+        <div className="flex items-center gap-2.5">
+          <span className="w-1.5 h-1.5 bg-accent rounded-full" aria-hidden="true" />
+          <span className="section-label text-accent">Check your inbox</span>
         </div>
-        <p className="text-light">If we have licenses for that email, a sign-in link is on its way.</p>
-        <p className="text-sm text-muted">
+        <p className="text-fg">If we have licenses for that email, a sign-in link is on its way.</p>
+        <p className="text-sm text-fg-2">
           The link works for 30 minutes. Nothing arriving? Check spam, or make sure you used the same
           email as at checkout.
         </p>
@@ -133,7 +121,7 @@ function RequestLinkForm({ notice }: { notice: string | null }) {
             setSent(false)
             setEmail('')
           }}
-          className="text-sm text-amber hover:underline"
+          className="link text-sm min-h-11 inline-flex items-center"
         >
           Use a different email
         </button>
@@ -142,12 +130,12 @@ function RequestLinkForm({ notice }: { notice: string | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="instrument-card p-6 md:p-8 space-y-6" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
       {notice && <ErrorBox>{notice}</ErrorBox>}
 
       <div>
-        <label htmlFor="license-email" className="block font-mono text-xs text-amber uppercase tracking-wider mb-2">
-          Email Address
+        <label htmlFor="license-email" className="field-label">
+          Email address
         </label>
         <input
           id="license-email"
@@ -160,9 +148,10 @@ function RequestLinkForm({ notice }: { notice: string | null }) {
           }}
           placeholder="pilot@example.com"
           required
-          className={inputClass}
+          aria-invalid={error ? 'true' : undefined}
+          className="field-input"
         />
-        <p className="mt-2 text-xs text-muted">The email you used at checkout. We'll send you a sign-in link.</p>
+        <p className="field-hint">The email you used at checkout. We'll send you a sign-in link.</p>
       </div>
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -170,7 +159,7 @@ function RequestLinkForm({ notice }: { notice: string | null }) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+        className="btn btn-primary w-full sm:w-auto"
       >
         {isSubmitting ? (
           <>
@@ -178,7 +167,7 @@ function RequestLinkForm({ notice }: { notice: string | null }) {
             Sending...
           </>
         ) : (
-          'Email Me a Sign-In Link'
+          'Email me a sign-in link'
         )}
       </button>
     </form>
@@ -215,57 +204,59 @@ function LicenseCard({ license, email, releasesRemaining, confirming, isWorking,
   ]
 
   return (
-    <div className="instrument-card p-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+    <li className="border-t border-line py-6 space-y-5">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="font-display text-lg font-semibold text-light">{productName(license.productId)}</h3>
-          <p className="font-mono text-sm text-muted break-all">{maskKey(license.keyLast4)}</p>
+          <h3 className="text-lg font-normal text-fg">{productName(license.productId)}</h3>
+          <p className="font-mono text-sm text-fg-2 break-all">{maskKey(license.keyLast4)}</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className={`w-2.5 h-2.5 rounded-full ${status.dot}`} />
-          <span className={`font-mono text-xs uppercase tracking-wider ${status.text}`}>{status.label}</span>
+        <div className="flex items-center gap-2 flex-shrink-0 pt-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
+          <span className={`text-sm ${status.text}`}>{status.label}</span>
         </div>
       </div>
 
-      <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <dl className="space-y-2">
         {details.map((item) => (
-          <div key={item.label} className="p-3 bg-panel rounded-lg border border-border min-w-0">
-            <dt className="font-mono text-xs text-amber uppercase tracking-wider mb-1">{item.label}</dt>
-            <dd className="text-sm text-light font-mono break-all">{item.value}</dd>
+          <div key={item.label} className="flex items-baseline justify-between gap-4 min-w-0">
+            <dt className="text-sm text-fg-3 flex-shrink-0">{item.label}</dt>
+            <dd className="text-sm text-fg-2 font-mono text-right break-all min-w-0">{item.value}</dd>
           </div>
         ))}
       </dl>
 
       {license.status === 'revoked' && (
-        <p className="text-sm text-muted">
+        <p className="text-sm text-fg-2">
           This license was revoked after a refund or chargeback. If that's unexpected, contact {supportLink}.
         </p>
       )}
 
       {license.status === 'pending' && license.keyLast4 === null && (
-        <p className="text-sm text-muted">
+        <p className="text-sm text-fg-2">
           This license will come pre-installed on your kit's SD card. Your mirror activates it on first boot.
         </p>
       )}
 
       {canRelease && isConfirming !== 'release' && (
-        <button type="button" onClick={() => onAsk({ kind: 'release', licenseId: license.id })} className="btn-secondary text-sm px-6 py-3">
+        <button type="button" onClick={() => onAsk({ kind: 'release', licenseId: license.id })} className="btn btn-secondary btn-sm h-11">
           Release from this mirror
         </button>
       )}
 
       {canRelease && isConfirming === 'release' && (
-        <div className="p-4 bg-panel border border-amber/30 rounded-lg space-y-4">
-          <p className="text-sm text-light">Release this license from {license.mirrorId ?? 'its current mirror'}?</p>
-          <p className="text-sm text-muted">
+        <div className="panel p-4 sm:p-5 space-y-4">
+          <p className="text-fg">
+            Release this license from <span className="font-mono">{license.mirrorId ?? 'its current mirror'}</span>?
+          </p>
+          <p className="text-sm text-fg-2">
             This frees the license so you can activate it on another mirror with the same key. The current mirror
             stops working after its next check-in.
           </p>
-          <p className="font-mono text-xs uppercase tracking-wider text-amber">
+          <p className={`font-mono text-xs ${releasesRemaining <= 0 ? 'text-danger' : 'text-warning'}`}>
             {releasesRemaining} of {MAX_RELEASES} transfers left in the last 12 months
           </p>
           {releasesRemaining <= 0 ? (
-            <p className="text-sm text-muted">
+            <p className="text-sm text-fg-2">
               You've used all your transfers for now. Contact {supportLink} and we'll sort it out.
             </p>
           ) : null}
@@ -274,7 +265,7 @@ function LicenseCard({ license, email, releasesRemaining, confirming, isWorking,
               type="button"
               onClick={onConfirm}
               disabled={isWorking || releasesRemaining <= 0}
-              className="btn-primary text-sm px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="btn btn-danger btn-sm h-11"
             >
               {isWorking ? (
                 <>
@@ -282,14 +273,14 @@ function LicenseCard({ license, email, releasesRemaining, confirming, isWorking,
                   Releasing...
                 </>
               ) : (
-                'Release License'
+                'Release license'
               )}
             </button>
             <button
               type="button"
               onClick={() => onAsk(null)}
               disabled={isWorking}
-              className="px-6 py-3 bg-panel border border-border text-muted font-display text-sm uppercase tracking-wider hover:text-light hover:border-light/30 transition-colors disabled:opacity-50"
+              className="btn btn-secondary btn-sm h-11"
             >
               Cancel
             </button>
@@ -298,17 +289,19 @@ function LicenseCard({ license, email, releasesRemaining, confirming, isWorking,
       )}
 
       {canReissue && isConfirming !== 'reissue' && (
-        <button type="button" onClick={() => onAsk({ kind: 'reissue', licenseId: license.id })} className="btn-secondary text-sm px-6 py-3">
+        <button type="button" onClick={() => onAsk({ kind: 'reissue', licenseId: license.id })} className="btn btn-secondary btn-sm h-11">
           Send a new key
         </button>
       )}
 
       {canReissue && isConfirming === 'reissue' && (
-        <div className="p-4 bg-panel border border-amber/30 rounded-lg space-y-4">
-          <p className="text-sm text-light">Send a new key to {email}?</p>
-          <p className="text-sm text-muted">
+        <div className="panel p-4 sm:p-5 space-y-4">
+          <p className="text-fg">
+            Send a new key to <span className="font-mono break-all">{email}</span>?
+          </p>
+          <p className="text-sm text-fg-2">
             Use this if your key was lost or shared. The key ending in{' '}
-            <span className="font-mono text-light">{license.keyLast4}</span> stops working right away, and the new
+            <span className="font-mono text-fg">{license.keyLast4}</span> stops working right away, and the new
             key arrives by email.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -316,7 +309,7 @@ function LicenseCard({ license, email, releasesRemaining, confirming, isWorking,
               type="button"
               onClick={onConfirm}
               disabled={isWorking}
-              className="btn-primary text-sm px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="btn btn-danger btn-sm h-11"
             >
               {isWorking ? (
                 <>
@@ -324,21 +317,21 @@ function LicenseCard({ license, email, releasesRemaining, confirming, isWorking,
                   Sending...
                 </>
               ) : (
-                'Send New Key'
+                'Send new key'
               )}
             </button>
             <button
               type="button"
               onClick={() => onAsk(null)}
               disabled={isWorking}
-              className="px-6 py-3 bg-panel border border-border text-muted font-display text-sm uppercase tracking-wider hover:text-light hover:border-light/30 transition-colors disabled:opacity-50"
+              className="btn btn-secondary btn-sm h-11"
             >
               Cancel
             </button>
           </div>
         </div>
       )}
-    </div>
+    </li>
   )
 }
 
@@ -426,18 +419,18 @@ function LicenseList({ token, onExpired, onSignOut }: LicenseListProps) {
   if (isLoading && !data) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <Spinner className="w-8 h-8 text-amber mb-4" />
-        <p className="text-muted">Loading your licenses...</p>
+        <Spinner className="w-8 h-8 text-accent mb-4" />
+        <p className="text-fg-2">Loading your licenses...</p>
       </div>
     )
   }
 
   if (loadError && !data) {
     return (
-      <div className="instrument-card p-6 md:p-8 text-center space-y-6">
+      <div className="space-y-6">
         <ErrorBox>{loadError}</ErrorBox>
-        <button type="button" onClick={() => void load()} className="btn-secondary">
-          Try Again
+        <button type="button" onClick={() => void load()} className="btn btn-secondary">
+          Try again
         </button>
       </div>
     )
@@ -448,10 +441,10 @@ function LicenseList({ token, onExpired, onSignOut }: LicenseListProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <p className="text-sm text-muted">
-          Signed in as <span className="text-light font-mono break-all">{data.email}</span>
+        <p className="text-sm text-fg-2 min-w-0">
+          Signed in as <span className="text-fg font-mono break-all">{data.email}</span>
         </p>
-        <button type="button" onClick={onSignOut} className="text-sm text-amber hover:underline self-start sm:self-auto">
+        <button type="button" onClick={onSignOut} className="link text-sm min-h-11 inline-flex items-center self-start sm:self-auto">
           Sign out
         </button>
       </div>
@@ -461,28 +454,30 @@ function LicenseList({ token, onExpired, onSignOut }: LicenseListProps) {
       {loadError && <ErrorBox>{loadError}</ErrorBox>}
 
       {data.licenses.length === 0 ? (
-        <div className="instrument-card p-6 md:p-8 text-center">
-          <p className="text-light mb-2">No licenses found for this email.</p>
-          <p className="text-sm text-muted">
+        <div className="border-y border-line py-8">
+          <p className="text-fg mb-2">No licenses found for this email.</p>
+          <p className="text-sm text-fg-2">
             If you bought SkyGlass with a different email, sign out and use that one. Otherwise, contact {supportLink}.
           </p>
         </div>
       ) : (
-        data.licenses.map((license) => (
-          <LicenseCard
-            key={license.id}
-            license={license}
-            email={data.email}
-            releasesRemaining={data.releasesRemaining}
-            confirming={confirming}
-            isWorking={isWorking}
-            onAsk={ask}
-            onConfirm={() => void confirm()}
-          />
-        ))
+        <ul className="border-b border-line">
+          {data.licenses.map((license) => (
+            <LicenseCard
+              key={license.id}
+              license={license}
+              email={data.email}
+              releasesRemaining={data.releasesRemaining}
+              confirming={confirming}
+              isWorking={isWorking}
+              onAsk={ask}
+              onConfirm={() => void confirm()}
+            />
+          ))}
+        </ul>
       )}
 
-      <p className="text-xs text-muted text-center">
+      <p className="text-xs text-fg-3">
         One license runs one mirror at a time. You can move a license {MAX_RELEASES} times in any 12 months
         ({data.releasesRemaining} left). Reinstalling the same Pi never uses one up.
       </p>
@@ -518,7 +513,7 @@ export function License() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-void flex flex-col">
+    <div className="min-h-screen bg-bg flex flex-col overflow-x-hidden">
       <SEO
         title="Manage Your License"
         description="Release a SkyGlass license from a mirror or request a new license key."
@@ -526,38 +521,16 @@ export function License() {
         noindex
       />
 
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group" aria-label="SkyGlass - Back to home">
-            <div className="w-10 h-10 bg-instrument border border-amber/30 rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 text-amber" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <rect x="3" y="2" width="18" height="20" rx="2" />
-                <circle cx="18" cy="5" r="1.5" fill="currentColor" />
-              </svg>
-            </div>
-            <span className="font-display text-xl font-bold">
-              <span className="text-light">Sky</span>
-              <span className="text-amber">Glass</span>
-            </span>
-          </Link>
-          <Link to="/" className="text-sm text-muted hover:text-amber transition-colors">
-            ← Back to Home
-          </Link>
-        </div>
-      </header>
+      <PageHeader />
 
-      {/* Content */}
       <motion.main
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="flex-1 w-full max-w-2xl mx-auto px-6 py-16"
+        className="page-container flex-1 pt-10 pb-20 sm:pt-16"
       >
-        <h1 className="font-display text-4xl font-bold text-light mb-4">
-          Manage your <span className="text-gradient-amber">license</span>
-        </h1>
-        <p className="text-muted mb-10">
+        <h1 className="display-3 text-fg mb-4">Manage your license</h1>
+        <p className="text-fg-2 mb-10">
           {token
             ? 'Move a license to a new mirror, or replace a key that was lost.'
             : "Enter the email you used at checkout and we'll send you a link to view and move your licenses."}
@@ -568,19 +541,16 @@ export function License() {
         ) : (
           <RequestLinkForm notice={notice} />
         )}
+
+        <p className="mt-12 text-sm text-fg-3">
+          Need help?{' '}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="link">
+            {SUPPORT_EMAIL}
+          </a>
+        </p>
       </motion.main>
 
-      {/* Minimal footer */}
-      <footer className="border-t border-border py-6">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <p className="text-sm text-muted">
-            Need help?{' '}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber hover:underline">
-              {SUPPORT_EMAIL}
-            </a>
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

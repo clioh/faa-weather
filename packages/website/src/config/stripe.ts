@@ -16,37 +16,39 @@ if (!stripeConfigured && import.meta.env.DEV) {
   console.warn('[SkyGlass] VITE_STRIPE_PUBLISHABLE_KEY is not set; checkout is disabled.')
 }
 
-// Custom appearance to match SkyGlass branding
-// Colors from tailwind.config.js:
-// - void: #0a0a0f (dark background)
-// - panel: #12121a (card background)
-// - instrument: #1a1a24 (input background)
-// - border: #2a2a3a
-// - amber: #f5a623 (accent)
-// - light: #e8e8ec (text)
-// - muted: #8a8a9a (secondary text)
+// Payment Element styled in the Glass Cockpit language (docs/design/DESIGN_SYSTEM.md,
+// tokens in src/index.css). The Element renders in Stripe's iframe, so the values are
+// repeated here rather than read from CSS:
+// - bg #000000 (black ground; inputs are transparent on it)
+// - accent #7ad7ff (focus, selected tab, success; success is never the VFR colour)
+// - fg #ffffff, fg-2 rgba(255,255,255,0.68), placeholder rgba(255,255,255,0.4)
+// - line rgba(255,255,255,0.14) (hairlines), line-strong rgba(255,255,255,0.24) (inputs)
+// - danger #ff6b7a
+// Inputs match .field-input: 52px tall, radius 14, accent border on focus, no focus shadow.
+
+const INTER = '"Inter", -apple-system, sans-serif'
 
 export const stripeAppearance: Appearance = {
   theme: 'night',
-  labels: 'floating',
+  labels: 'above',
   variables: {
     // Colors
-    colorPrimary: '#f5a623', // amber
-    colorBackground: '#1a1a24', // instrument
-    colorText: '#e8e8ec', // light
-    colorTextSecondary: '#8a8a9a', // muted
-    colorTextPlaceholder: '#5a5a6a',
-    colorDanger: '#ef4444', // red for errors
-    colorSuccess: '#4ade80', // green (vfr)
+    colorPrimary: '#7ad7ff', // accent
+    colorBackground: '#000000', // bg
+    colorText: '#ffffff', // fg
+    colorTextSecondary: 'rgba(255, 255, 255, 0.68)', // fg-2
+    colorTextPlaceholder: 'rgba(255, 255, 255, 0.4)', // fg-disabled
+    colorDanger: '#ff6b7a', // danger
+    colorSuccess: '#7ad7ff', // success uses the accent
+
+    // Text on the accent fill
+    colorPrimaryText: '#00141f', // on-accent
 
     // Borders
-    borderRadius: '8px',
+    borderRadius: '14px',
 
-    // Focus
-    colorPrimaryText: '#0a0a0f', // void (for contrast on amber)
-
-    // Fonts - match the site's mono font for card numbers
-    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+    // Fonts: Inter throughout (the card number cannot be set to mono on its own)
+    fontFamily: INTER,
     fontSizeBase: '16px',
     fontWeightNormal: '400',
     fontWeightMedium: '500',
@@ -59,72 +61,91 @@ export const stripeAppearance: Appearance = {
   },
   rules: {
     '.Input': {
-      backgroundColor: '#0a0a0f', // void
-      border: '1px solid #2a2a3a',
+      backgroundColor: 'transparent',
+      border: '1px solid rgba(255, 255, 255, 0.24)', // line-strong
       boxShadow: 'none',
-      padding: '12px 16px',
-      transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+      // 16px text + 2 x 15px padding + 2px border = 52px, like .field-input
+      padding: '15px 16px',
+      transition: 'border-color 150ms ease',
     },
     '.Input:hover': {
-      borderColor: '#3a3a4a',
+      borderColor: 'rgba(255, 255, 255, 0.5)',
     },
     '.Input:focus': {
-      borderColor: 'rgba(245, 166, 35, 0.5)', // amber/50
-      boxShadow: '0 0 0 1px rgba(245, 166, 35, 0.1)',
+      borderColor: '#7ad7ff',
+      boxShadow: 'none',
       outline: 'none',
     },
     '.Input--invalid': {
-      borderColor: '#ef4444',
-      boxShadow: '0 0 0 1px rgba(239, 68, 68, 0.1)',
+      borderColor: '#ff6b7a',
+      boxShadow: 'none',
     },
     '.Input::placeholder': {
-      color: '#5a5a6a',
+      color: 'rgba(255, 255, 255, 0.4)',
     },
     '.Label': {
-      color: '#f5a623', // amber
-      fontSize: '11px',
-      fontWeight: '500',
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase',
-      fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+      color: 'rgba(255, 255, 255, 0.68)', // fg-2, like .field-label
+      fontSize: '13px',
+      fontWeight: '400',
+      textTransform: 'none',
+      letterSpacing: 'normal',
+      fontFamily: INTER,
+      marginBottom: '8px',
     },
     '.Error': {
-      color: '#ef4444',
+      color: '#ff6b7a',
       fontSize: '12px',
-      marginTop: '4px',
+      marginTop: '6px',
     },
     '.Tab': {
-      backgroundColor: '#12121a', // panel
-      border: '1px solid #2a2a3a',
-      borderRadius: '8px',
-      color: '#8a8a9a', // muted
+      backgroundColor: 'transparent',
+      border: '1px solid rgba(255, 255, 255, 0.14)', // line
+      borderRadius: '14px',
+      boxShadow: 'none',
+      color: 'rgba(255, 255, 255, 0.68)',
     },
     '.Tab:hover': {
-      backgroundColor: '#1a1a24',
-      borderColor: '#3a3a4a',
-      color: '#e8e8ec',
+      borderColor: 'rgba(255, 255, 255, 0.24)',
+      color: '#ffffff',
+    },
+    '.Tab:focus': {
+      borderColor: '#7ad7ff',
+      boxShadow: 'none',
     },
     '.Tab--selected': {
-      backgroundColor: 'rgba(245, 166, 35, 0.1)',
-      borderColor: 'rgba(245, 166, 35, 0.5)',
-      color: '#f5a623',
+      backgroundColor: 'rgba(122, 215, 255, 0.12)', // accent-muted
+      borderColor: '#7ad7ff',
+      color: '#ffffff',
+    },
+    '.Tab--selected:focus': {
+      boxShadow: 'none',
     },
     '.TabIcon': {
       fill: 'currentColor',
+    },
+    '.TabIcon--selected': {
+      fill: '#7ad7ff',
     },
     '.TabLabel': {
       fontWeight: '500',
     },
     '.Block': {
-      backgroundColor: '#12121a',
-      borderRadius: '8px',
-      border: '1px solid #2a2a3a',
+      backgroundColor: 'transparent',
+      borderRadius: '14px',
+      border: '1px solid rgba(255, 255, 255, 0.14)', // line
+      boxShadow: 'none',
     },
   },
 }
 
+// Inter for the Payment Element iframe (it cannot see the page's fonts)
+export const stripeFonts = [
+  { cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' },
+]
+
 // Elements options
 export const stripeElementsOptions = {
   appearance: stripeAppearance,
+  fonts: stripeFonts,
   loader: 'auto' as const,
 }

@@ -21,135 +21,141 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-2xl font-bold text-light">Shipping</h2>
-        <button type="button" onClick={onBack} className="text-sm text-amber hover:underline">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-[28px] font-light tracking-[-0.01em] text-fg">Shipping</h2>
+        <button type="button" onClick={onBack} className="link min-h-11 inline-flex items-center text-sm">
           Edit email
         </button>
       </div>
 
       {/* Contact info summary */}
-      <div className="p-4 bg-panel border border-border rounded-lg">
-        <p className="text-sm text-muted mb-1">Contact</p>
-        <p className="text-light">{defaultValues.email}</p>
+      <div className="rounded-2xl border border-line bg-tint p-4">
+        <p className="text-[13px] text-fg-3 mb-1">Contact</p>
+        <p className="text-fg break-all">{defaultValues.email}</p>
       </div>
 
       {/* Name fields */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-muted mb-2">
-            First Name <span className="text-ifr">*</span>
+          <label htmlFor="firstName" className="field-label">
+            First name <span className="text-fg-3" aria-hidden="true">*</span>
           </label>
           <input
             {...register('firstName')}
             id="firstName"
             type="text"
-            className="form-input"
+            className="field-input"
+            aria-invalid={errors.firstName ? 'true' : undefined}
             autoComplete="given-name"
           />
-          {errors.firstName && <p className="mt-1 text-sm text-ifr">{errors.firstName.message}</p>}
+          {errors.firstName && <p className="field-error">{errors.firstName.message}</p>}
         </div>
         <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-muted mb-2">
-            Last Name <span className="text-ifr">*</span>
+          <label htmlFor="lastName" className="field-label">
+            Last name <span className="text-fg-3" aria-hidden="true">*</span>
           </label>
           <input
             {...register('lastName')}
             id="lastName"
             type="text"
-            className="form-input"
+            className="field-input"
+            aria-invalid={errors.lastName ? 'true' : undefined}
             autoComplete="family-name"
           />
-          {errors.lastName && <p className="mt-1 text-sm text-ifr">{errors.lastName.message}</p>}
+          {errors.lastName && <p className="field-error">{errors.lastName.message}</p>}
         </div>
       </div>
 
       {/* Address */}
       <div>
-        <label htmlFor="address" className="block text-sm font-medium text-muted mb-2">
-          Address <span className="text-ifr">*</span>
+        <label htmlFor="address" className="field-label">
+          Address <span className="text-fg-3" aria-hidden="true">*</span>
         </label>
         <input
           {...register('address')}
           id="address"
           type="text"
-          className="form-input"
+          className="field-input"
+          aria-invalid={errors.address ? 'true' : undefined}
           autoComplete="address-line1"
           placeholder="Street address"
         />
-        {errors.address && <p className="mt-1 text-sm text-ifr">{errors.address.message}</p>}
+        {errors.address && <p className="field-error">{errors.address.message}</p>}
       </div>
 
       {/* Apartment */}
       <div>
-        <label htmlFor="apartment" className="block text-sm font-medium text-muted mb-2">
-          Apartment, suite, etc. <span className="text-muted">(optional)</span>
+        <label htmlFor="apartment" className="field-label">
+          Apartment, suite, etc. <span className="text-fg-3">(optional)</span>
         </label>
         <input
           {...register('apartment')}
           id="apartment"
           type="text"
-          className="form-input"
+          className="field-input"
           autoComplete="address-line2"
         />
       </div>
 
       {/* City/State/Zip */}
-      <div className="grid grid-cols-6 gap-4">
-        <div className="col-span-2">
-          <label htmlFor="city" className="block text-sm font-medium text-muted mb-2">
-            City <span className="text-ifr">*</span>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="col-span-2 sm:col-span-1">
+          <label htmlFor="city" className="field-label">
+            City <span className="text-fg-3" aria-hidden="true">*</span>
           </label>
           <input
             {...register('city')}
             id="city"
             type="text"
-            className="form-input"
+            className="field-input"
+            aria-invalid={errors.city ? 'true' : undefined}
             autoComplete="address-level2"
           />
-          {errors.city && <p className="mt-1 text-sm text-ifr">{errors.city.message}</p>}
+          {errors.city && <p className="field-error">{errors.city.message}</p>}
         </div>
-        <div className="col-span-2">
-          <label htmlFor="state" className="block text-sm font-medium text-muted mb-2">
-            State <span className="text-ifr">*</span>
+        <div>
+          <label htmlFor="state" className="field-label">
+            State <span className="text-fg-3" aria-hidden="true">*</span>
           </label>
           <input
             {...register('state')}
             id="state"
             type="text"
-            className="form-input"
+            className="field-input uppercase"
+            aria-invalid={errors.state ? 'true' : undefined}
             autoComplete="address-level1"
             placeholder="e.g. CA"
             maxLength={2}
           />
-          {errors.state && <p className="mt-1 text-sm text-ifr">{errors.state.message}</p>}
+          {errors.state && <p className="field-error">{errors.state.message}</p>}
         </div>
-        <div className="col-span-2">
-          <label htmlFor="zip" className="block text-sm font-medium text-muted mb-2">
-            ZIP Code <span className="text-ifr">*</span>
+        <div>
+          <label htmlFor="zip" className="field-label">
+            ZIP code <span className="text-fg-3" aria-hidden="true">*</span>
           </label>
           <input
             {...register('zip')}
             id="zip"
             type="text"
-            className="form-input"
+            className="field-input font-mono"
+            aria-invalid={errors.zip ? 'true' : undefined}
             autoComplete="postal-code"
             maxLength={10}
           />
-          {errors.zip && <p className="mt-1 text-sm text-ifr">{errors.zip.message}</p>}
+          {errors.zip && <p className="field-error">{errors.zip.message}</p>}
         </div>
       </div>
 
       {/* Phone */}
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-muted mb-2">
-          Phone <span className="text-muted">(optional, for delivery updates)</span>
+        <label htmlFor="phone" className="field-label">
+          Phone <span className="text-fg-3">(optional, for delivery updates)</span>
         </label>
         <input
           {...register('phone')}
           id="phone"
           type="tel"
-          className="form-input"
+          className="field-input font-mono"
           autoComplete="tel"
         />
       </div>
@@ -157,11 +163,11 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
       <button
         type="submit"
         disabled={isCalculatingTax}
-        className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+        className="btn btn-primary w-full"
       >
         {isCalculatingTax ? (
           <>
-            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path
                 className="opacity-75"
@@ -169,10 +175,10 @@ export function ShippingForm({ defaultValues, onSubmit, onBack, isCalculatingTax
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            Calculating Tax...
+            Calculating tax...
           </>
         ) : (
-          'Continue to Payment'
+          'Continue to payment'
         )}
       </button>
     </form>

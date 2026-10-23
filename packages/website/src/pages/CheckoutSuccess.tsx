@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { SEO } from '../components'
+import { SEO, PageHeader, SiteFooter } from '../components'
 import { useCart, cartRequiresShipping } from '../store/cart'
 import { isPreorderMode } from '../config/features'
 
@@ -52,46 +52,30 @@ export function CheckoutSuccess() {
   }
 
   return (
-    <div className="min-h-screen bg-void flex flex-col">
+    <div className="min-h-screen bg-bg flex flex-col">
       <SEO
         title={isProcessing ? 'Payment Processing' : 'Order Confirmed'}
         description="Thank you for your SkyGlass order"
       />
 
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          <Link to="/" className="flex items-center gap-3" aria-label="SkyGlass - Back to home">
-            <div className="w-10 h-10 bg-instrument border border-amber/30 rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 text-amber" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <rect x="3" y="2" width="18" height="20" rx="2" />
-                <circle cx="18" cy="5" r="1.5" fill="currentColor" />
-              </svg>
-            </div>
-            <span className="font-display text-xl font-bold">
-              <span className="text-light">Sky</span>
-              <span className="text-amber">Glass</span>
-            </span>
-          </Link>
-        </div>
-      </header>
+      <PageHeader />
 
       {/* Content */}
-      <main className="flex-1 flex items-center justify-center p-6">
+      <main className="page-container flex-1 pt-6 pb-20 sm:pt-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="max-w-lg w-full text-center"
+          className="max-w-lg mx-auto w-full text-center"
         >
-          {/* Success icon */}
+          {/* Success icon: accent tick (success uses the accent) */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="w-24 h-24 mx-auto mb-8 rounded-full bg-vfr/20 border border-vfr/50 flex items-center justify-center"
+            className="w-20 h-20 mx-auto mb-8 rounded-full bg-accent-muted border border-accent/50 flex items-center justify-center"
           >
-            <svg className="w-12 h-12 text-vfr" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-10 h-10 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <motion.path
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
@@ -104,10 +88,10 @@ export function CheckoutSuccess() {
             </svg>
           </motion.div>
 
-          <h1 className="font-display text-3xl font-bold text-light mb-2">
-            {isProcessing ? 'Payment Processing' : 'Order Confirmed'}
+          <h1 className="display-3 text-fg mb-3">
+            {isProcessing ? 'Payment processing' : 'Order confirmed'}
           </h1>
-          <p className="text-lg text-muted mb-8">
+          <p className="text-[17px] leading-relaxed text-fg-2 mb-10">
             {isProcessing
               ? "Thanks for your order! Your payment is still processing. We'll email you as soon as it clears."
               : hasKit && hasSoftwareLicense
@@ -117,34 +101,39 @@ export function CheckoutSuccess() {
                   : 'Thanks for your order! Your SkyGlass license is on its way.'}
           </p>
 
-          {/* Order details card */}
-          <div className="instrument-card p-6 mb-8 text-left">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-3 h-3 bg-vfr rounded-full animate-pulse" />
-              <span className="font-mono text-sm text-vfr uppercase tracking-wider">
+          {/* Order details */}
+          <div className="panel p-5 sm:p-6 mb-10 text-left">
+            <div className="flex items-center gap-3 mb-2">
+              <span
+                className={`w-2 h-2 rounded-full ${isProcessing ? 'bg-warning animate-pulse' : 'bg-accent'}`}
+                aria-hidden="true"
+              />
+              <span
+                className={`font-mono text-xs uppercase tracking-[0.14em] ${isProcessing ? 'text-warning' : 'text-accent'}`}
+              >
                 {isProcessing ? 'Payment Processing' : 'Order Placed'}
               </span>
             </div>
 
-            <div className="space-y-3">
+            <dl className="text-sm">
               {orderNumber && (
-                <div className="flex justify-between">
-                  <span className="text-muted">Order number</span>
-                  <span className="font-mono text-light">{orderNumber}</span>
+                <div className="flex justify-between gap-4 py-3 border-b border-line">
+                  <dt className="text-fg-2">Order number</dt>
+                  <dd className="font-mono text-fg">{orderNumber}</dd>
                 </div>
               )}
               {hasKit && (
-                <div className="flex justify-between">
-                  <span className="text-muted">Estimated ship date</span>
-                  <span className="font-mono text-light">
+                <div className="flex justify-between gap-4 py-3 border-b border-line">
+                  <dt className="text-fg-2">Estimated ship date</dt>
+                  <dd className="font-mono text-fg text-right">
                     {isPreorderMode() ? 'Pre-order, emailed when it ships' : '2-3 weeks'}
-                  </span>
+                  </dd>
                 </div>
               )}
-            </div>
+            </dl>
 
-            <div className="mt-6 pt-4 border-t border-border space-y-3">
-              <p className="text-sm text-muted">
+            <div className="pt-4 space-y-3">
+              <p className="text-sm text-fg-2">
                 {isProcessing
                   ? "We'll send a confirmation email once your payment clears."
                   : hasKit
@@ -152,20 +141,20 @@ export function CheckoutSuccess() {
                   : 'A confirmation email has been sent to your email address with your license key and setup instructions.'}
               </p>
               {hasSoftwareLicense && (
-                <p className="text-sm text-muted">
-                  <span className="text-light">Software License:</span> your license key is in the
+                <p className="text-sm text-fg-2">
+                  <span className="text-fg font-medium">Software License:</span> your license key is in the
                   confirmation email. Enter it in the SkyGlass app when setting up your mirror.
                 </p>
               )}
               {hasKit && (
-                <p className="text-sm text-muted">
-                  <span className="text-light">Kits:</span> the license comes pre-installed on the
+                <p className="text-sm text-fg-2">
+                  <span className="text-fg font-medium">Kits:</span> the license comes pre-installed on the
                   SD card. Your mirror activates it on first boot, so there's no key to type.
                 </p>
               )}
-              <p className="text-sm text-muted">
+              <p className="text-sm text-fg-2">
                 Moving to a new mirror later? Release your license at{' '}
-                <Link to="/license" className="text-amber hover:underline">
+                <Link to="/license" className="link">
                   skyglass.dev/license
                 </Link>
                 .
@@ -174,94 +163,75 @@ export function CheckoutSuccess() {
           </div>
 
           {/* What's next */}
-          <div className="text-left mb-8">
-            <h2 className="font-display text-lg font-semibold text-light mb-4">
-              What happens next?
-            </h2>
-            <div className="space-y-4">
+          <div className="text-left mb-10">
+            <h2 className="section-label mb-2">What happens next?</h2>
+            <ol>
               {nextSteps.map((item, index) => (
-                <div key={item.title} className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-amber/10 border border-amber/30 flex items-center justify-center flex-shrink-0">
-                    <span className="font-mono text-sm text-amber">{index + 1}</span>
+                <li key={item.title} className="flex gap-4 py-4 border-t border-line last:border-b">
+                  <div className="w-8 h-8 rounded-full border border-line-strong flex items-center justify-center flex-shrink-0">
+                    <span className="font-mono text-sm text-fg-2">{index + 1}</span>
                   </div>
                   <div>
-                    <p className="font-semibold text-light">{item.title}</p>
-                    <p className="text-sm text-muted">{item.detail}</p>
+                    <p className="font-medium text-fg">{item.title}</p>
+                    <p className="text-sm text-fg-2">{item.detail}</p>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/" className="btn-primary">
-              Back to Home
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/" className="btn btn-primary">
+              Back to home
             </Link>
-            <a
-              href="mailto:support@skyglass.dev"
-              className="px-6 py-3 bg-panel border border-border text-muted font-display text-sm uppercase tracking-wider hover:text-light hover:border-light/30 transition-colors"
-            >
-              Contact Support
+            <a href="mailto:support@skyglass.dev" className="btn btn-secondary">
+              Contact support
             </a>
           </div>
         </motion.div>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }
 
 function PaymentFailed() {
   return (
-    <div className="min-h-screen bg-void flex flex-col">
+    <div className="min-h-screen bg-bg flex flex-col">
       <SEO title="Payment Not Completed" description="Your SkyGlass payment didn't go through" />
 
-      <header className="border-b border-border">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          <Link to="/" className="flex items-center gap-3" aria-label="SkyGlass - Back to home">
-            <div className="w-10 h-10 bg-instrument border border-amber/30 rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 text-amber" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <rect x="3" y="2" width="18" height="20" rx="2" />
-                <circle cx="18" cy="5" r="1.5" fill="currentColor" />
-              </svg>
-            </div>
-            <span className="font-display text-xl font-bold">
-              <span className="text-light">Sky</span>
-              <span className="text-amber">Glass</span>
-            </span>
-          </Link>
-        </div>
-      </header>
+      <PageHeader />
 
-      <main className="flex-1 flex items-center justify-center p-6">
+      <main className="page-container flex-1 flex items-center justify-center py-16">
         <div className="max-w-lg w-full text-center">
-          <div className="w-24 h-24 mx-auto mb-8 rounded-full bg-ifr/10 border border-ifr/30 flex items-center justify-center">
-            <svg className="w-12 h-12 text-ifr" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <div className="w-20 h-20 mx-auto mb-8 rounded-full bg-danger/[0.08] border border-danger/40 flex items-center justify-center">
+            <svg className="w-10 h-10 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
 
-          <h1 className="font-display text-3xl font-bold text-light mb-2">
+          <h1 className="display-3 text-fg mb-3">
             Payment didn't go through
           </h1>
-          <p className="text-lg text-muted mb-8">
+          <p className="text-[17px] leading-relaxed text-fg-2 mb-10">
             You haven't been charged. Your cart is saved, so you can try again with the same or a
             different payment method.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/checkout" className="btn-primary">
-              Return to Checkout
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/checkout" className="btn btn-primary">
+              Return to checkout
             </Link>
-            <a
-              href="mailto:support@skyglass.dev"
-              className="px-6 py-3 bg-panel border border-border text-muted font-display text-sm uppercase tracking-wider hover:text-light hover:border-light/30 transition-colors"
-            >
-              Contact Support
+            <a href="mailto:support@skyglass.dev" className="btn btn-secondary">
+              Contact support
             </a>
           </div>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

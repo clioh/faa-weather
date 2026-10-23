@@ -10,7 +10,7 @@ const meta: Meta<typeof EmailForm> = {
   tags: ['autodocs'],
   decorators: [
     (Story) => (
-      <div className="w-[400px] p-6 bg-void">
+      <div className="w-[400px] p-6 bg-bg">
         <Story />
       </div>
     ),
