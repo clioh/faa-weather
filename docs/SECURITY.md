@@ -161,6 +161,7 @@ unknown ones), except this allowlist (`PUBLIC_API_ROUTES`):
 | `GET /api/health` | reachability probe during discovery |
 | `GET /api/discovery` | exactly `mirrorId`, `name`, `version`, `setupComplete`, `pairingRequired: true`; a test in `src/pairing/deny-by-default.test.ts` fails if a field is added |
 | `POST /api/pairing/claim`, `/request`, `/complete` | pairing itself; rate limited |
+| `POST /api/invites/claim` | an invited person's phone accepting; rate limited like pairing |
 
 Static frontend files (non-`/api`, production only) are public; they contain
 no data. `src/pairing/deny-by-default.test.ts` imports the real `server.ts`,
@@ -216,6 +217,31 @@ characters without control characters, line separators or bidi overrides.
 Rate limits: claim, request and complete share a limiter of 10 requests per
 5 minutes per client address plus 60 per 5 minutes overall (local callers
 are exempt), on top of the general 600 / 15 min `/api` limiter.
+
+**Invite (another person, added from a paired phone).** A paired phone adds
+someone (`POST /api/users { id, name, invited: true }`), registers their face
+and calls `POST /api/users/:id/invite` → `{ token, expiresAt, mirrorId,
+mirrorName }`. The token is `sgi_` + 192 random bits, single use, valid 7
+days; only its sha256 is stored (`user_invites`), and a new invite replaces
+the old one. It travels in the fragment of
+`https://skyglass.dev/invite#h=<host>&p=<port>&t=<token>&n=<name>&m=<mirror>`
+(QR or share sheet), so it never reaches the website's server, logs or
+analytics; the page hands off to `skyglass://invite?host&port&token`. That
+phone sends `POST /api/invites/claim { token, deviceName }` → `{ deviceId,
+token, mirror, user: { id, name } }`: it is paired as that person and the
+person has joined. An unknown, used or expired token gives `400 { error:
+'invalid_invite' }`; inviting someone who has joined gives `409
+already_joined`. Anyone holding the link before it is used can claim it, the
+same exposure as a pairing QR but for 7 days, which is why it is single use,
+re-sendable (revoking the old one) and still needs the home network.
+
+**Whose layout.** Each paired phone records the person it belongs to
+(`userId` in `paired-devices.json`): set when it registers its own profile
+(`POST /api/users` without `invited`) or accepts an invite. Layouts of a
+person who has joined can only be changed by their phone or the mirror
+itself (`403 not_your_layout`); until they join, any paired phone may set
+them up. A phone paired before this existed is tied to the first joined
+person whose layout it edits, if no other phone already is.
 
 Other pairing routes (any trusted caller): `GET /api/pairing/whoami` →
 `{ kind, deviceId }`; `GET /api/pairing/devices` → `{ devices: [{ id, name,

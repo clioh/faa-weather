@@ -43,6 +43,8 @@ interface MirrorLayout {
   id: string;
   name: string;
   modules: ModuleInstance[];
+  /** Editor shelf: kept with the layout, never drawn on the mirror. */
+  shelf?: ModuleInstance[];
   createdAt: string;
   updatedAt: string;
 }
@@ -122,7 +124,7 @@ function saveOAuthTokens(tokens: OAuthTokens): void {
 /**
  * Load current layout from storage
  */
-function loadCurrentLayout(): MirrorLayout {
+export function loadCurrentLayout(): MirrorLayout {
   try {
     if (fs.existsSync(CURRENT_LAYOUT_FILE)) {
       return JSON.parse(fs.readFileSync(CURRENT_LAYOUT_FILE, 'utf-8'));

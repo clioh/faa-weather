@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import pickle
+import threading
 import time
 import sys
 from dataclasses import dataclass
@@ -66,6 +67,8 @@ else:
 
 log = logging.getLogger("skyglass.detector")
 TRACE = 5  # below DEBUG: one line per camera frame
+# A presence POST that failed is retried after this long.
+PRESENCE_RETRY_S = 5.0
 logging.addLevelName(TRACE, "TRACE")
 
 FACE_DATA_DIR = Path(__file__).parent / "face_data"
@@ -173,6 +176,58 @@ def resolve_settings(args: argparse.Namespace, config_dir: Path = CONFIG_DIR) ->
             sources[key] = flag
 
     return settings, sources
+
+
+class BackendLink:
+    """Notices when the backend (re)starts, without polling.
+
+    A background thread holds GET /api/presence/stream open. The backend never
+    sends anything on it; the connection just drops when the backend stops.
+    Each time it connects, a resync is flagged and the detector re-sends its
+    current presence once (the backend starts out assuming nobody is there).
+    """
+
+    MAX_BACKOFF_S = 30.0
+
+    def __init__(self, backend_url: str):
+        self.url = f"{backend_url}/api/presence/stream"
+        self._resync = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    def start(self) -> None:
+        if self._thread is None:
+            self._thread = threading.Thread(target=self._run, name="backend-link", daemon=True)
+            self._thread.start()
+
+    def take_resync(self) -> bool:
+        """True once after each (re)connect."""
+        if self._resync.is_set():
+            self._resync.clear()
+            return True
+        return False
+
+    def _run(self) -> None:
+        delay = 1.0
+        was_down = False
+        while True:
+            try:
+                # No read timeout: the stream is silent until the backend goes away.
+                with requests.get(self.url, stream=True, timeout=(3, None)) as response:
+                    if response.status_code == 200:
+                        if was_down:
+                            log.info("Backend is back; re-sending presence")
+                        was_down = False
+                        delay = 1.0
+                        self._resync.set()
+                        for _ in response.iter_content(chunk_size=None):
+                            pass
+                    else:
+                        log.debug("Presence stream refused: HTTP %d", response.status_code)
+            except requests.exceptions.RequestException as e:
+                log.debug("Presence stream unavailable: %s", e)
+            was_down = True
+            time.sleep(delay)
+            delay = min(delay * 2, self.MAX_BACKOFF_S)
 
 
 class CameraOwner:
@@ -283,6 +338,7 @@ class PresenceDetector(CameraOwner):
         dump_dir: Optional[Path] = None,
     ):
         self.backend_url = backend_url
+        self.backend_link = BackendLink(backend_url)
         self.camera_index = camera_index
         self.tolerance = tolerance  # Lower = stricter matching
         self.min_frames = min_frames
@@ -317,6 +373,9 @@ class PresenceDetector(CameraOwner):
         # Last (present, userId) actually POSTed to the backend, so we only
         # report on externally visible transitions, not on every frame.
         self._last_reported: Optional[tuple[bool, Optional[str]]] = None
+        # When it was sent (monotonic) and whether that POST failed, for retries.
+        self._last_report_at = 0.0
+        self._report_failed = False
 
         self._users_signature: tuple = ()
         self._load_all_users()
@@ -532,19 +591,27 @@ class PresenceDetector(CameraOwner):
         return is_present, (self.current_user_id if is_present else None)
 
     def maybe_report_presence(self, confidence: float = 0.0) -> bool:
-        """POST to the backend only if the externally visible presence changed."""
+        """POST to the backend when the externally visible presence changed.
+
+        Also re-sends it after the backend (re)connects (BackendLink), and
+        retries a failed POST after PRESENCE_RETRY_S.
+        """
         current = self.reported_presence()
-        if current == self._last_reported:
+        now = time.monotonic()
+        resync = self.backend_link.take_resync()
+        retry = self._report_failed and now - self._last_report_at >= PRESENCE_RETRY_S
+        if current == self._last_reported and not resync and not retry:
             return False
-        if self._last_reported is None and not current[0]:
+        if self._last_reported is None and not current[0] and not resync:
             # Backend already assumes absent at startup; nothing to report.
             self._last_reported = current
             return False
         self._last_reported = current
-        self.report_presence(confidence)
+        self._last_report_at = now
+        self._report_failed = self.report_presence(confidence) is False
         return True
 
-    def report_presence(self, confidence: float = 0.0) -> None:
+    def report_presence(self, confidence: float = 0.0) -> bool:
         """Report presence state to backend with user identity."""
         is_present, _ = self.reported_presence()
         payload = {
@@ -563,12 +630,14 @@ class PresenceDetector(CameraOwner):
                     self.backend_url, response.status_code, response.text[:200],
                 )
                 self.report_failures += 1
-                return
+                return False
             log.debug("Backend accepted presence: %s", response.text[:200])
             self.report_successes += 1
+            return True
         except requests.exceptions.RequestException as e:
             log.warning("Failed to report presence to %s: %s", self.backend_url, e)
             self.report_failures += 1
+            return False
 
     def process_frame(self, frame) -> bool:
         """Run one frame through recognition, the state machine and reporting.
@@ -647,6 +716,7 @@ class PresenceDetector(CameraOwner):
         if not self.start_camera():
             log.error("Failed to start camera")
             return
+        self.backend_link.start()
 
         log.info(
             "Presence detection: face_recognition, %d enrolled user(s), tolerance %.2f, "
@@ -789,6 +859,7 @@ class OpenCVFaceDetector(CameraOwner):
         dump_dir: Optional[Path] = None,
     ):
         self.backend_url = backend_url
+        self.backend_link = BackendLink(backend_url)
         self.camera_index = camera_index
         self.min_frames = min_frames
         self.timeout = timeout
@@ -863,8 +934,8 @@ class OpenCVFaceDetector(CameraOwner):
             self.last_transition_reason = reason
         return changed
 
-    def report_presence(self) -> None:
-        """Report presence state to backend."""
+    def report_presence(self) -> bool:
+        """Report presence state to backend. False if the POST failed."""
         is_present = self.state in (PresenceState.PRESENT, PresenceState.DETECTING)
         try:
             response = requests.post(
@@ -883,12 +954,14 @@ class OpenCVFaceDetector(CameraOwner):
                     self.backend_url, response.status_code, response.text[:200],
                 )
                 self.report_failures += 1
-                return
+                return False
             log.debug("Backend accepted presence: %s", response.text[:200])
             self.report_successes += 1
+            return True
         except requests.exceptions.RequestException as e:
             log.warning("Failed to report presence to %s: %s", self.backend_url, e)
             self.report_failures += 1
+            return False
 
     def report_gesture(self, gesture_type: str, confidence: float) -> None:
         """Report detected gesture to backend."""
@@ -945,6 +1018,7 @@ class OpenCVFaceDetector(CameraOwner):
         if not self.start_camera():
             log.error("Failed to start camera")
             return
+        self.backend_link.start()
 
         log.info(
             "Presence detection: OpenCV YuNet (any face), min face %dpx, score >= %.2f, "
@@ -961,6 +1035,8 @@ class OpenCVFaceDetector(CameraOwner):
 
         last_gesture_text = ""
         gesture_display_until = 0
+        report_failed = False
+        last_report_at = 0.0
 
         # Heartbeat counters
         hb_started = time.time()
@@ -1007,7 +1083,12 @@ class OpenCVFaceDetector(CameraOwner):
 
                 if state_changed:
                     log.info("State -> %s (%s)", self.state.value, self.last_transition_reason)
-                    self.report_presence()
+                # On a change, after the backend (re)connects (BackendLink), or
+                # to retry a failed POST.
+                retry = report_failed and time.monotonic() - last_report_at >= PRESENCE_RETRY_S
+                if state_changed or self.backend_link.take_resync() or retry:
+                    report_failed = not self.report_presence()
+                    last_report_at = time.monotonic()
 
                 if self.dump_dir and now - last_dump >= self.DUMP_INTERVAL_SECONDS:
                     if rejected and not face_detected:

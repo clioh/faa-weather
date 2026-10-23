@@ -44,6 +44,7 @@ import { apiAuthGate } from './pairing/middleware.js';
 import { pairingService, authenticateDevice, type PairingEvent } from './pairing/index.js';
 import { WsHub } from './pairing/ws.js';
 import { createPairingRouter } from './routes/pairing.js';
+import { createInvitesRouter } from './routes/invites.js';
 import {
   presenceSchema,
   gestureSchema,
@@ -76,11 +77,7 @@ pairingService.on('pairing', (event: PairingEvent) => {
     void displayManager
       .hold(Math.max(0, event.expiresAt - Date.now()) + 5000)
       .then(() =>
-        broadcast('presence', {
-          present: displayManager.isUserPresent(),
-          displayState: displayManager.getState(),
-          hold: true,
-        })
+        broadcast('presence', presenceSnapshot(true))
       )
       .catch((error) => console.error('[Pairing] Could not wake the display:', error));
   }
@@ -185,6 +182,7 @@ app.use('/api/weather', weatherRoutes); // General weather (Open-Meteo)
 app.use('/api/todos', todosRoutes); // Todo list widget (data/todos.json)
 app.use('/api/photos', photosRoutes); // Photo frame widget (data/photos/)
 app.use('/api/pairing', createPairingRouter({ service: pairingService })); // Phone pairing (data/paired-devices.json)
+app.use('/api/invites', createInvitesRouter({ service: pairingService })); // Invited people accepting on their phone
 
 // Broadcast to all authenticated WebSocket clients (the `pairing` event
 // family goes to local sockets only, see pairing/ws.ts).
@@ -239,6 +237,35 @@ app.get('/api/config', (_req, res) => {
   });
 });
 
+/** Who the detector last reported in front of the mirror; null when nobody is. */
+let recognizedUser: { userId: string; userName: string | null } | null = null;
+
+function activeLayoutOf(userId: string) {
+  try {
+    const layout = getUserActiveLayout(userId);
+    return layout ? { id: layout.id, name: layout.name, modules: JSON.parse(layout.modules) } : null;
+  } catch {
+    return null; // Layout fetch failed, continue without it
+  }
+}
+
+/**
+ * Presence as the mirror UI needs it. Every presence message carries the
+ * recognized user and their layout, so a reloaded mirror and a display hold
+ * (phone editing, pairing code) keep showing that user's layout instead of
+ * falling back to the shared one.
+ */
+function presenceSnapshot(hold = displayManager.isHeld()) {
+  return {
+    present: displayManager.isUserPresent(),
+    displayState: displayManager.getState(),
+    hold,
+    userId: recognizedUser?.userId ?? null,
+    userName: recognizedUser?.userName ?? null,
+    userLayout: recognizedUser ? activeLayoutOf(recognizedUser.userId) : null,
+  };
+}
+
 // Presence endpoint (receives updates from Python detector)
 app.post('/api/presence', validateBody(presenceSchema), async (req, res) => {
   const { present, confidence, state, userId, userName } = req.body;
@@ -259,45 +286,28 @@ app.post('/api/presence', validateBody(presenceSchema), async (req, res) => {
   // Update display based on presence
   await displayManager.handlePresence(present, confidence);
 
-  // Get user's layout if userId provided
-  let userLayout = null;
-  if (userId) {
-    try {
-      const layout = getUserActiveLayout(userId);
-      if (layout) {
-        userLayout = {
-          id: layout.id,
-          name: layout.name,
-          modules: JSON.parse(layout.modules),
-        };
-      }
-    } catch {
-      // Layout fetch failed, continue without it
-    }
-  }
+  recognizedUser = userId ? { userId, userName: userName ?? null } : null;
 
   // Broadcast to all connected clients
-  broadcast('presence', {
-    present,
-    confidence,
-    state,
-    userId,
-    userName,
-    userLayout,
-    displayState: displayManager.getState(),
-    hold: displayManager.isHeld(),
-  });
+  broadcast('presence', { ...presenceSnapshot(), present, confidence, state });
 
   res.json({ received: true, displayState: displayManager.getState(), userId });
 });
 
 // Get current presence/display status
 app.get('/api/presence', (_req, res) => {
-  res.json({
-    present: displayManager.isUserPresent(),
-    displayState: displayManager.getState(),
-    hold: displayManager.isHeld(),
-  });
+  res.json(presenceSnapshot());
+});
+
+// Held open by the presence detector (packages/presence/detector.py,
+// BackendLink). It carries no data: when the backend restarts the connection
+// drops, and on reconnecting the detector re-sends its current presence. The
+// backend starts out assuming nobody is there, so this is how it catches up
+// without the detector repeating itself on a timer.
+app.get('/api/presence/stream', (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+  res.write(': connected\n\n');
+  req.on('close', () => res.end());
 });
 
 // Display hold: the phone app keeps the mirror awake while the user edits or
@@ -306,22 +316,14 @@ app.get('/api/presence', (_req, res) => {
 app.post('/api/display/hold', validateBody(displayHoldSchema), async (req, res) => {
   const seconds = (req.body as { seconds?: number }).seconds ?? 60;
   const holdUntil = await displayManager.hold(seconds * 1000);
-  broadcast('presence', {
-    present: displayManager.isUserPresent(),
-    displayState: displayManager.getState(),
-    hold: true,
-  });
+  broadcast('presence', presenceSnapshot(true));
   res.json({ displayState: displayManager.getState(), holdUntil });
 });
 
 app.post('/api/display/release', async (_req, res) => {
   await displayManager.release();
   broadcast('layout-preview', { modules: null });
-  broadcast('presence', {
-    present: displayManager.isUserPresent(),
-    displayState: displayManager.getState(),
-    hold: false,
-  });
+  broadcast('presence', presenceSnapshot(false));
   res.json({ displayState: displayManager.getState() });
 });
 

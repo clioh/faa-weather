@@ -153,3 +153,42 @@ def test_return_during_leaving_does_not_repost(presence, clock):
     run_frames(d, clock, 30)
     assert d.state == det.PresenceState.PRESENT
     assert d.posts == [(True, "u1")]
+
+
+def test_backend_reconnect_resends_presence_once(presence, clock):
+    d = presence
+    d.face_visible = True
+    run_frames(d, clock, 30)
+    assert d.posts == [(True, "u1")]
+
+    # The backend restarted: BackendLink reconnects and flags a resync.
+    d.backend_link._resync.set()
+    assert run_frames(d, clock, 30) == 1
+    assert d.posts == [(True, "u1"), (True, "u1")]
+
+    # Nothing more until the next change or reconnect.
+    assert run_frames(d, clock, 300) == 0
+
+
+def test_failed_post_is_retried(presence, clock, monkeypatch):
+    d = presence
+    monkeypatch.setattr(det.time, "monotonic", clock)
+    results = [False, True]
+
+    def flaky_report(confidence=0.0):
+        d.posts.append(d.reported_presence())
+        return results.pop(0) if results else True
+
+    monkeypatch.setattr(d, "report_presence", flaky_report)
+
+    d.face_visible = True
+    run_frames(d, clock, 30)
+    assert d.posts == [(True, "u1")]  # rejected
+
+    # Not hammered on every frame: the retry waits PRESENCE_RETRY_S.
+    run_frames(d, clock, int((det.PRESENCE_RETRY_S - 1.5) / 0.033))
+    assert len(d.posts) == 1
+    run_frames(d, clock, int(2 / 0.033))
+    assert d.posts == [(True, "u1"), (True, "u1")]  # retried, accepted
+
+    assert run_frames(d, clock, 600) == 0

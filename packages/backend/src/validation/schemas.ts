@@ -41,8 +41,10 @@ export const presenceSchema = z.object({
   present: z.boolean(),
   confidence: z.number().min(0).max(1).optional(),
   state: z.string().max(50).optional(),
-  userId: z.string().max(100).optional(),
-  userName: z.string().max(100).optional(),
+  // The detector sends null for both once nobody is recognized (absent, or
+  // an unknown face), so null must pass or the mirror never hears "absent".
+  userId: z.string().max(100).nullable().optional(),
+  userName: z.string().max(100).nullable().optional(),
 });
 
 export type PresenceInput = z.infer<typeof presenceSchema>;
@@ -56,6 +58,8 @@ export const createUserSchema = z.object({
   id: z.string().min(1).max(100),
   name: z.string().min(1).max(100),
   preferences: z.record(z.string(), z.unknown()).optional(),
+  /** Someone else, added from this phone to be invited (routes/users.ts). */
+  invited: z.boolean().optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
@@ -65,6 +69,8 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
  */
 export const userLayoutModulesSchema = z.object({
   modules: z.array(z.record(z.string(), z.unknown())),
+  /** Editor shelf (PUT /api/users/:id/layout only); omitted leaves it as is. */
+  shelf: z.array(z.record(z.string(), z.unknown())).optional(),
 });
 
 export type UserLayoutModulesInput = z.infer<typeof userLayoutModulesSchema>;
@@ -88,6 +94,8 @@ export const layoutSchema = z.object({
   id: z.string().max(100).optional(),
   name: z.string().max(100).optional(),
   modules: z.array(moduleInstanceSchema),
+  /** Editor shelf: kept with the layout, never drawn on the mirror. */
+  shelf: z.array(moduleInstanceSchema).optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

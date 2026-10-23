@@ -45,6 +45,12 @@ export interface PairedDeviceRecord {
   tokenHash: string;
   createdAt: string;
   lastSeenAt: string | null;
+  /**
+   * The person on this mirror (users.id) the phone belongs to: set when the
+   * phone registers its own profile or accepts an invite. Decides whose
+   * layouts it may edit once that person has joined (routes/users.ts).
+   */
+  userId?: string | null;
 }
 
 export interface PublicDevice {
@@ -248,7 +254,30 @@ export class PairingService extends EventEmitter {
     this.emit('revoked', id);
   }
 
-  private addDevice(deviceName: string): PairingResult {
+  /** The person this paired phone belongs to, or null if not known yet. */
+  deviceUserId(deviceId: string): string | null {
+    return this.all().find((d) => d.id === deviceId)?.userId ?? null;
+  }
+
+  /** True when some paired phone belongs to this person. */
+  hasDeviceForUser(userId: string): boolean {
+    return this.all().some((d) => d.userId === userId);
+  }
+
+  /** Record which person a paired phone belongs to. */
+  bindUser(deviceId: string, userId: string): void {
+    const device = this.all().find((d) => d.id === deviceId);
+    if (!device || device.userId === userId) return;
+    device.userId = userId;
+    this.persist();
+  }
+
+  /** Pair a phone that accepted an invite: it belongs to that person from the start. */
+  pairForUser(deviceName: string, userId: string): PairingResult {
+    return this.addDevice(deviceName, userId);
+  }
+
+  private addDevice(deviceName: string, userId: string | null = null): PairingResult {
     this.assertRoom();
     const token = TOKEN_PREFIX + randomBytes(32).toString('base64url');
     const now = new Date().toISOString();
@@ -258,6 +287,7 @@ export class PairingService extends EventEmitter {
       tokenHash: hashToken(token),
       createdAt: now,
       lastSeenAt: now,
+      ...(userId ? { userId } : {}),
     };
     this.all().push(record);
     this.persist();

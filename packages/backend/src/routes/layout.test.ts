@@ -61,6 +61,19 @@ describe('PUT /api/layout', () => {
     expect(stored).toEqual(body.layout);
   });
 
+  it('keeps the editor shelf with the layout', async () => {
+    const tile = (id: string) => ({ instanceId: id, moduleId: 'metar', position: { x: 0, y: 0 }, size: 'medium', config: {} });
+    const res = await fetch(`${base}/api/layout`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modules: [tile('placed')], shelf: [tile('parked')] }),
+    });
+    expect(res.status).toBe(200);
+    const stored = (await (await fetch(`${base}/api/layout`)).json()) as { modules: unknown[]; shelf: unknown[] };
+    expect(stored.modules).toEqual([tile('placed')]);
+    expect(stored.shelf).toEqual([tile('parked')]);
+  });
+
   it('does not broadcast when validation fails', async () => {
     broadcast.mockClear();
     const res = await fetch(`${base}/api/layout`, {

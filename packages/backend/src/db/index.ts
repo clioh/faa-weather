@@ -14,7 +14,8 @@ import { hostname } from 'os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../../../../data');
-const DB_PATH = join(DATA_DIR, 'skyglass.db');
+// Tests point this at a throwaway file (like SKYGLASS_PAIRED_DEVICES_FILE).
+const DB_PATH = process.env.SKYGLASS_DB_FILE || join(DATA_DIR, 'skyglass.db');
 
 let db: Database.Database | null = null;
 
@@ -26,6 +27,21 @@ export interface DbUser {
   created_at: string;
   updated_at: string;
   last_seen: string | null;
+  /**
+   * When the person's own phone took over the profile: set when a phone
+   * registers its own profile or accepts an invite. Null for someone another
+   * phone added who hasn't accepted their invite yet.
+   */
+  claimed_at: string | null;
+}
+
+/** A pending invite for someone added from another phone (one per person). */
+export interface DbUserInvite {
+  user_id: string;
+  /** sha256 hex of the invite token; the token itself is never stored. */
+  token_hash: string;
+  expires_at: string;
+  created_at: string;
 }
 
 export interface DbUserLayout {
@@ -33,6 +49,8 @@ export interface DbUserLayout {
   user_id: string;
   name: string;
   modules: string; // JSON string
+  /** JSON array: widgets parked on the editor's shelf, never shown on the mirror. */
+  shelf: string;
   is_active: number;
   created_at: string;
   updated_at: string;
@@ -151,6 +169,29 @@ function runMigrations(db: Database.Database): void {
     );
   `);
 
+  // People added from another phone, until they accept an invite. Everyone
+  // who existed before invites registered from their own phone.
+  const userColumns = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+  if (!userColumns.some((c) => c.name === 'claimed_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN claimed_at TEXT');
+    db.exec('UPDATE users SET claimed_at = created_at');
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_invites (
+      user_id TEXT PRIMARY KEY,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  // The phone editor's shelf: widgets kept with a layout but not on the mirror.
+  const layoutColumns = db.prepare('PRAGMA table_info(user_layouts)').all() as { name: string }[];
+  if (!layoutColumns.some((c) => c.name === 'shelf')) {
+    db.exec("ALTER TABLE user_layouts ADD COLUMN shelf TEXT NOT NULL DEFAULT '[]'");
+  }
+
   console.log('[Database] Migrations complete');
 }
 
@@ -192,7 +233,14 @@ export function getMirrorName(): string {
 /**
  * Create or update a user
  */
-export function upsertUser(id: string, name: string, preferences: Record<string, unknown> = {}): DbUser {
+export function upsertUser(
+  id: string,
+  name: string,
+  preferences: Record<string, unknown> = {},
+  starterModules: unknown[] = [],
+  /** Added by someone else's phone: stays unclaimed until they accept an invite. */
+  invited = false,
+): DbUser {
   const db = getDb();
   const now = new Date().toISOString();
   const prefsJson = JSON.stringify(preferences);
@@ -206,12 +254,12 @@ export function upsertUser(id: string, name: string, preferences: Record<string,
     `).run(name, prefsJson, now, id);
   } else {
     db.prepare(`
-      INSERT INTO users (id, name, preferences, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, name, prefsJson, now, now);
+      INSERT INTO users (id, name, preferences, created_at, updated_at, claimed_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, name, prefsJson, now, now, invited ? null : now);
 
     // Create default layout for new user
-    createDefaultLayout(id);
+    createDefaultLayout(id, starterModules);
   }
 
   return getUser(id)!;
@@ -229,6 +277,39 @@ export function getUser(id: string): DbUser | null {
  */
 export function getAllUsers(): DbUser[] {
   return getDb().prepare('SELECT * FROM users ORDER BY name').all() as DbUser[];
+}
+
+/** The person's own phone has taken over the profile (see DbUser.claimed_at). */
+export function markUserClaimed(id: string): void {
+  getDb()
+    .prepare('UPDATE users SET claimed_at = COALESCE(claimed_at, ?) WHERE id = ?')
+    .run(new Date().toISOString(), id);
+}
+
+/** Store a person's invite, replacing any earlier one (which stops working). */
+export function setUserInvite(userId: string, tokenHash: string, expiresAt: string): void {
+  getDb()
+    .prepare(`
+      INSERT INTO user_invites (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET token_hash = excluded.token_hash,
+        expires_at = excluded.expires_at, created_at = excluded.created_at
+    `)
+    .run(userId, tokenHash, expiresAt, new Date().toISOString());
+}
+
+export function getUserInvite(userId: string): DbUserInvite | null {
+  return (getDb().prepare('SELECT * FROM user_invites WHERE user_id = ?').get(userId) as DbUserInvite | undefined) ?? null;
+}
+
+export function findInviteByTokenHash(tokenHash: string): DbUserInvite | null {
+  return (
+    (getDb().prepare('SELECT * FROM user_invites WHERE token_hash = ?').get(tokenHash) as DbUserInvite | undefined) ??
+    null
+  );
+}
+
+export function deleteUserInvite(userId: string): void {
+  getDb().prepare('DELETE FROM user_invites WHERE user_id = ?').run(userId);
 }
 
 /**
@@ -249,31 +330,18 @@ export function updateUserLastSeen(id: string): void {
 // Layout operations
 
 /**
- * Create default layout for a user
+ * Create a new user's active layout. It starts as a copy of the mirror's
+ * shared layout (what the mirror shows when nobody is recognized), so being
+ * recognized for the first time doesn't change the screen; the phone's
+ * template step replaces it.
  */
-function createDefaultLayout(userId: string): void {
+function createDefaultLayout(userId: string, modules: unknown[]): void {
   const layoutId = uuidv4();
-  const defaultModules = [
-    {
-      instanceId: 'clock-default',
-      moduleId: 'digital-clock',
-      position: { x: 0, y: 0 },
-      size: 'medium',
-      config: { showZulu: true },
-    },
-    {
-      instanceId: 'aviation-default',
-      moduleId: 'aviation-weather',
-      position: { x: 2, y: 0 },
-      size: 'large',
-      config: {},
-    },
-  ];
 
   getDb().prepare(`
     INSERT INTO user_layouts (id, user_id, name, modules, is_active)
     VALUES (?, ?, 'Default', ?, 1)
-  `).run(layoutId, userId, JSON.stringify(defaultModules));
+  `).run(layoutId, userId, JSON.stringify(modules));
 }
 
 /**
@@ -297,10 +365,16 @@ export function getUserLayouts(userId: string): DbUserLayout[] {
 /**
  * Update a layout's modules
  */
-export function updateLayoutModules(layoutId: string, modules: unknown[]): boolean {
-  const result = getDb().prepare(`
-    UPDATE user_layouts SET modules = ?, updated_at = ? WHERE id = ?
-  `).run(JSON.stringify(modules), new Date().toISOString(), layoutId);
+export function updateLayoutModules(layoutId: string, modules: unknown[], shelf?: unknown[]): boolean {
+  const now = new Date().toISOString();
+  const result =
+    shelf === undefined
+      ? getDb().prepare(`
+          UPDATE user_layouts SET modules = ?, updated_at = ? WHERE id = ?
+        `).run(JSON.stringify(modules), now, layoutId)
+      : getDb().prepare(`
+          UPDATE user_layouts SET modules = ?, shelf = ?, updated_at = ? WHERE id = ?
+        `).run(JSON.stringify(modules), JSON.stringify(shelf), now, layoutId);
   return result.changes > 0;
 }
 

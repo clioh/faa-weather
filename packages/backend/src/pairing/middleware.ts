@@ -17,6 +17,7 @@ export const PUBLIC_API_ROUTES: ReadonlyArray<{ method: string; path: string }> 
   { method: 'POST', path: '/pairing/claim' },
   { method: 'POST', path: '/pairing/request' },
   { method: 'POST', path: '/pairing/complete' },
+  { method: 'POST', path: '/invites/claim' },
 ];
 
 export const PAIRING_REQUIRED_BODY = {
