@@ -169,9 +169,11 @@ SkyGlass/
 
 ## Hardware
 
-See [docs/HARDWARE.md](docs/HARDWARE.md) for complete build instructions including:
+The bill of materials for a DIY build is
+[docs/build-guide/SkyGlass-Bill-of-Materials.pdf](docs/build-guide/SkyGlass-Bill-of-Materials.pdf)
+(about $645 in parts for the recommended 24" build; source `docs/build-guide/bom.html`,
+rebuilt with `npm run docs:bom`). [docs/HARDWARE.md](docs/HARDWARE.md) covers the build:
 
-- Parts list (~$359 recommended build)
 - Frame assembly guide
 - Electronics installation
 - Mounting instructions
@@ -180,7 +182,7 @@ See [docs/HARDWARE.md](docs/HARDWARE.md) for complete build instructions includi
 - Raspberry Pi 5 (4GB)
 - Pi Camera Module 3
 - 24" IPS Monitor
-- Two-way mirror acrylic
+- Two-way mirror glass
 
 ## Scripts
 

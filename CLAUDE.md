@@ -87,6 +87,7 @@ npm run format        # Run Prettier
 - `docs/SECURITY.md` - Trust model: phone pairing tokens (port 3001 is deny-by-default, `src/pairing/`), internal token, admin password CLI, enrollment tokens
 - `docs/CLOUD_SERVICE.md` - skyglass.dev functions holding all third-party keys (OAuth broker, NOTAM and stock proxies); mirror setting `skyglass_service`
 - `docs/design/` - Glass Cockpit redesign: `DESIGN_SYSTEM.md` (tokens, components), `SCREENS.md` (route → mockup map), `IMPLEMENTATION_PLAN.md` (phased work), `mockups/*.dc.html` + `mockups/app.css` (reference markup for every app screen and the website). Mobile tokens live in `packages/mobile/lib/theme.ts`
+- `docs/build-guide/` - Customer bill of materials: `bom.html` is the source, `SkyGlass-Bill-of-Materials.pdf` is built from it with `npm run docs:bom` (headless Chrome). `docs/HARDWARE.md` (assembly) refers to its part codes
 - `docs/PRE_LAUNCH_CHECKLIST.md` - Open security, setup, device-testing and release items; keep it current
 - `docs/WIDGETS.md` - Widget data endpoints (news, finance, weather, winds aloft, todos, photos) and the `data/` files they use
 - `packages/presence/` - Python presence detection scripts

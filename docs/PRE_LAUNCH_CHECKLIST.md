@@ -131,6 +131,9 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       panel, no mouse pointer and no keyring prompt. Kill Chromium and check that it comes back,
       leave it idle for an hour and check that the screen never blanks, and confirm that
       `raspi-config nonint do_wayland W3` and `do_boot_behaviour B4` exist on that image.
+- [ ] **Re-check BOM prices and kit pricing before launch.** The Pi 5 4 GB went from $60 to $110
+      (Apr 2026); the recommended DIY build is about $645 in parts at retail, against the $549
+      Complete Kit. Update the edition date in `bom.html` and run `npm run docs:bom`.
 - [ ] Rendering performance with a busy layout: radar animation, photo crossfade, clocks.
 - [ ] Live data through the deployed cloud service: NOTAMs, stocks via Finnhub, and stocks with the
       service unreachable (Yahoo fallback; Yahoo throttles per IP and the widget then shows

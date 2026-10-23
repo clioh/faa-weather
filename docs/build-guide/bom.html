@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SkyGlass Bill of Materials</title>
+<!--
+  Source for docs/build-guide/SkyGlass-Bill-of-Materials.pdf.
+  Rebuild the PDF with: npm run docs:bom
+  Prices are typical US retail; re-check them before each release and update the edition date.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0B0D10;
+    --ink-2: #3A424C;
+    --ink-3: #6B7480;
+    --rule: #D9DEE4;
+    --rule-soft: #ECEFF2;
+    --tint: #F4F7F9;
+    --accent: #0B6C93;       /* print-safe shade of the app accent #7AD7FF */
+    --accent-soft: #E6F4FA;
+    --warn: #8A5300;
+    --warn-soft: #FFF4E3;
+    --cover: #000000;
+  }
+
+  @page {
+    size: Letter;
+    margin: 0.6in 0.6in 0.7in;
+    @bottom-left {
+      content: "SkyGlass · Bill of materials · October 2026";
+      font: 400 7.5pt Inter, sans-serif;
+      color: #6B7480;
+    }
+    @bottom-right {
+      content: counter(page);
+      font: 500 7.5pt Inter, sans-serif;
+      color: #6B7480;
+    }
+  }
+  @page cover {
+    margin: 0;
+    @bottom-left { content: none; }
+    @bottom-right { content: none; }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    background: #fff;
+    color: var(--ink);
+    font: 400 9pt/1.45 Inter, -apple-system, Helvetica, sans-serif;
+    font-feature-settings: "tnum" 1, "cv11" 1;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    page: cover;
+    width: 8.5in;
+    height: 11in;
+    background: var(--cover);
+    color: #fff;
+    padding: 0.9in 0.85in 0.8in;
+    display: flex;
+    flex-direction: column;
+    break-after: page;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover .logo { width: 2.6in; }
+  .cover .kicker {
+    margin-top: 2.1in;
+    font: 500 8pt Inter; letter-spacing: 0.18em; text-transform: uppercase;
+    color: #7AD7FF;
+  }
+  .cover h1 {
+    margin: 0.12in 0 0;
+    font: 200 46pt/1.02 Inter; letter-spacing: -0.02em;
+  }
+  .cover .lede {
+    margin-top: 0.22in; max-width: 4.9in;
+    font: 300 13pt/1.45 Inter; color: rgba(255,255,255,0.72);
+  }
+  .cover .facts {
+    margin-top: auto;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid rgba(255,255,255,0.18);
+  }
+  .cover .facts div { padding: 0.16in 0.12in 0 0; }
+  .cover .facts dt {
+    font: 500 6.5pt Inter; letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+  }
+  .cover .facts dd { margin: 4px 0 0; font: 300 13pt/1.25 Inter; }
+  .cover .facts dd small { display: block; font-size: 7.5pt; color: rgba(255,255,255,0.55); margin-top: 2px; }
+  .cover .horizon {
+    position: absolute; left: 0; right: 0; top: 6.55in; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(122,215,255,0.5) 30%, rgba(122,215,255,0.5) 70%, transparent);
+  }
+
+  /* ---------- Body ---------- */
+  section { break-before: page; }
+  section.flow { break-before: auto; }
+  h2 {
+    margin: 0 0 4px;
+    font: 300 20pt/1.15 Inter; letter-spacing: -0.01em;
+  }
+  .label {
+    font: 500 6.8pt Inter; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--accent);
+  }
+  h3 {
+    margin: 16px 0 6px;
+    font: 600 10.5pt Inter;
+    break-after: avoid;
+  }
+  h3 .ref { color: var(--accent); font-weight: 500; margin-right: 6px; }
+  p { margin: 0 0 7px; color: var(--ink-2); }
+  .intro { font-size: 10pt; color: var(--ink-2); max-width: 6.4in; margin-bottom: 12px; }
+  a { color: var(--accent); text-decoration: none; }
+  strong { color: var(--ink); font-weight: 600; }
+
+  .callout {
+    border: 1px solid #BFE3F2; background: var(--accent-soft);
+    border-radius: 6px; padding: 9px 12px; margin: 10px 0;
+    font-size: 8.6pt; color: #12384A;
+    break-inside: avoid;
+  }
+  .callout.warn { border-color: #F3D19B; background: var(--warn-soft); color: #4A2E00; }
+  .callout b { font-weight: 600; }
+
+  /* BOM tables */
+  table { width: 100%; border-collapse: collapse; }
+  .bom { margin: 2px 0 6px; }
+  .bom th {
+    text-align: left;
+    font: 500 6.5pt Inter; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3);
+    padding: 5px 6px; border-bottom: 1px solid var(--ink);
+  }
+  .bom td {
+    vertical-align: top; padding: 6px 6px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .bom tr { break-inside: avoid; }
+  .bom td.ref { width: 0.42in; font: 500 8pt "JetBrains Mono", monospace; color: var(--accent); padding-top: 7px; }
+  .bom td.item b { font-weight: 600; font-size: 9pt; }
+  .bom td.item .spec { display: block; color: var(--ink-2); font-size: 8.2pt; margin-top: 1px; }
+  .bom td.item .src { display: block; color: var(--ink-3); font-size: 7.6pt; margin-top: 2px; }
+  .bom td.qty { width: 0.45in; text-align: center; white-space: nowrap; }
+  .bom td.price { width: 0.7in; text-align: right; white-space: nowrap; font-weight: 500; }
+  .bom td.need { width: 0.85in; white-space: nowrap; }
+  .bom th.qty { text-align: center; }
+  .bom th.price { text-align: right; }
+  .bom tr.alt td { background: var(--tint); }
+  .bom tr.sub td {
+    border-bottom: none; border-top: 1px solid var(--rule);
+    font-weight: 600; padding-top: 7px;
+  }
+  .tag {
+    display: inline-block; padding: 1px 6px; border-radius: 10px;
+    font: 500 6.8pt Inter; letter-spacing: 0.02em;
+    border: 1px solid var(--rule); color: var(--ink-2);
+  }
+  .tag.req { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .tag.pick { background: var(--accent-soft); border-color: #BFE3F2; color: var(--accent); }
+
+  /* Generic data tables */
+  .data th {
+    text-align: left; font: 500 6.5pt Inter; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3); padding: 5px 6px; border-bottom: 1px solid var(--ink);
+  }
+  .data td { padding: 6px 6px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; font-size: 8.6pt; }
+  .data td:first-child { font-weight: 600; }
+  .data tr { break-inside: avoid; }
+  .data .num { text-align: right; white-space: nowrap; }
+  .data tr.total td { border-top: 1px solid var(--ink); border-bottom: none; font-weight: 600; font-size: 9.5pt; }
+  .data .rec { background: var(--accent-soft); }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 4px; }
+  .card { border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; break-inside: avoid; }
+  .card .n { font: 500 8pt "JetBrains Mono", monospace; color: var(--accent); }
+  .card h4 { margin: 2px 0 4px; font: 600 9.5pt Inter; }
+  .card p { font-size: 8.4pt; margin: 0; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+  figure { margin: 8px 0 6px; break-inside: avoid; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 7.6pt; color: var(--ink-3); margin-top: 4px; }
+
+  ul.ticks { margin: 4px 0 8px; padding: 0; list-style: none; }
+  ul.ticks li { padding: 2px 0 2px 16px; position: relative; color: var(--ink-2); font-size: 8.6pt; }
+  ul.ticks li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 6px; height: 1.5px; background: var(--accent); }
+
+  .order {
+    font: 400 8.4pt/1.55 "JetBrains Mono", monospace;
+    background: var(--tint); border-left: 3px solid var(--accent);
+    padding: 9px 12px; margin: 6px 0 10px; color: var(--ink);
+    break-inside: avoid;
+  }
+
+  /* Checklist */
+  .checklist { columns: 2; column-gap: 26px; }
+  .group { break-inside: avoid; margin-bottom: 12px; }
+  .group h4 { margin: 0 0 4px; font: 600 9pt Inter; border-bottom: 1px solid var(--ink); padding-bottom: 3px; }
+  .check { display: grid; grid-template-columns: 12px 0.36in 1fr auto; gap: 6px; align-items: baseline; padding: 3.5px 0; border-bottom: 1px solid var(--rule-soft); font-size: 8.4pt; }
+  .check .box { width: 9px; height: 9px; border: 1.2px solid var(--ink-2); border-radius: 2px; transform: translateY(1px); }
+  .check .r { font: 500 7.6pt "JetBrains Mono", monospace; color: var(--accent); }
+  .check .p { color: var(--ink-3); font-size: 7.8pt; }
+  .fill { display: inline-block; min-width: 0.62in; border-bottom: 1px solid var(--ink-3); }
+</style>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+<div class="cover">
+  <img class="logo" src="../design/brand/logo-lockup-horizontal.svg" alt="SkyGlass">
+  <div class="horizon"></div>
+  <div class="kicker">DIY build guide</div>
+  <h1>Bill of<br>materials</h1>
+  <p class="lede">Everything you need to buy to build a SkyGlass mirror around your software license: computer, camera, display, mirror glass, frame, wall mounting and power.</p>
+  <dl class="facts">
+    <div><dt>Parts cost</dt><dd>$490–$1,050<small>about $645 for the recommended 24" build</small></dd></div>
+    <div><dt>Build time</dt><dd>A weekend<small>including paint drying</small></dd></div>
+    <div><dt>Skills</dt><dd>Basic woodworking<small>no soldering, no wiring</small></dd></div>
+    <div><dt>Edition</dt><dd>October 2026<small>prices in USD before tax</small></dd></div>
+  </dl>
+</div>
+
+<!-- ============================ 1. PLAN ============================ -->
+<section>
+  <div class="label">1 · Before you buy</div>
+  <h2>What you're building</h2>
+  <p class="intro">A SkyGlass mirror is a shallow wooden box. The front is two-way mirror glass. Behind it, a computer monitor sits face-down against the glass, with a Raspberry Pi and a small camera alongside. Where the screen is lit, its light shows through the glass; everywhere else you see an ordinary mirror. The box hangs on a French cleat and runs from one wall outlet.</p>
+
+  <figure>
+    <svg viewBox="0 0 700 330" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif" font-size="10.5">
+      <defs>
+        <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" stroke="#B8C0C8" stroke-width="1.4"/>
+        </pattern>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#0B6C93"/>
+        </marker>
+      </defs>
+      <!-- wall -->
+      <rect x="30" y="16" width="24" height="296" fill="url(#hatch)" stroke="#9AA3AD"/>
+      <!-- French cleat: wall half (lower) and frame half (upper) -->
+      <polygon points="54,84 76,62 76,112 54,112" fill="#E3D3B8" stroke="#8C7A5B"/>
+      <polygon points="54,84 76,62 76,36 54,36" fill="#F1E6D2" stroke="#8C7A5B"/>
+      <!-- back panel -->
+      <rect x="76" y="25" width="20" height="275" fill="#F1E6D2" stroke="#8C7A5B"/>
+      <!-- box rails -->
+      <rect x="96" y="25" width="140" height="10" fill="#E8DBC2" stroke="#8C7A5B"/>
+      <rect x="96" y="290" width="140" height="10" fill="#E8DBC2" stroke="#8C7A5B"/>
+      <!-- vents -->
+      <rect x="150" y="25" width="10" height="10" fill="#fff" stroke="#8C7A5B"/>
+      <rect x="150" y="290" width="10" height="10" fill="#fff" stroke="#8C7A5B"/>
+      <!-- face frame -->
+      <rect x="236" y="25" width="30" height="21" fill="#2B2F35" stroke="#0B0D10"/>
+      <rect x="236" y="279" width="30" height="21" fill="#2B2F35" stroke="#0B0D10"/>
+      <!-- glass -->
+      <rect x="226" y="35" width="10" height="255" fill="#CFE9F5" stroke="#0B6C93"/>
+      <!-- mask -->
+      <rect x="221" y="35" width="5" height="255" fill="#111"/>
+      <!-- stops -->
+      <rect x="214" y="35" width="7" height="7" fill="#C9B48E" stroke="#8C7A5B"/>
+      <rect x="214" y="283" width="7" height="7" fill="#C9B48E" stroke="#8C7A5B"/>
+      <!-- monitor -->
+      <path d="M221,63 L221,241 L186,241 Q150,236 146,200 L146,104 Q150,68 186,63 Z" fill="#59616B" stroke="#2B2F35"/>
+      <rect x="216" y="63" width="5" height="178" fill="#1D2126"/>
+      <!-- VESA bolts with spacers -->
+      <line x1="76" y1="130" x2="152" y2="130" stroke="#2B2F35" stroke-width="2"/>
+      <line x1="76" y1="174" x2="152" y2="174" stroke="#2B2F35" stroke-width="2"/>
+      <rect x="96" y="126" width="46" height="8" fill="#fff" stroke="#6B7480"/>
+      <rect x="96" y="170" width="46" height="8" fill="#fff" stroke="#6B7480"/>
+      <!-- Pi -->
+      <rect x="96" y="252" width="6" height="30" fill="#2E7D32"/>
+      <rect x="102" y="256" width="14" height="22" fill="#9AA3AD" stroke="#59616B"/>
+      <!-- camera -->
+      <rect x="208" y="44" width="13" height="16" fill="#2E7D32"/>
+      <circle cx="221" cy="52" r="3" fill="#0B0D10"/>
+      <path d="M208,56 C180,70 130,90 112,252" fill="none" stroke="#C49A2C" stroke-width="1.6" stroke-dasharray="4 3"/>
+      <!-- viewer -->
+      <line x1="282" y1="162" x2="318" y2="162" stroke="#0B6C93" stroke-width="1.4" marker-start="url(#arr)"/>
+      <text x="324" y="166" fill="#0B6C93" font-weight="500">You</text>
+      <text x="42" y="326" fill="#6B7480" text-anchor="middle">Wall</text>
+
+      <!-- leaders + labels -->
+      <g fill="#0B0D10" font-size="10">
+        <g stroke="#9AA3AD" stroke-width="0.8" fill="none">
+          <path d="M266,36 L400,24"/>
+          <path d="M231,100 L400,46"/>
+          <path d="M224,120 L400,68"/>
+          <path d="M217,39 L400,90"/>
+          <path d="M215,52 L400,112"/>
+          <path d="M190,150 L400,134"/>
+          <path d="M120,130 L136,140 L400,156"/>
+          <path d="M160,30 L400,178"/>
+          <path d="M210,295 L400,200"/>
+          <path d="M86,240 L400,222"/>
+          <path d="M110,268 L400,244"/>
+          <path d="M66,90 L400,266"/>
+          <path d="M42,300 L400,288"/>
+        </g>
+        <text x="404" y="27"><tspan font-weight="600">Face frame</tspan>, 1×2 mitered <tspan fill="#0B6C93">E2</tspan></text>
+        <text x="404" y="49"><tspan font-weight="600">Two-way mirror glass</tspan> <tspan fill="#0B6C93">D1</tspan></text>
+        <text x="404" y="71"><tspan font-weight="600">Blackout mask</tspan>, window cut for the screen <tspan fill="#0B6C93">D2</tspan></text>
+        <text x="404" y="93"><tspan font-weight="600">Glass stops</tspan>, ½" square strips <tspan fill="#0B6C93">E4</tspan></text>
+        <text x="404" y="115"><tspan font-weight="600">Camera</tspan>, top center, behind the glass <tspan fill="#0B6C93">A5</tspan></text>
+        <text x="404" y="137"><tspan font-weight="600">Display</tspan>, face against the glass <tspan fill="#0B6C93">B1</tspan></text>
+        <text x="404" y="159"><tspan font-weight="600">VESA bolts + spacers</tspan> <tspan fill="#0B6C93">C1</tspan></text>
+        <text x="404" y="181"><tspan font-weight="600">Vent holes</tspan>, top and bottom</text>
+        <text x="404" y="203"><tspan font-weight="600">Box</tspan>, 1×4 boards, 3½" deep <tspan fill="#0B6C93">E1</tspan></text>
+        <text x="404" y="225"><tspan font-weight="600">Back panel</tspan>, ½" plywood <tspan fill="#0B6C93">E3</tspan></text>
+        <text x="404" y="247"><tspan font-weight="600">Raspberry Pi 5</tspan> on standoffs <tspan fill="#0B6C93">A1</tspan></text>
+        <text x="404" y="269"><tspan font-weight="600">French cleat</tspan>, two interlocking halves <tspan fill="#0B6C93">F1</tspan></text>
+        <text x="404" y="291"><tspan font-weight="600">Wall</tspan>, screwed into a stud <tspan fill="#0B6C93">F2</tspan></text>
+      </g>
+    </svg>
+    <figcaption>Side section of the recommended build. Not to scale. Codes like D1 refer to the parts lists in section 2.</figcaption>
+  </figure>
+
+  <h3>Decide four things first</h3>
+  <div class="cards">
+    <div class="card"><div class="n">01</div><h4>Display size</h4><p>Everything else is sized from the display. 24" is the sweet spot: easy to read from across a room and light enough to hang. Most builds use 22–27".</p></div>
+    <div class="card"><div class="n">02</div><h4>Landscape or portrait</h4><p>Landscape suits a hallway or desk. Portrait (display turned 90°) makes a taller mirror for a dressing area. The parts are the same; only the glass and frame dimensions change.</p></div>
+    <div class="card"><div class="n">03</div><h4>Glass or acrylic</h4><p>Glass gives a true, flat reflection and is the recommendation. Two-way acrylic is cheaper and lighter but bends the reflection on larger sizes. See the comparison on page 6.</p></div>
+    <div class="card"><div class="n">04</div><h4>Where it hangs, and how power gets there</h4><p>The finished 24" mirror weighs about 30–35 lb. Plan to screw into a wall stud, and decide whether the power cord shows, runs in a cord cover, or goes through the wall.</p></div>
+  </div>
+
+  <div class="callout warn"><b>Measure your display before you order glass.</b> Record the body width and height (stand removed), the depth at its thickest point, the size of the lit screen area, the VESA hole spacing, and where the HDMI and power ports are. Glass is cut to order and usually can't be returned.</div>
+</section>
+
+<section>
+  <div class="label">1 · Before you buy</div>
+  <h2>Sizing</h2>
+  <p class="intro">Order glass at least 1" larger than the display body on every side, so the frame lip covers the glass edge and the bezel stays hidden. The sizes below are good starting points. Larger glass is fine; the extra area is plain mirror.</p>
+
+  <table class="data">
+    <thead><tr><th>Display</th><th>Typical body (W × H)</th><th>Glass, landscape</th><th>Glass, portrait</th><th class="num">Glass weight, 4 mm / 6 mm</th><th class="num">Finished weight</th></tr></thead>
+    <tbody>
+      <tr><td>21.5–22"</td><td>19½ × 11½"</td><td>22 × 16"<br><span style="color:var(--ink-3);font-weight:400">2.4 sq ft</span></td><td>16 × 26"<br><span style="color:var(--ink-3);font-weight:400">2.9 sq ft</span></td><td class="num">5 / 8 lb</td><td class="num">≈ 25 lb</td></tr>
+      <tr class="rec"><td>23.8–24" (recommended)</td><td>21¼ × 12¾"</td><td>24 × 18"<br><span style="color:var(--ink-3);font-weight:400">3.0 sq ft</span></td><td>18 × 30"<br><span style="color:var(--ink-3);font-weight:400">3.75 sq ft</span></td><td class="num">6 / 10 lb</td><td class="num">≈ 30–35 lb</td></tr>
+      <tr><td>27"</td><td>24¼ × 14⅜"</td><td>28 × 20"<br><span style="color:var(--ink-3);font-weight:400">3.9 sq ft</span></td><td>20 × 34"<br><span style="color:var(--ink-3);font-weight:400">4.7 sq ft</span></td><td class="num">8 / 13 lb</td><td class="num">≈ 40–45 lb</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:7.8pt;color:var(--ink-3);margin-top:4px">Typical bodies vary by model; use your own measurements. Finished weight includes display, frame, electronics and 6 mm glass.</p>
+
+  <h3>The three builds priced in this guide</h3>
+  <table class="data">
+    <thead><tr><th></th><th>Budget</th><th class="rec">Recommended</th><th>Premium</th></tr></thead>
+    <tbody>
+      <tr><td>Display</td><td>22" IPS monitor</td><td class="rec">24" IPS monitor</td><td>27" bright IPS monitor</td></tr>
+      <tr><td>Mirror</td><td>Two-way acrylic, 22 × 16"</td><td class="rec">Two-way glass, 24 × 18"</td><td>Smart-mirror glass, 28 × 20"</td></tr>
+      <tr><td>Frame</td><td>Pine box, painted</td><td class="rec">Poplar box, painted or stained</td><td>Poplar box, painted or stained</td></tr>
+      <tr><td>Mounting and power</td><td>Plywood cleat, visible cord</td><td class="rec">Aluminum cleat, paintable cord cover</td><td>Aluminum cleat, in-wall power kit</td></tr>
+      <tr class="total"><td>Parts total</td><td>≈ $490</td><td class="rec">≈ $645</td><td>≈ $1,050</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout"><b>You don't need</b> a keyboard, mouse or spare monitor. Setup (WiFi, license, location, airport and face registration) happens in the SkyGlass phone app. You will need a phone (iPhone or Android), home WiFi with internet, your SkyGlass license key, and a computer with a microSD card slot to write the SkyGlass image.</div>
+
+  <h3>About prices</h3>
+  <p>Prices are typical US retail in October 2026, before tax and shipping, rounded to the dollar. Raspberry Pi boards went up several times in 2025–26 because of memory costs, so check the current price. Glass prices vary most by region: get two quotes.</p>
+</section>
+
+<!-- ============================ 2. PARTS ============================ -->
+<section>
+  <div class="label">2 · Parts list</div>
+  <h2>Computer and camera</h2>
+  <p class="intro">SkyGlass runs on a Raspberry Pi 5 with 4 GB of memory. 8 GB adds nothing for SkyGlass, and boards with less than 4 GB struggle with face recognition and the display at the same time.</p>
+
+  <table class="bom">
+    <thead><tr><th>Ref</th><th>Item</th><th class="qty">Qty</th><th class="price">Est.</th><th>Need</th></tr></thead>
+    <tbody>
+      <tr><td class="ref">A1</td><td class="item"><b>Raspberry Pi 5, 4 GB</b><span class="spec">The computer. A Pi 4 (4 GB) also works if you already own one, with slower face recognition. It then needs a regular 15 W USB-C supply and the standard camera cable.</span><span class="src">Raspberry Pi approved resellers (raspberrypi.com/products/raspberry-pi-5)</span></td><td class="qty">1</td><td class="price">$110</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">A2</td><td class="item"><b>Raspberry Pi 27 W USB-C power supply</b><span class="spec">Use the official 27 W (5.1 V / 5 A) supply. Phone chargers cause brown-outs and random restarts.</span></td><td class="qty">1</td><td class="price">$12</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">A3</td><td class="item"><b>Raspberry Pi 5 Active Cooler</b><span class="spec">Clip-on heatsink and fan. The Pi runs continuously in a closed box, so it needs the fan.</span></td><td class="qty">1</td><td class="price">$5</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">A4</td><td class="item"><b>microSD card, 64 GB, A2 rated</b><span class="spec">32 GB is the minimum. Buy a name brand (Raspberry Pi, Samsung, SanDisk). An "endurance" card lasts longer under constant use.</span></td><td class="qty">1</td><td class="price">$15</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">A5</td><td class="item"><b>Raspberry Pi Camera Module 3 (standard lens)</b><span class="spec">Small enough to hide behind the glass. Get the standard 75° lens: the wide version makes faces too small at arm's length. NoIR isn't needed.</span></td><td class="qty">1</td><td class="price">$25</td><td class="need"><span class="tag pick">Pick A5 or A5b</span></td></tr>
+      <tr><td class="ref">A6</td><td class="item"><b>Raspberry Pi 5 camera cable, 500 mm</b><span class="spec">The Pi 5 uses a smaller 22-pin camera socket, and the cable in the camera box doesn't fit it. 500 mm reaches from the Pi at the bottom of the box to the camera at the top.</span></td><td class="qty">1</td><td class="price">$3</td><td class="need"><span class="tag pick">With A5</span></td></tr>
+      <tr class="alt"><td class="ref">A5b</td><td class="item"><b>USB webcam, 1080p, UVC (instead of A5 + A6)</b><span class="spec">Any small webcam that works without drivers (UVC). It's larger and harder to hide, but it can sit outside the glass, which helps in dim rooms. Pick one with a flat body under 1¼" tall.</span></td><td class="qty">1</td><td class="price">$30</td><td class="need"><span class="tag pick">Pick A5 or A5b</span></td></tr>
+      <tr><td class="ref">A7</td><td class="item"><b>Micro-HDMI to HDMI cable, 1 m (3 ft)</b><span class="spec">The Pi 4 and 5 have <strong>micro</strong>-HDMI ports. A right-angle or slim cable is easier to route in a shallow box.</span></td><td class="qty">1</td><td class="price">$8</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">A8</td><td class="item"><b>M2.5 nylon standoff kit</b><span class="spec">Mounts the Pi to the back panel with a gap for airflow. A Pi 5 case fastened with A8's screws or Dual Lock (C2) also works.</span></td><td class="qty">1 kit</td><td class="price">$8</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">A9</td><td class="item"><b>Raspberry Pi 5 RTC battery</b><span class="spec">Keeps the clock right through a power cut when the internet is also down. Plugs into the Pi's battery connector.</span></td><td class="qty">1</td><td class="price">$5</td><td class="need"><span class="tag">Optional</span></td></tr>
+      <tr><td class="ref">A10</td><td class="item"><b>USB microSD card reader</b><span class="spec">Only if your computer has no SD slot. Used once, to write the SkyGlass image.</span></td><td class="qty">1</td><td class="price">$8</td><td class="need"><span class="tag">If needed</span></td></tr>
+      <tr class="sub"><td></td><td>Subtotal, required parts with camera A5</td><td></td><td class="price">$186</td><td></td></tr>
+    </tbody>
+  </table>
+
+</section>
+
+<section>
+  <div class="label">2 · Parts list</div>
+  <h2>Display</h2>
+  <p class="intro">Any ordinary computer monitor works, as long as it meets the requirements below. Check the spec sheet for each one before you buy.</p>
+  <table class="bom">
+    <thead><tr><th>Ref</th><th>Item</th><th class="qty">Qty</th><th class="price">Est.</th><th>Need</th></tr></thead>
+    <tbody>
+      <tr><td class="ref">B1</td><td class="item"><b>24" IPS monitor, 1920 × 1080, HDMI</b>
+        <span class="spec">Must have: IPS panel (stays readable at an angle) · brightness 250 nits or more (300+ for a bright room; the glass absorbs most of the light) · HDMI input · VESA 100 × 100 mounting holes and a removable stand · a flat screen, not curved · turns back on by itself after a power cut · goes to sleep when the HDMI signal stops.</span>
+        <span class="spec">Nice to have: thin, flat back · power and menu buttons on the back or bottom edge · external power brick (less heat inside the box) · power light that can be switched off.</span>
+        <span class="src">Office monitors from Dell, HP, ASUS, Acer and LG. Budget build: 22" (≈ $85). Premium build: 27" at 300+ nits (≈ $160).</span></td>
+        <td class="qty">1</td><td class="price">$110</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr class="sub"><td></td><td>Subtotal</td><td></td><td class="price">$110</td><td></td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><b>Depth check:</b> the recommended box leaves 3¼" behind the glass. If your monitor is deeper than 3" at its thickest point, build the box from 1×6 instead of 1×4 (E1).</div>
+
+  <h2 style="margin-top:22px">Inside the box</h2>
+  <p class="intro">Mounting hardware and the one power strip that everything plugs into.</p>
+  <table class="bom">
+    <thead><tr><th>Ref</th><th>Item</th><th class="qty">Qty</th><th class="price">Est.</th><th>Need</th></tr></thead>
+    <tbody>
+      <tr><td class="ref">C1</td><td class="item"><b>M4 bolts, 50 mm, with nylon spacers and washers</b><span class="spec">Bolt the monitor's VESA holes to the back panel. Choose spacers so the screen rests lightly against the mask without pushing on the glass. Check your monitor's thread first: most use M4.</span></td><td class="qty">4</td><td class="price">$8</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">C2</td><td class="item"><b>3M Dual Lock or heavy-duty hook-and-loop strips</b><span class="spec">Hold the power strip, the monitor's power brick and the camera bracket in place.</span></td><td class="qty">1 pack</td><td class="price">$10</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">C3</td><td class="item"><b>Adhesive cable clips and small zip ties</b><span class="spec">Keep cables flat, and away from the fan and the camera cable.</span></td><td class="qty">1 pack</td><td class="price">$8</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">C4</td><td class="item"><b>Slim surge-protected power strip, 3 outlets, flat plug, 6 ft cord</b><span class="spec">Sits in the space below the monitor. The Pi supply and the monitor plug into it, so only one cord leaves the mirror. Look for widely spaced outlets.</span></td><td class="qty">1</td><td class="price">$18</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr class="sub"><td></td><td>Subtotal</td><td></td><td class="price">$44</td><td></td></tr>
+    </tbody>
+  </table>
+
+</section>
+
+<section>
+  <div class="label">2 · Parts list</div>
+  <h2>Mirror and light control</h2>
+  <p class="intro">Two-way mirror reflects most of the light that hits it and lets some through. A bright screen behind it shows clearly; a dark area stays a mirror. Everything behind the glass that isn't screen must be black, or it shows through faintly.</p>
+
+  <table class="data" style="margin-bottom:10px">
+    <thead><tr><th>Mirror type</th><th>Typical cost</th><th>Good</th><th>Watch out for</th><th>Use it for</th></tr></thead>
+    <tbody>
+      <tr><td>Two-way acrylic</td><td>$15–30 / sq ft</td><td>Light, won't shatter, easy to cut</td><td>Flexes, so reflections look wavy on larger sizes; scratches easily</td><td>Budget builds 22" and under</td></tr>
+      <tr class="rec"><td>Two-way glass</td><td>$25–60 / sq ft</td><td>Flat, true reflection; resists scratches; any glass shop can cut it</td><td>Heavy; wear gloves, edges are sharp until seamed</td><td><strong>Recommended</strong></td></tr>
+      <tr><td>Smart-mirror glass</td><td>$100–150 / sq ft</td><td>Made for displays: brighter screen and a clearer mirror at once</td><td>Price; specialty suppliers only</td><td>Premium builds, bright rooms</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:8pt;color:var(--ink-3)">Mirror film stuck to ordinary glass is the cheapest route, but it tends to bubble and haze. We don't recommend it.</p>
+
+  <table class="bom">
+    <thead><tr><th>Ref</th><th>Item</th><th class="qty">Qty</th><th class="price">Est.</th><th>Need</th></tr></thead>
+    <tbody>
+      <tr><td class="ref">D1</td><td class="item"><b>Two-way mirror glass, 24 × 18", 4–6 mm</b><span class="spec">Cut to your size from the sizing table, with edges seamed. 6 mm (¼") is the stiffest; 4 mm saves about 4 lb. Read out the order text below to the shop.</span><span class="src">Local glass shop, or online cut-to-size: twowaymirrors.com (smart-mirror glass), TAP Plastics (two-way acrylic)</span></td><td class="qty">1</td><td class="price">$120</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">D2</td><td class="item"><b>Black foam board, 20 × 30", ³⁄₁₆"</b><span class="spec">The blackout mask. Cut it to the glass size, then cut a window the size of the lit screen area and a hole for the camera lens. Matte black poster board also works.</span></td><td class="qty">1–2</td><td class="price">$8</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">D3</td><td class="item"><b>Black electrical or gaffer tape</b><span class="spec">Covers status lights on the monitor, Pi and camera, which would otherwise glow through the mirror at night.</span></td><td class="qty">1 roll</td><td class="price">$5</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">D4</td><td class="item"><b>Glass cleaner and microfiber cloths</b><span class="spec">Clean both faces before you close the box. Dust behind the glass is hard to get at later.</span></td><td class="qty">1</td><td class="price">$8</td><td class="need"><span class="tag">If needed</span></td></tr>
+      <tr class="sub"><td></td><td>Subtotal, required parts</td><td></td><td class="price">$133</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3>What to ask the glass shop for</h3>
+  <div class="order">Two-way (transparent) mirror glass, 6 mm (¼"), cut to 24" × 18".<br>Seamed edges, please. Mark which side is the coated side.<br>It's for a mirror with a screen behind it, so I need a clear view through it from the back.</div>
+  <p>Ask which side should face the room for their glass, and mark that side with tape before you handle it. For tempered glass, order it at the final size: tempered glass can't be cut afterwards.</p>
+</section>
+
+<section>
+  <div class="label">2 · Parts list</div>
+  <h2>Frame</h2>
+  <p class="intro">The recommended frame is a 3½"-deep box with a mitered front frame and a plywood back. It takes a miter saw (or a hand miter box), a drill and a few clamps. Quantities below are for 24 × 18" glass. For other sizes, use the cut list formulas on page 9.</p>
+  <table class="bom">
+    <thead><tr><th>Ref</th><th>Item</th><th class="qty">Qty</th><th class="price">Est.</th><th>Need</th></tr></thead>
+    <tbody>
+      <tr><td class="ref">E1</td><td class="item"><b>1×4 poplar board, 6 ft</b><span class="spec">The box sides. A 1×4 actually measures ¾ × 3½". Poplar paints smoothly and stays straight; pine is cheaper (budget build, ≈ $16). Use 1×6 if your monitor is deeper than 3".</span></td><td class="qty">2</td><td class="price">$28</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E2</td><td class="item"><b>1×2 poplar board, 6 ft</b><span class="spec">The front frame. It overlaps the glass by ¾" all round to hide the glass edge and the mask.</span></td><td class="qty">2</td><td class="price">$14</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E3</td><td class="item"><b>½" plywood project panel, 2 × 4 ft</b><span class="spec">The back panel. It carries the monitor, the Pi and the frame half of the cleat, so don't swap it for hardboard. Offcuts can make a wood cleat (F1b).</span></td><td class="qty">1</td><td class="price">$22</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E4</td><td class="item"><b>½" square wood strip (dowel), 4 ft</b><span class="spec">Glass stops, glued inside the box behind the glass so it stays put when the back is off.</span></td><td class="qty">2</td><td class="price">$8</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E5</td><td class="item"><b>Wood glue</b></td><td class="qty">1</td><td class="price">$6</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E6</td><td class="item"><b>Wood screws: #8 × 1¼" (box corners) and #6 × ¾" (back panel)</b><span class="spec">About 8 of the #8 and 14 of the #6. Pocket-hole screws work too if you have a jig.</span></td><td class="qty">1 pack each</td><td class="price">$10</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E7</td><td class="item"><b>1¼" brad nails (or finish nails)</b><span class="spec">Pin the front frame and stops while the glue sets.</span></td><td class="qty">1 pack</td><td class="price">$6</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E8</td><td class="item"><b>Wood filler and sandpaper (120 and 220 grit)</b></td><td class="qty">1 each</td><td class="price">$10</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E9</td><td class="item"><b>Primer and paint, or stain and clear coat</b><span class="spec">Satin black or charcoal looks like a cockpit panel. Paint the inside of the box and the back of the front frame matte black whatever the outside color.</span></td><td class="qty">1 set</td><td class="price">$18</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">E10</td><td class="item"><b>Self-adhesive felt or rubber bumpers</b><span class="spec">Two on the bottom back corners, so the mirror hangs plumb and doesn't mark the wall.</span></td><td class="qty">1 pack</td><td class="price">$4</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr class="sub"><td></td><td>Subtotal</td><td></td><td class="price">$126</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Not building a frame?</h3>
+  <ul class="ticks">
+    <li><strong>Picture-framing shop:</strong> ask for a deep "shadow box" or a frame with a build-up (riser) giving at least 3½" inside depth, and bring your glass. Expect $150–300 instead of E1–E10.</li>
+    <li><strong>Off-the-shelf shadow boxes</strong> are almost always too shallow for a monitor. Check the inside depth, not the outside depth.</li>
+    <li><strong>3D printing:</strong> printed corner brackets can join aluminum or wood rails, but you still need a back panel strong enough for the cleat.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="label">2 · Parts list</div>
+  <h2>Wall mounting and power</h2>
+  <p class="intro">Pick one mounting method and one power option. The finished mirror is heavy and has glass in it: always screw into at least one wall stud, and use hardware rated for at least twice the finished weight.</p>
+  <table class="bom">
+    <thead><tr><th>Ref</th><th>Item</th><th class="qty">Qty</th><th class="price">Est.</th><th>Need</th></tr></thead>
+    <tbody>
+      <tr><td class="ref">F1</td><td class="item"><b>Aluminum French cleat, 18", rated 100 lb or more</b><span class="spec">Recommended. One half screws to the wall and the other to the back panel. The mirror lifts on and off, which makes service easy, and it sits tight against the wall.</span></td><td class="qty">1 set</td><td class="price">$20</td><td class="need"><span class="tag pick">Pick one</span></td></tr>
+      <tr class="alt"><td class="ref">F1b</td><td class="item"><b>Wood French cleat from plywood offcut</b><span class="spec">Rip a 3"-wide strip of the ½" plywood (E3) lengthwise at 45° to make both halves. Free, and just as strong.</span></td><td class="qty">1</td><td class="price">$0</td><td class="need"><span class="tag pick">Pick one</span></td></tr>
+      <tr class="alt"><td class="ref">F1c</td><td class="item"><b>Z-bar (Z-clip) hanger set</b><span class="spec">Works like a cleat but lower profile. Good if the wall is too narrow for an 18" cleat.</span></td><td class="qty">1 set</td><td class="price">$15</td><td class="need"><span class="tag pick">Pick one</span></td></tr>
+      <tr class="alt"><td class="ref">F1d</td><td class="item"><b>Leaning or tabletop</b><span class="spec">Stand the mirror on a dresser or desk and fit an anti-tip strap to the wall (≈ $10). Don't hang it from picture wire; the mirror is too heavy for it.</span></td><td class="qty">—</td><td class="price">$10</td><td class="need"><span class="tag pick">Pick one</span></td></tr>
+      <tr><td class="ref">F2</td><td class="item"><b>Wall fasteners</b><span class="spec">#10 × 3" wood screws into a stud for the wall half of the cleat. Add rated toggle bolts (snap toggles) where the cleat crosses drywall without a stud.</span></td><td class="qty">1 set</td><td class="price">$8</td><td class="need"><span class="tag req">Required</span></td></tr>
+      <tr><td class="ref">F3</td><td class="item"><b>Paintable cord cover (raceway), 5 ft</b><span class="spec">Recommended. Runs the single power cord down the wall to the outlet and paints to match the wall.</span></td><td class="qty">1</td><td class="price">$18</td><td class="need"><span class="tag pick">Pick one</span></td></tr>
+      <tr class="alt"><td class="ref">F3b</td><td class="item"><b>In-wall power kit for wall-mounted TVs</b><span class="spec">A recessed outlet behind the mirror, fed through the wall from a plug-in inlet near the floor. Buy a UL-listed kit; it installs without an electrician. Never run an ordinary power cord inside a wall.</span></td><td class="qty">1</td><td class="price">$70</td><td class="need"><span class="tag pick">Pick one</span></td></tr>
+      <tr class="alt"><td class="ref">F3c</td><td class="item"><b>Recessed outlet installed by an electrician</b><span class="spec">The cleanest finish. Use a recessed (in-box) outlet so the plug doesn't push the mirror off the wall. Typically $150–300; not included in the totals.</span></td><td class="qty">—</td><td class="price">quote</td><td class="need"><span class="tag pick">Pick one</span></td></tr>
+      <tr class="alt"><td class="ref">F3d</td><td class="item"><b>Visible cord</b><span class="spec">The power strip's cord hangs straight down to the outlet.</span></td><td class="qty">—</td><td class="price">$0</td><td class="need"><span class="tag pick">Pick one</span></td></tr>
+      <tr class="sub"><td></td><td>Subtotal, recommended picks (F1 + F2 + F3)</td><td></td><td class="price">$46</td><td></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ 3. FRAME ============================ -->
+<section>
+  <div class="label">3 · Frame plan</div>
+  <h2>Cut list for 24 × 18" glass</h2>
+  <p class="intro">Measure the glass that actually arrives before you cut anything, and size the box from it rather than from the order.</p>
+
+  <div class="two" style="grid-template-columns: 1.05fr 1fr; align-items:start">
+    <figure style="margin-top:0">
+      <svg viewBox="0 0 420 340" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif" font-size="10">
+        <!-- face frame outer 307.5 x 235.5 at (50,40) -->
+        <rect x="50" y="40" width="307.5" height="235.5" fill="#2B2F35"/>
+        <!-- window -->
+        <rect x="68" y="58" width="271.5" height="199.5" fill="#DCEFF7"/>
+        <!-- miter lines -->
+        <g stroke="#59616B" stroke-width="1">
+          <line x1="50" y1="40" x2="68" y2="58"/><line x1="357.5" y1="40" x2="339.5" y2="58"/>
+          <line x1="50" y1="275.5" x2="68" y2="257.5"/><line x1="357.5" y1="275.5" x2="339.5" y2="257.5"/>
+        </g>
+        <!-- monitor body (dashed, behind) interior starts at 59; monitor top at 2in below interior top -->
+        <rect x="76" y="73" width="255.6" height="152.4" fill="none" stroke="#0B0D10" stroke-dasharray="5 3"/>
+        <rect x="84" y="80" width="239.6" height="138" fill="#0B6C93" opacity="0.10"/>
+        <text x="203.75" y="148" text-anchor="middle" fill="#0B0D10" font-weight="600">Display body</text>
+        <text x="203.75" y="162" text-anchor="middle" fill="#3A424C">21¼ × 12¾", 2" below inside top</text>
+        <!-- camera -->
+        <circle cx="203.75" cy="64" r="4" fill="#0B0D10"/>
+        <text x="212" y="67" fill="#0B0D10" font-size="9">camera</text>
+        <!-- pi + strip -->
+        <rect x="92" y="233" width="40" height="22" fill="none" stroke="#2E7D32" stroke-dasharray="4 2"/>
+        <text x="112" y="247" text-anchor="middle" fill="#2E7D32" font-size="8.5">Pi</text>
+        <rect x="190" y="236" width="120" height="16" fill="none" stroke="#3A424C" stroke-dasharray="4 2"/>
+        <text x="250" y="247" text-anchor="middle" fill="#3A424C" font-size="8.5">power strip</text>
+        <!-- dimensions -->
+        <g stroke="#0B6C93" stroke-width="0.8">
+          <line x1="50" y1="22" x2="357.5" y2="22"/><line x1="50" y1="17" x2="50" y2="34"/><line x1="357.5" y1="17" x2="357.5" y2="34"/>
+          <line x1="32" y1="40" x2="32" y2="275.5"/><line x1="27" y1="40" x2="44" y2="40"/><line x1="27" y1="275.5" x2="44" y2="275.5"/>
+          <line x1="68" y1="296" x2="339.5" y2="296"/><line x1="68" y1="290" x2="68" y2="302"/><line x1="339.5" y1="290" x2="339.5" y2="302"/>
+        </g>
+        <text x="203.75" y="17" text-anchor="middle" fill="#0B6C93" font-weight="600">25⅝" outside</text>
+        <text x="22" y="158" text-anchor="middle" fill="#0B6C93" font-weight="600" transform="rotate(-90 22 158)">19⅝" outside</text>
+        <text x="203.75" y="314" text-anchor="middle" fill="#0B6C93" font-weight="600">22⅝ × 16⅝" visible mirror</text>
+        <text x="203.75" y="330" text-anchor="middle" fill="#6B7480" font-size="9">Front view, landscape · 1×2 front frame overlaps the glass by ¾"</text>
+      </svg>
+    </figure>
+
+    <div>
+      <table class="data">
+        <thead><tr><th>Part</th><th>Stock</th><th class="num">Qty</th><th class="num">Length</th></tr></thead>
+        <tbody>
+          <tr><td>Box top + bottom</td><td>1×4</td><td class="num">2</td><td class="num">25⅝"</td></tr>
+          <tr><td>Box sides</td><td>1×4</td><td class="num">2</td><td class="num">18⅛"</td></tr>
+          <tr><td>Front frame, long</td><td>1×2, 45° miters</td><td class="num">2</td><td class="num">25⅝"</td></tr>
+          <tr><td>Front frame, short</td><td>1×2, 45° miters</td><td class="num">2</td><td class="num">19⅝"</td></tr>
+          <tr><td>Back panel</td><td>½" plywood</td><td class="num">1</td><td class="num">25⅝ × 19⅝"</td></tr>
+          <tr><td>Glass stops, long</td><td>½" square</td><td class="num">2</td><td class="num">24⅛"</td></tr>
+          <tr><td>Glass stops, short</td><td>½" square</td><td class="num">2</td><td class="num">17⅛"</td></tr>
+          <tr><td>Wood cleat (F1b)</td><td>½" plywood, 45°</td><td class="num">2</td><td class="num">18"</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:7.8pt;color:var(--ink-3);margin-top:4px">Front frame lengths are measured long point to long point.</p>
+
+      <h3>Any other size</h3>
+      <p style="font-size:8.4pt">With glass <span class="mono">W × H</span>:</p>
+      <ul class="ticks">
+        <li>Inside of box = <span class="mono">(W + ⅛") × (H + ⅛")</span></li>
+        <li>Box top + bottom = inside width + 1½"</li>
+        <li>Box sides = inside height</li>
+        <li>Front frame and back panel = outside size: inside + 1½" each way</li>
+        <li>Visible mirror = inside − 1½" each way</li>
+        <li>Long stops = inside width; short stops = inside height − 1"</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Layout tips that affect what you buy</h3>
+  <ul class="ticks">
+    <li><strong>Place the display high.</strong> Mount it about 2" below the inside top. That leaves room above it for the camera at eye level, and a strip about 3½" tall below it for the Pi, the power strip and the monitor's power brick.</li>
+    <li><strong>Ventilate.</strong> Drill four or five 1" holes through the top rail and the same through the bottom rail (or the back panel near the top and bottom). Heat rises out of the top and cool air comes in at the bottom.</li>
+    <li><strong>Keep the controls reachable.</strong> Cut a finger hole in the back panel over the monitor's power button, or set the monitor to switch on when power returns.</li>
+    <li><strong>Camera behind the glass</strong> works in a normally lit room. For a dim room, drill a hole just larger than the lens through the top of the front frame and mount the camera there instead.</li>
+    <li><strong>Portrait builds:</strong> turn the display 90° and switch the mirror to portrait in its display settings. Put the Pi in the space below the display.</li>
+  </ul>
+</section>
+
+<!-- ============================ 4. TOOLS ============================ -->
+<section>
+  <div class="label">4 · Tools</div>
+  <h2>Tools and supplies</h2>
+  <p class="intro">Tools aren't included in the parts totals. Most home centers rent miter saws, or will make straight cuts for you at the lumber counter.</p>
+  <div class="two">
+    <div>
+      <h3>For every build</h3>
+      <ul class="ticks">
+        <li>Tape measure and pencil</li>
+        <li>Combination or speed square</li>
+        <li>Phillips and flat screwdrivers</li>
+        <li>Utility knife and a metal straightedge (for the mask)</li>
+        <li>Stud finder</li>
+        <li>4 ft or 2 ft level</li>
+        <li>Work gloves (for glass) and safety glasses</li>
+        <li>Computer with an SD card slot (or reader A10)</li>
+        <li>iPhone or Android phone with the SkyGlass app</li>
+      </ul>
+    </div>
+    <div>
+      <h3>For the wooden frame</h3>
+      <ul class="ticks">
+        <li>Miter saw, or a hand saw with a miter box</li>
+        <li>Drill/driver with bits: ⅛" pilot, countersink, 1" spade or hole saw</li>
+        <li>Four corner clamps or two bar clamps</li>
+        <li>Brad nailer, or a hammer and nail set</li>
+        <li>Sanding block or random-orbit sander</li>
+        <li>Paint brush, small roller or spray cans</li>
+        <li>Optional: table or circular saw (for the plywood cleat), pocket-hole jig</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 style="margin-top:22px">Cost summary</h2>
+  <table class="data">
+    <thead><tr><th>Group</th><th class="num">Budget, 22"</th><th class="num rec">Recommended, 24"</th><th class="num">Premium, 27"</th></tr></thead>
+    <tbody>
+      <tr><td>A · Computer and camera</td><td class="num">$181</td><td class="num rec">$186</td><td class="num">$191</td></tr>
+      <tr><td>B · Display</td><td class="num">$85</td><td class="num rec">$110</td><td class="num">$160</td></tr>
+      <tr><td>C · Inside the box</td><td class="num">$44</td><td class="num rec">$44</td><td class="num">$44</td></tr>
+      <tr><td>D · Mirror and light control</td><td class="num">$68</td><td class="num rec">$133</td><td class="num">$433</td></tr>
+      <tr><td>E · Frame</td><td class="num">$102</td><td class="num rec">$126</td><td class="num">$126</td></tr>
+      <tr><td>F · Wall mounting and power</td><td class="num">$8</td><td class="num rec">$46</td><td class="num">$98</td></tr>
+      <tr class="total"><td>Parts total</td><td class="num">≈ $490</td><td class="num rec">≈ $645</td><td class="num">≈ $1,050</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:7.8pt;color:var(--ink-3);margin-top:5px">Budget: 32 GB card, 22" monitor, two-way acrylic 22 × 16", pine boards, spray paint, plywood cleat, visible cord. Premium: adds the RTC battery, a 27" 300+ nit monitor, smart-mirror glass 28 × 20" (≈ $420), and an in-wall power kit. The SkyGlass license is not included in these totals.</p>
+</section>
+
+<!-- ============================ 5. CHECKLIST ============================ -->
+<section>
+  <div class="label">5 · Shopping checklist</div>
+  <h2>Shopping checklist</h2>
+  <p class="intro">Recommended 24" build. Tick each part as it arrives. Write your measurements in before you order the glass.</p>
+
+  <div class="callout" style="margin-bottom:14px">
+    Display body <span class="fill"></span> × <span class="fill"></span> &nbsp; depth <span class="fill"></span> &nbsp; lit area <span class="fill"></span> × <span class="fill"></span> &nbsp; VESA <span class="fill"></span><br><br>
+    Glass to order <span class="fill"></span> × <span class="fill"></span> &nbsp; box inside <span class="fill"></span> × <span class="fill"></span> &nbsp; thickness <span class="fill"></span>
+  </div>
+
+  <div class="checklist">
+    <div class="group"><h4>A · Computer and camera</h4>
+      <div class="check"><span class="box"></span><span class="r">A1</span><span>Raspberry Pi 5, 4 GB</span><span class="p">$110</span></div>
+      <div class="check"><span class="box"></span><span class="r">A2</span><span>27 W USB-C power supply</span><span class="p">$12</span></div>
+      <div class="check"><span class="box"></span><span class="r">A3</span><span>Active Cooler</span><span class="p">$5</span></div>
+      <div class="check"><span class="box"></span><span class="r">A4</span><span>microSD 64 GB, A2</span><span class="p">$15</span></div>
+      <div class="check"><span class="box"></span><span class="r">A5</span><span>Camera Module 3 (or A5b webcam)</span><span class="p">$25</span></div>
+      <div class="check"><span class="box"></span><span class="r">A6</span><span>Pi 5 camera cable, 500 mm</span><span class="p">$3</span></div>
+      <div class="check"><span class="box"></span><span class="r">A7</span><span>Micro-HDMI to HDMI, 1 m</span><span class="p">$8</span></div>
+      <div class="check"><span class="box"></span><span class="r">A8</span><span>M2.5 standoff kit</span><span class="p">$8</span></div>
+    </div>
+    <div class="group"><h4>B · Display</h4>
+      <div class="check"><span class="box"></span><span class="r">B1</span><span>24" IPS monitor, VESA, 250+ nits</span><span class="p">$110</span></div>
+    </div>
+    <div class="group"><h4>C · Inside the box</h4>
+      <div class="check"><span class="box"></span><span class="r">C1</span><span>M4 × 50 mm bolts + spacers × 4</span><span class="p">$8</span></div>
+      <div class="check"><span class="box"></span><span class="r">C2</span><span>Dual Lock strips</span><span class="p">$10</span></div>
+      <div class="check"><span class="box"></span><span class="r">C3</span><span>Cable clips, zip ties</span><span class="p">$8</span></div>
+      <div class="check"><span class="box"></span><span class="r">C4</span><span>Slim 3-outlet surge strip</span><span class="p">$18</span></div>
+    </div>
+    <div class="group"><h4>D · Mirror and light control</h4>
+      <div class="check"><span class="box"></span><span class="r">D1</span><span>Two-way glass, cut to size</span><span class="p">$120</span></div>
+      <div class="check"><span class="box"></span><span class="r">D2</span><span>Black foam board</span><span class="p">$8</span></div>
+      <div class="check"><span class="box"></span><span class="r">D3</span><span>Black electrical tape</span><span class="p">$5</span></div>
+    </div>
+    <div class="group"><h4>E · Frame</h4>
+      <div class="check"><span class="box"></span><span class="r">E1</span><span>1×4 poplar, 6 ft × 2</span><span class="p">$28</span></div>
+      <div class="check"><span class="box"></span><span class="r">E2</span><span>1×2 poplar, 6 ft × 2</span><span class="p">$14</span></div>
+      <div class="check"><span class="box"></span><span class="r">E3</span><span>½" plywood, 2 × 4 ft</span><span class="p">$22</span></div>
+      <div class="check"><span class="box"></span><span class="r">E4</span><span>½" square strip, 4 ft × 2</span><span class="p">$8</span></div>
+      <div class="check"><span class="box"></span><span class="r">E5</span><span>Wood glue</span><span class="p">$6</span></div>
+      <div class="check"><span class="box"></span><span class="r">E6</span><span>Screws #8 × 1¼", #6 × ¾"</span><span class="p">$10</span></div>
+      <div class="check"><span class="box"></span><span class="r">E7</span><span>1¼" brad nails</span><span class="p">$6</span></div>
+      <div class="check"><span class="box"></span><span class="r">E8</span><span>Filler, sandpaper</span><span class="p">$10</span></div>
+      <div class="check"><span class="box"></span><span class="r">E9</span><span>Primer and paint / stain</span><span class="p">$18</span></div>
+      <div class="check"><span class="box"></span><span class="r">E10</span><span>Felt bumpers</span><span class="p">$4</span></div>
+    </div>
+    <div class="group"><h4>F · Wall mounting and power</h4>
+      <div class="check"><span class="box"></span><span class="r">F1</span><span>Aluminum French cleat, 18"</span><span class="p">$20</span></div>
+      <div class="check"><span class="box"></span><span class="r">F2</span><span>#10 × 3" screws / toggles</span><span class="p">$8</span></div>
+      <div class="check"><span class="box"></span><span class="r">F3</span><span>Paintable cord cover, 5 ft</span><span class="p">$18</span></div>
+    </div>
+    <div class="group"><h4>Also have ready</h4>
+      <div class="check"><span class="box"></span><span class="r">—</span><span>SkyGlass license key (from your order email)</span><span class="p"></span></div>
+      <div class="check"><span class="box"></span><span class="r">—</span><span>SkyGlass app on your phone</span><span class="p"></span></div>
+      <div class="check"><span class="box"></span><span class="r">—</span><span>WiFi name and password</span><span class="p"></span></div>
+    </div>
+  </div>
+  <p style="margin-top:10px;font-size:8.2pt">Questions about parts? Email <a href="mailto:support@skyglass.dev">support@skyglass.dev</a> or visit <a href="https://skyglass.dev">skyglass.dev</a>.</p>
+</section>
+
+</body>
+</html>

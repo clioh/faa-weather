@@ -4,223 +4,24 @@ Complete guide to building a smart mirror for pilots, including parts list, asse
 
 ## Table of Contents
 
-1. [Budget Overview](#budget-overview)
-2. [Parts List](#parts-list)
-3. [Tools Needed](#tools-needed)
-4. [Frame Assembly](#frame-assembly)
-5. [Electronics Installation](#electronics-installation)
-6. [Software Setup](#software-setup)
-7. [Troubleshooting](#troubleshooting)
-
----
-
-## Budget Overview
-
-| Category | Budget Option | Recommended | Premium |
-|----------|---------------|-------------|---------|
-| Computer | $100 | $110 | $155 |
-| Display | $80 | $120 | $180 |
-| Mirror | $40 | $60 | $120 |
-| Frame | $30 | $30 | $100 |
-| Misc/Cables | $20 | $39 | $40 |
-| **Total** | **~$270** | **~$359** | **~$595** |
-
-Computer costs are the sums of the option tables below (Pi 4, Pi 5, Mini PC + webcam). The Recommended column matches the [Sample Shopping Cart](#sample-shopping-cart-recommended-build).
+1. [Parts List](#parts-list)
+2. [Frame Assembly](#frame-assembly)
+3. [Electronics Installation](#electronics-installation)
+4. [Software Setup](#software-setup)
+5. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Parts List
 
-### Core Computing (Choose One)
+The complete bill of materials (every part with specs, quantities and prices, a sizing table,
+frame cut list, mounting and power options, tools and a printable shopping checklist) is
+[`docs/build-guide/SkyGlass-Bill-of-Materials.pdf`](build-guide/SkyGlass-Bill-of-Materials.pdf).
+Its source is [`docs/build-guide/bom.html`](build-guide/bom.html); rebuild the PDF with
+`npm run docs:bom` after editing it.
 
-#### Recommended: Raspberry Pi 5 (4GB) - ~$110 total
-
-| Item | Price | Notes |
-|------|-------|-------|
-| [Raspberry Pi 5 4GB](https://www.raspberrypi.com/products/raspberry-pi-5/) | $60 | 4GB is sufficient; 8GB unnecessary |
-| [Raspberry Pi Camera Module 3](https://www.raspberrypi.com/products/camera-module-3/) | $25 | Wide-angle version also works |
-| [27W USB-C Power Supply](https://www.raspberrypi.com/products/27w-power-supply/) | $12 | Must be 27W for Pi 5 |
-| [32GB microSD Card](https://www.amazon.com/dp/B07G3H5RBT) | $8 | Samsung EVO or SanDisk recommended |
-| [Pi 5 Active Cooler](https://www.raspberrypi.com/products/active-cooler/) | $5 | Recommended for enclosed space |
-
-**Why Pi 5 over alternatives:**
-- Native CSI camera port = lower latency face detection
-- Hardware video decode for smooth UI
-- GPIO for future sensors (ambient light, temperature)
-- Excellent Linux support and community
-- Low power (~5W idle)
-
-#### Budget Alternative: Raspberry Pi 4 (4GB) - ~$100 total
-
-| Item | Price | Notes |
-|------|-------|-------|
-| [Raspberry Pi 4 4GB](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) | $55 | Still very capable |
-| [Pi Camera Module 2](https://www.raspberrypi.com/products/camera-module-v2/) | $25 | Or use Module 3 |
-| [15W USB-C Power Supply](https://www.raspberrypi.com/products/type-c-power-supply/) | $8 | Official PSU recommended |
-| [32GB microSD Card](https://www.amazon.com/dp/B07G3H5RBT) | $8 | |
-| Heatsink Kit | $5 | Passive cooling usually sufficient |
-
-#### Alternative: Mini PC - ~$155 total
-
-| Item | Price | Notes |
-|------|-------|-------|
-| [Beelink S12 Pro (N100)](https://www.amazon.com/dp/B0BVLS8ZHP) | $130 | Intel N100, 8GB RAM, 256GB SSD |
-| [USB Webcam](https://www.amazon.com/dp/B09DPL5YYX) | $25 | 1080p with good low-light |
-
-**Mini PC pros:** More power, runs standard Ubuntu/Debian
-**Mini PC cons:** No CEC display control, needs USB webcam, higher power draw
-
----
-
-### Display
-
-The display is hidden behind the two-way mirror. Key requirements:
-- Thin bezels (more visible area)
-- IPS panel (better viewing angles)
-- HDMI input
-- VESA mount holes (for mounting)
-
-#### Recommended: 24" 1080p IPS Monitor
-
-| Option | Price | Notes |
-|--------|-------|-------|
-| [Dell SE2422H 24"](https://www.amazon.com/dp/B08FRXG5K5) | $120 | Thin bezels, VESA mount |
-| [ASUS VA24DQ 24"](https://www.amazon.com/dp/B08C2GQJVD) | $130 | IPS, built-in speakers |
-| [LG 24ML44B 24"](https://www.amazon.com/dp/B08FXSPRB1) | $100 | Budget friendly |
-
-#### Budget: 22" Monitor
-
-| Option | Price | Notes |
-|--------|-------|-------|
-| [Acer SB220Q 21.5"](https://www.amazon.com/dp/B07CVL2D2S) | $80 | Ultra-thin, IPS |
-| [HP M22f 22"](https://www.amazon.com/dp/B08V87FFLQ) | $90 | Good for smaller builds |
-
-#### Premium: 27" or Larger
-
-| Option | Price | Notes |
-|--------|-------|-------|
-| [LG 27MR400 27"](https://www.amazon.com/dp/B0CHWMYVQH) | $150 | Great for larger frames |
-| [Samsung M5 32"](https://www.amazon.com/dp/B08WJGZ4Z4) | $200 | Smart TV features built-in |
-
-**Important:** Measure your monitor's visible display area (not including bezel) before ordering mirror glass.
-
----
-
-### Two-Way Mirror
-
-The magic! This is what makes text visible while still reflecting like a mirror.
-
-#### Option 1: Two-Way Mirror Acrylic (Recommended)
-
-| Source | Size | Price | Notes |
-|--------|------|-------|-------|
-| [TAP Plastics](https://www.tapplastics.com/product/plastics/cut_to_size_background/two_way_mirror/558) | Custom | $40-80 | Custom cut to size |
-| [Amazon - 12x24"](https://www.amazon.com/dp/B01G4MQ3WQ) | 12"x24" | $35 | May need multiple |
-| [Two Way Mirrors](https://www.twowaymirrors.com/acrylic-mirror/) | Custom | $50-100 | High quality |
-
-**Acrylic pros:** Lightweight, won't shatter, easy to cut
-**Acrylic cons:** Can scratch, slight flexibility
-
-#### Option 2: Two-Way Mirror Glass
-
-| Source | Size | Price | Notes |
-|--------|------|-------|-------|
-| [Two Way Mirrors](https://www.twowaymirrors.com/smart-mirror/) | Custom | $80-150 | Professional quality |
-| Local glass shop | Custom | $60-100 | Call for quotes |
-
-**Glass pros:** More reflective, scratch resistant, rigid
-**Glass cons:** Heavy, can break, harder to work with
-
-#### DIY Option: Mirror Film on Glass
-
-| Item | Price | Notes |
-|------|-------|-------|
-| [Gila Mirror Window Film](https://www.amazon.com/dp/B000HZWFN6) | $25 | Apply to regular glass |
-| Picture frame glass | $20-40 | From craft store |
-
-**Film pros:** Cheapest option
-**Film cons:** Bubbles, less reflective, application is tricky
-
----
-
-### Frame
-
-You have several options for the frame:
-
-#### Option 1: Buy a Picture Frame (Easiest)
-
-| Source | Size | Price | Notes |
-|--------|------|-------|-------|
-| [IKEA RIBBA](https://www.ikea.com/us/en/p/ribba-frame-black-40378401/) | Various | $15-40 | Simple, clean look |
-| [Michael's Shadow Box](https://www.michaels.com/product/studio-decor-shadow-box-10476887) | Various | $30-60 | Deep enough for electronics |
-| Amazon shadow box | Various | $25-50 | Search "deep shadow box" |
-
-**Key measurement:** Frame depth must be at least 2" (50mm) to fit monitor + Pi.
-
-#### Option 2: Build a Custom Frame
-
-Materials from Home Depot/Lowe's:
-
-| Item | Price | Notes |
-|------|-------|-------|
-| 1x4 Pine boards | $15 | For frame sides |
-| 1x2 Pine boards | $10 | For mounting ledge |
-| Wood glue + screws | $10 | |
-| Wood stain/paint | $10 | Matte black recommended |
-
-#### Option 3: 3D Print (If You Have Access)
-
-STL files available for various monitor sizes:
-- [Thingiverse MagicMirror frames](https://www.thingiverse.com/search?q=magic+mirror+frame)
-- Print in sections and assemble
-
----
-
-### Cables & Accessories
-
-| Item | Price | Notes |
-|------|-------|-------|
-| [HDMI Cable (thin/flat)](https://www.amazon.com/dp/B07JGZ9SWL) | $8 | Flat cables easier to route |
-| [Pi Camera Ribbon Cable (longer)](https://www.amazon.com/dp/B085RW9K13) | $8 | 30-50cm recommended |
-| [USB-C Extension](https://www.amazon.com/dp/B081QFXJ2D) | $10 | For power routing |
-| [Velcro Strips](https://www.amazon.com/dp/B00006IC2T) | $8 | Mounting Pi and cables |
-| [Cable Ties](https://www.amazon.com/dp/B0002GX1XA) | $5 | Cable management |
-| [Power Strip (slim)](https://www.amazon.com/dp/B07PJNHGBY) | $15 | Mount inside frame |
-
-#### Optional Accessories
-
-| Item | Price | Notes |
-|------|-------|-------|
-| [HDMI CEC Adapter](https://www.amazon.com/dp/B07KSYS25P) | $15 | If monitor lacks CEC |
-| [USB Sound Card](https://www.amazon.com/dp/B00IRVQ0F8) | $10 | If you want audio alerts |
-| [Ambient Light Sensor](https://www.amazon.com/dp/B07Q2R5S9J) | $8 | Auto-brightness (future) |
-| [PIR Motion Sensor](https://www.amazon.com/dp/B07KBWVJMP) | $8 | Backup presence detection |
-
----
-
-## Tools Needed
-
-### Required
-
-- [ ] Screwdriver set (Phillips + flathead)
-- [ ] Measuring tape
-- [ ] Pencil for marking
-- [ ] Level (or phone app)
-
-### For Custom Frame
-
-- [ ] Saw (hand saw or miter saw)
-- [ ] Drill with bits
-- [ ] Sandpaper (120, 220 grit)
-- [ ] Clamps
-- [ ] Safety glasses
-
-### Helpful
-
-- [ ] Hot glue gun
-- [ ] Wire strippers
-- [ ] Multimeter (for debugging)
-- [ ] Headlamp/flashlight
+Parts cost is about $490 (22", acrylic) to $1,050 (27", smart-mirror glass); the recommended
+24" build is about $645. Part codes in this guide (A1, D1, ...) refer to that document.
 
 ---
 
@@ -424,12 +225,11 @@ Update the system:
 sudo apt update && sudo apt upgrade -y
 ```
 
-Enable the camera:
+Check that the camera is detected (Raspberry Pi OS finds ribbon cameras
+automatically; a USB webcam needs nothing):
 
 ```bash
-sudo raspi-config
-# Navigate to: Interface Options → Camera → Enable
-# Reboot when prompted
+rpicam-hello --list-cameras   # Pi camera, e.g. "imx708" for Camera Module 3
 ```
 
 ### Step 3: Install SkyGlass Software
@@ -496,7 +296,11 @@ pm2 save
 
 ### Step 8: Configure Kiosk Mode
 
-The setup script created autostart files. On next reboot, Chromium will launch automatically in kiosk mode pointing to `http://localhost:3001` (the backend serves the built display UI).
+The setup script switched the desktop to labwc with automatic login and wrote
+`~/.config/labwc/autostart`, which runs only `scripts/kiosk.sh`: Chromium full
+screen on `http://localhost:3001` (the backend serves the built display UI),
+restarted if it exits. No panel or screen blanker runs behind the mirror. To get
+the normal desktop back for maintenance, delete that autostart file and reboot.
 
 Test it:
 ```bash
@@ -549,17 +353,17 @@ Only for lighter builds (<15 lbs).
 
 | Problem | Solution |
 |---------|----------|
-| Camera not detected | Check ribbon cable orientation |
+| Camera not detected | Check ribbon cable orientation and that you used the Pi 5 (22-pin) cable; `rpicam-hello --list-cameras` should list it |
 | Face not recognized | Register the face again from the phone app, in front of the mirror and in its usual lighting |
 | Slow recognition | Set `detection_method: opencv` in the `presence:` block of config.yaml (wakes for any face) |
-| Camera preview black | Enable camera in raspi-config |
+| Camera preview black | `pm2 logs skyglass-detector` shows which camera opened; see "Camera not working on Raspberry Pi" in `packages/presence/README.md` |
 
 ### Presence Detection Issues
 
 | Problem | Solution |
 |---------|----------|
 | Mirror won't turn on | Check a face is registered, then `pm2 logs skyglass-detector` (see `packages/presence/README.md`) |
-| Mirror won't turn off | Lower `presence.timeout` (detector) or `display.presence_timeout` in config.yaml |
+| Mirror won't turn off | Lower `presence.timeout` (detector) or `display.presence_timeout` in config.yaml. `pm2 logs skyglass-backend` shows `Display control: ...` at startup: a TV uses HDMI-CEC, a monitor has its HDMI output switched off and must be set to sleep on no signal |
 | Detects other people | Lower `presence.tolerance` in config.yaml (e.g. 0.5) |
 | Too sensitive | Increase `presence.min_detection_frames` in config.yaml |
 
@@ -602,28 +406,6 @@ npm run update                 # check and prompt
 
 Updates come from GitHub release tarballs; `config/config.yaml`, `data/` and
 registered faces are kept. Details in the README's *Updating* section.
-
----
-
-## Sample Shopping Cart (Recommended Build)
-
-For a 24" mirror build:
-
-| Item | Source | Price |
-|------|--------|-------|
-| Raspberry Pi 5 4GB | RPi Foundation | $60 |
-| Pi Camera Module 3 | RPi Foundation | $25 |
-| 27W Power Supply | RPi Foundation | $12 |
-| Active Cooler | RPi Foundation | $5 |
-| 32GB microSD | Amazon | $8 |
-| Dell SE2422H 24" Monitor | Amazon | $120 |
-| Two-Way Acrylic 24x18" | TAP Plastics | $60 |
-| IKEA RIBBA Frame 24x18 | IKEA | $30 |
-| Flat HDMI Cable 6ft | Amazon | $8 |
-| Camera Ribbon 50cm | Amazon | $8 |
-| Velcro Strips | Amazon | $8 |
-| Slim Power Strip | Amazon | $15 |
-| **Total** | | **~$359** |
 
 ---
 
