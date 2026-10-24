@@ -14,8 +14,10 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "SkyGlass uses your location to provide accurate sunrise/sunset times and local weather.",
         "NSLocalNetworkUsageDescription": "SkyGlass needs to discover your mirror on the local network.",
-        "NSBonjourServices": ["_skyglass._tcp"]
-      }
+        "NSBonjourServices": ["_skyglass._tcp"],
+        "NSCameraUsageDescription": "SkyGlass uses the camera to scan the QR code on your mirror."
+      },
+      "associatedDomains": ["applinks:skyglass.dev", "applinks:www.skyglass.dev"]
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +25,36 @@
         "backgroundColor": "#000000"
       },
       "package": "com.skyglass.app",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "ACCESS_NETWORK_STATE"]
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "ACCESS_NETWORK_STATE"],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "skyglass.dev",
+              "pathPrefix": "/connect"
+            },
+            {
+              "scheme": "https",
+              "host": "skyglass.dev",
+              "pathPrefix": "/invite"
+            },
+            {
+              "scheme": "https",
+              "host": "www.skyglass.dev",
+              "pathPrefix": "/connect"
+            },
+            {
+              "scheme": "https",
+              "host": "www.skyglass.dev",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -49,8 +80,16 @@
         "expo-image-picker",
         {
           "photosPermission": "SkyGlass uses your photos so you can choose pictures for the mirror's photo frame.",
-          "cameraPermission": false,
+          "cameraPermission": "SkyGlass uses the camera to scan the QR code on your mirror.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SkyGlass uses the camera to scan the QR code on your mirror.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       "expo-font",

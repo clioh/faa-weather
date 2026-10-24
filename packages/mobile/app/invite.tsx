@@ -2,8 +2,9 @@
  * Accept an invite (deep link target)
  *
  *   skyglass://invite?host=192.168.1.27&port=3001&token=sgi_…
+ *   https://skyglass.dev/invite#h=…&p=…&t=…  (rewritten by app/+native-intent.tsx)
  *
- * Opened from the skyglass.dev/invite page (lib/invites.ts) that someone
+ * Opened from the skyglass.dev/invite link (lib/invites.ts) that someone
  * shared after adding this person to their mirror and registering their face.
  * Accepting pairs this phone with the mirror as that person
  * (POST /api/invites/claim), makes this phone's profile theirs, and links the

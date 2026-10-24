@@ -9,6 +9,7 @@ import 'react-native-get-random-values';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import { isMirrorId } from './mirrorLocator';
+import { isValidHost } from './hosts';
 
 /**
  * Storage error for validation failures
@@ -53,17 +54,6 @@ function validateLinkedMirror(mirror: unknown): mirror is LinkedMirror {
     typeof m.faceEnrolled === 'boolean' &&
     typeof m.lastConnected === 'string'
   );
-}
-
-/**
- * Validate host format (IP address or hostname)
- */
-function isValidHost(host: string): boolean {
-  // IP address pattern
-  const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-  // Hostname pattern (allows alphanumeric, dots, and hyphens)
-  const hostnamePattern = /^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$/;
-  return ipPattern.test(host) || hostnamePattern.test(host);
 }
 
 const STORAGE_KEYS = {

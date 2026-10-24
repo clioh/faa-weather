@@ -49,6 +49,8 @@
 	<array>
 		<string>_skyglass._tcp</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>SkyGlass uses the camera to scan the QR code on your mirror.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>SkyGlass needs to discover your mirror on the local network.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

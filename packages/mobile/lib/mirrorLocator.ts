@@ -22,6 +22,7 @@
 import { NativeModules } from 'react-native';
 // @ts-expect-error - no types available for react-native-zeroconf
 import Zeroconf from 'react-native-zeroconf';
+import { mirrorOrigin } from './hosts';
 
 export const MIRROR_PORT = 3001;
 export const MIRROR_HOSTNAME = 'skyglass.local';
@@ -87,7 +88,7 @@ export async function probeMirror(
   const onAbort = () => controller.abort();
   signal?.addEventListener('abort', onAbort);
   try {
-    const res = await fetch(`http://${host}:${port}/api/discovery`, {
+    const res = await fetch(`${mirrorOrigin(host, port)}/api/discovery`, {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     });

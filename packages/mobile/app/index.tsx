@@ -447,9 +447,16 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Manual connection */}
+        {/* Scan the mirror's QR code in the app, or type its address */}
         <View style={styles.manual}>
           <RowGroup>
+            <Row
+              icon="qr-code-outline"
+              title="Scan the mirror’s code"
+              caption="The QR code on the mirror’s screen"
+              onPress={() => router.push('/scan')}
+              disabled={connecting !== null}
+            />
             <Row
               title="Enter IP manually"
               onPress={() => setShowManual(!showManual)}

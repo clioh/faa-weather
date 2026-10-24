@@ -100,6 +100,8 @@ function RootLayoutNav() {
       <Stack.Screen name="schedule" options={{ headerShown: false }} />
       {/* Opened by lib/pairing only; pops itself when paired. */}
       <Stack.Screen name="pair" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+      {/* In-app QR scanner; replaces itself with /connect or /invite. */}
+      <Stack.Screen name="scan" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
       <Stack.Screen name="invite" options={{ headerShown: false }} />
       <Stack.Screen name="invite-person" options={{ headerShown: false }} />
       <Stack.Screen name="person" options={{ headerShown: false }} />

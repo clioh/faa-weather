@@ -1,8 +1,12 @@
 /**
  * Connect (deep link target)
  *
- * Opened from the QR code on the mirror's setup screen:
- *   skyglass://connect?host=192.168.1.27&port=3001
+ * Opened from the QR code on the mirror's setup screen, by the camera app or
+ * the in-app scanner (app/scan.tsx):
+ *   https://skyglass.dev/connect#h=192.168.1.27&p=3001&pair=…&m=Hangar
+ *     (a Universal Link / App Link; app/+native-intent.tsx rewrites it to
+ *     /connect?host=…&port=…&pair=…&name=…, see lib/appLinks)
+ *   skyglass://connect?host=192.168.1.27&port=3001                 (older mirrors)
  *   exp://192.168.1.27:8081/--/connect?host=192.168.1.27&port=3001  (Expo Go)
  *
  * The QR also carries a single-use pairing secret (`&pair=<secret>`). This
@@ -30,10 +34,9 @@ import { commonPairingError, getDeviceName } from '@/lib/pairing';
 import { storage } from '@/lib/storage';
 import { claimResetNonce } from '@/lib/devReset';
 import { goBack } from '@/lib/navigation';
+import { normalizeHost } from '@/lib/hosts';
 import { Notice, PrimaryButton } from '@/components/calendar/ui';
 import { colors, spacing, typography } from '@/lib/theme';
-
-const HOST_PATTERN = /^[a-zA-Z0-9.-]+$/;
 
 /** True when this phone already has a token the mirror accepts. */
 async function alreadyPaired(): Promise<boolean> {
@@ -65,11 +68,15 @@ export default function ConnectScreen() {
     host?: string;
     port?: string;
     pair?: string;
+    /** The mirror's name, from the https link (only used for the copy). */
+    name?: string;
     reset?: string;
   }>();
   const { isLoading, isOnboarded, resetAppData } = useUser();
   const [claimError, setClaimError] = useState<string | null>(null);
   const [wasReset, setWasReset] = useState(false);
+  const mirrorName =
+    typeof params.name === 'string' && params.name.trim() ? params.name.trim().slice(0, 64) : null;
   // The reset flips isOnboarded mid-run; handle each deep link only once.
   const handled = useRef<string | null>(null);
 
@@ -92,11 +99,10 @@ export default function ConnectScreen() {
         setWasReset(true);
       }
 
-      const host = typeof params.host === 'string' ? params.host.trim() : '';
+      const host = normalizeHost(params.host) ?? '';
       const port = params.port ? parseInt(String(params.port), 10) : 3001;
       const secret = typeof params.pair === 'string' ? params.pair.trim() : '';
-      const validAddress =
-        !!host && HOST_PATTERN.test(host) && Number.isInteger(port) && port > 0 && port < 65536;
+      const validAddress = !!host && Number.isInteger(port) && port > 0 && port < 65536;
 
       if (validAddress) {
         await storage.setPendingMirror({ host, port });
@@ -126,7 +132,7 @@ export default function ConnectScreen() {
         <View style={[styles.errorBody, { paddingTop: insets.top + 72 }]}>
           <IconCircle icon="qr-code-outline" />
           <Text style={styles.title} accessibilityRole="header">
-            Couldn’t pair with the QR code
+            {mirrorName ? `Couldn’t pair with ${mirrorName}` : 'Couldn’t pair with the QR code'}
           </Text>
           <Notice tone="warning" message={claimError} />
         </View>
@@ -146,7 +152,7 @@ export default function ConnectScreen() {
   return (
     <View style={styles.container}>
       <Spinner size="large" />
-      <Text style={styles.text}>Connecting to your mirror…</Text>
+      <Text style={styles.text}>Connecting to {mirrorName ?? 'your mirror'}…</Text>
     </View>
   );
 }

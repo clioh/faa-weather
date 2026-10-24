@@ -7,6 +7,7 @@ import { ModuleInstance, MirrorLayout } from './modules';
 import { isMirrorId, locateMirror, subnetOf } from './mirrorLocator';
 import { storage } from './storage';
 import { pairingStore, usableMirrorId } from './pairingStore';
+import { mirrorOrigin } from './hosts';
 
 export type { ModuleInstance, MirrorLayout };
 
@@ -476,7 +477,7 @@ class MirrorAPI {
   setBaseUrl(host: string, port: number = 3001, mirrorId?: string | null) {
     this.host = host;
     this.port = port;
-    this.baseUrl = `http://${host}:${port}`;
+    this.baseUrl = mirrorOrigin(host, port);
     this.mirrorId = isMirrorId(mirrorId) ? mirrorId : null;
     this.lastRelocationFailure = 0;
     this.setStatus('idle', true);
@@ -620,7 +621,7 @@ class MirrorAPI {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), UNPAIR_TIMEOUT_MS);
       try {
-        await fetch(`http://${host}:${port}/api/pairing/devices/self`, {
+        await fetch(`${mirrorOrigin(host, port)}/api/pairing/devices/self`, {
           method: 'DELETE',
           signal: controller.signal,
           headers: { Authorization: `Bearer ${token}` },
@@ -718,7 +719,7 @@ class MirrorAPI {
     const mirrorId = this.mirrorId;
     this.host = host;
     this.port = port;
-    this.baseUrl = `http://${host}:${port}`;
+    this.baseUrl = mirrorOrigin(host, port);
     this.lastRelocationFailure = 0;
     this.setStatus('connected', true);
     if (!mirrorId) return;
