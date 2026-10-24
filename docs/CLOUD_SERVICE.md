@@ -296,6 +296,56 @@ Upstream: `GET https://finnhub.io/api/v1/stock/profile2?symbol=X` per symbol.
 These are the calendar sign-in broker. They are documented in [CALENDAR.md](CALENDAR.md#skyglass-sign-in-service-cloud).
 Both are `no-store`.
 
+## App links
+
+The mirror's pairing QR (`https://skyglass.dev/connect#h=…&p=…&pair=…&m=…`) and invite links
+(`https://skyglass.dev/invite#h=…&p=…&t=…&n=…&m=…`) are iOS Universal Links and Android App
+Links: with the app installed the OS opens it directly; without it, the page explains how to
+get the app and pair (`src/pages/Connect.tsx`, `src/pages/Invite.tsx`). Parameters stay in the
+fragment, so the pairing secret and invite token never reach Vercel, logs or analytics.
+`https://skyglass.dev/app` is the short "get the app" page the mirror's setup screen prints.
+
+| File                                      | Read by                       | Generated from                                     |
+| ----------------------------------------- | ----------------------------- | -------------------------------------------------- |
+| `/.well-known/apple-app-site-association` | iOS (via Apple's CDN)         | `APPLE_TEAM_ID`, `IOS_BUNDLE_ID`, `APP_LINK_PATHS` |
+| `/.well-known/assetlinks.json`            | Android (`autoVerify` intent) | `ANDROID_PACKAGE`, `ANDROID_CERT_SHA256`           |
+
+- **Config:** `packages/website/src/config/app.ts` is the only place to edit (also holds
+  `APP_STORE_URL` / `PLAY_STORE_URL` for the store buttons). A Vite plugin in `vite.config.ts`
+  writes both files into `dist/` on `npm run build` and serves them in `vite dev` / `vite preview`.
+  While `APPLE_TEAM_ID` is null or `ANDROID_CERT_SHA256` is empty, that file is **not published**
+  and the build prints a warning: links then always land on the web page, which still offers
+  "Open in SkyGlass app" (`skyglass://connect?host&port&pair`, `skyglass://invite?host&port&token`).
+- **To fill in when the apps are registered:** the Apple Team ID (iOS app ID
+  `<TEAM_ID>.com.skyglass.app`); the SHA-256 of the Play App Signing certificate (Play Console,
+  App integrity) plus any upload/debug keys used for sideloaded builds; the two store URLs.
+  The app's own config (`packages/mobile/app.json`: `associatedDomains` and Android intent
+  filters with `autoVerify`) must list the same hosts and paths.
+- **Serving:** `vercel.json` excludes `/.well-known/` from the SPA rewrite (a missing file is a 404,
+  never `index.html`) and sends `Content-Type: application/json` and `Cache-Control: public,
+max-age=3600`. Both files must be served with **200 and no redirect**.
+- **Canonical domain:** Apple fetches the AASA from the exact host in the link and does not follow
+  redirects (Android's verifier doesn't either). `skyglass.dev` redirects to `www.skyglass.dev`
+  today (see "Choose the canonical domain" in `PRE_LAUNCH_CHECKLIST.md`), so either serve
+  `skyglass.dev` directly (make it the primary domain in Vercel, or remove the redirect so both
+  hosts serve the site), or have the mirror's QR and invites use the host that is served
+  directly. The app lists both `skyglass.dev` and `www.skyglass.dev`, so either works once its
+  files are reachable without a redirect.
+
+Verify after a deploy:
+
+```bash
+curl -sI https://skyglass.dev/.well-known/apple-app-site-association   # 200, application/json, no Location
+curl -sI https://www.skyglass.dev/.well-known/apple-app-site-association
+curl -s  https://skyglass.dev/.well-known/assetlinks.json
+curl -s  https://app-site-association.cdn-apple.com/a/v1/skyglass.dev   # what iOS devices see (cached, can lag hours)
+```
+
+For Android, use Google's Statement List tester
+(<https://developers.google.com/digital-asset-links/tools/generator>) or
+`https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://skyglass.dev&relation=delegate_permission/common.handle_all_urls`,
+and on a device `adb shell pm get-app-links com.skyglass.app` (each host should be `verified`).
+
 ## Environment variables (Vercel project)
 
 See `packages/website/.env.example`.

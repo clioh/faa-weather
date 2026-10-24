@@ -13,17 +13,25 @@ import {
   Admin,
   License,
   Invite,
+  Connect,
+  GetApp,
 } from './pages'
 import { canPurchase } from './config/features'
 
-// /license?token=… is a sign-in link from email, and /invite#…&t=… carries a single-use
-// invite token in the fragment. Never send either token to analytics.
+// /license?token=… is a sign-in link from email, /invite#…&t=… carries a single-use invite
+// token and /connect#…&pair=… a single-use pairing secret in the fragment. Never send any of
+// them to analytics.
+const FRAGMENT_SECRET_PATHS = ['/invite', '/connect']
+
+const hasFragmentSecret = (pathname: string) =>
+  FRAGMENT_SECRET_PATHS.some((path) => pathname.startsWith(path))
+
 function redactTokens<T extends { url: string }>(event: T): T {
   const url = new URL(event.url)
   const hasToken = url.searchParams.has('token')
   if (!hasToken && !url.hash) return event
   url.searchParams.delete('token')
-  if (url.pathname.startsWith('/invite')) url.hash = ''
+  if (hasFragmentSecret(url.pathname)) url.hash = ''
   return { ...event, url: url.toString() }
 }
 
@@ -33,8 +41,8 @@ function redactTokens<T extends { url: string }>(event: T): T {
 function ScrollToHash() {
   const { pathname, hash, key } = useLocation()
   useEffect(() => {
-    // /invite keeps its parameters in the hash; it is not an element id.
-    if (!hash || pathname.startsWith('/invite')) return
+    // /invite and /connect keep their parameters in the hash; it is not an element id.
+    if (!hash || hasFragmentSecret(pathname)) return
     let id: string
     try {
       id = decodeURIComponent(hash.slice(1))
@@ -79,6 +87,8 @@ export default function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/license" element={<License />} />
         <Route path="/invite" element={<Invite />} />
+        <Route path="/connect" element={<Connect />} />
+        <Route path="/app" element={<GetApp />} />
         {/* E-commerce routes - only available when feature flag is enabled */}
         {ecommerceEnabled && (
           <>

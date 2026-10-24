@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { PageHeader, SEO, SiteFooter } from '../components'
-import { APP_STORE_URL, APP_URL_SCHEME } from '../config/app'
+import {
+  PageHeader,
+  SEO,
+  SiteFooter,
+  StepList,
+  StoreButtons,
+  detectPlatform,
+  isAppAvailable,
+} from '../components'
+import { APP_URL_SCHEME } from '../config/app'
+import { cleanLabel, hashParams, parseHost, parsePort } from '../lib/appLinks'
 
 const SUPPORT_EMAIL = 'support@skyglass.dev'
-const DEFAULT_PORT = 3001
-const MAX_LABEL_LENGTH = 60
 
-const HOST_PATTERN = /^[a-zA-Z0-9.-]+$/
 const TOKEN_PATTERN = /^sgi_[A-Za-z0-9_-]{20,120}$/
-const PORT_PATTERN = /^\d{1,5}$/
 
 export interface InviteParams {
   host: string
@@ -19,41 +24,17 @@ export interface InviteParams {
   mirrorName: string | null
 }
 
-// Display-only text from the link: drop control characters, collapse whitespace and cap the
-// length (by code point, so an emoji is never cut in half). Rendered as React text, never HTML.
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g
-
-function cleanLabel(value: string | null): string | null {
-  if (!value) return null
-  const text = value.replace(CONTROL_CHARS, ' ').replace(/\s+/g, ' ').trim()
-  if (!text) return null
-  const chars = Array.from(text)
-  return chars.length > MAX_LABEL_LENGTH
-    ? `${chars.slice(0, MAX_LABEL_LENGTH).join('').trimEnd()}…`
-    : text
-}
-
 /**
  * Parse the invite from the URL fragment: #h=<host>&p=<port>&t=<token>&n=<name>&m=<mirror>.
  * The values live in the fragment so the single-use token never reaches a server, logs or
  * analytics. Returns null when a required value is missing or malformed.
  */
 export function parseInviteHash(hash: string): InviteParams | null {
-  const params = new URLSearchParams(hash.replace(/^#/, ''))
-  const host = params.get('h')?.trim() ?? ''
+  const params = hashParams(hash)
+  const host = parseHost(params.get('h'))
+  const port = parsePort(params.get('p'))
   const token = params.get('t')?.trim() ?? ''
-  const rawPort = params.get('p')?.trim() ?? ''
-
-  if (!HOST_PATTERN.test(host) || host.length > 253) return null
-  if (!TOKEN_PATTERN.test(token)) return null
-
-  let port = DEFAULT_PORT
-  if (rawPort) {
-    if (!PORT_PATTERN.test(rawPort)) return null
-    port = Number(rawPort)
-    if (port < 1 || port > 65535) return null
-  }
+  if (!host || port === null || !TOKEN_PATTERN.test(token)) return null
 
   return {
     host,
@@ -68,35 +49,16 @@ export function appInviteUrl({ host, port, token }: InviteParams): string {
   return `${APP_URL_SCHEME}://invite?host=${encodeURIComponent(host)}&port=${encodeURIComponent(String(port))}&token=${encodeURIComponent(token)}`
 }
 
-function GetAppButton() {
-  if (APP_STORE_URL) {
-    return (
-      <a
-        href={APP_STORE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn btn-secondary w-full sm:w-auto"
-      >
-        Get the app
-      </a>
-    )
-  }
-  return (
-    <span aria-disabled="true" className="btn btn-secondary w-full sm:w-auto select-none">
-      Coming soon to the App Store
-    </span>
-  )
-}
-
 function InviteDetails({ invite }: { invite: InviteParams }) {
   const mirror = invite.mirrorName ?? 'a SkyGlass mirror'
+  const [platform] = useState(detectPlatform)
 
   const steps = [
     {
       title: 'Install the SkyGlass app',
-      body: APP_STORE_URL
-        ? 'Get it from the App Store on your iPhone.'
-        : "The app isn't on the App Store yet. Ask whoever invited you how to get it.",
+      body: isAppAvailable(platform)
+        ? 'Get it from the App Store on iPhone or iPad, or from Google Play on Android.'
+        : "The app isn't in the App Store or Google Play yet. Ask whoever invited you how to get it.",
     },
     {
       title: 'Join the same WiFi as the mirror',
@@ -104,7 +66,7 @@ function InviteDetails({ invite }: { invite: InviteParams }) {
     },
     {
       title: 'Tap "Open in SkyGlass app"',
-      body: 'If you just installed the app, come back to this link and tap the button again.',
+      body: 'If you just installed the app, come back to this link and open it again.',
     },
   ]
 
@@ -141,25 +103,13 @@ function InviteDetails({ invite }: { invite: InviteParams }) {
           <a href={appInviteUrl(invite)} className="btn btn-primary w-full sm:w-auto">
             Open in SkyGlass app
           </a>
-          <GetAppButton />
+          <StoreButtons platform={platform} />
         </div>
       </section>
 
       <section className="pt-4">
         <h2 className="text-xl font-normal text-fg mb-4">How to accept</h2>
-        <ol className="border-b border-line">
-          {steps.map((step, index) => (
-            <li key={step.title} className="flex gap-4 py-4 border-t border-line">
-              <span className="w-7 h-7 flex-shrink-0 rounded-full border border-line-strong text-fg-2 font-mono text-sm flex items-center justify-center">
-                {index + 1}
-              </span>
-              <div className="min-w-0">
-                <p className="text-fg">{step.title}</p>
-                <p className="text-sm text-fg-2">{step.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <StepList steps={steps} />
       </section>
 
       <p className="text-xs text-fg-3">

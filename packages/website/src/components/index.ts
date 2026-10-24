@@ -15,3 +15,13 @@ export { ErrorBoundary, ErrorFallback } from './ErrorBoundary'
 
 // Site chrome shared by every page
 export { Logo, PageHeader, SiteFooter } from './site'
+
+// App links (/app, /connect, /invite)
+export {
+  StoreButtons,
+  detectPlatform,
+  isAppAvailable,
+  storesFor,
+  type Platform,
+} from './StoreButtons'
+export { StepList, type Step } from './StepList'

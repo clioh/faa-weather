@@ -3,10 +3,11 @@
 
 User-agent: *
 Allow: /
-# Private pages: admin, checkout, license sign-in links, invite links
+# Private pages: admin, checkout, license sign-in links, invite and pairing links
 Disallow: /admin
 Disallow: /checkout
 Disallow: /license
 Disallow: /invite
+Disallow: /connect
 
 Sitemap: https://skyglass.dev/sitemap.xml
