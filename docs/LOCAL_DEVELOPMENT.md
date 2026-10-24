@@ -41,7 +41,7 @@ throwaway files.
 | `SKYGLASS_LICENSE_PUBLIC_KEY`     | embedded key                              | PEM (or base64 PEM) that license tokens are verified with                                      |
 | `SKYGLASS_ORIENTATION_FILE`       | `/boot/firmware/skyglass-orientation.txt` | Pre-flashed orientation, used until `config.yaml` sets one                                     |
 | `SKYGLASS_ADMIN_URL`              | `http://127.0.0.1:5000`                   | Presence/admin server the backend proxies to                                                   |
-| `SKYGLASS_DEV_APP_URL`            | -                                         | Deep link in the pairing QR (`npm run dev:e2e` sets it so Expo Go opens the dev build)         |
+| `SKYGLASS_DEV_APP_URL`            | -                                         | Overrides the pairing QR link (`npm run dev:e2e` sets it so Expo Go opens the dev build)       |
 | `GITHUB_REPO`                     | `clioh/skyglass`                          | Repository whose releases the updater installs                                                 |
 | `GITHUB_API_BASE`                 | `https://api.github.com`                  | GitHub API base for the updater (_test_: a local fake)                                         |
 | `SKYGLASS_UPDATE_TEMP_DIR`        | `.update-temp/`                           | Where the updater downloads releases                                                           |
@@ -208,6 +208,10 @@ What that means on a dev machine:
 - The Vite proxy forwards the browser's address (`xfwd`), so opening the
   mirror UI from another computer (`http://<laptop-ip>:5173`) gets 401s and
   shows no data (a browser cannot pair); view the mirror on the laptop itself.
+- `npm run dev` / `dev:mirror`: the QR is the production link,
+  `https://skyglass.dev/connect#h=<ip>&p=3001&m=<mirror name>&pair=<secret>`
+  (origin from `skyglass_service`), which opens an installed store or
+  TestFlight build through Universal Links / App Links, not Expo Go.
 - `npm run dev:e2e`: the QR on the mirror's setup screen (and the one printed
   in the terminal) is `exp://<ip>:8081/--/connect?host=<ip>&port=3001&pair=<secret>`;
   scanning it opens Expo Go and pairs the phone in one step. The secret is

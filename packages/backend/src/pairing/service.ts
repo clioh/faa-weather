@@ -2,7 +2,7 @@
  * Phone pairing (docs/SECURITY.md, "Port 3001").
  *
  * A phone becomes trusted by proving it can see the mirror's screen:
- *   - QR: the mirror shows skyglass://connect?...&pair=<secret>; the phone
+ *   - QR: the mirror shows https://skyglass.dev/connect#h=...&pair=<secret>; the phone
  *     POSTs the secret to /api/pairing/claim. 128-bit, single use, rotates
  *     every 10 minutes and right after a claim.
  *   - Code: the phone POSTs /api/pairing/request, the mirror shows a 6-digit

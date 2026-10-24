@@ -72,6 +72,13 @@ export function ProvisioningScreen({
               ? 'The mirror can’t reach its saved Wi-Fi network and keeps retrying it. To use a different network, join the mirror’s setup network.'
               : 'Once the mirror is online, finish setup in the SkyGlass app on your phone.'}
           </p>
+          {/* The setup network has no internet, so the store is out of reach
+              once the phone joins it: get the app first. */}
+          <div className="sg-hotspot__first">
+            <div className="sg-hotspot__step">Before you start · Get the SkyGlass app</div>
+            <div className="sg-hotspot__value">skyglass.dev/app</div>
+            <div className="sg-hotspot__hint">Before you join {ssid}: it has no internet.</div>
+          </div>
           <div className="sg-hotspot__waiting" role="status">
             Waiting for setup{dots}
           </div>

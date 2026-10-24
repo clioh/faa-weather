@@ -185,13 +185,24 @@ software updates, unpair phones.
 Both require seeing the mirror's screen.
 
 **QR (primary).** The mirror (local) fetches `GET /api/pairing/qr` → `{ url,
-expiresAt }` where `url` is the connect deep link plus `&pair=<secret>`:
-`skyglass://connect?host=<ip>&port=3001&pair=<secret>`, or under
-`npm run dev:e2e` (`SKYGLASS_DEV_APP_URL`) the Expo form
-`exp://<ip>:8081/--/connect?host=<ip>&port=3001&pair=<secret>`. The secret
+expiresAt }` where `url` is the pairing link plus the secret:
+`https://skyglass.dev/connect#h=<host>&p=3001&m=<mirror name>&pair=<secret>`
+(each value `encodeURIComponent`-encoded; the site is the origin of
+`skyglass_service`, so a staging service gets matching links). Everything
+sits in the URL fragment, which browsers never send, so the secret and the
+mirror's address don't reach the website's server, logs or analytics. With
+the app installed the phone's camera opens it directly (iOS Universal Links,
+Android App Links); without it, the page offers the store, and once the app
+is installed scanning again pairs. Under `npm run dev:e2e`
+(`SKYGLASS_DEV_APP_URL`) the link is the Expo form
+`exp://<ip>:8081/--/connect?host=<ip>&port=3001&pair=<secret>` (or
+`skyglass://connect?...&pair=` with `--device`), with the secret as a query
+parameter. The secret
 is 128 random bits, single use, and rotates every 10 minutes and right after a
 claim; each rotation sends the WebSocket event `pairing { state:
-'qr-rotated' }` to local sockets so the mirror re-fetches. The phone sends
+'qr-rotated' }` to local sockets so the mirror re-fetches. As before, anyone
+who can see or photograph the QR on the screen can pair with it until it is
+used or rotates; the link being a web URL changes nothing there. The phone sends
 `POST /api/pairing/claim { secret, deviceName }` → `{ deviceId, token,
 mirror: { id, name } }`; a wrong or used secret gives `400 { error:
 'invalid_pairing_code' }`.

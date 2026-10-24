@@ -2,6 +2,8 @@
  * Provisioning (hotspot) screen: docs/design/mockups/M-Hotspot-L/P.
  * Landscape: text left, the two QR codes side by side on the right.
  * Portrait: QR codes stacked on top, each with its label beside it.
+ * "Get the app first" sits in the text column in both (no QR: the phone can
+ * reach the store only before it joins the setup network).
  */
 
 .sg-hotspot__codes {
@@ -46,6 +48,20 @@
   font-size: var(--setup-kicker);
   color: var(--setup-ink-faint);
   padding-top: calc(180 * var(--setup-px));
+}
+
+.sg-hotspot__first {
+  display: flex;
+  flex-direction: column;
+  gap: calc(12 * var(--setup-px));
+  padding: calc(27 * var(--setup-px)) 0;
+  max-width: calc(840 * var(--setup-px));
+  border-top: 1px solid var(--color-hairline);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.sg-hotspot__first .sg-hotspot__step {
+  order: 0;
 }
 
 .sg-hotspot__waiting {

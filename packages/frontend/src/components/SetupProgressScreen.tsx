@@ -202,6 +202,7 @@ export function SetupProgressScreen({ license, onSetupComplete }: SetupProgressS
   });
 
   const phoneCaption = 'Continue setup in the SkyGlass app on your phone.';
+  const scanCaption = 'Scan with your phone camera to continue setup.';
 
   return (
     <SetupFrame
@@ -226,10 +227,11 @@ export function SetupProgressScreen({ license, onSetupComplete }: SetupProgressS
         </div>
 
         {/* Connect QR with a one-time pairing secret (GET /api/pairing/qr);
-            in `npm run dev:e2e` it opens the Expo dev build instead. */}
+            opens the app, or skyglass.dev/connect without it; in `npm run dev:e2e`
+            it opens the Expo dev build instead. */}
         <div className="sg-panel sg-first">
           <PairingQr
-            caption={phoneCaption}
+            caption={scanCaption}
             fallback={<p className="sg-caption">{phoneCaption}</p>}
           />
         </div>

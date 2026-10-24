@@ -63,6 +63,17 @@ Details are in `docs/CALENDAR.md` and `docs/CLOUD_SERVICE.md`.
 - [ ] **Choose the canonical domain.** `skyglass.dev` redirects to `www.skyglass.dev` today. The mirror
       handles that one hop, but `skyglass_service` in `config/default.yaml` and the Google redirect
       URI should name the domain you keep.
+- [ ] **App links: fill in `packages/website/src/config/app.ts`** once the apps are registered:
+      `APPLE_TEAM_ID`, `ANDROID_CERT_SHA256`, `APP_STORE_URL`, `PLAY_STORE_URL`. The mirror's pairing
+      QR is `https://skyglass.dev/connect#...`; until these are set the system camera opens the web
+      page instead of the app, and the page has no store buttons.
+- [ ] **Enable Associated Domains** on the App ID (`com.skyglass.app`) in the Apple Developer portal
+      and in the provisioning profiles.
+- [ ] **Serve `https://skyglass.dev/.well-known/apple-app-site-association` without a redirect.**
+      Apple's CDN doesn't follow redirects, and `skyglass.dev` redirects to `www` today (see the
+      canonical domain item above). The app lists both `skyglass.dev` and `www.skyglass.dev`, so pick
+      the canonical domain and make sure the file (and `/.well-known/assetlinks.json`) answers 200
+      on both hosts, or at least on the one the mirror's links use (`skyglass_service`'s origin).
 - [ ] **Smoke-test the deployed service:** `GET /api/oauth/config` lists both providers,
       `/api/data/notams?icao=KSAN` and `/api/data/stocks?symbols=AAPL` return data, none of the
       `/api/oauth/*` or `/api/data/*` responses carry `Access-Control-Allow-Origin`, and
@@ -167,6 +178,14 @@ passes unit tests and was reviewed, and the mirror was rendered in headless Chro
       out at once; set up a mirror through the `SkyGlass-Setup` hotspot and confirm the phone pairs
       when the mirror joins home WiFi. Check that photos load on Android, because they need an
       auth header.
+- [ ] Pairing QR as a web link (`https://skyglass.dev/connect#h&p&pair&m`), on iOS and Android:
+  - [ ] App installed: scanning with the system camera opens the app and pairs.
+  - [ ] App not installed: the camera opens skyglass.dev/connect with the store button; after
+        installing, scanning again pairs (or the app finds the mirror and pairs with the code).
+  - [ ] Scanning from inside the app's own scanner pairs.
+  - [ ] An invite link tapped in Messages opens the app.
+  - [ ] A link opened while the phone is on the `SkyGlass-Setup` hotspot (no internet) still opens
+        the installed app.
 - [ ] Unlink a mirror in My Mirrors with the mirror online: the phone disappears from Paired
       phones on another phone (or the mirror's `data/paired-devices.json`) at once. Then unlink one
       while the mirror is off or unreachable: removal finishes within about 3 seconds with no

@@ -25,6 +25,9 @@ import { validateBody } from '../middleware/validate.js';
 import { isLoopbackIp } from '../middleware/rateLimiter.js';
 import { getAuth, requireKind } from '../pairing/middleware.js';
 import { PairingError, type PairingService } from '../pairing/service.js';
+import { loadConfig } from '../config/index.js';
+import { getMirrorName } from '../db/index.js';
+import { DEFAULT_SKYGLASS_SERVICE, skyglassServiceUrl } from '../services/skyglass-service.js';
 
 // 1–60 printable characters: no control characters, line/paragraph
 // separators or bidi overrides (names are shown on the mirror and phones).
@@ -49,7 +52,7 @@ export const pairingRenameSchema = z.object({ name: deviceNameSchema });
 
 const DEVICE_ID = /^[0-9a-f-]{36}$/;
 
-/** The mirror's primary LAN IPv4 address, for the QR deep link. */
+/** The mirror's primary LAN IPv4 address, for the pairing QR link. */
 export function primaryLanIp(): string | null {
   const preferred = ['en0', 'eth0', 'wlan0', 'en1'];
   const candidates: { name: string; address: string }[] = [];
@@ -67,21 +70,90 @@ export function primaryLanIp(): string | null {
   return candidates[0]?.address ?? null;
 }
 
-/**
- * Deep link without the secret. SKYGLASS_DEV_APP_URL (set by
- * scripts/dev-e2e.mjs: exp://<ip>:8081/--/connect?host=<ip>&port=3001) wins
- * so Expo Go opens the dev build.
- */
-export function defaultConnectUrl(): string {
-  const dev = process.env.SKYGLASS_DEV_APP_URL;
-  if (dev) return dev;
-  const host = primaryLanIp() ?? 'skyglass.local';
-  const port = Number(process.env.PORT) || 3001;
-  return `skyglass://connect?host=${encodeURIComponent(host)}&port=${port}`;
+export interface ConnectUrlSources {
+  /** Site the link opens (origin of `skyglass_service`, default https://skyglass.dev). */
+  site?: () => string;
+  /** Shown by the connect page and the app before pairing (getMirrorName()). */
+  mirrorName?: () => string | null;
+  host?: () => string;
+  port?: () => number;
 }
 
+/**
+ * Origin of `skyglass_service` (path dropped), so a staging service gets
+ * matching links; https://skyglass.dev when unset, invalid or unreadable.
+ */
+export function connectSiteOrigin(
+  config: () => Parameters<typeof skyglassServiceUrl>[0] = loadConfig
+): string {
+  try {
+    const base = skyglassServiceUrl(config());
+    if (base) return new URL(base).origin;
+  } catch {
+    // Unreadable config: fall back to the default site.
+  }
+  return DEFAULT_SKYGLASS_SERVICE;
+}
+
+function safeMirrorName(): string | null {
+  try {
+    return getMirrorName();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `<site>/connect#h=<host>&p=<port>&m=<mirror name>`. Values sit in the
+ * fragment so nothing (least of all the pairing secret withPairSecret adds)
+ * reaches the web server, its logs or analytics. With the app installed the
+ * link opens it directly (Universal Links / App Links); without it the page
+ * offers the store.
+ */
+export function buildConnectUrl({
+  site,
+  host,
+  port,
+  mirrorName,
+}: {
+  site: string;
+  host: string;
+  port: number;
+  mirrorName?: string | null;
+}): string {
+  const params = [`h=${encodeURIComponent(host)}`, `p=${encodeURIComponent(String(port))}`];
+  if (mirrorName) params.push(`m=${encodeURIComponent(mirrorName)}`);
+  return `${site.replace(/\/+$/, '')}/connect#${params.join('&')}`;
+}
+
+/**
+ * Pairing link without the secret. SKYGLASS_DEV_APP_URL (set by
+ * scripts/dev-e2e.mjs: exp://<ip>:8081/--/connect?host=<ip>&port=3001, or
+ * skyglass://connect?... with --device) wins so the dev build opens.
+ */
+export function defaultConnectUrl(sources: ConnectUrlSources = {}): string {
+  const dev = process.env.SKYGLASS_DEV_APP_URL;
+  if (dev) return dev;
+  return buildConnectUrl({
+    site: sources.site ? sources.site() : connectSiteOrigin(),
+    host: sources.host ? sources.host() : (primaryLanIp() ?? 'skyglass.local'),
+    port: sources.port ? sources.port() : Number(process.env.PORT) || 3001,
+    mirrorName: (sources.mirrorName ?? safeMirrorName)(),
+  });
+}
+
+/**
+ * Adds `pair=<secret>`: inside the fragment for https links (so it stays off
+ * servers), as a query parameter for exp:// and skyglass:// links.
+ */
 export function withPairSecret(url: string, secret: string): string {
-  return `${url}${url.includes('?') ? '&' : '?'}pair=${encodeURIComponent(secret)}`;
+  const param = `pair=${encodeURIComponent(secret)}`;
+  const hash = url.indexOf('#');
+  if (hash !== -1) {
+    const sep = hash === url.length - 1 || url.endsWith('&') ? '' : '&';
+    return `${url}${sep}${param}`;
+  }
+  return `${url}${url.includes('?') ? '&' : '?'}${param}`;
 }
 
 /** claim/request/complete: 10 per 5 minutes per client, 60 per 5 minutes overall. */
@@ -128,13 +200,14 @@ export interface PairingRouterOptions {
   service: PairingService;
   /** Rate limiters for claim/request/complete (default: createPairingLimiters()). */
   limiters?: RequestHandler[];
+  /** Pairing link without the secret (default: defaultConnectUrl). */
   connectUrl?: () => string;
 }
 
 export function createPairingRouter({
   service,
   limiters,
-  connectUrl = defaultConnectUrl,
+  connectUrl = () => defaultConnectUrl(),
 }: PairingRouterOptions): Router {
   const router = Router();
   const limit = limiters ?? createPairingLimiters();

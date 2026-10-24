@@ -7,7 +7,14 @@ import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { PairingService, type PairingEvent } from '../pairing/service.js';
 import { apiAuthGate } from '../pairing/middleware.js';
-import { createPairingRouter, createPairingLimiters, withPairSecret } from './pairing.js';
+import {
+  buildConnectUrl,
+  connectSiteOrigin,
+  createPairingRouter,
+  createPairingLimiters,
+  defaultConnectUrl,
+  withPairSecret,
+} from './pairing.js';
 
 let dir: string;
 let service: PairingService;
@@ -33,7 +40,7 @@ async function startApp(limiters: express.RequestHandler[] = []): Promise<void> 
     createPairingRouter({
       service,
       limiters,
-      connectUrl: () => 'skyglass://connect?host=10.0.0.5&port=3001',
+      connectUrl: () => 'https://skyglass.dev/connect#h=10.0.0.5&p=3001&m=Hall%20Mirror',
     })
   );
   app.get('/api/config', (_req, res) => res.json({ ok: true }));
@@ -80,12 +87,15 @@ describe('pairing routes', () => {
     const qr = await call('GET', '/api/pairing/qr');
     expect(qr.status).toBe(200);
     expect(qr.body.url).toMatch(
-      /^skyglass:\/\/connect\?host=10\.0\.0\.5&port=3001&pair=[A-Za-z0-9_-]{22}$/
+      /^https:\/\/skyglass\.dev\/connect#h=10\.0\.0\.5&p=3001&m=Hall%20Mirror&pair=[A-Za-z0-9_-]{22}$/
     );
     expect(typeof qr.body.expiresAt).toBe('number');
-    const secret = new URL(qr.body.url.replace('skyglass://', 'http://x/')).searchParams.get(
-      'pair'
-    )!;
+    const link = new URL(qr.body.url);
+    expect(link.search).toBe('');
+    const fragment = new URLSearchParams(link.hash.slice(1));
+    expect(fragment.get('h')).toBe('10.0.0.5');
+    expect(fragment.get('m')).toBe('Hall Mirror');
+    const secret = fragment.get('pair')!;
 
     expect((await call('GET', '/api/config', { headers: LAN })).body).toEqual({
       error: 'pairing_required',
@@ -280,10 +290,121 @@ describe('pairing routes', () => {
 });
 
 describe('withPairSecret', () => {
-  it('appends to links with or without a query', () => {
+  it('appends to the fragment of https links', () => {
+    expect(withPairSecret('https://skyglass.dev/connect#h=10.0.0.5&p=3001', 'a-b_c')).toBe(
+      'https://skyglass.dev/connect#h=10.0.0.5&p=3001&pair=a-b_c'
+    );
+    expect(withPairSecret('https://skyglass.dev/connect#', 'abc')).toBe(
+      'https://skyglass.dev/connect#pair=abc'
+    );
+  });
+
+  it('appends a query parameter to dev links, with or without a query', () => {
     expect(withPairSecret('exp://10.0.0.5:8081/--/connect?host=10.0.0.5&port=3001', 'abc')).toBe(
       'exp://10.0.0.5:8081/--/connect?host=10.0.0.5&port=3001&pair=abc'
     );
+    expect(withPairSecret('skyglass://connect?host=10.0.0.5&port=3001&reset=1a2b', 'abc')).toBe(
+      'skyglass://connect?host=10.0.0.5&port=3001&reset=1a2b&pair=abc'
+    );
     expect(withPairSecret('skyglass://connect', 'abc')).toBe('skyglass://connect?pair=abc');
+  });
+});
+
+describe('buildConnectUrl', () => {
+  const fragmentOf = (url: string) => new URLSearchParams(new URL(url).hash.slice(1));
+
+  it('puts host, port and mirror name in the fragment', () => {
+    expect(
+      buildConnectUrl({
+        site: 'https://skyglass.dev',
+        host: '192.168.1.20',
+        port: 3001,
+        mirrorName: 'Hall',
+      })
+    ).toBe('https://skyglass.dev/connect#h=192.168.1.20&p=3001&m=Hall');
+    expect(
+      buildConnectUrl({ site: 'https://staging.skyglass.dev/', host: 'skyglass.local', port: 3001 })
+    ).toBe('https://staging.skyglass.dev/connect#h=skyglass.local&p=3001');
+  });
+
+  it('encodes mirror names with spaces, &, #, = and unicode', () => {
+    const name = 'Clio & Sam’s #1 = Mirror ✈ Zürich';
+    const url = buildConnectUrl({
+      site: 'https://skyglass.dev',
+      host: '10.0.0.5',
+      port: 3001,
+      mirrorName: name,
+    });
+    expect(url).not.toMatch(/[ ’✈ü]/);
+    expect(url.indexOf('#')).toBe(url.lastIndexOf('#'));
+    const f = fragmentOf(withPairSecret(url, 'sec'));
+    expect(f.get('m')).toBe(name);
+    expect(f.get('pair')).toBe('sec');
+    expect(f.get('h')).toBe('10.0.0.5');
+    expect(f.get('p')).toBe('3001');
+  });
+
+  it('encodes IPv6 addresses and hostnames', () => {
+    const v6 = buildConnectUrl({ site: 'https://skyglass.dev', host: 'fe80::1%en0', port: 3001 });
+    expect(v6).toBe('https://skyglass.dev/connect#h=fe80%3A%3A1%25en0&p=3001');
+    expect(fragmentOf(v6).get('h')).toBe('fe80::1%en0');
+    const named = buildConnectUrl({
+      site: 'https://skyglass.dev',
+      host: 'hall-mirror.local',
+      port: 8080,
+    });
+    expect(fragmentOf(named).get('h')).toBe('hall-mirror.local');
+    expect(fragmentOf(named).get('p')).toBe('8080');
+  });
+});
+
+describe('connectSiteOrigin', () => {
+  it('uses the skyglass_service origin, falling back to https://skyglass.dev', () => {
+    expect(
+      connectSiteOrigin(() => ({ skyglass_service: 'https://staging.skyglass.dev/api/' }))
+    ).toBe('https://staging.skyglass.dev');
+    expect(connectSiteOrigin(() => ({}))).toBe('https://skyglass.dev');
+    expect(connectSiteOrigin(() => ({ skyglass_service: 'http://skyglass.dev' }))).toBe(
+      'https://skyglass.dev'
+    );
+    expect(
+      connectSiteOrigin(() => {
+        throw new Error('no config');
+      })
+    ).toBe('https://skyglass.dev');
+  });
+});
+
+describe('defaultConnectUrl', () => {
+  const saved = process.env.SKYGLASS_DEV_APP_URL;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.SKYGLASS_DEV_APP_URL;
+    else process.env.SKYGLASS_DEV_APP_URL = saved;
+  });
+
+  it('builds the https link from the service origin and mirror name', () => {
+    delete process.env.SKYGLASS_DEV_APP_URL;
+    expect(
+      defaultConnectUrl({
+        site: () => 'https://staging.skyglass.dev',
+        host: () => '10.0.0.5',
+        port: () => 3001,
+        mirrorName: () => 'Hall Mirror',
+      })
+    ).toBe('https://staging.skyglass.dev/connect#h=10.0.0.5&p=3001&m=Hall%20Mirror');
+  });
+
+  it('takes the site from skyglass_service when none is given', () => {
+    delete process.env.SKYGLASS_DEV_APP_URL;
+    expect(
+      defaultConnectUrl({ host: () => '10.0.0.5', port: () => 3001, mirrorName: () => null })
+    ).toMatch(/^https:\/\/[^/]+\/connect#h=10\.0\.0\.5&p=3001$/);
+  });
+
+  it('keeps the dev exp:// link unchanged', () => {
+    const dev = 'exp://10.0.0.5:8081/--/connect?host=10.0.0.5&port=3001';
+    process.env.SKYGLASS_DEV_APP_URL = dev;
+    expect(defaultConnectUrl({ mirrorName: () => 'Hall' })).toBe(dev);
+    expect(withPairSecret(defaultConnectUrl(), 'abc')).toBe(`${dev}&pair=abc`);
   });
 });

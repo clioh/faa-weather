@@ -184,7 +184,7 @@ export function getSetupStatus(): SetupStatus {
  * GET /api/setup/status
  */
 router.get('/status', (_req, res) => {
-  // The setup screen's QR (connect + pair deep link) comes from GET
+  // The setup screen's QR (pairing link with its secret) comes from GET
   // /api/pairing/qr, which also honours SKYGLASS_DEV_APP_URL (dev-e2e).
   res.json(getSetupStatus());
 });
